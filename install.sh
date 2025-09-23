@@ -23,11 +23,11 @@ fi
 
 # Copy Red Hat contexts
 echo "📋 Installing Red Hat contexts..."
-curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/master/contexts/hatter-personality.md > "$PAI_ROOT/redhat/contexts/hatter-personality.md"
+curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/main/contexts/hatter-personality.md > "$PAI_ROOT/redhat/contexts/hatter-personality.md"
 
 # Copy Red Hat configuration
 echo "⚙️  Installing Red Hat configuration..."
-curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/master/config/models.yaml > "$PAI_ROOT/redhat/config/models.yaml"
+curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/main/config/models.yaml > "$PAI_ROOT/redhat/config/models.yaml"
 
 # Install Red Hat PAI scripts
 echo "🔧 Installing Red Hat workflow scripts..."
@@ -35,8 +35,8 @@ mkdir -p /tmp/redhat-pai-install
 cd /tmp/redhat-pai-install
 
 # Download all scripts
-curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/archive/master/hatter-pai-master.tar.gz | tar xz
-cp hatter-pai-master/bin/* "$PAI_ROOT/redhat/bin/"
+curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/archive/main/hatter-pai-main.tar.gz | tar xz
+cp hatter-pai-main/bin/* "$PAI_ROOT/redhat/bin/"
 
 # Make scripts executable
 chmod +x "$PAI_ROOT/redhat/bin/"*
@@ -75,7 +75,7 @@ cat > ~/.gemini/settings.json << 'SETTINGS_EOF'
 SETTINGS_EOF
 
 # Create GEMINI.md for Red Hat context
-curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/master/GEMINI.md > ~/GEMINI.md
+curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/main/GEMINI.md > ~/GEMINI.md
 
 echo "✅ Red Hat PAI installation complete!"
 echo ""
