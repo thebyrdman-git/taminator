@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Email Sync Automation
+# Automated email pulling and Hydra notification processing
+
+# Configuration
+EMAIL_DIR="$HOME/.claude/context/capture/email/gmail-gvaughn"
+LOG_FILE="$HOME/.claude/context/logs/email-sync.log"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")"
+
+# Function to log with timestamp
+log_msg() {
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $1" | tee -a "$LOG_FILE"
+}
+
+# Function to pull emails
+pull_emails() {
+    log_msg "Starting email pull..."
+    
+    # Use the new automated Gmail API sync
+    if pai-gmail-sync 2>&1 | tee -a "$LOG_FILE"; then
+        log_msg "Gmail API sync completed successfully"
+        echo "Current email count: $(notmuch count '*')"
+        
+        # Process Hydra notifications
+        log_msg "Processing Hydra notifications..."
+        
+        # Run email relevance scoring on new emails
+        log_msg "Running TAM relevance analysis on new emails..."
+        if command -v pai-email-relevance >/dev/null 2>&1; then
+            pai-email-relevance analyze 1 20 >> "$LOG_FILE" 2>&1 || log_msg "Email relevance analysis failed"
+        fi
+        if pai-hydra-processor --days 1 2>&1 | tee -a "$LOG_FILE"; then
+            log_msg "Hydra processing completed"
+        else
+            log_msg "ERROR: Hydra processing failed"
+        fi
+        
+        # Audit log the sync
+        pai-audit log "EMAIL_SYNC" "pull_completed hydra_processed"
+        
+    else
+        log_msg "ERROR: Email pull failed"
+        pai-audit log "EMAIL_SYNC_FAILED" "gmi_pull_error"
+        return 1
+    fi
+}
+
+# Function to setup systemd timer for automation
+setup_automation() {
+    local interval="${1:-15min}"
+    
+    log_msg "Setting up email sync automation every $interval..."
+    
+    # Create systemd service unit
+    cat > "$HOME/.config/systemd/user/pai-email-sync.service" << EOF
+[Unit]
+Description=PAI Email Sync and Hydra Processing
+Documentation=https://danielmiessler.com/blog/personal-ai-infrastructure
+
+[Service]
+Type=oneshot
+ExecStart=/home/grimm/.local/bin/pai-email-sync pull
+Environment="PATH=/home/grimm/.local/bin:/usr/bin:/bin"
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+# Working directory
+WorkingDirectory=/home/grimm/.claude/context/capture/email/gmail-gvaughn
+EOF
+
+    # Create systemd timer unit
+    cat > "$HOME/.config/systemd/user/pai-email-sync.timer" << EOF
+[Unit]
+Description=PAI Email Sync Timer
+Requires=pai-email-sync.service
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+    # Reload systemd and enable timer
+    systemctl --user daemon-reload
+    systemctl --user enable pai-email-sync.timer
+    systemctl --user start pai-email-sync.timer
+    
+    log_msg "Email sync automation enabled (every $interval)"
+    echo "✅ Email sync scheduled every $interval"
+    echo "Check status: systemctl --user status pai-email-sync.timer"
+    
+    pai-audit log "EMAIL_AUTOMATION" "interval=$interval enabled=true"
+}
+
+# Function to check sync status
+check_status() {
+    echo "PAI Email Sync Status:"
+    echo "====================="
+    
+    # Check timer status
+    if systemctl --user is-enabled pai-email-sync.timer >/dev/null 2>&1; then
+        echo "✅ Automation: Enabled"
+        local next_run=$(systemctl --user list-timers pai-email-sync.timer 2>/dev/null | grep pai-email-sync | awk '{print $1, $2}' | head -1)
+        if [[ -n "$next_run" ]]; then
+            echo "Next run: $next_run"
+        fi
+    else
+        echo "❌ Automation: Disabled"
+    fi
+    
+    # Check recent sync activity
+    if [[ -f "$LOG_FILE" ]]; then
+        echo ""
+        echo "Recent sync activity:"
+        tail -5 "$LOG_FILE"
+    fi
+    
+    # Check processed notifications
+    echo ""
+    echo "Recent Hydra notifications:"
+    pai-hydra-processor --list 2>/dev/null | head -5 || echo "No recent notifications"
+}
+
+# Function to disable automation
+disable_automation() {
+    log_msg "Disabling email sync automation..."
+    
+    systemctl --user stop pai-email-sync.timer 2>/dev/null || true
+    systemctl --user disable pai-email-sync.timer 2>/dev/null || true
+    
+    log_msg "Email sync automation disabled"
+    echo "✅ Email sync automation disabled"
+    
+    pai-audit log "EMAIL_AUTOMATION" "enabled=false disabled_by_user"
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    pull)
+        pull_emails
+        ;;
+    setup)
+        shift
+        interval="${1:-15min}"
+        setup_automation "$interval"
+        ;;
+    status)
+        check_status
+        ;;
+    disable)
+        disable_automation
+        ;;
+    help|--help|-h)
+        cat << 'EOF'
+PAI Email Sync Automation
+
+Usage: pai-email-sync <command> [options]
+
+Commands:
+  pull                      Pull emails and process Hydra notifications once
+  setup [interval]          Setup automated sync (default: 15min)
+  status                    Check automation status and recent activity
+  disable                   Disable automation
+  help                      Show this help
+
+Examples:
+  pai-email-sync pull                 # Manual sync
+  pai-email-sync setup 10min          # Setup every 10 minutes
+  pai-email-sync setup 30min          # Setup every 30 minutes
+  pai-email-sync status               # Check status
+  pai-email-sync disable             # Disable automation
+
+Features:
+  - Automated Gmail pulling with lieer
+  - Hydra notification processing and conversion
+  - Systemd timer-based scheduling
+  - Comprehensive logging and audit trails
+  - Error handling and recovery
+
+Output Locations:
+  - Processed Hydra notifications: ~/.claude/context/capture/hydra/
+  - Sync logs: ~/.claude/context/logs/email-sync.log
+  - Audit logs: ~/.claude/context/logs/pai-audit.log
+
+Integration:
+  - Works with pai-hydra-processor for notification parsing
+  - Integrates with pai-audit for security logging
+  - Compatible with pai-my-plate-v2 for daily briefings
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-email-sync help' for usage"
+        exit 1
+        ;;
+esac

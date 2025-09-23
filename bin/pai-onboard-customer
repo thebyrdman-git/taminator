@@ -1,0 +1,459 @@
+#!/bin/bash
+
+# pai-onboard-customer - Automated customer onboarding workflow
+# Handles PAI automation steps (5-8) of the customer onboarding process
+
+set -euo pipefail
+
+# Configuration
+PAI_BASE="$HOME/Documents/rh/projects"
+TEMPLATES_DIR="$HOME/.claude/context/templates"
+LOG_FILE="$HOME/.claude/context/logs/customer-onboarding.log"
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Logging
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
+}
+
+info() { echo -e "${BLUE}→ $1${NC}"; log "INFO: $1"; }
+success() { echo -e "${GREEN}✓ $1${NC}"; log "SUCCESS: $1"; }
+warn() { echo -e "${YELLOW}⚠ $1${NC}" >&2; log "WARN: $1"; }
+error() { echo -e "${RED}Error: $1${NC}" >&2; log "ERROR: $1"; exit 1; }
+
+usage() {
+    cat << EOF
+PAI Customer Onboarding Automation
+
+Usage: pai-onboard-customer <command> [options]
+
+Commands:
+    init <customer> <account> <specialty>    Initialize customer onboarding
+    vat-contacts <customer> <emails-file>    Process VAT contacts (Step 6)
+    customer-contacts <customer> <emails-file>  Process customer contacts (Step 7)
+    sso-lookup <customer>                    Resolve SSO usernames (Step 8)
+    status <customer>                        Check onboarding progress
+    complete <customer>                      Generate completion report
+
+Options:
+    -h, --help                Show this help
+
+Examples:
+    # Start onboarding for NewCorp
+    pai-onboard-customer init newcorp 1234567 tam-ocp
+
+    # Process VAT member emails
+    pai-onboard-customer vat-contacts newcorp vat-emails.txt
+
+    # Process customer emails
+    pai-onboard-customer customer-contacts newcorp customer-emails.txt
+
+    # Resolve all SSO usernames
+    pai-onboard-customer sso-lookup newcorp
+
+    # Check progress
+    pai-onboard-customer status newcorp
+
+EOF
+}
+
+init_customer() {
+    local customer="$1"
+    local account="$2"
+    local specialty="$3"
+
+    info "Initializing onboarding for $customer (Account: $account, Specialty: $specialty)"
+
+    # Step 5: Create folder structure
+    local customer_dir="$PAI_BASE/$specialty/$customer"
+
+    if [[ -d "$customer_dir" ]]; then
+        warn "Customer directory already exists: $customer_dir"
+    else
+        info "Creating folder structure..."
+        mkdir -p "$customer_dir"/{account-info,casework/{active,closed},communications,coordination,strategic}
+        success "Created folder structure: $customer_dir"
+    fi
+
+    # Create onboarding checklist from template
+    local checklist="$customer_dir/onboarding-checklist.md"
+    if [[ -f "$TEMPLATES_DIR/customer-onboarding-checklist.md" ]]; then
+        sed -e "s/{CUSTOMER_NAME}/$customer/g" \
+            -e "s/{ACCOUNT_NUMBER}/$account/g" \
+            -e "s/{TAM_SPECIALTY}/$specialty/g" \
+            -e "s/{START_DATE}/$(date +%Y-%m-%d)/g" \
+            -e "s/{TARGET_DATE}/$(date -d '+3 weeks' +%Y-%m-%d)/g" \
+            "$TEMPLATES_DIR/customer-onboarding-checklist.md" > "$checklist"
+        success "Created onboarding checklist: $checklist"
+    fi
+
+    # Add to PAI projects tracking
+    info "Add onboarding project to PAI tracking with:"
+    echo "pai-projects  # (manually add $customer-onboarding project to projects.yaml)"
+
+    log "Initialized onboarding for $customer (Account: $account)"
+}
+
+process_vat_contacts() {
+    local customer="$1"
+    local emails_file="$2"
+    local customer_dir=$(find "$PAI_BASE" -name "$customer" -type d | head -1)
+
+    if [[ -z "$customer_dir" ]]; then
+        error "Customer directory not found. Run 'init' first."
+    fi
+
+    if [[ ! -f "$emails_file" ]]; then
+        error "Emails file not found: $emails_file"
+    fi
+
+    info "Processing VAT contacts for $customer..."
+
+    # Create VAT contacts file
+    local vat_file="$customer_dir/strategic/$customer-vat-contacts"
+    cp "$emails_file" "$vat_file"
+
+    # Label contacts in Google Contacts
+    info "Labeling VAT contacts in Google Contacts..."
+    if cat "$vat_file" | pai-contacts-label --label "$customer-vat"; then
+        success "VAT contacts labeled successfully"
+    else
+        warn "Contact labeling had issues - check output above"
+    fi
+
+    # Create VAT.md documentation
+    local vat_doc="$customer_dir/account-info/VAT.md"
+    cat > "$vat_doc" << EOF
+# Virtual Account Team - $customer
+
+**Account**: $customer (Account Number: TBD)
+**TAM Specialty**: $(basename $(dirname "$customer_dir"))
+**Last Updated**: $(date +%Y-%m-%d)
+
+## VAT Members
+
+EOF
+
+    # Add each contact to VAT.md
+    while IFS= read -r email; do
+        if [[ -n "$email" ]]; then
+            echo "- $email" >> "$vat_doc"
+        fi
+    done < "$vat_file"
+
+    success "Created VAT documentation: $vat_doc"
+    log "Processed VAT contacts for $customer: $(wc -l < "$vat_file") contacts"
+}
+
+process_customer_contacts() {
+    local customer="$1"
+    local emails_file="$2"
+    local customer_dir=$(find "$PAI_BASE" -name "$customer" -type d | head -1)
+
+    if [[ -z "$customer_dir" ]]; then
+        error "Customer directory not found. Run 'init' first."
+    fi
+
+    if [[ ! -f "$emails_file" ]]; then
+        error "Emails file not found: $emails_file"
+    fi
+
+    info "Processing customer contacts for $customer..."
+
+    # Create customer contacts file
+    local customer_file="$customer_dir/strategic/$customer-customer-contacts"
+    cp "$emails_file" "$customer_file"
+
+    # Label contacts in Google Contacts
+    info "Labeling customer contacts in Google Contacts..."
+    if cat "$customer_file" | pai-contacts-label --label "$customer-cust"; then
+        success "Customer contacts labeled successfully"
+    else
+        warn "Contact labeling had issues - check output above"
+    fi
+
+    # Create/update contacts.csv
+    local contacts_csv="$customer_dir/account-info/contacts.csv"
+    if [[ ! -f "$contacts_csv" ]]; then
+        echo "Name,Role,Email,Phone,Location,Notes" > "$contacts_csv"
+    fi
+
+    # Add customer contacts to CSV (basic format)
+    while IFS= read -r email; do
+        if [[ -n "$email" ]]; then
+            echo ",$email,$email,,,Customer Contact - needs completion" >> "$contacts_csv"
+        fi
+    done < "$customer_file"
+
+    success "Updated customer contacts: $contacts_csv"
+    log "Processed customer contacts for $customer: $(wc -l < "$customer_file") contacts"
+}
+
+sso_lookup() {
+    local customer="$1"
+    local customer_dir=$(find "$PAI_BASE" -name "$customer" -type d | head -1)
+
+    if [[ -z "$customer_dir" ]]; then
+        error "Customer directory not found. Run 'init' first."
+    fi
+
+    info "Resolving SSO usernames for $customer..."
+
+    local strategic_dir="$customer_dir/strategic"
+    local vat_file="$strategic_dir/$customer-vat-contacts"
+    local customer_file="$strategic_dir/$customer-customer-contacts"
+    local all_contacts="$strategic_dir/$customer-all-contacts"
+    local sso_results="$strategic_dir/$customer-sso-usernames"
+
+    # Check if contact files exist
+    if [[ ! -f "$vat_file" ]] && [[ ! -f "$customer_file" ]]; then
+        error "No contact files found. Run vat-contacts and customer-contacts first."
+    fi
+
+    # Create aggregate contact file
+    > "$all_contacts"
+    if [[ -f "$vat_file" ]]; then
+        echo "# VAT Contacts" >> "$all_contacts"
+        cat "$vat_file" >> "$all_contacts"
+        echo "" >> "$all_contacts"
+    fi
+    if [[ -f "$customer_file" ]]; then
+        echo "# Customer Contacts" >> "$all_contacts"
+        cat "$customer_file" >> "$all_contacts"
+    fi
+
+    # Process SSO lookups
+    info "Processing $(wc -l < "$all_contacts") contacts for SSO usernames..."
+    > "$sso_results"
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^#.* ]]; then
+            echo "$line" >> "$sso_results"
+        elif [[ -n "$line" ]]; then
+            echo "  Processing: $line"
+            result=$(pai-email-to-sso "$line" 2>&1 | grep -v "LOOKUP_FAILED" | head -1)
+            echo "$line -> $result" >> "$sso_results"
+            sleep 1
+        else
+            echo "" >> "$sso_results"
+        fi
+    done < "$all_contacts"
+
+    success "SSO usernames resolved: $sso_results"
+
+    # Count results
+    local total_contacts=$(grep -c "@" "$all_contacts" || echo "0")
+    local found_usernames=$(grep -c " -> " "$sso_results" | grep -v "NOT FOUND" || echo "0")
+
+    info "Results: $found_usernames/$total_contacts usernames resolved"
+    log "SSO lookup completed for $customer: $found_usernames/$total_contacts resolved"
+}
+
+check_status() {
+    local customer="$1"
+    local customer_dir=$(find "$PAI_BASE" -name "$customer" -type d | head -1)
+
+    if [[ -z "$customer_dir" ]]; then
+        error "Customer directory not found: $customer"
+    fi
+
+    echo -e "${BLUE}📋 Onboarding Status: $customer${NC}"
+    echo "=================================================="
+
+    # Check folder structure
+    echo -e "${BLUE}📁 Folder Structure${NC}"
+    if [[ -d "$customer_dir" ]]; then
+        echo -e "${GREEN}✓ Customer directory created${NC}"
+        for subdir in account-info casework communications coordination strategic; do
+            if [[ -d "$customer_dir/$subdir" ]]; then
+                echo -e "${GREEN}✓ $subdir/${NC}"
+            else
+                echo -e "${RED}✗ $subdir/${NC}"
+            fi
+        done
+    else
+        echo -e "${RED}✗ Customer directory missing${NC}"
+    fi
+
+    echo
+
+    # Check contact processing
+    echo -e "${BLUE}👥 Contact Processing${NC}"
+    local strategic_dir="$customer_dir/strategic"
+
+    if [[ -f "$strategic_dir/$customer-vat-contacts" ]]; then
+        local vat_count=$(wc -l < "$strategic_dir/$customer-vat-contacts")
+        echo -e "${GREEN}✓ VAT contacts: $vat_count processed${NC}"
+    else
+        echo -e "${YELLOW}⚠ VAT contacts: not processed${NC}"
+    fi
+
+    if [[ -f "$strategic_dir/$customer-customer-contacts" ]]; then
+        local cust_count=$(wc -l < "$strategic_dir/$customer-customer-contacts")
+        echo -e "${GREEN}✓ Customer contacts: $cust_count processed${NC}"
+    else
+        echo -e "${YELLOW}⚠ Customer contacts: not processed${NC}"
+    fi
+
+    if [[ -f "$strategic_dir/$customer-sso-usernames" ]]; then
+        local sso_total=$(grep -c " -> " "$strategic_dir/$customer-sso-usernames" || echo "0")
+        local sso_found=$(grep -c " -> " "$strategic_dir/$customer-sso-usernames" | grep -v "NOT FOUND" || echo "0")
+        echo -e "${GREEN}✓ SSO usernames: $sso_found/$sso_total resolved${NC}"
+    else
+        echo -e "${YELLOW}⚠ SSO usernames: not processed${NC}"
+    fi
+
+    echo
+
+    # Check documentation
+    echo -e "${BLUE}📄 Documentation${NC}"
+    if [[ -f "$customer_dir/onboarding-checklist.md" ]]; then
+        echo -e "${GREEN}✓ Onboarding checklist created${NC}"
+    else
+        echo -e "${YELLOW}⚠ Onboarding checklist missing${NC}"
+    fi
+
+    if [[ -f "$customer_dir/account-info/VAT.md" ]]; then
+        echo -e "${GREEN}✓ VAT documentation created${NC}"
+    else
+        echo -e "${YELLOW}⚠ VAT documentation missing${NC}"
+    fi
+
+    echo
+    echo "Customer directory: $customer_dir"
+}
+
+generate_completion_report() {
+    local customer="$1"
+    local customer_dir=$(find "$PAI_BASE" -name "$customer" -type d | head -1)
+
+    if [[ -z "$customer_dir" ]]; then
+        error "Customer directory not found: $customer"
+    fi
+
+    local report_file="$customer_dir/onboarding-completion-report.md"
+
+    cat > "$report_file" << EOF
+# Customer Onboarding Completion Report
+
+**Customer**: $customer
+**Account**: TBD
+**Onboarding Date**: $(date +%Y-%m-%d)
+**TAM**: Grimm Greysson <gvaughn@redhat.com>
+
+## PAI Automation Steps Completed
+
+### ✅ Step 5: Folder Structure Created
+- Location: \`$customer_dir\`
+- Subdirectories: account-info, casework, communications, coordination, strategic
+- Status: Complete
+
+### Contact Processing Summary
+EOF
+
+    # Add contact statistics
+    local strategic_dir="$customer_dir/strategic"
+
+    if [[ -f "$strategic_dir/$customer-vat-contacts" ]]; then
+        local vat_count=$(wc -l < "$strategic_dir/$customer-vat-contacts")
+        echo "- **VAT Contacts**: $vat_count processed and labeled" >> "$report_file"
+    fi
+
+    if [[ -f "$strategic_dir/$customer-customer-contacts" ]]; then
+        local cust_count=$(wc -l < "$strategic_dir/$customer-customer-contacts")
+        echo "- **Customer Contacts**: $cust_count processed and labeled" >> "$report_file"
+    fi
+
+    if [[ -f "$strategic_dir/$customer-sso-usernames" ]]; then
+        local sso_total=$(grep -c " -> " "$strategic_dir/$customer-sso-usernames" || echo "0")
+        echo "- **SSO Usernames**: $sso_total resolved" >> "$report_file"
+    fi
+
+    cat >> "$report_file" << EOF
+
+## Manual Steps Remaining
+- [ ] **Step 9**: Add contacts to CPG (TAM manual step)
+- [ ] **Step 10**: Create and publish landing page (TAM manual step)
+
+## Files Generated
+- \`onboarding-checklist.md\` - Complete onboarding checklist
+- \`strategic/$customer-vat-contacts\` - VAT member emails
+- \`strategic/$customer-customer-contacts\` - Customer emails
+- \`strategic/$customer-sso-usernames\` - Portal username mappings
+- \`account-info/VAT.md\` - VAT member documentation
+- \`account-info/contacts.csv\` - Customer contact database
+
+## Next Steps for TAM
+1. Review SSO username results in \`strategic/$customer-sso-usernames\`
+2. Add all contacts to CPG using resolved usernames
+3. Create customer landing page in CPG
+4. Update onboarding checklist with completion status
+5. Schedule first customer technical discussion
+
+---
+**Generated**: $(date -Iseconds)
+**PAI Integration**: Complete
+**Ready for CPG finalization**: ✅
+EOF
+
+    success "Completion report generated: $report_file"
+}
+
+# Main command handling
+case "${1:-help}" in
+    init)
+        if [[ $# -ne 4 ]]; then
+            error "Usage: pai-onboard-customer init <customer> <account> <specialty>"
+        fi
+        init_customer "$2" "$3" "$4"
+        ;;
+
+    vat-contacts)
+        if [[ $# -ne 3 ]]; then
+            error "Usage: pai-onboard-customer vat-contacts <customer> <emails-file>"
+        fi
+        process_vat_contacts "$2" "$3"
+        ;;
+
+    customer-contacts)
+        if [[ $# -ne 3 ]]; then
+            error "Usage: pai-onboard-customer customer-contacts <customer> <emails-file>"
+        fi
+        process_customer_contacts "$2" "$3"
+        ;;
+
+    sso-lookup)
+        if [[ $# -ne 2 ]]; then
+            error "Usage: pai-onboard-customer sso-lookup <customer>"
+        fi
+        sso_lookup "$2"
+        ;;
+
+    status)
+        if [[ $# -ne 2 ]]; then
+            error "Usage: pai-onboard-customer status <customer>"
+        fi
+        check_status "$2"
+        ;;
+
+    complete)
+        if [[ $# -ne 2 ]]; then
+            error "Usage: pai-onboard-customer complete <customer>"
+        fi
+        generate_completion_report "$2"
+        ;;
+
+    help|-h|--help)
+        usage
+        ;;
+
+    *)
+        error "Unknown command: $1"
+        ;;
+esac

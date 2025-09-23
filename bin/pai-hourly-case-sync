@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Hourly Case Synchronization
+# Updates case directories every hour using rhcase CSV data
+
+ACCOUNTS=("bny" "cibc" "citi" "discover")
+BASE_DIR="$HOME/Documents/rh/projects/tam-ocp"
+
+echo "$(date): Starting hourly case sync..." >> ~/.claude/context/logs/pai-hourly-sync.log
+
+for account in "${ACCOUNTS[@]}"; do
+    account_dir="$BASE_DIR/$account/casework/active"
+    
+    if [[ -d "$account_dir" ]]; then
+        echo "$(date): Syncing $account cases..." >> ~/.claude/context/logs/pai-hourly-sync.log
+        
+        cd "$account_dir"
+        
+        # Get current active cases
+        if rhcase list "$account" -f csv > active.csv 2>/dev/null; then
+            # Process cases (create directories and run initial extractions)
+            if command -v process_cases.fish >/dev/null 2>&1; then
+                process_cases.fish active.csv >> ~/.claude/context/logs/pai-hourly-sync.log 2>&1 || true
+            fi
+            
+            echo "$(date): $account sync completed" >> ~/.claude/context/logs/pai-hourly-sync.log
+        else
+            echo "$(date): $account sync failed" >> ~/.claude/context/logs/pai-hourly-sync.log
+        fi
+    fi
+done
+
+echo "$(date): Hourly case sync completed" >> ~/.claude/context/logs/pai-hourly-sync.log

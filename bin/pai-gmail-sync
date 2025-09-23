@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""
+PAI Gmail Sync - Direct Gmail API sync bypassing gmailieer issues
+Uses your custom OAuth credentials for automated access
+"""
+
+import os
+import json
+import email
+import base64
+from datetime import datetime, timedelta
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+import pickle
+
+# Configuration
+SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+CREDENTIALS_FILE = '/home/grimm/.config/pai/secrets/client_secret_604570179581-e7njihorvctfebcfi6k57jr9c1km18vs.apps.googleusercontent.com.json'
+TOKEN_FILE = '/home/grimm/.claude/context/capture/email/gmail-gvaughn/token.pickle'
+EMAIL_DIR = '/home/grimm/.claude/context/capture/email/gmail-gvaughn/mail'
+OUTPUT_DIR = '/home/grimm/.claude/context/create/outputs/email/daily'
+
+def authenticate():
+    """Authenticate with Gmail API using stored refresh tokens"""
+    creds = None
+    
+    # Load existing token
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, 'rb') as token:
+            creds = pickle.load(token)
+    
+    # Check if credentials are valid or can be refreshed
+    if creds and creds.valid:
+        return build('gmail', 'v1', credentials=creds)
+    
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            print("Refreshing expired access token...")
+            creds.refresh(Request())
+            
+            # Save refreshed credentials
+            with open(TOKEN_FILE, 'wb') as token:
+                pickle.dump(creds, token)
+            
+            return build('gmail', 'v1', credentials=creds)
+        except Exception as e:
+            print(f"Token refresh failed: {e}")
+            # Fall through to manual auth
+    
+    # Only fall back to manual auth if no refresh token exists
+    print("ERROR: No valid refresh token found.")
+    print("Manual authentication required once to establish refresh token.")
+    print("After initial setup, this script will run unattended.")
+    
+    try:
+        flow = InstalledAppFlow.from_client_secrets_file(
+            CREDENTIALS_FILE, SCOPES)
+        creds = flow.run_local_server(port=8080)
+        
+        # Save credentials including refresh token
+        with open(TOKEN_FILE, 'wb') as token:
+            pickle.dump(creds, token)
+            
+        print("✓ Refresh token saved for future automated runs")
+        return build('gmail', 'v1', credentials=creds)
+        
+    except Exception as e:
+        print(f"Authentication failed: {e}")
+        raise
+
+def fetch_recent_emails(service, days=7, max_results=100):
+    """Fetch recent emails and save them locally"""
+    
+    # Calculate date range
+    since_date = (datetime.now() - timedelta(days=days)).strftime('%Y/%m/%d')
+    query = f'after:{since_date}'
+    
+    print(f"Fetching emails from last {days} days (max: {max_results})")
+    
+    # Get message list
+    try:
+        results = service.users().messages().list(
+            userId='me', q=query, maxResults=max_results).execute()
+        messages = results.get('messages', [])
+        
+        print(f"Found {len(messages)} messages")
+        
+        # Fetch each message
+        os.makedirs(EMAIL_DIR, exist_ok=True)
+        os.makedirs(f'{EMAIL_DIR}/cur', exist_ok=True)
+        
+        processed = 0
+        for msg in messages:
+            msg_id = msg['id']
+            
+            try:
+                # Get full message
+                message = service.users().messages().get(
+                    userId='me', id=msg_id, format='raw').execute()
+                
+                # Decode message
+                msg_str = base64.urlsafe_b64decode(message['raw']).decode('utf-8')
+                
+                # Parse email
+                email_msg = email.message_from_string(msg_str)
+                
+                # Save to maildir format
+                filename = f'{EMAIL_DIR}/cur/{msg_id}:2,'
+                with open(filename, 'w') as f:
+                    f.write(msg_str)
+                
+                processed += 1
+                if processed % 10 == 0:
+                    print(f"Processed {processed}/{len(messages)} emails")
+                    
+            except Exception as e:
+                print(f"Error processing message {msg_id}: {e}")
+                continue
+        
+        print(f"Successfully synced {processed} emails")
+        
+        # Update notmuch database
+        os.system(f"cd {EMAIL_DIR}/.. && notmuch new")
+        
+        return processed
+        
+    except Exception as e:
+        print(f"Error fetching emails: {e}")
+        return 0
+
+def main():
+    """Main sync function"""
+    try:
+        # Authenticate
+        service = authenticate()
+        
+        # Fetch recent emails
+        count = fetch_recent_emails(service, days=7, max_results=200)
+        
+        print(f"Gmail sync completed: {count} emails processed")
+        
+    except Exception as e:
+        print(f"Gmail sync failed: {e}")
+        return 1
+    
+    return 0
+
+if __name__ == '__main__':
+    exit(main())

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Basic PAI Case Initial Screen - creates a simple template
+# For enhanced version with AI assistance, use: pai-case-initial-screen-v2
+
+IN_DIR="$HOME/.claude/context/capture"
+OUT_DIR="$HOME/.claude/context/create/outputs/plans"
+mkdir -p "$OUT_DIR"
+
+ts=$(date -u +%FT%TZ)
+out="$OUT_DIR/case-initial-screen-$ts.md"
+
+echo "---" > "$out"
+echo "title: Case Initial Screen ($ts)" >> "$out"
+echo "tags: [case,initial-screen]" >> "$out"
+echo "---" >> "$out"
+echo >> "$out"
+cat <<\EOF >> "$out"
+Checklist:
+- Is SBR correct?
+- Are subscriptions/tags/severity correct?
+- Clarifying questions prepared?
+- Attach KCS/Jira links?
+
+Outputs:
+- Basic understanding of issue and business impact
+- KCS/Jira references
+- Action Plan next steps
+EOF

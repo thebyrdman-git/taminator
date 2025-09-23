@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+
+"""
+pai-projects - TAM Non-Case Project Tracker
+Manage and display TAM projects, tasks, and commitments
+"""
+
+import yaml
+import json
+import sys
+import argparse
+from datetime import datetime, date
+from pathlib import Path
+import os
+
+# Configuration
+PROJECTS_FILE = Path.home() / ".claude/context/create/outputs/projects/projects.yaml"
+LOG_FILE = Path.home() / ".claude/context/logs/projects.log"
+
+def log_action(action):
+    """Log project actions for audit trail"""
+    timestamp = datetime.now().isoformat()
+    log_entry = f"{timestamp}: {action}\n"
+
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(LOG_FILE, 'a') as f:
+        f.write(log_entry)
+
+def load_projects():
+    """Load projects from YAML file"""
+    if not PROJECTS_FILE.exists():
+        print(f"Projects file not found: {PROJECTS_FILE}")
+        return {}
+
+    with open(PROJECTS_FILE, 'r') as f:
+        return yaml.safe_load(f)
+
+def save_projects(data):
+    """Save projects to YAML file"""
+    PROJECTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(PROJECTS_FILE, 'w') as f:
+        yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+
+def display_summary():
+    """Display project summary dashboard"""
+    data = load_projects()
+    if not data or 'projects' not in data:
+        print("No projects found.")
+        return
+
+    projects = data['projects']
+
+    print("🎯 TAM Project Dashboard")
+    print("=" * 50)
+
+    # Count by category and priority
+    customer_count = len([p for p in projects.values() if p.get('category') == 'customer'])
+    internal_count = len([p for p in projects.values() if p.get('category') == 'redhat-internal'])
+    personal_count = len([p for p in projects.values() if p.get('category') == 'personal'])
+
+    high_priority = len([p for p in projects.values() if p.get('priority') == 'high'])
+
+    print(f"📊 Overview: {len(projects)} projects | {high_priority} high priority")
+    print(f"   Customer: {customer_count} | Internal: {internal_count} | Personal: {personal_count}")
+    print()
+
+    # Display by category
+    categories = {
+        'customer': '🏢 Customer Projects',
+        'redhat-internal': '🔴 Red Hat Internal',
+        'personal': '👤 Personal Tasks'
+    }
+
+    for category, title in categories.items():
+        print(f"{title}")
+        print("-" * 30)
+
+        cat_projects = {k: v for k, v in projects.items() if v.get('category') == category}
+
+        if not cat_projects:
+            print("   No projects\n")
+            continue
+
+        for project_name, project in cat_projects.items():
+            priority_icon = "🔥" if project.get('priority') == 'high' else "📋"
+            account = f" (Account: {project.get('account', 'N/A')})" if category == 'customer' else ""
+
+            print(f"   {priority_icon} {project_name.upper()}{account}")
+
+            # Display tasks
+            for task in project.get('tasks', []):
+                task_text = task['task']
+                if 'subtask' in task:
+                    task_text += f" → {task['subtask']}"
+
+                status_icon = {
+                    'pending': '⏳',
+                    'in-progress': '🔄',
+                    'blocked': '🚫',
+                    'completed': '✅',
+                    'cancelled': '❌'
+                }.get(task.get('status', 'pending'), '❓')
+
+                print(f"      {status_icon} {task_text}")
+
+                if task.get('notes'):
+                    print(f"         💭 {task['notes']}")
+            print()
+
+def display_project(project_name):
+    """Display detailed view of a specific project"""
+    data = load_projects()
+    if not data or 'projects' not in data:
+        print("No projects found.")
+        return
+
+    projects = data['projects']
+    if project_name not in projects:
+        print(f"Project '{project_name}' not found.")
+        return
+
+    project = projects[project_name]
+
+    print(f"📋 Project: {project_name.upper()}")
+    print("=" * 50)
+    print(f"Category: {project.get('category', 'Unknown')}")
+    print(f"Priority: {project.get('priority', 'Unknown')}")
+    print(f"Status: {project.get('status', 'Unknown')}")
+
+    if project.get('account'):
+        print(f"Account: {project['account']}")
+
+    print("\nTasks:")
+    print("-" * 20)
+
+    for task in project.get('tasks', []):
+        print(f"ID: {task['id']}")
+        print(f"Task: {task['task']}")
+        if 'subtask' in task:
+            print(f"Subtask: {task['subtask']}")
+        print(f"Status: {task.get('status', 'pending')}")
+        print(f"Created: {task.get('created', 'Unknown')}")
+        if task.get('due'):
+            print(f"Due: {task['due']}")
+        if task.get('notes'):
+            print(f"Notes: {task['notes']}")
+        print()
+
+def list_by_priority():
+    """List all tasks by priority"""
+    data = load_projects()
+    if not data or 'projects' not in data:
+        print("No projects found.")
+        return
+
+    projects = data['projects']
+
+    print("🔥 High Priority Tasks")
+    print("=" * 30)
+
+    for project_name, project in projects.items():
+        if project.get('priority') == 'high':
+            for task in project.get('tasks', []):
+                if task.get('status') != 'completed':
+                    task_text = f"{project_name}: {task['task']}"
+                    if 'subtask' in task:
+                        task_text += f" → {task['subtask']}"
+                    print(f"   • {task_text}")
+
+def update_task_status(project_name, task_id, new_status):
+    """Update task status"""
+    data = load_projects()
+    if not data or 'projects' not in data:
+        print("No projects found.")
+        return
+
+    projects = data['projects']
+    if project_name not in projects:
+        print(f"Project '{project_name}' not found.")
+        return
+
+    project = projects[project_name]
+    task_found = False
+
+    for task in project.get('tasks', []):
+        if task['id'] == task_id:
+            old_status = task.get('status', 'pending')
+            task['status'] = new_status
+            if new_status == 'completed':
+                task['completed'] = datetime.now().strftime('%Y-%m-%d')
+
+            save_projects(data)
+            log_action(f"Updated {project_name}:{task_id} status: {old_status} → {new_status}")
+            print(f"✅ Updated task {task_id} status: {old_status} → {new_status}")
+            task_found = True
+            break
+
+    if not task_found:
+        print(f"Task ID '{task_id}' not found in project '{project_name}'.")
+
+def main():
+    parser = argparse.ArgumentParser(description='TAM Non-Case Project Tracker')
+    parser.add_argument('command', nargs='?', default='summary',
+                       choices=['summary', 'list', 'project', 'priority', 'update'],
+                       help='Command to execute')
+    parser.add_argument('--project', '-p', help='Project name')
+    parser.add_argument('--task-id', '-t', help='Task ID')
+    parser.add_argument('--status', '-s', help='New status for task')
+
+    args = parser.parse_args()
+
+    if args.command == 'summary':
+        display_summary()
+    elif args.command == 'project':
+        if not args.project:
+            print("Error: --project required for 'project' command")
+            sys.exit(1)
+        display_project(args.project)
+    elif args.command == 'priority':
+        list_by_priority()
+    elif args.command == 'update':
+        if not all([args.project, args.task_id, args.status]):
+            print("Error: --project, --task-id, and --status required for 'update' command")
+            sys.exit(1)
+        update_task_status(args.project, args.task_id, args.status)
+    elif args.command == 'list':
+        # Simple list format
+        data = load_projects()
+        if data and 'projects' in data:
+            for project_name in data['projects'].keys():
+                print(project_name)
+
+if __name__ == '__main__':
+    main()

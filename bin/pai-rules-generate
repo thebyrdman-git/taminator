@@ -1,0 +1,479 @@
+#!/bin/bash
+# pai-rules-generate - Generate cursor rules from templates
+# Part of PAI-Cursor integration system
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+TEMPLATES_DIR="$PAI_CONFIG_DIR/templates"
+CONTEXTS_CONFIG="$PAI_CONFIG_DIR/contexts.yaml"
+CONTEXT_FILE="$PAI_CONFIG_DIR/current-context"
+
+# Get current project directory (where cursor is running)
+get_project_directory() {
+    # If we're in a git repo, use the repo root
+    if git rev-parse --show-toplevel >/dev/null 2>&1; then
+        git rev-parse --show-toplevel
+    else
+        # Otherwise use current directory
+        pwd
+    fi
+}
+
+# Help function
+show_help() {
+    cat << EOF
+pai-rules-generate - Generate cursor rules from templates
+
+USAGE:
+    pai-rules-generate [context] [OPTIONS]
+
+ARGUMENTS:
+    context     Context to generate rules for (optional, uses current if not specified)
+
+OPTIONS:
+    --output-dir DIR    Output directory for rules (default: auto-detect project/.cursor/rules)
+    --global           Generate rules in global ~/.cursor/rules directory
+    --dry-run          Show what would be generated without writing files
+    --help, -h         Show this help message
+
+EXIT CODES:
+    0   Rules generated successfully
+    1   Error during generation
+    2   Invalid arguments or missing templates
+
+EXAMPLES:
+    pai-rules-generate
+    pai-rules-generate redhat
+    pai-rules-generate mga --output-dir ./custom-rules
+    pai-rules-generate --dry-run
+EOF
+}
+
+# Get current context
+get_current_context() {
+    if [[ -f "$CONTEXT_FILE" ]]; then
+        cat "$CONTEXT_FILE" 2>/dev/null || echo "general"
+    else
+        echo "general"
+    fi
+}
+
+# Generate core rule
+generate_core_rule() {
+    local output_dir="$1"
+    local context="$2"
+
+    cat > "$output_dir/00-garcia-core.mdc" << 'EOF'
+---
+description: Garcia PAI assistant with INTJ+Type 8 personality and business context awareness
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Garcia Core Assistant
+
+## Communication Style
+- Direct, professional, and fact-focused
+- Clear explanations without excessive metaphors
+- Objective and straightforward responses
+- Maintains competence through concise, informative responses
+
+## Context Banner Requirement
+At the start of each session, you must display the current context:
+Format: `Context: [context] | Compliance: [yes/no] | Models: [restrictions]`
+
+## Development Standards
+- Follow established patterns in existing codebase
+- Maintain security best practices
+- Never commit secrets or keys
+- Use proper error handling and logging
+- Update documentation when adding features
+
+## Work Approach
+- Intensely dedicated and thorough
+- Takes pride in solving complex problems
+- Multitasks efficiently across systems
+- Maintains focus under pressure
+- Protective of user privacy and security
+EOF
+}
+
+# Generate context-specific rule
+generate_context_rule() {
+    local output_dir="$1"
+    local context="$2"
+    local rule_file=""
+    local rule_content=""
+
+    case "$context" in
+        redhat)
+            rule_file="10-redhat-compliance.mdc"
+            rule_content='---
+description: Red Hat PSIRT work with mandatory compliance requirements
+globs: ["**/redhat/**", "**/psirt/**", "**/case-*"]
+alwaysApply: false
+---
+
+# Red Hat PSIRT Context
+
+## Mandatory Compliance Requirements
+- Customer data MUST use AIA-approved local models only
+- All operations logged for Red Hat AI policy compliance
+- External APIs BLOCKED for customer data processing
+- Case attachments processed via compliant routing
+
+## PSIRT Team Functions
+- Vulnerability Assessment & Response
+- Compliance Support (FedRAMP, PCI-DSS)
+- CVE content and data management
+- Industry working group leadership
+
+## Data Classification
+- Customer vulnerability data: CONFIDENTIAL
+- Internal processes: INTERNAL USE
+- Public security advisories: PUBLIC
+
+## Knowledge Base
+Reference: ~/.claude/context/knowledge/businesses/redhat/'
+            ;;
+        mga)
+            rule_file="20-mga-business.mdc"
+            rule_content='---
+description: Midnight Garden Apothecary herbal products business operations
+globs: ["**/mga/**", "**/herbal/**", "**/products/**"]
+alwaysApply: false
+---
+
+# Midnight Garden Apothecary Context
+
+## Business Overview
+- Type: Cottage Industry - Herbal Products Manufacturing
+- Products: Herbal soaps, salves, ointments, bath products, tinctures
+- Branding: Celtic Tree of Life theme
+
+## Key Operations
+- Recipe formulations and production schedules
+- Regulatory compliance for cottage industry
+- Inventory management and supplier relations
+- Warehouse production facility (October 2025)
+
+## Knowledge Base
+Reference: ~/.claude/context/knowledge/businesses/mga/
+Files: Symlinked to /Volumes/Public/business/MGA/'
+            ;;
+        rec)
+            rule_file="21-rec-business.mdc"
+            rule_content='---
+description: Raven'\''s Eye Consulting metaphysical shop operations
+globs: ["**/rec/**", "**/crystals/**", "**/metaphysical/**"]
+alwaysApply: false
+---
+
+# Raven'\''s Eye Consulting Context
+
+## Business Overview
+- Type: Metaphysical Shop - Crystals & Neo-Pagan Supplies
+- Products: Crystals, metaphysical supplies, neo-pagan ritual items
+- Operations: Retail and reselling
+
+## Key Operations
+- Inventory management and product cataloging
+- Order fulfillment and shipping operations
+- Shopify integration and e-commerce
+- Warehouse operations (October 2025)
+
+## Knowledge Base
+Reference: ~/.claude/context/knowledge/businesses/rec/
+Files: Symlinked to /Volumes/Public/business/REC/'
+            ;;
+        warehouse)
+            rule_file="30-warehouse-project.mdc"
+            rule_content='---
+description: Multi-business warehouse consolidation project coordination
+globs: ["**/warehouse/**", "**/consolidation/**"]
+alwaysApply: false
+---
+
+# Warehouse Consolidation Project
+
+## Project Overview
+- Timeline: October 1, 2025 start date
+- Space: Two adjoining 760 sqft units, Springfield OR
+- Lease: 3-year term through 2028
+
+## Multi-Business Integration
+1. Red Hat Office Space (Grimm & Shale)
+2. MGA Production Facility (herbal products)
+3. REC Warehouse Operations (crystal storage/fulfillment)
+
+## Key Coordination Points
+- Shared project management with Shale
+- Insurance requirements: $1M/$2M liability
+- Compliance boundaries between business areas
+- Timeline and milestone tracking
+
+## Knowledge Base
+Reference: ~/.claude/context/workspace/warehouse/'
+            ;;
+        personal)
+            rule_file="40-personal-projects.mdc"
+            rule_content='---
+description: Personal development, learning, and hobby projects
+globs: ["**/personal/**", "**/learning/**", "**/hobby/**", "**/experiment/**"]
+alwaysApply: false
+---
+
+# Personal Projects Context
+
+## Scope
+- Personal development and skill building
+- Learning new technologies and techniques
+- Hobby projects and creative experiments
+- Side projects and explorations
+
+## Approach
+- Creative capabilities fully enabled
+- Experimental features welcome
+- Learning-focused methodology
+- No business constraints or deadlines
+
+## Knowledge Base
+Reference: ~/.claude/context/knowledge/personal/'
+            ;;
+        content)
+            rule_file="41-content-creation.mdc"
+            rule_content='---
+description: Video analysis, blog writing, and content development
+globs: ["**/content/**", "**/video/**", "**/blog/**", "**/writing/**", "**/sr-auto/**", "**/yt-dlp/**"]
+alwaysApply: false
+---
+
+# Content Creation Context
+
+## Content Types
+- Video analysis and processing
+- Blog writing and optimization
+- Content strategy and planning
+- Media processing and automation
+
+## Available Tools
+- sr-auto: Screen recording and automation
+- yt-dlp: Video content extraction
+- Content analysis and optimization tools
+- SEO and engagement optimization
+
+## Focus Areas
+- Content creation and optimization
+- Video processing and analysis
+- Writing enhancement and editing
+- Media workflow automation
+
+## Knowledge Base
+Reference: ~/.claude/context/knowledge/content/'
+            ;;
+        health)
+            rule_file="42-health-wellness.mdc"
+            rule_content='---
+description: Health tracking, wellness research, and medical information
+globs: ["**/health/**", "**/wellness/**", "**/medical/**", "**/fitness/**"]
+alwaysApply: false
+---
+
+# Health & Wellness Context
+
+## Health Management
+- Personal health tracking and monitoring
+- Wellness research and optimization
+- Medical information analysis
+- Fitness planning and tracking
+
+## Data Sensitivity
+- Personal health information requires privacy protection
+- Medical data should be kept confidential
+- Wellness tracking for personal optimization
+- Research-based health recommendations
+
+## Focus Areas
+- Evidence-based health research
+- Personal wellness optimization
+- Medical information analysis
+- Fitness and nutrition planning
+
+## Knowledge Base
+Reference: ~/.claude/context/knowledge/health/'
+            ;;
+        academic)
+            rule_file="43-academic-research.mdc"
+            rule_content='---
+description: Academic studies, research papers, and scholarly work
+globs: ["**/academic/**", "**/research/**", "**/papers/**", "**/studies/**"]
+alwaysApply: false
+---
+
+# Academic Research Context
+
+## Research Focus
+- Academic paper analysis and synthesis
+- Scholarly research methodology
+- Literature reviews and citations
+- Research project management
+
+## Academic Standards
+- Rigorous fact-checking and verification
+- Proper citation and attribution
+- Evidence-based conclusions
+- Scholarly communication style
+
+## Research Areas
+- Technology and computer science
+- Business and management studies
+- Health and medical research
+- Multi-disciplinary studies
+
+## Knowledge Base
+Reference: ~/.claude/context/knowledge/academic/'
+            ;;
+        general)
+            # No additional context rule for general
+            return 0
+            ;;
+    esac
+
+    if [[ -n "$rule_file" && -n "$rule_content" ]]; then
+        echo "$rule_content" > "$output_dir/$rule_file"
+    fi
+}
+
+# Parse arguments
+CONTEXT=""
+OUTPUT_DIR=""
+DRY_RUN=false
+GLOBAL_RULES=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --output-dir)
+            OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        --global)
+            GLOBAL_RULES=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            show_help >&2
+            exit 2
+            ;;
+        *)
+            if [[ -z "$CONTEXT" ]]; then
+                CONTEXT="$1"
+            else
+                echo "Error: Multiple contexts specified" >&2
+                exit 2
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Get context (use current if not specified)
+if [[ -z "$CONTEXT" ]]; then
+    CONTEXT=$(get_current_context)
+fi
+
+# Determine output directory
+if [[ -z "$OUTPUT_DIR" ]]; then
+    if [[ "$GLOBAL_RULES" == "true" ]]; then
+        OUTPUT_DIR="$HOME/.cursor/rules"
+    else
+        # Auto-detect project directory
+        project_dir=$(get_project_directory)
+        OUTPUT_DIR="$project_dir/.cursor/rules"
+    fi
+fi
+
+# Validate context
+case "$CONTEXT" in
+    redhat|mga|rec|warehouse|personal|content|health|academic|general) ;;
+    *)
+        echo "Error: Invalid context '$CONTEXT'" >&2
+        exit 1
+        ;;
+esac
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    echo "Dry run: Would generate rules for context '$CONTEXT' in '$OUTPUT_DIR'"
+    echo "Files that would be created:"
+    echo "  - 00-core.md (Garcia core behavior)"
+    case "$CONTEXT" in
+        redhat) echo "  - 10-compliance-redhat.md" ;;
+        mga) echo "  - 20-context-mga.md" ;;
+        rec) echo "  - 21-context-rec.md" ;;
+        warehouse) echo "  - 30-project-warehouse.md" ;;
+    esac
+    exit 0
+fi
+
+# Create output directory
+mkdir -p "$OUTPUT_DIR"
+
+# Generate rules
+echo "Generating cursor rules for context: $CONTEXT"
+echo "Output directory: $OUTPUT_DIR"
+
+# Note: Core Garcia rule is now a User Rule, not generated per-project
+echo "Using global Garcia User Rule (garcia-pai-system.mdc)"
+
+# Generate context-specific rule
+generate_context_rule "$OUTPUT_DIR" "$CONTEXT"
+if [[ "$CONTEXT" != "general" ]]; then
+    case "$CONTEXT" in
+        redhat) echo "Generated: 10-redhat-compliance.mdc" ;;
+        mga) echo "Generated: 20-mga-business.mdc" ;;
+        rec) echo "Generated: 21-rec-business.mdc" ;;
+        warehouse) echo "Generated: 30-warehouse-project.mdc" ;;
+        personal) echo "Generated: 40-personal-projects.mdc" ;;
+        content) echo "Generated: 41-content-creation.mdc" ;;
+        health) echo "Generated: 42-health-wellness.mdc" ;;
+        academic) echo "Generated: 43-academic-research.mdc" ;;
+    esac
+fi
+
+# Create README if it doesn't exist
+if [[ ! -f "$OUTPUT_DIR/../README-PAI.md" ]]; then
+    cat > "$OUTPUT_DIR/../README-PAI.md" << 'EOF'
+# PAI-Cursor Integration
+
+This directory contains cursor rules generated by the PAI system.
+
+## Quick Commands
+- `pai switch <context>` - Switch business context
+- `pai current` - Show current context
+- `pai check` - Verify compliance settings
+- `pai brief` - Generate daily status brief
+
+## Contexts
+- **redhat**: Red Hat PSIRT work (compliance required)
+- **mga**: Midnight Garden Apothecary business
+- **rec**: Raven's Eye Consulting business
+- **warehouse**: Warehouse consolidation project
+- **general**: Standard development work
+
+Rules are automatically updated when switching contexts.
+EOF
+    echo "Generated: README-PAI.md"
+fi
+
+echo "Cursor rules generation complete for context: $CONTEXT"
+exit 0

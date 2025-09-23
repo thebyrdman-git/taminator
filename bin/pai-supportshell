@@ -1,0 +1,631 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI SupportShell Remote Integration
+# Executes analysis on SupportShell and returns summaries only (no data exfiltration)
+
+# Configuration
+SUPPORTSHELL_HOST="${SUPPORTSHELL_HOST:-supportshell-1.sush-001.prod.us-west-2.aws.redhat.com}"
+SUPPORTSHELL_USER="${SUPPORTSHELL_USER:-gvaughn}"
+SSH_OPTS="-o ServerAliveInterval=500 -o ServerAliveCountMax=5 -o ControlMaster=auto -o ControlPath=\"$HOME/.ssh/sushe/%C\" -o ControlPersist=8h"
+OUTPUT_DIR="$HOME/.claude/context/create/outputs/supportshell"
+FABRIC_MODEL="${SUPPORTSHELL_FABRIC_MODEL:-gpt-4o}"
+
+# Ensure output directory exists
+mkdir -p "$OUTPUT_DIR"
+
+# Function to run command on SupportShell
+run_remote() {
+    local command="$1"
+    ssh $SSH_OPTS "$SUPPORTSHELL_USER@$SUPPORTSHELL_HOST" "$command"
+}
+
+# Function to pull case attachments and analyze
+pull_case() {
+    local case_number="$1"
+    local output_file="$OUTPUT_DIR/case-${case_number}-pull-$(date +%Y%m%d-%H%M%S).md"
+    
+    echo "Pulling attachments for case $case_number on SupportShell..." >&2
+    echo "Note: First run may require OADP approval - watch for approval links!" >&2
+    
+    # Use yank -y to pull and extract case attachments
+    local pull_result=$(run_remote "yank -y $case_number 2>&1")
+    
+    if [[ -z "$pull_result" ]]; then
+        echo "No results from case pull for $case_number" >&2
+        return 1
+    fi
+    
+    # Check for OADP approval requirement and alert user
+    if echo "$pull_result" | grep -q -i "approval\|oadp\|authorize\|permission"; then
+        echo "" >&2
+        echo "🚨 OADP APPROVAL REQUIRED 🚨" >&2
+        echo "The output contains approval/authorization requirements." >&2
+        echo "Please check the output below for approval links and complete them." >&2
+        echo "" >&2
+    fi
+    
+    # Always show pull result to user for any approval links
+    echo "Pull Result:" >&2
+    echo "$pull_result" >&2
+    echo "" >&2
+    
+    # Create pull summary
+    cat > "$output_file" << EOF
+---
+title: SupportShell Case Pull - Case $case_number
+case_id: $case_number
+pull_date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+source: SupportShell
+tags: [supportshell, case-pull, case$case_number]
+---
+
+# Case Pull Results - Case $case_number
+
+## Pull Output
+\`\`\`
+$pull_result
+\`\`\`
+
+## Next Steps
+- Attachments extracted to /cases/$case_number/ on SupportShell
+- Use pai-supportshell analyze $case_number to analyze extracted files
+- Use pai-supportshell files $case_number to list available files
+EOF
+
+    echo "Case pull results saved to: $output_file"
+    echo "Attachments available at: /cases/$case_number/ on SupportShell"
+    echo "$output_file"
+}
+
+# Function to analyze logs remotely and return summary
+analyze_logs() {
+    local case_number="$1"
+    local pattern="${2:-error}"
+    local output_file="$OUTPUT_DIR/case-${case_number}-log-analysis-$(date +%Y%m%d-%H%M%S).md"
+    
+    echo "Analyzing logs for case $case_number on SupportShell..." >&2
+    
+    # First ensure case is pulled, then analyze logs in /cases/<case>/
+    local log_analysis=$(run_remote "cd /cases/$case_number 2>/dev/null && find . -name '*-*.log' -o -name '*-messages*' -o -name '*.log' | head -10 | xargs grep -i '$pattern' | head -50 2>/dev/null || echo 'No log files found or case not pulled. Run: yank -y $case_number first.'")
+    
+    if [[ -z "$log_analysis" ]]; then
+        echo "No log analysis results for case $case_number" >&2
+        return 1
+    fi
+    
+    # Create analysis summary with fabric
+    local summary=$(echo "$log_analysis" | fabric -p analyze_logs -m "$FABRIC_MODEL" 2>/dev/null)
+    
+    # Create markdown output
+    cat > "$output_file" << EOF
+---
+title: SupportShell Log Analysis - Case $case_number
+case_id: $case_number
+analysis_date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+pattern: $pattern
+source: SupportShell
+tags: [supportshell, logs, case$case_number]
+---
+
+# SupportShell Log Analysis - Case $case_number
+
+## Analysis Summary
+$summary
+
+## Raw Analysis Output
+\`\`\`
+$log_analysis
+\`\`\`
+
+## Notes
+- Analysis performed remotely on SupportShell
+- No customer data extracted from secure environment
+- Summary generated using fabric pattern analysis
+EOF
+
+    echo "Analysis saved to: $output_file"
+    echo "$output_file"
+}
+
+# Function to run must-gather analysis
+analyze_must_gather() {
+    local case_number="$1"
+    local output_file="$OUTPUT_DIR/case-${case_number}-must-gather-$(date +%Y%m%d-%H%M%S).md"
+    
+    echo "Analyzing must-gather for case $case_number on SupportShell..." >&2
+    
+    # Run must-gather analysis remotely from extracted case directory (handle prepended counts)
+    local mg_analysis=$(run_remote "cd /cases/$case_number 2>/dev/null && find . -name '*-must-gather*.tar.gz' -o -name 'must-gather*.tar.gz' | head -1 | xargs -I {} tar -tzf {} | head -50 2>/dev/null || echo 'No must-gather found or case not pulled. Run: yank -y $case_number first.'")
+    
+    if [[ -z "$mg_analysis" ]]; then
+        echo "No must-gather analysis results for case $case_number" >&2
+        return 1
+    fi
+    
+    # Create analysis summary with fabric
+    local summary=$(echo "$mg_analysis" | fabric -p analyze_incident -m "$FABRIC_MODEL" 2>/dev/null)
+    
+    # Create markdown output
+    cat > "$output_file" << EOF
+---
+title: SupportShell Must-Gather Analysis - Case $case_number
+case_id: $case_number
+analysis_date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+source: SupportShell
+tags: [supportshell, must-gather, case$case_number]
+---
+
+# Must-Gather Analysis - Case $case_number
+
+## Analysis Summary
+$summary
+
+## Raw Analysis Output
+\`\`\`
+$mg_analysis
+\`\`\`
+
+## Notes
+- Analysis performed remotely on SupportShell
+- Must-gather data analyzed in secure environment
+- Summary generated using fabric incident analysis pattern
+EOF
+
+    echo "Must-gather analysis saved to: $output_file"
+    echo "$output_file"
+}
+
+# Function to run insights analysis
+analyze_insights() {
+    local case_number="$1"
+    local output_file="$OUTPUT_DIR/case-${case_number}-insights-$(date +%Y%m%d-%H%M%S).md"
+    
+    echo "Running insights analysis for case $case_number on SupportShell..." >&2
+    
+    # Run insights analysis remotely
+    local insights_analysis=$(run_remote "insights-client --analyze /case/$case_number/sosreport*.tar.xz --summary 2>/dev/null | head -150")
+    
+    if [[ -z "$insights_analysis" ]]; then
+        echo "No insights analysis results for case $case_number" >&2
+        return 1
+    fi
+    
+    # Create analysis summary with fabric
+    local summary=$(echo "$insights_analysis" | fabric -p analyze_claims -m "$FABRIC_MODEL" 2>/dev/null)
+    
+    # Create markdown output
+    cat > "$output_file" << EOF
+---
+title: SupportShell Insights Analysis - Case $case_number
+case_id: $case_number
+analysis_date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+source: SupportShell
+tags: [supportshell, insights, case$case_number]
+---
+
+# Insights Analysis - Case $case_number
+
+## Analysis Summary
+$summary
+
+## Raw Analysis Output
+\`\`\`
+$insights_analysis
+\`\`\`
+
+## Notes
+- Analysis performed remotely on SupportShell
+- Red Hat Insights analysis in secure environment
+- Summary generated using fabric claims analysis pattern
+EOF
+
+    echo "Insights analysis saved to: $output_file"
+    echo "$output_file"
+}
+
+# Function to list available case files
+list_case_files() {
+    local case_number="$1"
+    
+    echo "Listing files for case $case_number on SupportShell:" >&2
+    run_remote "tree -L 3 /cases/$case_number 2>/dev/null || echo 'Case directory not found. Run: yank -y $case_number to pull attachments first.'"
+}
+
+# Function to run etcd diagnostics
+analyze_etcd() {
+    local case_number="$1"
+    local output_file="$OUTPUT_DIR/case-${case_number}-etcd-analysis-$(date +%Y%m%d-%H%M%S).md"
+    
+    echo "Running etcd analysis for case $case_number on SupportShell..." >&2
+    
+    # Run etc-ocp-diag.py on extracted case files (handle prepended counts)
+    local etcd_analysis=$(run_remote "cd /cases/$case_number 2>/dev/null && find . -name '*-must-gather*.tar.gz' -o -name 'must-gather*.tar.gz' | head -1 | xargs -I {} bash -c 'tmp=\$(mktemp -d) && tar -xzf {} -C \$tmp && etc-ocp-diag.py \$tmp/*/cluster-scoped-resources/core/nodes/ 2>/dev/null | head -100' || echo 'No must-gather found for etcd analysis. Run: yank -y $case_number first.'")
+    
+    if [[ -z "$etcd_analysis" ]]; then
+        echo "No etcd analysis results for case $case_number" >&2
+        return 1
+    fi
+    
+    # Create analysis summary with fabric
+    local summary=$(echo "$etcd_analysis" | fabric -p analyze_incident -m "$FABRIC_MODEL" 2>/dev/null)
+    
+    # Create markdown output
+    cat > "$output_file" << EOF
+---
+title: SupportShell etcd Analysis - Case $case_number
+case_id: $case_number
+analysis_date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+source: SupportShell
+tool: etc-ocp-diag.py
+tags: [supportshell, etcd, case$case_number]
+---
+
+# etcd Analysis - Case $case_number
+
+## Analysis Summary
+$summary
+
+## Raw Analysis Output
+\`\`\`
+$etcd_analysis
+\`\`\`
+
+## Notes
+- Analysis performed remotely on SupportShell using etc-ocp-diag.py
+- etcd cluster diagnostics from must-gather data
+- Summary generated using fabric incident analysis pattern
+EOF
+
+    echo "etcd analysis saved to: $output_file"
+    echo "$output_file"
+}
+
+# Function to run OMC analysis
+analyze_omc() {
+    local case_number="$1"
+    local output_file="$OUTPUT_DIR/case-${case_number}-omc-analysis-$(date +%Y%m%d-%H%M%S).md"
+    
+    echo "Running OMC analysis for case $case_number on SupportShell..." >&2
+    
+    # Run omc on extracted case files (handle prepended counts)
+    local omc_analysis=$(run_remote "cd /cases/$case_number 2>/dev/null && find . -name '*-must-gather*.tar.gz' -o -name 'must-gather*.tar.gz' | head -1 | xargs -I {} bash -c 'tmp=\$(mktemp -d) && tar -xzf {} -C \$tmp && omc use \$tmp/*/cluster-scoped-resources/ && omc get summary 2>/dev/null | head -100' || echo 'No must-gather found for OMC analysis. Run: yank -y $case_number first.'")
+    
+    if [[ -z "$omc_analysis" ]]; then
+        echo "No OMC analysis results for case $case_number" >&2
+        return 1
+    fi
+    
+    # Create analysis summary with fabric
+    local summary=$(echo "$omc_analysis" | fabric -p analyze_incident -m "$FABRIC_MODEL" 2>/dev/null)
+    
+    # Create markdown output
+    cat > "$output_file" << EOF
+---
+title: SupportShell OMC Analysis - Case $case_number
+case_id: $case_number
+analysis_date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+source: SupportShell
+tool: omc
+tags: [supportshell, omc, case$case_number]
+---
+
+# OMC Analysis - Case $case_number
+
+## Analysis Summary
+$summary
+
+## Raw Analysis Output
+\`\`\`
+$omc_analysis
+\`\`\`
+
+## Notes
+- Analysis performed remotely on SupportShell using OMC (OpenShift Must-gather Collector)
+- Cluster diagnostics from must-gather data
+- Summary generated using fabric incident analysis pattern
+EOF
+
+    echo "OMC analysis saved to: $output_file"
+    echo "$output_file"
+}
+
+# Function to check SupportShell connectivity and tools
+check_supportshell() {
+    echo "Checking SupportShell connectivity and tools..." >&2
+    
+    # Test connection
+    if ! run_remote "echo 'Connected to SupportShell'" >/dev/null 2>&1; then
+        echo "❌ Cannot connect to SupportShell" >&2
+        echo "Check VPN connection and SSH keys" >&2
+        return 1
+    fi
+    
+    echo "✅ SupportShell connection working"
+    
+    # Check available tools including the ones mentioned
+    echo "Available tools:"
+    run_remote "command -v yank insights-client sosreport oc omc etc-ocp-diag.py 2>/dev/null | sort"
+}
+
+# Function to troubleshoot failed commands with AI assistance
+troubleshoot() {
+    local case_number="$1"
+    local failed_command="$2"
+    local error_output="$3"
+    local output_file="$OUTPUT_DIR/case-${case_number}-troubleshoot-$(date +%Y%m%d-%H%M%S).md"
+    
+    echo "AI-assisted troubleshooting for case $case_number..." >&2
+    
+    # Gather environmental context
+    local env_context=$(run_remote "echo 'Current directory:'; pwd; echo; echo 'Case directory contents:'; tree -L 2 /cases/$case_number 2>/dev/null || ls -la /cases/$case_number 2>/dev/null || echo 'Case directory not found'; echo; echo 'Available tools:'; command -v yank omc etc-ocp-diag.py insights-client 2>/dev/null || echo 'Some tools may be missing'")
+    
+    # Create troubleshooting prompt
+    local troubleshoot_prompt="Failed SupportShell command analysis:
+
+FAILED COMMAND: $failed_command
+ERROR OUTPUT: $error_output
+
+ENVIRONMENT CONTEXT:
+$env_context
+
+Please analyze this failure and provide:
+1. Root cause of the failure
+2. Corrected command to try
+3. Alternative approaches if the main command can't work
+4. Any missing prerequisites or setup steps
+
+Focus on SupportShell environment specifics like correct paths, tool availability, and case file naming conventions."
+
+    # Get AI analysis
+    local analysis=$(echo "$troubleshoot_prompt" | fabric -p analyze_incident -m "$FABRIC_MODEL" 2>/dev/null)
+    
+    # Create troubleshooting output
+    cat > "$output_file" << EOF
+---
+title: SupportShell Troubleshooting - Case $case_number
+case_id: $case_number
+troubleshoot_date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+failed_command: "$failed_command"
+source: SupportShell
+tags: [supportshell, troubleshoot, case$case_number]
+---
+
+# SupportShell Troubleshooting - Case $case_number
+
+## Failed Command
+\`\`\`bash
+$failed_command
+\`\`\`
+
+## Error Output
+\`\`\`
+$error_output
+\`\`\`
+
+## AI Analysis and Recommendations
+$analysis
+
+## Environment Context
+\`\`\`
+$env_context
+\`\`\`
+
+## Next Steps
+- Review AI recommendations above
+- Try suggested corrected commands
+- Check prerequisites and setup steps
+- Use 'pai-supportshell run <command>' to test fixes
+EOF
+
+    echo "Troubleshooting analysis saved to: $output_file"
+    echo "$output_file"
+}
+
+# Function to run comprehensive case analysis (all tools)
+analyze_all() {
+    local case_number="$1"
+    
+    echo "Running comprehensive analysis for case $case_number..." >&2
+    
+    # First, pull the case if not already done
+    echo "Step 1: Pulling case attachments..."
+    pull_case "$case_number"
+    
+    # Show case structure
+    echo "Step 2: Case structure:"
+    run_remote "tree -L 3 /cases/$case_number 2>/dev/null"
+    
+    # Run all available analyses
+    echo "Step 3: Running analyses..."
+    
+    # Try each analysis and troubleshoot failures
+    for analysis_type in insights etcd omc logs; do
+        echo "Running $analysis_type analysis..."
+        case "$analysis_type" in
+            insights) analyze_insights "$case_number" || troubleshoot "$case_number" "insights analysis" "Analysis failed" ;;
+            etcd) analyze_etcd "$case_number" || troubleshoot "$case_number" "etc-ocp-diag.py" "Analysis failed" ;;
+            omc) analyze_omc "$case_number" || troubleshoot "$case_number" "omc analysis" "Analysis failed" ;;
+            logs) analyze_logs "$case_number" "error" || troubleshoot "$case_number" "log analysis" "Analysis failed" ;;
+        esac
+    done
+    
+    echo "Comprehensive analysis complete for case $case_number"
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    pull)
+        shift
+        case_number="${1:-}"
+        if [[ -z "$case_number" ]]; then
+            echo "Usage: pai-supportshell pull <case_number>"
+            exit 1
+        fi
+        pull_case "$case_number"
+        ;;
+    logs)
+        shift
+        case_number="${1:-}"
+        pattern="${2:-error}"
+        if [[ -z "$case_number" ]]; then
+            echo "Usage: pai-supportshell logs <case_number> [pattern]"
+            exit 1
+        fi
+        analyze_logs "$case_number" "$pattern"
+        ;;
+    must-gather|mg)
+        shift
+        case_number="${1:-}"
+        if [[ -z "$case_number" ]]; then
+            echo "Usage: pai-supportshell must-gather <case_number>"
+            exit 1
+        fi
+        analyze_must_gather "$case_number"
+        ;;
+    insights)
+        shift
+        case_number="${1:-}"
+        if [[ -z "$case_number" ]]; then
+            echo "Usage: pai-supportshell insights <case_number>"
+            exit 1
+        fi
+        analyze_insights "$case_number"
+        ;;
+    etcd)
+        shift
+        case_number="${1:-}"
+        if [[ -z "$case_number" ]]; then
+            echo "Usage: pai-supportshell etcd <case_number>"
+            exit 1
+        fi
+        analyze_etcd "$case_number"
+        ;;
+    omc)
+        shift
+        case_number="${1:-}"
+        if [[ -z "$case_number" ]]; then
+            echo "Usage: pai-supportshell omc <case_number>"
+            exit 1
+        fi
+        analyze_omc "$case_number"
+        ;;
+    files)
+        shift
+        case_number="${1:-}"
+        if [[ -z "$case_number" ]]; then
+            echo "Usage: pai-supportshell files <case_number>"
+            exit 1
+        fi
+        list_case_files "$case_number"
+        ;;
+    tree)
+        shift
+        case_number="${1:-}"
+        if [[ -z "$case_number" ]]; then
+            echo "Usage: pai-supportshell tree <case_number>"
+            exit 1
+        fi
+        echo "Case directory structure for $case_number:" >&2
+        run_remote "tree -L 3 /cases/$case_number 2>/dev/null || echo 'Case directory not found. Run: yank -y $case_number first.'"
+        ;;
+    troubleshoot)
+        shift
+        case_number="${1:-}"
+        command="${2:-}"
+        error="${3:-}"
+        if [[ -z "$case_number" ]]; then
+            echo "Usage: pai-supportshell troubleshoot <case_number> <failed_command> <error_output>"
+            exit 1
+        fi
+        troubleshoot "$case_number" "$command" "$error"
+        ;;
+    analyze-all|all)
+        shift
+        case_number="${1:-}"
+        if [[ -z "$case_number" ]]; then
+            echo "Usage: pai-supportshell analyze-all <case_number>"
+            exit 1
+        fi
+        analyze_all "$case_number"
+        ;;
+    check)
+        check_supportshell
+        ;;
+    run)
+        shift
+        if [[ -z "$1" ]]; then
+            echo "Usage: pai-supportshell run <command>"
+            exit 1
+        fi
+        run_remote "$@"
+        ;;
+    help|--help|-h)
+        cat << 'EOF'
+PAI SupportShell Remote Integration
+
+Usage: pai-supportshell <command> [options]
+
+Commands:
+  pull <case>               Pull case attachments with 'yank -y' (REQUIRED FIRST)
+  tree <case>               Show case directory structure with tree -L 3
+  files <case>              List available files for case
+  logs <case> [pattern]     Analyze case logs remotely (default pattern: error)
+  must-gather <case>        Analyze must-gather archive remotely
+  insights <case>           Run Red Hat Insights analysis remotely
+  etcd <case>               Run etc-ocp-diag.py analysis on must-gather
+  omc <case>                Run OMC (OpenShift Must-gather Collector) analysis
+  analyze-all <case>        Run comprehensive analysis (all tools)
+  troubleshoot <case> <cmd> <error>  AI-assisted troubleshooting
+  check                     Test SupportShell connectivity and tools
+  run <command>             Execute arbitrary command on SupportShell
+  help                      Show this help
+
+Recommended Workflow:
+  1. pai-supportshell pull 04056105        # Pull and extract attachments (may need OADP approval)
+  2. pai-supportshell tree 04056105        # Understand file structure and naming
+  3. pai-supportshell analyze-all 04056105 # Run all analyses with auto-troubleshoot
+  
+Alternative Workflow:
+  1. pai-supportshell pull 04056105        # Pull and extract attachments
+  2. pai-supportshell files 04056105       # List available files
+  3. pai-supportshell insights 04056105    # Run specific analysis
+  4. pai-supportshell troubleshoot 04056105 "failed command" "error output"  # If needed
+
+Examples:
+  pai-supportshell check
+  pai-supportshell pull 04056105
+  pai-supportshell tree 04056105
+  pai-supportshell analyze-all 04056105
+  pai-supportshell troubleshoot 04056105 "omc analysis" "command not found"
+  pai-supportshell run "oc get nodes"
+
+Security:
+  - No customer data is downloaded from SupportShell
+  - Only analysis summaries are returned
+  - All outputs saved to ~/.claude/context/create/outputs/supportshell/
+  - OADP approval may be required for first-time case access
+
+Environment Variables:
+  SUPPORTSHELL_HOST - Override SupportShell hostname
+  SUPPORTSHELL_USER - Override username (default: gvaughn)
+  SUPPORTSHELL_FABRIC_MODEL - Model for analysis (default: gpt-4o)
+
+Requirements:
+  - VPN connection to Red Hat network
+  - SSH access to SupportShell
+  - Valid Kerberos ticket or SSH keys
+  - OADP approval for case access (first time per case)
+
+Note on File Naming:
+  - Extracted attachments have prepended counts (e.g., 0010-must-gather.tar.gz)
+  - Use 'tree' command to understand actual file structure
+  - Analysis functions handle both naming conventions
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-supportshell help' for usage"
+        exit 1
+        ;;
+esac

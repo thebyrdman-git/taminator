@@ -1,0 +1,375 @@
+#!/usr/bin/env python3
+"""
+PAI Google Docs Sync - Automated Google Drive/Docs search integration
+Uses your existing OAuth credentials for automated document access and search
+"""
+
+import os
+import json
+import pickle
+import argparse
+from datetime import datetime, timedelta
+from pathlib import Path
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+# Configuration
+SCOPES = [
+    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/documents.readonly',
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    'https://www.googleapis.com/auth/presentations.readonly'
+]
+
+PAI_DIR = Path.home() / ".claude" / "context"
+GDOCS_DIR = PAI_DIR / "capture" / "gdocs"
+OUTPUT_DIR = PAI_DIR / "create" / "outputs" / "gdocs"
+CREDENTIALS_FILE = PAI_DIR / "secrets" / "client_secret_604570179581-e7njihorvctfebcfi6k57jr9c1km18vs.apps.googleusercontent.com.json"
+TOKEN_FILE = GDOCS_DIR / "gdocs_token.pickle"
+LOG_FILE = PAI_DIR / "logs" / "gdocs-sync.log"
+
+# Ensure directories exist
+GDOCS_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+def log_msg(message):
+    """Log message with timestamp"""
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_entry = f"[{timestamp}] {message}"
+    print(log_entry)
+    
+    with open(LOG_FILE, 'a') as f:
+        f.write(log_entry + '\n')
+
+def authenticate():
+    """Authenticate with Google Drive/Docs APIs"""
+    creds = None
+    
+    # Load existing token
+    if TOKEN_FILE.exists():
+        with open(TOKEN_FILE, 'rb') as token:
+            creds = pickle.load(token)
+    
+    # Check if credentials are valid or can be refreshed
+    if creds and creds.valid:
+        return build_services(creds)
+    
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            log_msg("Refreshing expired access token...")
+            creds.refresh(Request())
+            
+            # Save refreshed credentials
+            with open(TOKEN_FILE, 'wb') as token:
+                pickle.dump(creds, token)
+            
+            return build_services(creds)
+        except Exception as e:
+            log_msg(f"Token refresh failed: {e}")
+    
+    # Manual authentication required
+    log_msg("Manual authentication required for Google Docs access")
+    
+    if not CREDENTIALS_FILE.exists():
+        raise Exception(f"Credentials file not found: {CREDENTIALS_FILE}")
+    
+    try:
+        flow = InstalledAppFlow.from_client_secrets_file(
+            str(CREDENTIALS_FILE), SCOPES)
+        creds = flow.run_local_server(port=8080)
+        
+        # Save credentials including refresh token
+        with open(TOKEN_FILE, 'wb') as token:
+            pickle.dump(creds, token)
+            
+        log_msg("✓ Authentication successful - refresh token saved")
+        return build_services(creds)
+        
+    except Exception as e:
+        raise Exception(f"Authentication failed: {e}")
+
+def build_services(creds):
+    """Build Google Drive, Docs, Sheets, and Slides service objects"""
+    try:
+        drive_service = build('drive', 'v3', credentials=creds)
+        docs_service = build('docs', 'v1', credentials=creds)
+        sheets_service = build('sheets', 'v4', credentials=creds)
+        slides_service = build('slides', 'v1', credentials=creds)
+        return drive_service, docs_service, sheets_service, slides_service
+    except Exception as e:
+        raise Exception(f"Failed to build API services: {e}")
+
+def search_drive_files(drive_service, query, days_back=30, max_results=50):
+    """Search Google Drive files"""
+    log_msg(f"Searching Google Drive for: {query}")
+    
+    # Calculate date filter
+    since_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
+    
+    # Build search query
+    drive_query = f"fullText contains '{query}' and modifiedTime > '{since_date}'"
+    
+    try:
+        results = drive_service.files().list(
+            q=drive_query,
+            pageSize=max_results,
+            fields="nextPageToken, files(id, name, mimeType, modifiedTime, webViewLink, owners)"
+        ).execute()
+        
+        files = results.get('files', [])
+        log_msg(f"Found {len(files)} files matching '{query}'")
+        
+        return files
+        
+    except HttpError as e:
+        log_msg(f"Drive API error: {e}")
+        return []
+
+def get_document_content(services, file_info):
+    """Get content from Google Docs, Sheets, or Slides"""
+    docs_service, sheets_service, slides_service = services
+    doc_id = file_info['id']
+    mime_type = file_info['mimeType']
+    
+    try:
+        if mime_type == 'application/vnd.google-apps.document':
+            # Google Docs
+            document = docs_service.documents().get(documentId=doc_id).execute()
+            
+            content = ""
+            body = document.get('body', {})
+            
+            for element in body.get('content', []):
+                if 'paragraph' in element:
+                    paragraph = element['paragraph']
+                    for text_element in paragraph.get('elements', []):
+                        if 'textRun' in text_element:
+                            content += text_element['textRun'].get('content', '')
+            
+            return content.strip()
+            
+        elif mime_type == 'application/vnd.google-apps.spreadsheet':
+            # Google Sheets
+            spreadsheet = sheets_service.spreadsheets().get(spreadsheetId=doc_id).execute()
+            
+            content = f"Spreadsheet: {spreadsheet.get('properties', {}).get('title', 'Unknown')}\n\n"
+            
+            for sheet in spreadsheet.get('sheets', []):
+                sheet_title = sheet['properties']['title']
+                content += f"Sheet: {sheet_title}\n"
+                
+                # Get sheet values (first 100 rows)
+                try:
+                    values = sheets_service.spreadsheets().values().get(
+                        spreadsheetId=doc_id, 
+                        range=f"'{sheet_title}'!A1:Z100"
+                    ).execute()
+                    
+                    for row in values.get('values', [])[:20]:  # Limit to first 20 rows
+                        content += " | ".join(str(cell) for cell in row) + "\n"
+                except Exception:
+                    content += "(Unable to read sheet data)\n"
+                
+                content += "\n"
+            
+            return content.strip()
+            
+        elif mime_type == 'application/vnd.google-apps.presentation':
+            # Google Slides
+            presentation = slides_service.presentations().get(presentationId=doc_id).execute()
+            
+            content = f"Presentation: {presentation.get('title', 'Unknown')}\n\n"
+            
+            for i, slide in enumerate(presentation.get('slides', []), 1):
+                content += f"Slide {i}:\n"
+                
+                # Extract text from slide elements
+                for element in slide.get('pageElements', []):
+                    if 'shape' in element and 'text' in element['shape']:
+                        text_elements = element['shape']['text'].get('textElements', [])
+                        for text_element in text_elements:
+                            if 'textRun' in text_element:
+                                content += text_element['textRun'].get('content', '')
+                
+                content += "\n\n"
+            
+            return content.strip()
+        
+        else:
+            return f"Unsupported file type: {mime_type}"
+        
+    except HttpError as e:
+        log_msg(f"Error reading {mime_type} {doc_id}: {e}")
+        return f"Error accessing document: {e}"
+
+def save_search_results(files, services, query, days_back):
+    """Save search results in PAI format"""
+    drive_service, docs_service, sheets_service, slides_service = services
+    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+    output_file = OUTPUT_DIR / f"gdocs-search-{query.replace(' ', '-')}-{timestamp}.md"
+    
+    log_msg(f"Saving results to: {output_file}")
+    
+    with open(output_file, 'w') as f:
+        f.write(f"""---
+title: "Google Docs Search: {query}"
+query: "{query}"
+days_searched: {days_back}
+total_results: {len(files)}
+generated: "{datetime.utcnow().isoformat()}Z"
+tags: [google-docs, search, tam-intelligence]
+---
+
+# Google Docs Search: {query}
+
+**Query**: {query}  
+**Time Period**: Last {days_back} days  
+**Results Found**: {len(files)}  
+**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+## Search Results
+
+""")
+        
+        for i, file_info in enumerate(files, 1):
+            f.write(f"""### {i}. {file_info['name']}
+
+**Type**: {file_info['mimeType']}  
+**Modified**: {file_info['modifiedTime']}  
+**Owner**: {file_info.get('owners', [{}])[0].get('displayName', 'Unknown')}  
+**Link**: {file_info['webViewLink']}
+
+""")
+            
+            # Get document content for supported file types
+            supported_types = [
+                'application/vnd.google-apps.document',
+                'application/vnd.google-apps.spreadsheet', 
+                'application/vnd.google-apps.presentation'
+            ]
+            
+            if file_info['mimeType'] in supported_types:
+                log_msg(f"Extracting content from: {file_info['name']}")
+                content = get_document_content((docs_service, sheets_service, slides_service), file_info)
+                
+                if content:
+                    # Show excerpt with query highlighted context
+                    lines = content.split('\n')
+                    matching_lines = []
+                    
+                    for line_num, line in enumerate(lines):
+                        if query.lower() in line.lower():
+                            # Include context around the match
+                            start = max(0, line_num - 2)
+                            end = min(len(lines), line_num + 3)
+                            context = lines[start:end]
+                            matching_lines.extend(context)
+                            matching_lines.append("---")
+                    
+                    if matching_lines:
+                        f.write("**Content Excerpts:**\n```\n")
+                        f.write('\n'.join(matching_lines[:500]))  # Limit size
+                        f.write("\n```\n\n")
+                    else:
+                        f.write("**Content**: (Large document - query found in metadata)\n\n")
+                else:
+                    f.write("**Content**: (Could not extract content)\n\n")
+            else:
+                f.write("**Content**: (Non-Google Docs file)\n\n")
+        
+        if not files:
+            f.write("No Google Docs found matching the search query.\n")
+    
+    return str(output_file)
+
+def list_recent_docs(drive_service, days_back=7, max_results=20):
+    """List recently modified documents"""
+    since_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
+    
+    query = f"mimeType='application/vnd.google-apps.document' and modifiedTime > '{since_date}'"
+    
+    try:
+        results = drive_service.files().list(
+            q=query,
+            pageSize=max_results,
+            orderBy='modifiedTime desc',
+            fields="files(id, name, modifiedTime, webViewLink)"
+        ).execute()
+        
+        files = results.get('files', [])
+        log_msg(f"Found {len(files)} recently modified docs")
+        
+        return files
+        
+    except HttpError as e:
+        log_msg(f"Error listing docs: {e}")
+        return []
+
+def main():
+    parser = argparse.ArgumentParser(description='Google Docs integration for PAI')
+    parser.add_argument('command', choices=['search', 'recent', 'test'])
+    parser.add_argument('--query', help='Search query')
+    parser.add_argument('--days', type=int, default=30, help='Days to search back')
+    parser.add_argument('--max', type=int, default=50, help='Maximum results')
+    
+    args = parser.parse_args()
+    
+    try:
+        # Authenticate and build services
+        log_msg("Authenticating with Google APIs...")
+        drive_service, docs_service, sheets_service, slides_service = authenticate()
+        log_msg("✓ Authentication successful")
+        
+        if args.command == 'test':
+            # Test basic connectivity
+            log_msg("Testing Google Drive connectivity...")
+            test_results = drive_service.files().list(pageSize=1).execute()
+            log_msg("✓ Google Drive API working")
+            
+            # Test recent docs
+            recent_docs = list_recent_docs(drive_service, 7, 5)
+            print(f"✓ Found {len(recent_docs)} recent documents")
+            
+        elif args.command == 'recent':
+            recent_docs = list_recent_docs(drive_service, args.days, args.max)
+            
+            for doc in recent_docs:
+                print(f"- {doc['name']} (modified: {doc['modifiedTime']})")
+                print(f"  {doc['webViewLink']}")
+        
+        elif args.command == 'search':
+            if not args.query:
+                print("Error: --query required for search")
+                return 1
+            
+            # Search files
+            files = search_drive_files(drive_service, args.query, args.days, args.max)
+            
+            if files:
+                # Save results
+                output_file = save_search_results(files, (drive_service, docs_service, sheets_service, slides_service), args.query, args.days)
+                print(f"✓ Search completed - {len(files)} results")
+                print(f"Results saved to: {output_file}")
+                
+                # Show preview
+                print(f"\nPreview of results for '{args.query}':")
+                for i, file_info in enumerate(files[:3], 1):
+                    print(f"{i}. {file_info['name']}")
+                    print(f"   Modified: {file_info['modifiedTime']}")
+                    print(f"   Link: {file_info['webViewLink']}")
+            else:
+                print(f"No documents found matching '{args.query}' in last {args.days} days")
+        
+    except Exception as e:
+        log_msg(f"Error: {e}")
+        print(f"Error: {e}")
+        return 1
+    
+    return 0
+
+if __name__ == '__main__':
+    exit(main())

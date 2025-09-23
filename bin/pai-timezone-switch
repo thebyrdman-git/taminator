@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Timezone Management for Cron Jobs
+# Handles East Coast vs Pacific time zone switches
+
+show_current() {
+    echo "Current Cron Jobs:"
+    echo "=================="
+    crontab -l | grep -A1 -B1 pai-
+    echo
+    echo "Current Timezone: $(timedatectl | grep "Time zone" | cut -d: -f2 | tr -d ' ')"
+    echo "Current Time: $(date)"
+}
+
+switch_to_pacific() {
+    echo "Switching PAI cron jobs to Pacific Time..."
+    echo "Daily plate will run at 8am Pacific (16:00 UTC)"
+    echo "Hourly sync remains hourly"
+    
+    # Remove existing PAI cron jobs and add Pacific versions
+    (crontab -l | grep -v pai-; echo "# PAI Hourly Case Sync"; echo "0 * * * * /home/grimm/.local/bin/pai-hourly-case-sync"; echo "# PAI Daily Plate (8am Pacific - 1 hour before workday)"; echo "0 16 * * * /home/grimm/.local/bin/pai-my-plate-v2") | crontab -
+    
+    echo "✅ Switched to Pacific Time schedule"
+}
+
+switch_to_eastern() {
+    echo "Switching PAI cron jobs to Eastern Time..."  
+    echo "Daily plate will run at 8am Eastern (13:00 UTC)"
+    echo "Hourly sync remains hourly"
+    
+    # Remove existing PAI cron jobs and add Eastern versions
+    (crontab -l | grep -v pai-; echo "# PAI Hourly Case Sync"; echo "0 * * * * /home/grimm/.local/bin/pai-hourly-case-sync"; echo "# PAI Daily Plate (8am Eastern - 1 hour before workday)"; echo "0 13 * * * /home/grimm/.local/bin/pai-my-plate-v2") | crontab -
+    
+    echo "✅ Switched to Eastern Time schedule"
+}
+
+case "${1:-help}" in
+    pacific|west|oregon)
+        switch_to_pacific
+        show_current
+        ;;
+    eastern|east|office)
+        switch_to_eastern
+        show_current
+        ;;
+    status|current|show)
+        show_current
+        ;;
+    help|--help|-h)
+        cat << 'HELP'
+PAI Timezone Management Tool
+
+Usage: pai-timezone-switch <timezone>
+
+Commands:
+  pacific, west, oregon    Switch to Pacific Time (8am = 16:00 UTC)
+  eastern, east, office    Switch to Eastern Time (8am = 13:00 UTC) 
+  status, current, show    Show current cron schedule and timezone
+  help                     Show this help
+
+Examples:
+  pai-timezone-switch pacific     # Switch to Pacific time when back in Oregon
+  pai-timezone-switch eastern     # Switch to Eastern time when at Red Hat office
+  pai-timezone-switch status      # Check current schedule
+
+Note: Hourly case sync (0 * * * *) remains unchanged across timezones
+HELP
+        ;;
+    *)
+        echo "Unknown timezone: $1"
+        echo "Use: pai-timezone-switch help"
+        exit 1
+        ;;
+esac

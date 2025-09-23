@@ -1,0 +1,330 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Workspace Integration Tool
+# Manages integration between PAI and existing TAM directory structure
+
+PAI_CONFIG="$HOME/.claude/context/config/workspace.yaml"
+TAM_BASE="/home/grimm/Documents/rh/projects"
+TAM_SPECIALTIES=("tam-ocp" "tam-ai" "tam-sec")
+
+# Function to parse YAML (simple implementation)
+parse_yaml() {
+    local file=$1
+    local prefix=$2
+    local s='[[:space:]]*'
+    local w='[a-zA-Z0-9_]*'
+    local fs=$(echo @|tr @ '\034')
+    
+    sed -ne "s|^\($s\):|\1|" \
+        -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
+        -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p" $file |
+    awk -F$fs '{
+        indent = length($1)/2;
+        vname[indent] = $2;
+        for (i in vname) {if (i > indent) {delete vname[i]}}
+        if (length($3) > 0) {
+            vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+            printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
+        }
+    }'
+}
+
+# Command functions
+cmd_list() {
+    echo "Active TAM Accounts by Specialty:"
+    echo "================================="
+    
+    for specialty in "${TAM_SPECIALTIES[@]}"; do
+        if [[ -d "$TAM_BASE/$specialty" ]]; then
+            echo
+            echo "[$specialty]"
+            for account_dir in "$TAM_BASE/$specialty"/*; do
+                if [[ -d "$account_dir/casework" ]]; then
+                    account=$(basename "$account_dir")
+                    active_count=$(find "$account_dir/casework/active" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+                    printf "  %-15s %2d active cases\n" "$account:" "$active_count"
+                fi
+            done
+        fi
+    done
+}
+
+cmd_case() {
+    local case_number=$1
+    shift
+    local action=${1:-info}
+    
+    # Find case directory across all specialties
+    local case_dir=""
+    local found_specialty=""
+    local found_account=""
+    
+    for specialty in "${TAM_SPECIALTIES[@]}"; do
+        if [[ -d "$TAM_BASE/$specialty" ]]; then
+            for account_dir in "$TAM_BASE/$specialty"/*; do
+                if [[ -d "$account_dir/casework/active/$case_number" ]]; then
+                    case_dir="$account_dir/casework/active/$case_number"
+                    found_specialty="$specialty"
+                    found_account=$(basename "$account_dir")
+                    break 2
+                fi
+            done
+        fi
+    done
+    
+    if [[ -z "$case_dir" ]]; then
+        echo "Error: Case $case_number not found in active cases" >&2
+        return 1
+    fi
+    
+    case "$action" in
+        info)
+            echo "Case: $case_number"
+            echo "Specialty: $found_specialty"
+            echo "Account: $found_account"
+            echo "Location: $case_dir"
+            echo "Contents:"
+            ls -la "$case_dir"
+            ;;
+        open)
+            cd "$case_dir"
+            echo "Changed to case directory: $case_dir"
+            ;;
+        analyze)
+            # Run enhanced case initial screen
+            pai-case-initial-screen-v2 -a -c "$case_number" -d "$case_dir/extracts"
+            # Move output to case pieces directory
+            latest_screen=$(ls -t "$HOME/.claude/pai/create/outputs/plans/case-${case_number}-initial-screen-"*.md 2>/dev/null | head -1)
+            if [[ -n "$latest_screen" ]]; then
+                cp "$latest_screen" "$case_dir/pieces/initial_screen.md"
+                echo "Analysis saved to: $case_dir/pieces/initial_screen.md"
+            fi
+            ;;
+        *)
+            echo "Unknown action: $action"
+            echo "Available actions: info, open, analyze"
+            ;;
+    esac
+}
+
+cmd_create() {
+    local specialty_or_account=$1
+    local case_number=$2
+    
+    # Check if third argument provided (specialty account case_number format)
+    if [[ -n "${3:-}" ]]; then
+        local specialty=$1
+        local account=$2
+        case_number=$3
+        
+        if [[ ! -d "$TAM_BASE/$specialty" ]]; then
+            echo "Error: Specialty $specialty not found" >&2
+            return 1
+        fi
+        
+        local account_dir="$TAM_BASE/$specialty/$account"
+    else
+        # Try to find account in any specialty
+        local account=$1
+        local account_dir=""
+        local specialty=""
+        
+        for spec in "${TAM_SPECIALTIES[@]}"; do
+            if [[ -d "$TAM_BASE/$spec/$account" ]]; then
+                account_dir="$TAM_BASE/$spec/$account"
+                specialty=$spec
+                break
+            fi
+        done
+        
+        if [[ -z "$account_dir" ]]; then
+            echo "Error: Account $account not found in any specialty" >&2
+            echo "Use: pai-workspace create <specialty> <account> <case_number>" >&2
+            return 1
+        fi
+    fi
+    
+    local case_dir="$account_dir/casework/active/$case_number"
+    if [[ -d "$case_dir" ]]; then
+        echo "Error: Case $case_number already exists for $account" >&2
+        return 1
+    fi
+    
+    # Create case structure
+    echo "Creating case $case_number for $account..."
+    mkdir -p "$case_dir"/{extracts,pieces,kcs,jira,attachments,reports,PRPs,scripts,validation_results}
+    
+    # Create initial README
+    cat > "$case_dir/README.md" << EOF
+# Case $case_number
+
+**Account**: $account
+**Created**: $(date -u +%Y-%m-%d)
+**Status**: Active
+
+## Overview
+[Add case description here]
+
+## Key Information
+- **Product**: 
+- **Version**: 
+- **Severity**: 
+- **Component**: 
+
+## Analysis
+- Initial screen: [pieces/initial_screen.md](pieces/initial_screen.md)
+- Timeline: [pieces/incident_timeline.md](pieces/incident_timeline.md)
+- Hypotheses: [pieces/root_cause_hypotheses.md](pieces/root_cause_hypotheses.md)
+
+## Resources
+- KCS Articles: [kcs/](kcs/)
+- JIRA Issues: [jira/](jira/)
+- Attachments: [attachments/](attachments/)
+EOF
+    
+    echo "Case structure created at: $case_dir"
+}
+
+cmd_link() {
+    # Create symbolic links between PAI and TAM structures
+    # Usage: link <account> OR link <specialty> <account>
+    
+    if [[ -n "${2:-}" ]]; then
+        # Specialty and account provided
+        local specialty=$1
+        local account=$2
+        local target_dir="$TAM_BASE/$specialty/$account"
+    else
+        # Just account provided - search for it
+        local account=$1
+        local target_dir=""
+        local specialty=""
+        
+        for spec in "${TAM_SPECIALTIES[@]}"; do
+            if [[ -d "$TAM_BASE/$spec/$account" ]]; then
+                target_dir="$TAM_BASE/$spec/$account"
+                specialty=$spec
+                break
+            fi
+        done
+    fi
+    
+    if [[ ! -d "$target_dir" ]]; then
+        echo "Error: Account $account not found" >&2
+        return 1
+    fi
+    
+    # Create account link in PAI
+    local pai_link="$HOME/.claude/context/workspace/$specialty-$account"
+    mkdir -p "$(dirname "$pai_link")"
+    
+    if [[ -L "$pai_link" ]]; then
+        echo "Link already exists: $pai_link"
+    else
+        ln -s "$target_dir" "$pai_link"
+        echo "Created link: $pai_link -> $target_dir"
+    fi
+}
+
+cmd_sync() {
+    # Sync PAI outputs to case directories
+    local case_number=$1
+    
+    # Find case directory across all specialties
+    local case_dir=""
+    for specialty in "${TAM_SPECIALTIES[@]}"; do
+        if [[ -d "$TAM_BASE/$specialty" ]]; then
+            for account_dir in "$TAM_BASE/$specialty"/*; do
+                if [[ -d "$account_dir/casework/active/$case_number" ]]; then
+                    case_dir="$account_dir/casework/active/$case_number"
+                    break 2
+                fi
+            done
+        fi
+    done
+    
+    if [[ -z "$case_dir" ]]; then
+        echo "Error: Case $case_number not found" >&2
+        return 1
+    fi
+    
+    # Sync PAI outputs
+    echo "Syncing PAI outputs for case $case_number..."
+    
+    # Copy latest outputs
+    for file in "$HOME/.claude/pai/create/outputs/plans/"*"$case_number"*.md; do
+        if [[ -f "$file" ]]; then
+            basename=$(basename "$file")
+            cp "$file" "$case_dir/pieces/"
+            echo "  Copied: $basename"
+        fi
+    done
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    list)
+        cmd_list
+        ;;
+    case)
+        shift
+        cmd_case "$@"
+        ;;
+    create)
+        shift
+        cmd_create "$@"
+        ;;
+    link)
+        shift
+        cmd_link "$@"
+        ;;
+    sync)
+        shift
+        cmd_sync "$@"
+        ;;
+    help|--help|-h)
+        cat << EOF
+PAI Workspace Integration Tool
+
+Usage: pai-workspace <command> [options]
+
+Commands:
+  list                              List all accounts by specialty with case counts
+  case <number> [action]            Work with a specific case (searches all specialties)
+    Actions:
+      info    - Show case information (default)
+      open    - Change to case directory
+      analyze - Run AI analysis and save to case
+  create <account> <case>           Create new case (searches for account)
+  create <specialty> <account> <case> Create new case in specific specialty
+  link <account>                    Create symbolic link (searches for account)
+  link <specialty> <account>        Create symbolic link for specific account
+  sync <case>                       Sync PAI outputs to case directory
+  help                              Show this help message
+
+Specialties:
+  tam-ocp - OpenShift Container Platform TAM
+  tam-ai  - Red Hat AI Portfolio TAM
+  tam-sec - Security TAM (all products)
+
+Examples:
+  pai-workspace list
+  pai-workspace case 04056105 info
+  pai-workspace case 04056105 analyze
+  pai-workspace create bny 04123456
+  pai-workspace create tam-ai cibc 04789012
+  pai-workspace link cibc
+  pai-workspace link tam-sec discover
+  pai-workspace sync 04056105
+
+Configuration:
+  Edit ~/.claude/context/config/workspace.yaml to customize paths
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-workspace help' for usage"
+        exit 1
+        ;;
+esac

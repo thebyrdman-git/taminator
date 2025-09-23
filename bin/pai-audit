@@ -1,0 +1,306 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Security and Audit System
+# Comprehensive security layer with audit logging and data protection
+
+# Configuration
+AUDIT_LOG_DIR="$HOME/.claude/context/logs"
+AUDIT_LOG_FILE="$AUDIT_LOG_DIR/pai-audit.log"
+SECRETS_DIR="$HOME/.config/pai/secrets"
+CONFIG_DIR="$HOME/.claude/context/config"
+
+# Ensure directories exist
+mkdir -p "$AUDIT_LOG_DIR" "$SECRETS_DIR"
+chmod 700 "$SECRETS_DIR"
+
+# Function to log audit events
+audit_log() {
+    local event_type="$1"
+    local details="$2"
+    local user="${USER:-unknown}"
+    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    local session_id="${CLAUDE_SESSION_ID:-$(date +%s)}"
+    
+    echo "[$timestamp] $event_type | $user | $session_id | $details" >> "$AUDIT_LOG_FILE"
+}
+
+# Function to redact sensitive data before logging
+redact_for_audit() {
+    local input="$1"
+    
+    # Basic redaction for audit logs
+    echo "$input" | \
+        sed 's/[0-9]\{6,8\}/[CASE_ID]/g' | \
+        sed 's/[a-zA-Z0-9._%+-]\+@[a-zA-Z0-9.-]\+\.[a-zA-Z]\{2,\}/[EMAIL]/g' | \
+        sed 's/\b\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}\b/[IP]/g' | \
+        sed 's/sk-[a-zA-Z0-9]\{20,\}/[API_KEY]/g'
+}
+
+# Function to check data sensitivity
+check_sensitivity() {
+    local data="$1"
+    local sensitivity_score=0
+    
+    # Check for various sensitive data patterns
+    if echo "$data" | grep -q -E "[0-9]{6,8}"; then
+        ((sensitivity_score += 20))  # Case IDs
+    fi
+    
+    if echo "$data" | grep -q -E "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"; then
+        ((sensitivity_score += 30))  # Email addresses
+    fi
+    
+    if echo "$data" | grep -q -E "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b"; then
+        ((sensitivity_score += 25))  # IP addresses
+    fi
+    
+    if echo "$data" | grep -q -E "sk-[a-zA-Z0-9]{20,}|[a-zA-Z0-9]{32,}"; then
+        ((sensitivity_score += 40))  # API keys/tokens
+    fi
+    
+    if echo "$data" | grep -q -i -E "password|secret|token|key|credential"; then
+        ((sensitivity_score += 35))  # Credential keywords
+    fi
+    
+    echo "$sensitivity_score"
+}
+
+# Function to secure fabric call with redaction
+secure_fabric_call() {
+    local pattern="$1"
+    local model="$2"
+    local input_data="$3"
+    
+    # Check sensitivity
+    local sensitivity=$(check_sensitivity "$input_data")
+    
+    audit_log "FABRIC_CALL_START" "pattern=$pattern model=$model sensitivity=$sensitivity"
+    
+    if [[ $sensitivity -gt 50 ]]; then
+        # High sensitivity - require redaction
+        echo "High sensitivity data detected (score: $sensitivity)" >&2
+        echo "Applying redaction before fabric call..." >&2
+        
+        local redacted_data=$(echo "$input_data" | fabric -p redact_tam_data -m gpt-4o 2>/dev/null)
+        audit_log "DATA_REDACTED" "sensitivity=$sensitivity redaction=applied"
+        
+        # Use redacted data
+        local result=$(echo "$redacted_data" | fabric -p "$pattern" -m "$model" 2>/dev/null)
+    else
+        # Low sensitivity - proceed normally
+        local result=$(echo "$input_data" | fabric -p "$pattern" -m "$model" 2>/dev/null)
+    fi
+    
+    audit_log "FABRIC_CALL_END" "pattern=$pattern model=$model success=true"
+    echo "$result"
+}
+
+# Function to manage secrets
+manage_secret() {
+    local action="$1"
+    local secret_name="$2"
+    local secret_value="${3:-}"
+    
+    case "$action" in
+        set)
+            if [[ -z "$secret_value" ]]; then
+                echo "Usage: pai-audit secret set <name> <value>"
+                return 1
+            fi
+            
+            # Encrypt and store secret (basic approach)
+            echo "$secret_value" | gpg --symmetric --cipher-algo AES256 --output "$SECRETS_DIR/$secret_name.gpg" 2>/dev/null
+            audit_log "SECRET_SET" "name=$secret_name"
+            echo "Secret '$secret_name' stored securely"
+            ;;
+        get)
+            local secret_file="$SECRETS_DIR/$secret_name.gpg"
+            if [[ ! -f "$secret_file" ]]; then
+                echo "Secret '$secret_name' not found" >&2
+                return 1
+            fi
+            
+            gpg --quiet --batch --decrypt "$secret_file" 2>/dev/null
+            audit_log "SECRET_ACCESS" "name=$secret_name"
+            ;;
+        list)
+            echo "Available secrets:"
+            ls -1 "$SECRETS_DIR"/*.gpg 2>/dev/null | xargs -I {} basename {} .gpg || echo "No secrets found"
+            ;;
+        delete)
+            local secret_file="$SECRETS_DIR/$secret_name.gpg"
+            if [[ -f "$secret_file" ]]; then
+                rm "$secret_file"
+                audit_log "SECRET_DELETED" "name=$secret_name"
+                echo "Secret '$secret_name' deleted"
+            else
+                echo "Secret '$secret_name' not found"
+            fi
+            ;;
+        *)
+            echo "Usage: pai-audit secret {set|get|list|delete} <name> [value]"
+            return 1
+            ;;
+    esac
+}
+
+# Function to show audit log
+show_audit_log() {
+    local filter="${1:-}"
+    local lines="${2:-50}"
+    
+    if [[ ! -f "$AUDIT_LOG_FILE" ]]; then
+        echo "No audit log found"
+        return 0
+    fi
+    
+    if [[ -n "$filter" ]]; then
+        grep "$filter" "$AUDIT_LOG_FILE" | tail -n "$lines"
+    else
+        tail -n "$lines" "$AUDIT_LOG_FILE"
+    fi
+}
+
+# Function to check security status
+security_status() {
+    echo "PAI Security Status:"
+    echo "==================="
+    
+    # Check audit log
+    if [[ -f "$AUDIT_LOG_FILE" ]]; then
+        local log_entries=$(wc -l < "$AUDIT_LOG_FILE")
+        echo "✅ Audit log: $log_entries entries"
+    else
+        echo "❌ Audit log: Not found"
+    fi
+    
+    # Check secrets directory
+    local secrets_count=$(ls -1 "$SECRETS_DIR"/*.gpg 2>/dev/null | wc -l)
+    echo "🔐 Secrets: $secrets_count stored"
+    
+    # Check directory permissions
+    local secrets_perms=$(stat -c %a "$SECRETS_DIR" 2>/dev/null || echo "000")
+    if [[ "$secrets_perms" == "700" ]]; then
+        echo "✅ Secrets directory: Properly secured (700)"
+    else
+        echo "❌ Secrets directory: Insecure permissions ($secrets_perms)"
+    fi
+    
+    # Check for high-sensitivity recent events
+    local high_sensitivity_events=0
+    if [[ -f "$AUDIT_LOG_FILE" ]]; then
+        high_sensitivity_events=$(grep -c "DATA_REDACTED" "$AUDIT_LOG_FILE" 2>/dev/null || echo "0")
+    fi
+    echo "⚠️  High sensitivity events (last 24h): $high_sensitivity_events"
+    
+    # Check fabric model usage
+    if [[ -f "$AUDIT_LOG_FILE" ]]; then
+        echo ""
+        echo "Recent Model Usage:"
+        tail -20 "$AUDIT_LOG_FILE" | grep "FABRIC_CALL" | cut -d'|' -f4 | sort | uniq -c | sort -nr
+    fi
+}
+
+# Function to cleanup old logs and data
+cleanup() {
+    local days="${1:-30}"
+    
+    echo "Cleaning up data older than $days days..." >&2
+    
+    # Clean old outputs
+    find "$HOME/.claude/context/create/outputs" -name "*.md" -mtime +$days -delete 2>/dev/null || true
+    audit_log "CLEANUP" "outputs older than $days days removed"
+    
+    # Rotate audit log if too large (>10MB)
+    if [[ -f "$AUDIT_LOG_FILE" ]] && [[ $(stat -c%s "$AUDIT_LOG_FILE") -gt 10485760 ]]; then
+        mv "$AUDIT_LOG_FILE" "${AUDIT_LOG_FILE}.old"
+        touch "$AUDIT_LOG_FILE"
+        audit_log "LOG_ROTATED" "previous log archived"
+    fi
+    
+    echo "Cleanup complete"
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    log)
+        shift
+        event_type="${1:-INFO}"
+        details="${2:-Manual log entry}"
+        audit_log "$event_type" "$details"
+        echo "Audit entry logged: $event_type - $details"
+        ;;
+    show-log)
+        shift
+        filter="${1:-}"
+        lines="${2:-50}"
+        show_audit_log "$filter" "$lines"
+        ;;
+    secret)
+        shift
+        manage_secret "$@"
+        ;;
+    fabric)
+        shift
+        pattern="$1"
+        model="$2"
+        input_data="$3"
+        if [[ -z "$pattern" || -z "$model" || -z "$input_data" ]]; then
+            echo "Usage: pai-audit fabric <pattern> <model> <input_data>"
+            exit 1
+        fi
+        secure_fabric_call "$pattern" "$model" "$input_data"
+        ;;
+    status)
+        security_status
+        ;;
+    cleanup)
+        shift
+        days="${1:-30}"
+        cleanup "$days"
+        ;;
+    help|--help|-h)
+        cat << 'EOF'
+PAI Security and Audit System
+
+Usage: pai-audit <command> [options]
+
+Commands:
+  log <type> <details>              Log audit event manually
+  show-log [filter] [lines]         Show audit log (default: 50 lines)
+  secret {set|get|list|delete} <name> [value]  Manage encrypted secrets
+  fabric <pattern> <model> <data>   Secure fabric call with auto-redaction
+  status                            Show security status and metrics
+  cleanup [days]                    Clean old data (default: 30 days)
+  help                              Show this help
+
+Examples:
+  pai-audit log "CASE_ACCESS" "Accessed case 04056105"
+  pai-audit show-log "FABRIC_CALL" 20
+  pai-audit secret set "api_key" "sk-abc123..."
+  pai-audit secret get "api_key"
+  pai-audit fabric "summarize" "gpt-4o" "sensitive case data..."
+  pai-audit status
+  pai-audit cleanup 7
+
+Security Features:
+  - Automatic sensitivity detection and redaction
+  - Encrypted secret storage with GPG
+  - Comprehensive audit logging
+  - Data retention policies
+  - Secure fabric call wrapper
+
+Audit Log Location:
+  ~/.claude/context/logs/pai-audit.log
+
+Secrets Location:
+  ~/.config/pai/secrets/ (encrypted with GPG)
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-audit help' for usage"
+        exit 1
+        ;;
+esac

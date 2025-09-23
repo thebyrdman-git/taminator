@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[Local Executables in ~/.local/bin]"
+ls -1 "$HOME/.local/bin" | sort
+
+echo
+echo "[Local Repos: gits/active]"
+ls -1 "$HOME/Documents/coding/gits/active" | sort
+
+echo "[Local Repos: gits/references]"
+ls -1 "$HOME/Documents/coding/gits/references" | sort
+
+echo "[Internal Repos: gitlabs/active]"
+ls -1 "$HOME/Documents/coding/gitlabs/active" | sort
+
+echo "[Internal Repos: gitlabs/references]"
+ls -1 "$HOME/Documents/coding/gitlabs/references" | sort

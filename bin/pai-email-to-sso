@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+
+"""
+pai-email-to-sso - Return EXACTLY what Hydra API provides
+Purpose: Return the exact email/username as stored in Hydra API
+"""
+
+import json
+import os
+import sys
+import requests
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser(description="Convert email to SSO username using Hydra API")
+    parser.add_argument('--account', '-a', help='Customer account number to search')
+    parser.add_argument('email', nargs='?', help='Email address to lookup')
+
+    args = parser.parse_args()
+
+    # Get credentials
+    username = os.getenv('REDHAT_USERNAME')
+    password = os.getenv('REDHAT_PASSWORD')
+
+    if not username or not password:
+        print("ERROR: Missing REDHAT_USERNAME or REDHAT_PASSWORD", file=sys.stderr)
+        sys.exit(1)
+
+    # Get email from stdin or command line
+    if args.email:
+        email = args.email.strip()
+    else:
+        email = sys.stdin.read().strip()
+
+    if not email:
+        print("ERROR: No email address provided", file=sys.stderr)
+        sys.exit(1)
+
+    # Determine which accounts to search
+    if args.account:
+        # Use specified customer account
+        accounts = [args.account]
+    else:
+        # Search all TAM accounts
+        accounts = ["729650", "999625", "1460290", "411070"]  # BNY, Discover, CIBC, Citi
+
+    # Always include Red Hat accounts for Red Hat employees
+    if email.endswith('@redhat.com'):
+        accounts = ["5910538", "11635376"] + accounts  # Red Hat accounts first
+
+    for account in accounts:
+        try:
+            url = f"https://access.redhat.com/hydra/rest/v1/accounts/{account}/contacts"
+            response = requests.get(
+                url,
+                auth=(username, password),
+                headers={"Accept": "application/json"},
+                timeout=15
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                if result and isinstance(result, list):
+                    for contact in result:
+                        contact_email = contact.get('email', '')
+                        if contact_email.lower() == email.lower():
+                            # Found the contact - get SSO username field
+                            sso_username = (contact.get('ssoUserName') or
+                                          contact.get('username') or
+                                          contact.get('ssoUsername'))
+
+                            if sso_username:
+                                # Return whatever the API provides
+                                print(sso_username)
+                                sys.exit(0)
+                            else:
+                                # Contact exists but no SSO username field
+                                print(f"NOT FOUND: {email}")
+                                sys.exit(1)
+
+        except Exception:
+            continue  # Try next account
+
+    # Not found in any account
+    print(f"NOT FOUND: {email}")
+    sys.exit(1)
+
+if __name__ == "__main__":
+    main()

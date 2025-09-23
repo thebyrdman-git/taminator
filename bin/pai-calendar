@@ -1,0 +1,353 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Calendar Integration
+# Google Workspace calendar integration for TAM daily workflow
+
+# Configuration
+PAI_DIR="$HOME/.claude/context"
+OUTPUT_DIR="$PAI_DIR/create/outputs/calendar"
+FABRIC_MODEL="${CALENDAR_MODEL:-gpt-4o}"
+RESEARCH_MODEL="${CALENDAR_RESEARCH_MODEL:-perplexity-sonar-large}"
+
+# Ensure directories exist
+mkdir -p "$OUTPUT_DIR/daily" "$OUTPUT_DIR/meetings" "$OUTPUT_DIR/prep"
+
+# Function to get today's meetings
+get_todays_meetings() {
+    local date_str="${1:-$(date +%Y-%m-%d)}"
+    
+    echo "Getting calendar for $date_str..." >&2
+    
+    # Get today's meetings using gcalcli
+    local meetings=$(gcalcli agenda --tsv "$date_str" 2>/dev/null)
+    
+    if [[ -z "$meetings" ]]; then
+        echo "No meetings found for $date_str" >&2
+        return 0
+    fi
+    
+    echo "$meetings"
+}
+
+# Function to analyze meeting for TAM relevance and preparation needs
+analyze_meeting() {
+    local meeting_data="$1"
+    
+    # Create analysis prompt
+    local analysis_prompt="Analyze this calendar meeting for TAM (Technical Account Manager) preparation needs:
+
+MEETING DATA:
+$meeting_data
+
+Please identify:
+1. Meeting type (customer call, internal sync, escalation, etc.)
+2. Attendees and their roles/companies
+3. Customer/account involved (BNY, CIBC, Citi, Discover, or others)
+4. Technical topics likely to be discussed
+5. Required preparation materials (case data, KCS articles, product docs)
+6. Potential discussion points and questions
+7. Follow-up actions needed
+8. Meeting priority level (High/Medium/Low)
+
+Format as structured analysis with specific preparation recommendations."
+
+    # Get AI analysis
+    echo "$analysis_prompt" | fabric -p analyze_incident -m "$FABRIC_MODEL" 2>/dev/null
+}
+
+# Function to research meeting attendees
+research_attendees() {
+    local attendees="$1"
+    local meeting_title="$2"
+    
+    echo "Researching attendees for: $meeting_title" >&2
+    
+    # Extract email addresses from attendees
+    local emails=$(echo "$attendees" | grep -o '[a-zA-Z0-9._%+-]\+@[a-zA-Z0-9.-]\+\.[a-zA-Z]\{2,\}' | sort -u)
+    
+    local research_results=""
+    
+    while read -r email; do
+        if [[ -n "$email" && "$email" != *"@redhat.com" ]]; then
+            echo "  Researching: $email" >&2
+            
+            # Create research prompt
+            local research_prompt="Research this meeting attendee for TAM relationship context:
+
+EMAIL: $email
+MEETING: $meeting_title
+
+Please find publicly available professional information:
+1. Current role and company
+2. Technical expertise areas
+3. Decision-making authority
+4. Previous interactions or communications
+5. Areas of interest relevant to Red Hat products
+6. Potential collaboration opportunities
+
+Focus on information useful for TAM relationship building and meeting preparation."
+
+            local attendee_research=$(echo "$research_prompt" | fabric -p extract_wisdom -m "$RESEARCH_MODEL" 2>/dev/null)
+            
+            if [[ -n "$attendee_research" ]]; then
+                research_results+="### $email"$'\n'
+                research_results+="$attendee_research"$'\n'$'\n'
+            fi
+        fi
+    done <<< "$emails"
+    
+    echo "$research_results"
+}
+
+# Function to generate meeting preparation document
+generate_meeting_prep() {
+    local meeting_data="$1"
+    local meeting_title="$2"
+    local meeting_time="$3"
+    local attendees="$4"
+    
+    local date_str=$(date +%Y-%m-%d)
+    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    local safe_title=$(echo "$meeting_title" | tr ' /' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')
+    local output_file="$OUTPUT_DIR/prep/meeting-prep-${safe_title}-${date_str}.md"
+    
+    echo "Generating meeting preparation for: $meeting_title" >&2
+    
+    # Analyze meeting
+    local meeting_analysis=$(analyze_meeting "$meeting_data")
+    
+    # Research attendees
+    local attendee_research=$(research_attendees "$attendees" "$meeting_title")
+    
+    # Create preparation document
+    cat > "$output_file" << EOF
+---
+title: "Meeting Prep: $meeting_title"
+meeting_date: "$meeting_time"
+attendees: "$attendees"
+prep_generated: "$timestamp"
+tags: [meeting-prep, calendar, tam]
+---
+
+# Meeting Preparation: $meeting_title
+
+**Date/Time**: $meeting_time  
+**Attendees**: $attendees  
+**Prep Generated**: $(date -u +%Y-%m-%d)
+
+## Meeting Analysis
+$meeting_analysis
+
+## Attendee Research
+$attendee_research
+
+## Preparation Checklist
+- [ ] Review relevant case numbers and status
+- [ ] Prepare technical talking points
+- [ ] Review account history and relationship status
+- [ ] Gather supporting documentation (KCS, RFEs, etc.)
+- [ ] Prepare questions and discussion topics
+- [ ] Set follow-up action items
+
+## Quick Commands for Prep
+\`\`\`bash
+# Review account cases
+pai-workspace list
+
+# Search knowledge base for relevant topics
+pai-search search "meeting topic" smart
+
+# Get case details if specific cases mentioned
+pai-workspace case XXXXXXXX info
+
+# Research technical topics
+echo "technical topic" | fabric -p extract_wisdom -m perplexity-sonar-large
+\`\`\`
+
+## Notes
+_Add manual preparation notes here_
+
+## Follow-up Actions
+_To be filled during/after meeting_
+EOF
+
+    echo "Meeting preparation saved to: $output_file"
+    pai-audit log "MEETING_PREP" "title=\"$meeting_title\" time=\"$meeting_time\""
+    
+    echo "$output_file"
+}
+
+# Function to get daily calendar summary
+generate_daily_calendar() {
+    local date_str="${1:-$(date +%Y-%m-%d)}"
+    local output_file="$OUTPUT_DIR/daily/calendar-summary-$date_str.md"
+    
+    echo "Generating daily calendar summary for $date_str..." >&2
+    
+    # Get today's meetings
+    local meetings=$(get_todays_meetings "$date_str")
+    
+    if [[ -z "$meetings" ]]; then
+        echo "No meetings scheduled for $date_str" >&2
+        return 0
+    fi
+    
+    # Count meetings
+    local meeting_count=$(echo "$meetings" | wc -l)
+    
+    # Create calendar summary
+    cat > "$output_file" << EOF
+---
+title: "Daily Calendar Summary ($date_str)"
+date: "$date_str"
+meeting_count: $meeting_count
+generated: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+tags: [calendar, daily, meetings]
+---
+
+# Daily Calendar Summary - $date_str
+
+## Meetings Overview
+**Total meetings**: $meeting_count
+
+## Meeting Schedule
+$meetings
+
+## Preparation Status
+$(echo "$meetings" | while IFS=$'\t' read -r start_time end_time title attendees location description; do
+    if [[ -n "$title" ]]; then
+        local safe_title=$(echo "$title" | tr ' /' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')
+        local prep_file="$OUTPUT_DIR/prep/meeting-prep-${safe_title}-${date_str}.md"
+        
+        if [[ -f "$prep_file" ]]; then
+            echo "- ✅ $title (prepared)"
+        else
+            echo "- ⏳ $title (needs prep)"
+        fi
+    fi
+done)
+
+## Quick Actions
+\`\`\`bash
+# Generate prep for specific meeting
+pai-calendar prep "Meeting Title"
+
+# Get full day overview
+pai-calendar today
+
+# Research attendees for upcoming meetings
+pai-calendar research-attendees
+\`\`\`
+EOF
+
+    echo "Daily calendar summary saved to: $output_file"
+    echo "$output_file"
+}
+
+# Function to setup gcalcli authentication
+setup_auth() {
+    echo "Setting up Google Calendar authentication..." >&2
+    echo "This will open a browser for OAuth authentication." >&2
+    
+    # Initialize gcalcli (this will prompt for OAuth)
+    gcalcli list
+    
+    echo "✅ Google Calendar authentication complete"
+    pai-audit log "CALENDAR_AUTH" "gcalcli_oauth_completed"
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    auth)
+        setup_auth
+        ;;
+    today)
+        shift
+        date_str="${1:-$(date +%Y-%m-%d)}"
+        get_todays_meetings "$date_str"
+        ;;
+    summary)
+        shift
+        date_str="${1:-$(date +%Y-%m-%d)}"
+        generate_daily_calendar "$date_str"
+        ;;
+    prep)
+        shift
+        meeting_title="${1:-}"
+        if [[ -z "$meeting_title" ]]; then
+            echo "Usage: pai-calendar prep <meeting_title>"
+            exit 1
+        fi
+        
+        # Get today's meetings and find the specified one
+        local meetings=$(get_todays_meetings)
+        local meeting_line=$(echo "$meetings" | grep -i "$meeting_title" | head -1)
+        
+        if [[ -n "$meeting_line" ]]; then
+            IFS=$'\t' read -r start_time end_time title attendees location description <<< "$meeting_line"
+            generate_meeting_prep "$meeting_line" "$title" "$start_time" "$attendees"
+        else
+            echo "Meeting not found: $meeting_title" >&2
+            echo "Available meetings today:"
+            echo "$meetings" | cut -f3
+        fi
+        ;;
+    agenda)
+        shift
+        days="${1:-7}"
+        gcalcli agenda --days "$days"
+        ;;
+    help|--help|-h)
+        cat << 'EOF'
+PAI Calendar Integration
+
+Usage: pai-calendar <command> [options]
+
+Commands:
+  auth                      Setup Google Calendar OAuth authentication
+  today [date]              Show today's meetings (default: today)
+  summary [date]            Generate daily calendar summary with prep status
+  prep <meeting_title>      Generate meeting preparation document
+  agenda [days]             Show agenda for next N days (default: 7)
+  help                      Show this help
+
+Examples:
+  pai-calendar auth                           # Setup authentication
+  pai-calendar today                          # Show today's meetings
+  pai-calendar today 2025-01-07              # Show specific date
+  pai-calendar summary                        # Generate daily summary
+  pai-calendar prep "Customer Sync"          # Prepare for specific meeting
+  pai-calendar agenda 3                      # Show next 3 days
+
+Features:
+  - Google Workspace calendar integration via gcalcli
+  - Automatic meeting preparation with attendee research
+  - TAM-focused analysis of meeting content and requirements
+  - Integration with fabric patterns for AI-enhanced preparation
+  - Attendee research using perplexity for relationship building
+  - Preparation document generation with checklists
+
+Output Locations:
+  - Daily summaries: ~/.claude/context/create/outputs/calendar/daily/
+  - Meeting prep: ~/.claude/context/create/outputs/calendar/prep/
+  - Meeting analysis: ~/.claude/context/create/outputs/calendar/meetings/
+
+Integration:
+  - Called by pai-my-plate-v2 for daily briefings
+  - Uses fabric patterns for meeting analysis
+  - Uses perplexity for attendee research
+  - Integrates with pai-audit for logging
+
+Requirements:
+  - Google Workspace account access
+  - OAuth authentication via browser
+  - gcalcli installed (done)
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-calendar help' for usage"
+        exit 1
+        ;;
+esac

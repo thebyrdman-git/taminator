@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Citi Case Assistance Tracker
+# Simple tool to manage cases you're assisting with
+
+ASSIST_FILE="$HOME/.claude/context/config/citi/assistance-cases.md"
+
+cmd_add() {
+    local case_number="$1"
+    local reason="${2:-assisting primary TAM}"
+    
+    # Validate case number format
+    if [[ ! "$case_number" =~ ^[0-9]{8}$ ]]; then
+        echo "Error: Invalid case number format. Use 8-digit format (04XXXXXX)"
+        exit 1
+    fi
+    
+    # Check if already exists
+    if grep -q "^$case_number" "$ASSIST_FILE" 2>/dev/null; then
+        echo "Case $case_number is already in assistance list"
+        return 0
+    fi
+    
+    # Add case to assistance list
+    echo "$case_number - $reason" >> "$ASSIST_FILE"
+    echo "✅ Added case $case_number to assistance list"
+    
+    # Log the addition
+    pai-audit log "CITI_ASSIST_ADD" "case=$case_number reason=$reason" 2>/dev/null || true
+}
+
+cmd_remove() {
+    local case_number="$1"
+    
+    if [[ ! -f "$ASSIST_FILE" ]]; then
+        echo "No assistance cases file found"
+        return 0
+    fi
+    
+    # Remove case from file
+    if grep -q "^$case_number" "$ASSIST_FILE"; then
+        sed -i "/^$case_number/d" "$ASSIST_FILE"
+        echo "✅ Removed case $case_number from assistance list"
+        pai-audit log "CITI_ASSIST_REMOVE" "case=$case_number" 2>/dev/null || true
+    else
+        echo "Case $case_number not found in assistance list"
+    fi
+}
+
+cmd_list() {
+    if [[ -f "$ASSIST_FILE" ]]; then
+        echo "Cases you're assisting with:"
+        echo "=========================="
+        grep "^[0-9]" "$ASSIST_FILE" 2>/dev/null | while IFS= read -r line; do
+            echo "- $line"
+        done
+    else
+        echo "No assistance cases tracked yet"
+        echo "Add cases with: pai-citi-assist add 04123456 'reason'"
+    fi
+}
+
+cmd_extract() {
+    # Extract just the case numbers for use in scripts
+    if [[ -f "$ASSIST_FILE" ]]; then
+        grep "^[0-9]" "$ASSIST_FILE" 2>/dev/null | cut -d' ' -f1 || true
+    fi
+}
+
+# Ensure assist file exists
+mkdir -p "$(dirname "$ASSIST_FILE")"
+if [[ ! -f "$ASSIST_FILE" ]]; then
+    touch "$ASSIST_FILE"
+fi
+
+case "${1:-list}" in
+    add)
+        shift
+        if [[ $# -lt 1 ]]; then
+            echo "Usage: pai-citi-assist add <case_number> [reason]"
+            exit 1
+        fi
+        cmd_add "$@"
+        ;;
+    remove|rm)
+        shift
+        if [[ $# -lt 1 ]]; then
+            echo "Usage: pai-citi-assist remove <case_number>"
+            exit 1
+        fi
+        cmd_remove "$1"
+        ;;
+    list)
+        cmd_list
+        ;;
+    extract)
+        cmd_extract
+        ;;
+    help|--help|-h)
+        cat << 'HELP'
+PAI Citi Case Assistance Tracker
+
+Usage: pai-citi-assist <command> [options]
+
+Commands:
+  add <case> [reason]     Add case to assistance list
+  remove <case>           Remove case from assistance list  
+  list                    Show current assistance cases (default)
+  extract                 Extract case numbers only (for scripts)
+  help                    Show this help
+
+Examples:
+  pai-citi-assist add 04123456 "helping with OCP upgrade"
+  pai-citi-assist remove 04123456
+  pai-citi-assist list
+
+Configuration: ~/.claude/context/config/citi/assistance-cases.md
+HELP
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Use 'pai-citi-assist help' for usage"
+        exit 1
+        ;;
+esac

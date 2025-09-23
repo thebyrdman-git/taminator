@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Fabric Integration Tool
+# Wrapper around fabric to use litellm proxy and PAI patterns
+
+# Configuration
+LITELLM_BASE_URL="${LITELLM_BASE_URL:-http://localhost:4000}"
+LITELLM_API_KEY="${LITELLM_API_KEY:-sk-8EyyqqAY3z}"
+PAI_PATTERNS_DIR="$HOME/.claude/context/patterns"
+PAI_CONFIG="$HOME/.claude/context/config/fabric-integration.yaml"
+
+# Default models from litellm config (updated based on testing)
+DEFAULT_ANALYSIS_MODEL="remote-local-granite-3-2-8b-instruct"  # ✅ Working
+DEFAULT_REDACTION_MODEL="gpt-4o"  # ✅ Most accurate for redaction
+DEFAULT_RESEARCH_MODEL="perplexity-sonar-large"  # ✅ Working
+DEFAULT_REASONING_MODEL="gpt-5-reasoning"  # ✅ Working
+
+# Function to check if litellm is running
+check_litellm() {
+    if ! curl -s "$LITELLM_BASE_URL/health" >/dev/null 2>&1; then
+        echo "Error: LiteLLM proxy not running at $LITELLM_BASE_URL" >&2
+        echo "Start it with: litellm --config ~/.litellm/hybrid_config.yaml --port 4000" >&2
+        return 1
+    fi
+}
+
+# Function to start litellm if not running
+start_litellm() {
+    echo "Starting LiteLLM proxy..."
+    litellm --config ~/.litellm/hybrid_config.yaml --port 4000 --host 0.0.0.0 &
+    sleep 3
+    if check_litellm; then
+        echo "LiteLLM proxy started successfully"
+    else
+        echo "Failed to start LiteLLM proxy" >&2
+        return 1
+    fi
+}
+
+# Function to run fabric with litellm backend
+run_fabric() {
+    local pattern="$1"
+    shift
+    local model="$1"
+    shift
+    
+    # Check if pattern exists in PAI patterns directory
+    if [[ -d "$PAI_PATTERNS_DIR/$pattern" ]]; then
+        echo "Using PAI pattern: $pattern" >&2
+    else
+        echo "Using standard fabric pattern: $pattern" >&2
+    fi
+    
+    # Run fabric and redirect warnings to stderr, clean output to stdout
+    fabric -p "$pattern" -m "$model" "$@" 2> >(grep -v "Warning:" >&2)
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    redact)
+        shift
+        check_litellm || start_litellm
+        run_fabric "redact_tam_data" "$DEFAULT_REDACTION_MODEL" "$@"
+        ;;
+    analyze)
+        shift
+        check_litellm || start_litellm
+        run_fabric "analyze_case" "$DEFAULT_ANALYSIS_MODEL" "$@"
+        ;;
+    research)
+        shift
+        check_litellm || start_litellm
+        run_fabric "extract_wisdom" "$DEFAULT_RESEARCH_MODEL" "$@"
+        ;;
+    brief)
+        shift
+        check_litellm || start_litellm
+        run_fabric "summarize" "$DEFAULT_ANALYSIS_MODEL" "$@"
+        ;;
+    reason)
+        shift
+        check_litellm || start_litellm
+        run_fabric "analyze_claims" "$DEFAULT_REASONING_MODEL" "$@"
+        ;;
+    logs)
+        shift
+        check_litellm || start_litellm
+        run_fabric "analyze_logs" "$DEFAULT_ANALYSIS_MODEL" "$@"
+        ;;
+    start-proxy)
+        start_litellm
+        ;;
+    check)
+        check_litellm && echo "LiteLLM proxy is running"
+        ;;
+    models)
+        check_litellm || start_litellm
+        echo "Available models via LiteLLM:"
+        curl -s "$LITELLM_BASE_URL/models" | jq -r '.data[].id' | sort
+        ;;
+    patterns)
+        echo "PAI Custom Patterns:"
+        ls -1 "$PAI_PATTERNS_DIR" 2>/dev/null || echo "No custom patterns found"
+        echo
+        echo "Standard Fabric Patterns:"
+        fabric -l | head -20
+        ;;
+    help|--help|-h)
+        cat << 'EOF'
+PAI Fabric Integration Tool
+
+Usage: pai-fabric <command> [options]
+
+Commands:
+  redact <input>          Redact sensitive TAM data using Mistral
+  analyze <case_data>     Analyze case using Granite (workflow.md methodology)
+  research <topic>        Research using Perplexity with online access
+  brief <content>         Generate summary/briefing using Granite
+  reason <problem>        Complex reasoning using GPT-5/o3
+  logs <log_data>         Analyze logs using Granite
+  start-proxy            Start LiteLLM proxy if not running
+  check                  Check if LiteLLM proxy is running
+  models                 List available models via LiteLLM
+  patterns               List available fabric patterns
+  help                   Show this help
+
+Examples:
+  # Redact case data before external sharing
+  pai-fabric redact < case_data.txt > redacted_case.txt
+  
+  # Analyze a case using TAM methodology
+  pai-fabric analyze < /path/to/case/extracts/case.json
+  
+  # Research latest information
+  echo "OpenShift 4.17 known issues" | pai-fabric research
+  
+  # Generate daily briefing
+  pai-my-plate | pai-fabric brief
+  
+  # Analyze logs from SupportShell
+  yank-ng --case 12345 --pattern "error" | pai-fabric logs
+
+Configuration:
+  LiteLLM Config: ~/.litellm/hybrid_config.yaml
+  PAI Config: ~/.claude/context/config/fabric-integration.yaml
+  Custom Patterns: ~/.claude/context/patterns/
+
+Model Assignments:
+  Analysis: remote-local-granite-3-2-8b-instruct
+  Redaction: remote-local-mistral-7b-instruct  
+  Research: perplexity-sonar-large
+  Reasoning: gpt-5-reasoning (o3)
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-fabric help' for usage"
+        exit 1
+        ;;
+esac

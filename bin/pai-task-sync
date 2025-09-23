@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+
+"""
+pai-task-sync - Bidirectional sync between PAI projects and Taskwarrior
+Maintains consistency between PAI project tracking and Taskwarrior tasks
+"""
+
+import yaml
+import json
+import sys
+import argparse
+import subprocess
+import uuid
+from datetime import datetime, date
+from pathlib import Path
+
+# Configuration
+PROJECTS_FILE = Path.home() / ".claude/context/create/outputs/projects/projects.yaml"
+SYNC_LOG = Path.home() / ".claude/context/logs/task-sync.log"
+
+def log_sync(message):
+    """Log sync operations"""
+    timestamp = datetime.now().isoformat()
+    log_entry = f"{timestamp}: {message}\n"
+
+    SYNC_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with open(SYNC_LOG, 'a') as f:
+        f.write(log_entry)
+
+def load_projects():
+    """Load PAI projects"""
+    if not PROJECTS_FILE.exists():
+        return {}
+
+    with open(PROJECTS_FILE, 'r') as f:
+        return yaml.safe_load(f)
+
+def save_projects(data):
+    """Save PAI projects"""
+    with open(PROJECTS_FILE, 'w') as f:
+        yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+
+def run_task_command(cmd):
+    """Execute taskwarrior command and return result"""
+    try:
+        result = subprocess.run(['task'] + cmd, capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        print(f"Taskwarrior error: {e.stderr}")
+        return None
+
+def get_task_export():
+    """Get all tasks from Taskwarrior in JSON format"""
+    result = run_task_command(['export'])
+    if result:
+        try:
+            return json.loads(result)
+        except json.JSONDecodeError:
+            return []
+    return []
+
+def create_task_project_tags(project_name, category):
+    """Create appropriate tags for Taskwarrior with PAI namespace"""
+    tags = [f"pai", f"pai-{project_name}"]
+
+    if category == "customer":
+        tags.extend(["pai-customer"])
+    elif category == "redhat-internal":
+        tags.extend(["pai-redhat", "pai-internal"])
+    elif category == "personal":
+        tags.extend(["pai-personal"])
+
+    return tags
+
+def get_pai_project_name(project_name, category):
+    """Create Taskwarrior project name with PAI namespace - mobile friendly"""
+    # Keep project names shorter and cleaner for mobile display
+    clean_name = project_name.title().replace('-', '').replace('_', '')
+
+    if category == "customer":
+        return f"PAI-Customer-{clean_name}"
+    elif category == "redhat-internal":
+        return f"PAI-RedHat-{clean_name}"
+    elif category == "personal":
+        return f"PAI-Personal-{clean_name}"
+    else:
+        return f"PAI-{clean_name}"
+
+def priority_to_taskwarrior(pai_priority):
+    """Convert PAI priority to Taskwarrior priority"""
+    mapping = {
+        "high": "H",
+        "medium": "M",
+        "low": "L"
+    }
+    return mapping.get(pai_priority, "")
+
+def status_to_taskwarrior(pai_status):
+    """Convert PAI status to Taskwarrior status"""
+    mapping = {
+        "pending": "pending",
+        "in-progress": "pending",  # Use +ACTIVE tag for in-progress
+        "blocked": "waiting",
+        "completed": "completed",
+        "cancelled": "deleted"
+    }
+    return mapping.get(pai_status, "pending")
+
+def sync_pai_to_taskwarrior():
+    """Sync PAI projects to Taskwarrior"""
+    data = load_projects()
+    if not data or 'projects' not in data:
+        print("No PAI projects found.")
+        return
+
+    existing_tasks = get_task_export()
+    # Only consider tasks with 'pai' tag to avoid conflicts with Google Tasks sync
+    pai_tasks = [task for task in existing_tasks if task.get('tags') and 'pai' in task.get('tags', [])]
+    existing_uuids = {task.get('uuid') for task in pai_tasks}
+
+    synced_count = 0
+    projects = data['projects']
+
+    for project_name, project in projects.items():
+        for task_data in project.get('tasks', []):
+            # Create task description
+            description = f"{project_name}: {task_data['task']}"
+            if 'subtask' in task_data:
+                description += f" → {task_data['subtask']}"
+
+            # Prepare taskwarrior command
+            tags = create_task_project_tags(project_name, project.get('category', ''))
+            priority = priority_to_taskwarrior(project.get('priority', 'medium'))
+
+            # Check if task already exists (by PAI task ID)
+            task_exists = False
+            for existing_task in existing_tasks:
+                if existing_task.get('tags') and f"pai-id-{task_data['id']}" in existing_task.get('tags', []):
+                    task_exists = True
+                    # Update existing task if needed
+                    task_uuid = existing_task['uuid']
+
+                    # Check if status changed
+                    current_status = status_to_taskwarrior(task_data.get('status', 'pending'))
+                    if existing_task.get('status') != current_status:
+                        if current_status == 'completed':
+                            run_task_command([task_uuid, 'done'])
+                        elif current_status == 'deleted':
+                            run_task_command([task_uuid, 'delete'])
+
+                    break
+
+            if not task_exists:
+                # Create new task
+                cmd = ['add', description]
+
+                # Add tags
+                tags.append(f"pai-id-{task_data['id']}")
+                for tag in tags:
+                    cmd.extend(['+' + tag])
+
+                # Add priority
+                if priority:
+                    cmd.extend(['priority:' + priority])
+
+                # Add PAI project namespace
+                pai_project = get_pai_project_name(project_name, project.get('category', ''))
+                cmd.extend(['project:' + pai_project])
+
+                # Add account info to description if customer
+                if project.get('account'):
+                    cmd.extend([f'account:{project.get("account")}'])
+
+                # Add status-specific attributes
+                if task_data.get('status') == 'in-progress':
+                    cmd.extend(['+ACTIVE'])
+
+                result = run_task_command(cmd)
+                if result:
+                    synced_count += 1
+                    log_sync(f"Created task: {description}")
+
+    print(f"✅ Synced {synced_count} tasks from PAI to Taskwarrior")
+
+def sync_taskwarrior_to_pai():
+    """Sync Taskwarrior changes back to PAI projects"""
+    tasks = get_task_export()
+    pai_tasks = {task.get('tags', []): task for task in tasks if task.get('tags') and any(tag.startswith('pai-id-') for tag in task.get('tags', []))}
+
+    data = load_projects()
+    if not data or 'projects' not in data:
+        return
+
+    updated_count = 0
+
+    for task in tasks:
+        if not task.get('tags'):
+            continue
+
+        # Find PAI task ID
+        pai_id = None
+        for tag in task.get('tags', []):
+            if tag.startswith('pai-id-'):
+                pai_id = tag.replace('pai-id-', '')
+                break
+
+        if not pai_id:
+            continue
+
+        # Find corresponding PAI task
+        pai_task = None
+        pai_project_name = None
+
+        for project_name, project in data['projects'].items():
+            for task_data in project.get('tasks', []):
+                if task_data['id'] == pai_id:
+                    pai_task = task_data
+                    pai_project_name = project_name
+                    break
+            if pai_task:
+                break
+
+        if not pai_task:
+            continue
+
+        # Update PAI task status based on Taskwarrior
+        tw_status = task.get('status')
+        pai_status = pai_task.get('status')
+
+        new_pai_status = None
+        if tw_status == 'completed' and pai_status != 'completed':
+            new_pai_status = 'completed'
+            pai_task['completed'] = datetime.now().strftime('%Y-%m-%d')
+        elif tw_status == 'deleted' and pai_status != 'cancelled':
+            new_pai_status = 'cancelled'
+        elif tw_status == 'waiting' and pai_status != 'blocked':
+            new_pai_status = 'blocked'
+
+        if new_pai_status:
+            pai_task['status'] = new_pai_status
+            updated_count += 1
+            log_sync(f"Updated PAI task {pai_id} status to {new_pai_status}")
+
+    if updated_count > 0:
+        save_projects(data)
+        print(f"✅ Updated {updated_count} PAI tasks from Taskwarrior")
+
+def show_sync_status():
+    """Show sync status between PAI and Taskwarrior"""
+    data = load_projects()
+    if not data or 'projects' not in data:
+        print("No PAI projects found.")
+        return
+
+    # Count PAI tasks
+    pai_task_count = 0
+    for project in data['projects'].values():
+        pai_task_count += len(project.get('tasks', []))
+
+    # Count Taskwarrior tasks with PAI tags
+    tasks = get_task_export()
+    tw_pai_tasks = [task for task in tasks if task.get('tags') and any(tag.startswith('pai-') for tag in task.get('tags', []))]
+
+    print("🔄 PAI-Taskwarrior Sync Status")
+    print("=" * 40)
+    print(f"PAI Tasks: {pai_task_count}")
+    print(f"Taskwarrior PAI Tasks: {len(tw_pai_tasks)}")
+    print(f"Last Sync: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+
+    # Show recent sync log entries
+    if SYNC_LOG.exists():
+        print("Recent Sync Activity:")
+        with open(SYNC_LOG, 'r') as f:
+            lines = f.readlines()
+            for line in lines[-5:]:
+                print(f"  {line.strip()}")
+
+def main():
+    parser = argparse.ArgumentParser(description='PAI-Taskwarrior Sync Tool')
+    parser.add_argument('command', nargs='?', default='bidirectional',
+                       choices=['push', 'pull', 'bidirectional', 'status'],
+                       help='Sync direction')
+
+    args = parser.parse_args()
+
+    if args.command == 'push':
+        sync_pai_to_taskwarrior()
+    elif args.command == 'pull':
+        sync_taskwarrior_to_pai()
+    elif args.command == 'bidirectional':
+        print("🔄 Starting bidirectional sync...")
+        sync_pai_to_taskwarrior()
+        sync_taskwarrior_to_pai()
+        print("✅ Bidirectional sync complete")
+    elif args.command == 'status':
+        show_sync_status()
+
+if __name__ == '__main__':
+    main()

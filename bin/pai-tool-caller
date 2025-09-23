@@ -1,0 +1,38 @@
+#!/bin/bash
+# PAI Tool Caller for Gemini CLI
+# Executes pai- scripts based on Gemini's tool discovery
+
+TOOL_NAME="$1"
+
+# Read arguments from stdin as JSON
+ARGS=$(cat)
+
+echo "Executing PAI tool: $TOOL_NAME"
+
+# Map tool names to actual pai- scripts
+case "$TOOL_NAME" in
+    "pai-brief-generate")
+        ~/.local/bin/pai-brief-generate
+        ;;
+    "pai-compliance-check")
+        ~/.local/bin/pai-compliance-check
+        ;;
+    "pai-context-current")
+        ~/.local/bin/pai-context-current
+        ;;
+    "pai-context-switch")
+        ~/.local/bin/pai-context-switch
+        ;;
+    "pai-status-show")
+        ~/.local/bin/pai-status-show
+        ;;
+    *)
+        # Try to execute the tool directly if it exists
+        if [[ -x "~/.local/bin/$TOOL_NAME" ]]; then
+            "~/.local/bin/$TOOL_NAME"
+        else
+            echo "Unknown PAI tool: $TOOL_NAME"
+            exit 1
+        fi
+        ;;
+esac

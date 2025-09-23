@@ -1,0 +1,313 @@
+#!/bin/bash
+# pai-brief-generate - Generate daily status brief for current context
+# Part of PAI-Cursor integration system
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+CONTEXT_FILE="$PAI_CONFIG_DIR/current-context"
+
+# Help function
+show_help() {
+    cat << EOF
+pai-brief-generate - Generate daily status brief for current context
+
+USAGE:
+    pai-brief-generate [OPTIONS]
+
+OPTIONS:
+    --format FORMAT     Output format (text|json|markdown) [default: text]
+    --days DAYS        Look back N days for changes [default: 1]
+    --context CONTEXT  Generate brief for specific context
+    --help, -h         Show this help message
+
+EXIT CODES:
+    0   Brief generated successfully
+    1   Error during generation
+    2   Invalid arguments
+
+EXAMPLES:
+    pai-brief-generate
+    pai-brief-generate --format markdown
+    pai-brief-generate --days 3 --context mga
+    pai-brief-generate --format json
+EOF
+}
+
+# Get current context
+get_current_context() {
+    if [[ -f "$CONTEXT_FILE" ]]; then
+        cat "$CONTEXT_FILE" 2>/dev/null || echo "general"
+    else
+        echo "general"
+    fi
+}
+
+# Get context paths based on business
+get_context_paths() {
+    local context="$1"
+    case "$context" in
+        redhat)
+            echo "redhat/ psirt/ case-*"
+            ;;
+        mga)
+            echo "mga/ herbal/ products/"
+            ;;
+        rec)
+            echo "rec/ crystals/ metaphysical/"
+            ;;
+        warehouse)
+            echo "warehouse/ consolidation/"
+            ;;
+        general)
+            echo ". **/*"
+            ;;
+        *)
+            echo "."
+            ;;
+    esac
+}
+
+# Get recent file changes
+get_recent_changes() {
+    local context="$1"
+    local days="$2"
+    local paths=($(get_context_paths "$context"))
+
+    echo "## Recent File Changes (Last $days day$([ "$days" -ne 1 ] && echo "s"))"
+
+    local found_changes=false
+    for path in "${paths[@]}"; do
+        if [[ -d "$path" ]] || [[ "$path" == "." ]] || [[ "$path" == "**/*" ]]; then
+            local changes=$(find ${path//\*/.} -type f -mtime -"$days" 2>/dev/null | head -10)
+            if [[ -n "$changes" ]]; then
+                found_changes=true
+                echo "$changes" | while read -r file; do
+                    local mod_time=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$file" 2>/dev/null || echo "unknown")
+                    echo "- $file (modified: $mod_time)"
+                done
+            fi
+        fi
+    done
+
+    if [[ "$found_changes" == "false" ]]; then
+        echo "- No recent changes found in context paths"
+    fi
+}
+
+# Get git status if in git repo
+get_git_status() {
+    if git rev-parse --git-dir >/dev/null 2>&1; then
+        echo "## Git Status"
+        local status=$(git status --porcelain 2>/dev/null)
+        if [[ -n "$status" ]]; then
+            echo "$status" | while read -r line; do
+                echo "- $line"
+            done
+        else
+            echo "- Working directory clean"
+        fi
+
+        # Recent commits
+        local recent_commits=$(git log --oneline -n 5 2>/dev/null)
+        if [[ -n "$recent_commits" ]]; then
+            echo ""
+            echo "## Recent Commits"
+            echo "$recent_commits" | while read -r commit; do
+                echo "- $commit"
+            done
+        fi
+    fi
+}
+
+# Get context-specific status
+get_context_status() {
+    local context="$1"
+
+    case "$context" in
+        redhat)
+            echo "## Red Hat PSIRT Status"
+            echo "- Context: Red Hat Product Security work"
+            echo "- Compliance: Required (local models only)"
+            echo "- Data classification: Customer-sensitive"
+            ;;
+        mga)
+            echo "## Midnight Garden Apothecary Status"
+            echo "- Business: Herbal products manufacturing"
+            echo "- Warehouse: Production facility setup (Oct 2025)"
+            echo "- Focus: Recipe development and production scaling"
+            ;;
+        rec)
+            echo "## Raven's Eye Consulting Status"
+            echo "- Business: Metaphysical shop operations"
+            echo "- Warehouse: Inventory consolidation (Oct 2025)"
+            echo "- Focus: Order fulfillment and inventory management"
+            ;;
+        warehouse)
+            echo "## Warehouse Consolidation Project Status"
+            echo "- Timeline: October 1, 2025 target"
+            echo "- Scope: Multi-business consolidation"
+            echo "- Coordination: Shared project with Shale"
+            ;;
+        general)
+            echo "## General Development Status"
+            echo "- Context: Standard development work"
+            echo "- Focus: Code quality and best practices"
+            ;;
+    esac
+}
+
+# Get current priorities
+get_priorities() {
+    local context="$1"
+
+    echo "## Current Priorities"
+    case "$context" in
+        redhat)
+            echo "- Customer vulnerability assessments"
+            echo "- Compliance with Red Hat AI policies"
+            echo "- PSIRT team coordination"
+            ;;
+        mga)
+            echo "- Production schedule optimization"
+            echo "- Warehouse facility preparation"
+            echo "- Recipe documentation and testing"
+            ;;
+        rec)
+            echo "- Inventory organization for warehouse move"
+            echo "- Order fulfillment optimization"
+            echo "- Customer relationship management"
+            ;;
+        warehouse)
+            echo "- Space planning and layout design"
+            echo "- Equipment procurement and staging"
+            echo "- Coordination with Shale on shared timeline"
+            ;;
+        general)
+            echo "- Code quality and testing"
+            echo "- Documentation updates"
+            echo "- Technical debt reduction"
+            ;;
+    esac
+}
+
+# Generate brief in different formats
+generate_brief() {
+    local context="$1"
+    local days="$2"
+    local format="$3"
+
+    local timestamp=$(date -Iseconds)
+    local date_str=$(date "+%Y-%m-%d")
+
+    case "$format" in
+        json)
+            echo "{"
+            echo "  \"date\": \"$date_str\","
+            echo "  \"timestamp\": \"$timestamp\","
+            echo "  \"context\": \"$context\","
+            echo "  \"days_back\": $days,"
+            echo "  \"brief\": {"
+            echo "    \"status\": \"Generated daily brief for $context context\","
+            echo "    \"recent_changes\": \"$(get_recent_changes "$context" "$days" | sed 's/"/\\"/g' | tr '\n' ' ')\","
+            echo "    \"git_status\": \"$(get_git_status | sed 's/"/\\"/g' | tr '\n' ' ')\","
+            echo "    \"priorities\": \"$(get_priorities "$context" | sed 's/"/\\"/g' | tr '\n' ' ')\""
+            echo "  }"
+            echo "}"
+            ;;
+        markdown)
+            echo "# Daily Brief - $date_str"
+            echo ""
+            echo "**Context:** $context  "
+            echo "**Generated:** $timestamp"
+            echo ""
+            get_context_status "$context"
+            echo ""
+            get_recent_changes "$context" "$days"
+            echo ""
+            get_git_status
+            echo ""
+            get_priorities "$context"
+            ;;
+        text|*)
+            echo "Daily Brief - $date_str"
+            echo "Context: $context"
+            echo "Generated: $timestamp"
+            echo ""
+            get_context_status "$context"
+            echo ""
+            get_recent_changes "$context" "$days"
+            echo ""
+            get_git_status
+            echo ""
+            get_priorities "$context"
+            ;;
+    esac
+}
+
+# Parse arguments
+FORMAT="text"
+DAYS=1
+CONTEXT=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --format)
+            FORMAT="$2"
+            shift 2
+            ;;
+        --days)
+            DAYS="$2"
+            shift 2
+            ;;
+        --context)
+            CONTEXT="$2"
+            shift 2
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Error: Unknown option $1" >&2
+            show_help >&2
+            exit 2
+            ;;
+    esac
+done
+
+# Validate format
+case "$FORMAT" in
+    text|json|markdown) ;;
+    *)
+        echo "Error: Invalid format '$FORMAT'" >&2
+        echo "Valid formats: text, json, markdown" >&2
+        exit 2
+        ;;
+esac
+
+# Validate days
+if ! [[ "$DAYS" =~ ^[0-9]+$ ]] || [[ "$DAYS" -lt 1 ]]; then
+    echo "Error: Days must be a positive integer" >&2
+    exit 2
+fi
+
+# Get context (use current if not specified)
+if [[ -z "$CONTEXT" ]]; then
+    CONTEXT=$(get_current_context)
+fi
+
+# Validate context
+case "$CONTEXT" in
+    redhat|mga|rec|warehouse|general) ;;
+    *)
+        echo "Error: Invalid context '$CONTEXT'" >&2
+        exit 1
+        ;;
+esac
+
+# Generate the brief
+generate_brief "$CONTEXT" "$DAYS" "$FORMAT"
+
+exit 0

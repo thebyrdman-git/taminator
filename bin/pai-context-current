@@ -1,0 +1,84 @@
+#!/bin/bash
+# pai-context-current - Show current PAI context
+# Part of PAI-Cursor integration system
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+CONTEXT_FILE="$PAI_CONFIG_DIR/current-context"
+
+# Help function
+show_help() {
+    cat << EOF
+pai-context-current - Show current PAI context
+
+USAGE:
+    pai-context-current [OPTIONS]
+
+OPTIONS:
+    --json          Output in JSON format
+    --help, -h      Show this help message
+
+EXIT CODES:
+    0   Context is set
+    1   No context set or error
+    2   Invalid options
+
+EXAMPLES:
+    pai-context-current
+    pai-context-current --json
+EOF
+}
+
+# Parse arguments
+JSON_OUTPUT=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Error: Unknown option $1" >&2
+            show_help >&2
+            exit 2
+            ;;
+    esac
+done
+
+# Check if context file exists
+if [[ ! -f "$CONTEXT_FILE" ]]; then
+    if [[ "$JSON_OUTPUT" == "true" ]]; then
+        echo '{"context":"none","status":"no_context_set","timestamp":"'$(date -Iseconds)'"}'
+    else
+        echo "none"
+    fi
+    exit 1
+fi
+
+# Read current context
+context=$(cat "$CONTEXT_FILE" 2>/dev/null || echo "")
+
+if [[ -z "$context" ]]; then
+    if [[ "$JSON_OUTPUT" == "true" ]]; then
+        echo '{"context":"none","status":"empty_context","timestamp":"'$(date -Iseconds)'"}'
+    else
+        echo "none"
+    fi
+    exit 1
+fi
+
+# Output result
+if [[ "$JSON_OUTPUT" == "true" ]]; then
+    echo '{"context":"'$context'","status":"active","timestamp":"'$(date -Iseconds)'","config_file":"'$CONTEXT_FILE'"}'
+else
+    echo "$context"
+fi
+
+exit 0

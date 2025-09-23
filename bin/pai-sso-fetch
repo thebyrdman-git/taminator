@@ -1,0 +1,695 @@
+#!/bin/bash
+# pai-sso-fetch - Fetch content from SSO-protected Red Hat internal sites using Chrome cookies
+#
+# This tool extracts authentication cookies from Chrome and uses them to access
+# internal Red Hat sites like source.redhat.com
+
+set -euo pipefail
+
+# Configuration
+PAI_DIR="${HOME}/.claude/context"
+CAPTURE_DIR="$PAI_DIR/capture/sso"
+COOKIES_DIR="$PAI_DIR/secrets/browser-cookies"
+LOG_FILE="$PAI_DIR/logs/sso-fetch-$(date +%Y%m%d).log"
+
+# Chrome base directories
+CHROME_BASE_DIR="${HOME}/.config/google-chrome"
+CHROMIUM_BASE_DIR="${HOME}/.config/chromium"
+
+# Default profile
+DEFAULT_PROFILE="Default"
+REDHAT_DOMAIN="@redhat.com"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Debug mode flag
+DEBUG_MODE=false
+
+# Ensure directories exist
+mkdir -p "$CAPTURE_DIR" "$COOKIES_DIR" "$(dirname "$LOG_FILE")"
+
+# Logging function
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
+}
+
+# Output functions
+info() { echo -e "${BLUE}→ $1${NC}"; log "INFO: $1"; }
+success() { echo -e "${GREEN}✓ $1${NC}"; log "SUCCESS: $1"; }
+warn() { echo -e "${YELLOW}⚠ $1${NC}" >&2; log "WARN: $1"; }
+error() { echo -e "${RED}Error: $1${NC}" >&2; log "ERROR: $1"; exit 1; }
+debug() { 
+    if [[ "$DEBUG_MODE" == "true" ]]; then 
+        echo -e "${YELLOW}[DEBUG] $1${NC}" >&2
+        log "DEBUG: $1"
+    fi
+}
+
+# Show usage
+usage() {
+    cat << EOF
+PAI SSO Fetch - Access SSO-protected Red Hat internal sites
+
+Usage: pai-sso-fetch [command] [options]
+
+Commands:
+    fetch <url>           Fetch a page from an SSO-protected site
+    extract-cookies       Extract cookies from Chrome for a domain
+    test <domain>         Test if we can access a domain
+    setup                 Initial setup and browser selection
+    list-profiles         List available Chrome profiles
+    
+Options:
+    -o, --output <file>   Save to specific file (default: auto-generated)
+    -f, --format <fmt>    Output format: html, text, markdown (default: markdown)
+    -b, --browser <name>  Browser to use: chrome, chromium, firefox
+    -p, --profile <name>  Chrome profile to use (default: auto-detect work profile)
+    -d, --domain <domain> Specific domain for cookie extraction
+    -q, --quiet           Suppress progress messages
+    --debug               Enable debug output for troubleshooting
+    -h, --help            Show this help
+
+Examples:
+    # Fetch a page from source.redhat.com
+    pai-sso-fetch fetch https://source.redhat.com/some/page
+    
+    # Extract all redhat.com cookies
+    pai-sso-fetch extract-cookies -d redhat.com
+    
+    # Test access to a domain
+    pai-sso-fetch test source.redhat.com
+    
+    # Fetch and save as HTML
+    pai-sso-fetch fetch https://source.redhat.com/page -f html -o page.html
+
+Notes:
+    - Requires Chrome/Chromium with active SSO session
+    - First run 'setup' to configure browser location
+    - Cookies are temporarily extracted and cleaned up after use
+
+EOF
+}
+
+# List available Chrome profiles
+list_chrome_profiles() {
+    local chrome_dir=""
+    
+    if [[ -d "$CHROME_BASE_DIR" ]]; then
+        chrome_dir="$CHROME_BASE_DIR"
+    elif [[ -d "$CHROMIUM_BASE_DIR" ]]; then
+        chrome_dir="$CHROMIUM_BASE_DIR"
+    else
+        error "Chrome/Chromium not found"
+    fi
+    
+    info "Chrome profiles found in: $chrome_dir"
+    echo
+    
+    # List all profile directories
+    for profile_dir in "$chrome_dir"/*; do
+        if [[ -d "$profile_dir" ]] && [[ -f "$profile_dir/Cookies" ]]; then
+            local profile_name=$(basename "$profile_dir")
+            local preferences_file="$profile_dir/Preferences"
+            
+            # Try to extract account info from Preferences
+            if [[ -f "$preferences_file" ]]; then
+                local account_info=$(grep -oP '"email":\s*"\K[^"]+' "$preferences_file" 2>/dev/null | head -1 || echo "")
+                local profile_display_name=$(grep -oP '"name":\s*"\K[^"]+' "$preferences_file" 2>/dev/null | head -1 || echo "")
+                
+                if [[ -n "$account_info" ]]; then
+                    echo "  $profile_name: $account_info"
+                    if [[ "$account_info" == *"$REDHAT_DOMAIN" ]]; then
+                        echo "    ↑ Red Hat work profile (recommended for internal sites)"
+                    fi
+                elif [[ -n "$profile_display_name" ]]; then
+                    echo "  $profile_name: $profile_display_name"
+                else
+                    echo "  $profile_name"
+                fi
+            else
+                echo "  $profile_name"
+            fi
+        fi
+    done
+}
+
+# Find Red Hat work profile automatically
+find_work_profile() {
+    local chrome_dir=""
+    
+    if [[ -d "$CHROME_BASE_DIR" ]]; then
+        chrome_dir="$CHROME_BASE_DIR"
+    elif [[ -d "$CHROMIUM_BASE_DIR" ]]; then
+        chrome_dir="$CHROMIUM_BASE_DIR"
+    else
+        return 1
+    fi
+    
+    # Look for profile with Red Hat email address
+    for profile_dir in "$chrome_dir"/*; do
+        if [[ -d "$profile_dir" ]] && [[ -f "$profile_dir/Preferences" ]]; then
+            # Check if this profile has a Red Hat email
+            local email=$(grep -oP '"email":\s*"\K[^"]+' "$profile_dir/Preferences" 2>/dev/null | head -1 || echo "")
+            if [[ "$email" == *"$REDHAT_DOMAIN" ]]; then
+                basename "$profile_dir"
+                return 0
+            fi
+        fi
+    done
+    
+    return 1
+}
+
+# Find Chrome cookie database
+find_cookie_db() {
+    local profile="${1:-}"
+    
+    # If no profile specified, try to find work profile
+    if [[ -z "$profile" ]]; then
+        profile=$(find_work_profile) || profile="$DEFAULT_PROFILE"
+    fi
+    
+    # Check Chrome first, then Chromium
+    local cookie_paths=(
+        "$CHROME_BASE_DIR/$profile/Cookies"
+        "$CHROMIUM_BASE_DIR/$profile/Cookies"
+        "${HOME}/.config/google-chrome-stable/$profile/Cookies"
+        "${HOME}/.config/google-chrome-beta/$profile/Cookies"
+        "${HOME}/snap/chromium/current/.config/chromium/$profile/Cookies"
+    )
+    
+    for path in "${cookie_paths[@]}"; do
+        if [[ -f "$path" ]]; then
+            echo "$path"
+            return
+        fi
+    done
+    
+    error "Chrome cookie database not found for profile: $profile"
+}
+
+# Extract cookies for a domain
+extract_cookies() {
+    local domain="${1:-redhat.com}"
+    local profile="${2:-}"
+    local cookie_db=$(find_cookie_db "$profile")
+    local temp_db="/tmp/cookies_copy_$$.db"
+    local cookie_file="$COOKIES_DIR/${domain}_cookies.txt"
+    
+    # Show which profile is being used
+    local used_profile="${profile:-$(find_work_profile || echo 'Default')}"
+    info "Extracting cookies for domain: $domain (Profile: $used_profile)"
+    debug "Cookie DB: $cookie_db"
+    debug "Output file: $cookie_file"
+    
+    # Chrome locks the database, so we need to copy it
+    cp "$cookie_db" "$temp_db"
+    
+    # Extract cookies using sqlite3
+    # Chrome 80+ encrypts cookies, but we can work around this for Linux
+    if ! command -v sqlite3 &> /dev/null; then
+        rm -f "$temp_db"
+        error "sqlite3 not found. Install it: sudo dnf install sqlite"
+    fi
+    
+    # For Linux, we can often get cookies without decryption for session cookies
+    sqlite3 "$temp_db" <<EOF > "$cookie_file.tmp" 2>/dev/null || true
+.mode tabs
+SELECT host_key, path, name, value, expires_utc, is_secure, is_httponly 
+FROM cookies 
+WHERE host_key LIKE '%${domain}%' 
+AND (expires_utc = 0 OR expires_utc > $(date +%s)000000);
+EOF
+    
+    # Convert to Netscape cookie format for curl
+    echo "# Netscape HTTP Cookie File" > "$cookie_file"
+    echo "# This file was generated by pai-sso-fetch" >> "$cookie_file"
+    echo "" >> "$cookie_file"
+    
+    while IFS=$'\t' read -r host path name value expires secure httponly; do
+        # Skip empty values (might be encrypted)
+        if [[ -z "$value" ]]; then
+            debug "Skipping cookie with empty value: $name"
+            continue
+        fi
+        
+        debug "Processing cookie: $name for host: $host"
+        
+        # Convert Chrome format to Netscape format
+        # Format: domain flag path secure expiry name value
+        local domain_flag="FALSE"
+        if [[ "$host" == .* ]]; then
+            domain_flag="TRUE"
+        fi
+        
+        # Convert secure flag
+        local secure_flag="FALSE"
+        [[ "$secure" == "1" ]] && secure_flag="TRUE"
+        
+        # Convert expiry (Chrome uses microseconds since 1601, we need seconds since 1970)
+        local expiry="0"
+        if [[ "$expires" != "0" ]]; then
+            # Simplified conversion - just use session cookies for now
+            expiry="0"
+        fi
+        
+        echo -e "${host}\t${domain_flag}\t${path}\t${secure_flag}\t${expiry}\t${name}\t${value}" >> "$cookie_file"
+    done < "$cookie_file.tmp"
+    
+    rm -f "$temp_db" "$cookie_file.tmp"
+    
+    local cookie_count=$(grep -v '^#' "$cookie_file" | wc -l)
+    success "Extracted $cookie_count cookies for $domain"
+    
+    echo "$cookie_file"
+}
+
+# Python helper script for cookie decryption (if needed)
+create_cookie_extractor() {
+    cat > "$COOKIES_DIR/extract_cookies.py" << 'EOF'
+#!/usr/bin/env python3
+# Chrome cookie extractor with decryption support
+
+import os
+import sys
+import sqlite3
+import platform
+from pathlib import Path
+
+try:
+    import secretstorage
+    has_secretstorage = True
+except ImportError:
+    has_secretstorage = False
+
+try:
+    from Crypto.Cipher import AES
+    from Crypto.Protocol.KDF import PBKDF2
+    has_crypto = True
+except ImportError:
+    has_crypto = False
+
+def get_chrome_key():
+    """Get Chrome's encryption key on Linux"""
+    if not has_secretstorage:
+        return None
+    
+    try:
+        bus = secretstorage.dbus_init()
+        collection = secretstorage.get_default_collection(bus)
+        for item in collection.get_all_items():
+            if item.get_label() == 'Chrome Safe Storage':
+                return item.get_secret()
+    except:
+        pass
+    
+    # Fallback to default
+    return b'peanuts'
+
+def decrypt_cookie(encrypted_value, key):
+    """Decrypt Chrome cookie value"""
+    if not has_crypto:
+        return None
+        
+    try:
+        # Remove 'v10' prefix
+        encrypted_value = encrypted_value[3:]
+        
+        # Generate cipher
+        cipher = AES.new(key, AES.MODE_CBC, IV=b' ' * 16)
+        decrypted = cipher.decrypt(encrypted_value)
+        
+        # Remove padding
+        decrypted = decrypted[:-decrypted[-1]].decode('utf-8')
+        return decrypted
+    except:
+        return None
+
+def extract_cookies(domain, cookie_db_path):
+    """Extract cookies for a domain"""
+    conn = sqlite3.connect(cookie_db_path)
+    cursor = conn.cursor()
+    
+    key = get_chrome_key()
+    
+    query = """
+    SELECT host_key, path, name, value, encrypted_value, expires_utc, is_secure, is_httponly 
+    FROM cookies 
+    WHERE host_key LIKE ? 
+    AND (expires_utc = 0 OR expires_utc > ?)
+    """
+    
+    import time
+    cursor.execute(query, (f'%{domain}%', int(time.time() * 1000000)))
+    
+    cookies = []
+    for row in cursor.fetchall():
+        host, path, name, value, encrypted_value, expires, secure, httponly = row
+        
+        # Try to get value
+        if value:
+            cookie_value = value
+        elif encrypted_value and key:
+            cookie_value = decrypt_cookie(encrypted_value, key)
+            if not cookie_value:
+                continue
+        else:
+            continue
+        
+        cookies.append({
+            'host': host,
+            'path': path,
+            'name': name,
+            'value': cookie_value,
+            'expires': expires,
+            'secure': secure,
+            'httponly': httponly
+        })
+    
+    conn.close()
+    return cookies
+
+if __name__ == '__main__':
+    if len(sys.argv) < 3:
+        print("Usage: extract_cookies.py <domain> <cookie_db_path>")
+        sys.exit(1)
+    
+    domain = sys.argv[1]
+    db_path = sys.argv[2]
+    
+    cookies = extract_cookies(domain, db_path)
+    
+    # Output in Netscape format
+    print("# Netscape HTTP Cookie File")
+    print("# Generated by pai-sso-fetch")
+    print()
+    
+    for cookie in cookies:
+        domain_flag = "TRUE" if cookie['host'].startswith('.') else "FALSE"
+        secure_flag = "TRUE" if cookie['secure'] else "FALSE"
+        expiry = "0"  # Use session cookies for simplicity
+        
+        print(f"{cookie['host']}\t{domain_flag}\t{cookie['path']}\t{secure_flag}\t{expiry}\t{cookie['name']}\t{cookie['value']}")
+EOF
+    chmod +x "$COOKIES_DIR/extract_cookies.py"
+}
+
+# Fetch a URL using extracted cookies
+fetch_url() {
+    local url="$1"
+    local output_file="${2:-}"
+    local format="${3:-markdown}"
+    local profile="${4:-}"
+    
+    # Extract domain from URL
+    local domain=$(echo "$url" | sed -E 's|https?://([^/]+).*|\1|')
+    local cookie_file="$COOKIES_DIR/${domain}_cookies.txt"
+    
+    # Extract cookies if not already done
+    if [[ ! -f "$cookie_file" ]] || [[ $(find "$cookie_file" -mmin +30 -type f 2>/dev/null) ]]; then
+        extract_cookies "$domain" "$profile" > /dev/null
+    fi
+    
+    info "Fetching: $url"
+    
+    # Generate output filename if not specified
+    if [[ -z "$output_file" ]]; then
+        local safe_name=$(echo "$url" | sed 's|https\?://||; s|/|_|g; s|[^a-zA-Z0-9_-]|_|g')
+        output_file="$CAPTURE_DIR/${safe_name}_$(date +%Y%m%d_%H%M%S)"
+    fi
+    
+    # Fetch with cookies
+    local temp_file="/tmp/sso_fetch_$$.html"
+    local headers_file="/tmp/sso_headers_$$.txt"
+    
+    debug "Fetching URL: $url"
+    debug "Using cookie file: $cookie_file"
+    
+    # Build curl command
+    local curl_cmd=(
+        curl -s -L
+        --cookie "$cookie_file"
+        --cookie-jar "$cookie_file.new"
+        -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+        -H "Accept-Language: en-US,en;q=0.9"
+        -H "Accept-Encoding: gzip, deflate, br"
+        -H "DNT: 1"
+        -H "Connection: keep-alive"
+        -H "Upgrade-Insecure-Requests: 1"
+        -H "Sec-Fetch-Dest: document"
+        -H "Sec-Fetch-Mode: navigate"
+        -H "Sec-Fetch-Site: none"
+        -H "Sec-Fetch-User: ?1"
+        --compressed
+    )
+    
+    if [[ "$DEBUG_MODE" == "true" ]]; then
+        curl_cmd+=(-D "$headers_file")
+    fi
+    
+    if ! "${curl_cmd[@]}" "$url" > "$temp_file"; then
+        rm -f "$temp_file" "$headers_file"
+        error "Failed to fetch URL"
+    fi
+    
+    if [[ "$DEBUG_MODE" == "true" ]] && [[ -f "$headers_file" ]]; then
+        debug "Response headers:"
+        while IFS= read -r line; do
+            debug "  $line"
+        done < "$headers_file"
+        rm -f "$headers_file"
+    fi
+    
+    # Update cookie jar
+    mv "$cookie_file.new" "$cookie_file" 2>/dev/null || true
+    
+    # Check what we got
+    local file_size=$(stat -c%s "$temp_file" 2>/dev/null || echo "0")
+    debug "Downloaded file size: $file_size bytes"
+    
+    if [[ "$DEBUG_MODE" == "true" ]]; then
+        debug "First 500 characters of response:"
+        debug "$(head -c 500 "$temp_file" | tr '\n' ' ')"
+    fi
+    
+    # Check if we got a login page or error
+    if grep -q "login.redhat.com\|Sign in to your account\|401 Unauthorized" "$temp_file"; then
+        rm -f "$temp_file"
+        error "Authentication failed. Please login to $domain in Chrome and try again"
+    fi
+    
+    # Check for Igloo error pages
+    if grep -q "Unable to process your request.*Igloo\|support@igloosoftware.com" "$temp_file"; then
+        warn "Received Igloo error page - session might be expired or page unavailable"
+        debug "This often happens when cookies are valid but server session has expired"
+    fi
+    
+    # Convert based on format
+    case "$format" in
+        html)
+            mv "$temp_file" "${output_file}.html"
+            success "Saved as HTML: ${output_file}.html"
+            ;;
+        text)
+            if command -v lynx &> /dev/null; then
+                lynx -dump -nolist "$temp_file" > "${output_file}.txt"
+            elif command -v w3m &> /dev/null; then
+                w3m -dump "$temp_file" > "${output_file}.txt"
+            else
+                # Basic HTML stripping
+                sed 's/<[^>]*>//g' "$temp_file" | sed '/^[[:space:]]*$/d' > "${output_file}.txt"
+            fi
+            rm -f "$temp_file"
+            success "Saved as text: ${output_file}.txt"
+            ;;
+        markdown)
+            # Extract title
+            local title=$(grep -oP '<title>\K[^<]+' "$temp_file" | head -1 || echo "Untitled")
+            
+            # Create markdown with metadata
+            cat > "${output_file}.md" << EOF
+---
+title: "$title"
+source: "$url"
+fetched: $(date -Iseconds)
+domain: "$domain"
+---
+
+# $title
+
+Source: [$url]($url)
+
+EOF
+            
+            # Convert HTML to markdown if pandoc is available
+            if command -v pandoc &> /dev/null; then
+                pandoc -f html -t markdown "$temp_file" >> "${output_file}.md" 2>/dev/null || {
+                    warn "Pandoc conversion failed, saving as HTML"
+                    echo '```html' >> "${output_file}.md"
+                    cat "$temp_file" >> "${output_file}.md"
+                    echo '```' >> "${output_file}.md"
+                }
+            else
+                # Basic conversion
+                echo "**Note**: Install pandoc for better HTML to Markdown conversion" >> "${output_file}.md"
+                echo "" >> "${output_file}.md"
+                echo '```html' >> "${output_file}.md"
+                cat "$temp_file" >> "${output_file}.md"
+                echo '```' >> "${output_file}.md"
+            fi
+            
+            rm -f "$temp_file"
+            success "Saved as markdown: ${output_file}.md"
+            ;;
+    esac
+}
+
+# Test access to a domain
+test_access() {
+    local domain="$1"
+    local profile="${2:-}"
+    local test_url="https://${domain}/"
+    
+    info "Testing access to $domain..."
+    
+    # Extract cookies
+    local cookie_file=$(extract_cookies "$domain" "$profile")
+    
+    # Try to fetch
+    local response=$(curl -s -o /dev/null -w "%{http_code}" \
+        --cookie "$cookie_file" \
+        -H "User-Agent: Mozilla/5.0" \
+        -L "$test_url")
+    
+    if [[ "$response" == "200" ]]; then
+        success "Successfully accessed $domain (HTTP $response)"
+    elif [[ "$response" == "401" ]] || [[ "$response" == "403" ]]; then
+        warn "Access denied to $domain (HTTP $response) - may need fresh login"
+    else
+        info "Response from $domain: HTTP $response"
+    fi
+}
+
+# Setup function
+setup() {
+    info "Setting up PAI SSO Fetch..."
+    
+    # Check for Chrome/Chromium
+    local cookie_db=$(find_cookie_db 2>/dev/null || echo "")
+    
+    if [[ -n "$cookie_db" ]]; then
+        success "Found cookie database: $cookie_db"
+    else
+        warn "Chrome/Chromium cookie database not found"
+        echo "Please ensure Chrome or Chromium is installed"
+    fi
+    
+    # Check for required tools
+    local missing_tools=()
+    
+    command -v sqlite3 &> /dev/null || missing_tools+=("sqlite")
+    command -v curl &> /dev/null || missing_tools+=("curl")
+    
+    if [[ ${#missing_tools[@]} -gt 0 ]]; then
+        warn "Missing required tools: ${missing_tools[*]}"
+        echo "Install with: sudo dnf install ${missing_tools[*]}"
+    fi
+    
+    # Check for optional tools
+    echo
+    info "Optional tools for better conversion:"
+    command -v pandoc &> /dev/null && success "pandoc: installed" || echo "  pandoc: not installed (for HTML→Markdown)"
+    command -v lynx &> /dev/null && success "lynx: installed" || echo "  lynx: not installed (for HTML→Text)"
+    
+    # Create Python extractor
+    create_cookie_extractor
+    
+    success "Setup complete!"
+}
+
+# Main command handling
+PROFILE=""
+
+# Parse global options first
+while [[ $# -gt 0 ]] && [[ "$1" =~ ^- ]]; do
+    case "$1" in
+        -p|--profile)
+            PROFILE="$2"
+            shift 2
+            ;;
+        --debug)
+            DEBUG_MODE=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+case "${1:-help}" in
+    fetch)
+        shift
+        url="${1:-}"
+        [[ -z "$url" ]] && error "URL required"
+        
+        output_file=""
+        format="markdown"
+        
+        while [[ $# -gt 1 ]]; do
+            case "$2" in
+                -o|--output) output_file="$3"; shift 2 ;;
+                -f|--format) format="$3"; shift 2 ;;
+                *) shift ;;
+            esac
+        done
+        
+        fetch_url "$url" "$output_file" "$format" "$PROFILE"
+        ;;
+        
+    extract-cookies)
+        shift
+        domain="redhat.com"
+        
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                -d|--domain) domain="$2"; shift 2 ;;
+                *) shift ;;
+            esac
+        done
+        
+        extract_cookies "$domain" "$PROFILE"
+        ;;
+        
+    test)
+        shift
+        domain="${1:-source.redhat.com}"
+        test_access "$domain" "$PROFILE"
+        ;;
+        
+    list-profiles)
+        list_chrome_profiles
+        ;;
+        
+    setup)
+        setup
+        ;;
+        
+    help|-h|--help)
+        usage
+        ;;
+        
+    *)
+        error "Unknown command: $1"
+        ;;
+esac
