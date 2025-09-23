@@ -13,7 +13,7 @@ Enterprise-focused Personal AI Infrastructure for Red Hat teams, providing unifi
 ## Quick Install
 
 ```bash
-curl -sSL https://gitlab.cee.redhat.com/grimm/redhat-pai/-/raw/main/install.sh | bash
+curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/master/install.sh | bash
 ```
 
 ## What You Get
