@@ -8,11 +8,22 @@ Personal AI Infrastructure for Red Hat teams, providing unified context manageme
 - **TAM Workflow Tools**: Specialized scripts for Technical Account Managers
 - **Enterprise Ready**: Clean separation of business contexts
 
+## Prerequisites
+
+**Complete these Red Hat-specific steps first:**
+
+1. **Red Hat AI Models API Keys** (VPN required): https://developer.models.corp.redhat.com
+2. **Cursor IDE Setup**: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor
+3. **Gemini API Key**: https://source.redhat.com/departments/it/datacenter_infrastructure/itcloudservices/itpubliccloudpage/cloud/gcp/gcpgeminiapi
+4. **Personal Access Token**: https://spaces.redhat.com/spaces/OMEGA/pages/228005232/Personal+Access+Token+Usage
+
 ## Quick Install
 
 ```bash
 curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/main/install.sh | bash
 ```
+
+The installer will verify you've completed the prerequisites before proceeding.
 
 ## What You Get
 

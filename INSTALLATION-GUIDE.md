@@ -10,6 +10,34 @@ The Red Hat PAI system installs locally on your machine and includes:
 4. **Context System**: Global PAI context for all AI tools
 5. **Agent Configurations**: AGENTS.md and GEMINI.md for cross-platform AI
 
+## 📋 **Prerequisites (Required)**
+
+**IMPORTANT**: Complete these steps BEFORE installing Red Hat PAI:
+
+### 1. Red Hat AI Models API Keys
+Obtain API keys for Red Hat's shared AI models (VPN required):
+**https://developer.models.corp.redhat.com**
+
+⚠️ **You must be connected to Red Hat VPN to access this site.**
+
+These API keys provide access to AIA-approved models for customer data processing.
+
+### 2. Cursor IDE Setup
+Follow the complete setup guide at:
+**https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor**
+
+### 3. Gemini API Key
+Obtain your Red Hat-approved Gemini API key:
+**https://source.redhat.com/departments/it/datacenter_infrastructure/itcloudservices/itpubliccloudpage/cloud/gcp/gcpgeminiapi**
+
+### 4. Personal Access Token (Confluence/Jira)
+Set up your personal access token for Confluence and Jira integration:
+**https://spaces.redhat.com/spaces/OMEGA/pages/228005232/Personal+Access+Token+Usage**
+
+This token is required for PAI scripts that access Confluence documentation and Jira case data.
+
+⚠️ **The installation will prompt you to confirm these prerequisites are complete.**
+
 ## 📦 **Installation Process**
 
 ### Quick Install
@@ -204,14 +232,42 @@ ls -la ~/.local/bin/pai-*
 pai-context-current
 ```
 
-## 📋 **Requirements Checklist**
+## 🔧 **Supported Platforms**
 
-- [ ] Red Hat VPN access configured
-- [ ] Node.js installed (for Fabric)
-- [ ] Python 3.8+ installed (for LiteLLM)
-- [ ] Git access to gitlab.cee.redhat.com
-- [ ] ~/.local/bin in PATH
-- [ ] Red Hat API credentials available
+Red Hat PAI supports two platforms only:
+
+### ✅ Fedora/RHEL (Recommended)
+- **Target users**: Red Hat employees and partners
+- **Dependencies**: Auto-installed via dnf (nodejs, npm, python3-devel)
+- **Requirements**: sudo access for system packages
+
+### ✅ macOS (Development & Testing)
+- **Target users**: Developers and testers
+- **Dependencies**: Manual installation required (Node.js, Python 3)
+- **Installation**: Via Homebrew or direct downloads
+
+### ⚠️ Other Platforms
+Other Linux distributions: Best-effort installation (no specific support provided)
+
+## 📋 **Installation Method**
+
+**IMPORTANT**: Installation is **only** via the GitLab install.sh script. No system packages available.
+
+### Required Dependencies by Platform
+
+**Fedora/RHEL (Auto-installed)**:
+- Node.js & npm → `sudo dnf install nodejs npm`
+- Python 3 development → `sudo dnf install python3-devel python3-pip`
+
+**macOS (Manual installation required)**:
+- Node.js & npm → Install from https://nodejs.org or `brew install node`
+- Python 3 → Install from https://python.org or `brew install python`
+
+### Installation Fixes
+- ✅ **"npm: command not found"**: Auto-installs on Fedora, instructions for macOS
+- ✅ **LiteLLM compilation errors**: Auto-installs python3-devel on Fedora
+- ✅ **PATH issues**: Automatically adds ~/.local/bin to PATH
+- ✅ **Platform detection**: Clear error messages for unsupported systems
 
 ---
 

@@ -5,6 +5,92 @@
 set -euo pipefail
 
 echo "🔴 Installing Red Hat PAI System..."
+echo ""
+echo "📋 PREREQUISITES - Complete these steps first:"
+echo "   1. Red Hat AI Models API keys (VPN required):"
+echo "      https://developer.models.corp.redhat.com"
+echo "   2. Cursor IDE setup: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor"
+echo "   3. Gemini API key: https://source.redhat.com/departments/it/datacenter_infrastructure/itcloudservices/itpubliccloudpage/cloud/gcp/gcpgeminiapi"
+echo "   4. Personal Access Token for Confluence/Jira:"
+echo "      https://spaces.redhat.com/spaces/OMEGA/pages/228005232/Personal+Access+Token+Usage"
+echo ""
+echo "⚠️  Without these prerequisites, the PAI system will not function properly."
+echo "   Press Ctrl+C to cancel if you haven't completed these steps."
+echo ""
+read -p "🚀 Ready to proceed with installation? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "❌ Installation cancelled. Please complete prerequisites first."
+    exit 1
+fi
+echo ""
+
+# Detect supported platforms
+detect_platform() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [ -f /etc/fedora-release ]; then
+        echo "fedora"
+    elif [ -f /etc/redhat-release ]; then
+        echo "rhel"
+    else
+        echo "unsupported"
+    fi
+}
+
+# Install system dependencies
+install_dependencies() {
+    local platform=$(detect_platform)
+    echo "🔍 Detected platform: $platform"
+
+    case "$platform" in
+        "macos")
+            echo "📦 macOS: Checking dependencies..."
+            if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
+                echo "❌ Node.js/npm not found. Please install Node.js from https://nodejs.org/"
+                echo "   Or install via Homebrew: brew install node"
+                exit 1
+            fi
+            if ! command -v python3 &> /dev/null; then
+                echo "❌ Python 3 not found. Please install from https://python.org/"
+                echo "   Or install via Homebrew: brew install python"
+                exit 1
+            fi
+            echo "✅ macOS dependencies verified"
+            ;;
+        "fedora"|"rhel")
+            echo "📦 Installing dependencies via dnf..."
+            if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
+                sudo dnf install -y nodejs npm
+            fi
+            if ! rpm -qa | grep -q python3-devel; then
+                echo "📦 Installing python3-devel for LiteLLM..."
+                sudo dnf install -y python3-devel python3-pip
+            fi
+            echo "✅ Fedora dependencies installed"
+            ;;
+        "unsupported")
+            echo "⚠️  Unsupported platform detected. Red Hat PAI is optimized for:"
+            echo "   • Fedora/RHEL (recommended for Red Hat teams)"
+            echo "   • macOS (for development and testing)"
+            echo ""
+            echo "📝 Continuing installation with manual dependency requirements:"
+            if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
+                echo "⚠️  Node.js/npm not found. Please install manually."
+                echo "   Installation may fail without these dependencies."
+            fi
+            if ! command -v python3 &> /dev/null; then
+                echo "⚠️  Python 3 not found. Please install manually."
+                echo "   LiteLLM installation may fail without Python."
+            fi
+            echo "⚠️  Best-effort installation continuing..."
+            ;;
+    esac
+}
+
+# Check and install system dependencies
+echo "🔧 Checking system dependencies..."
+install_dependencies
 
 # Create directory structure
 PAI_ROOT="$HOME/pai-context"
@@ -77,6 +163,24 @@ SETTINGS_EOF
 # Create GEMINI.md for Red Hat context
 curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/main/GEMINI.md > ~/GEMINI.md
 
+# Install LiteLLM for Red Hat model access
+echo "🚀 Installing LiteLLM for Red Hat model integration..."
+if ! command -v litellm &> /dev/null; then
+    if pip3 install --user litellm; then
+        echo "✅ LiteLLM installed successfully"
+        # Ensure ~/.local/bin is in PATH
+        if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+            echo "📝 Added ~/.local/bin to PATH in ~/.bashrc"
+        fi
+    else
+        echo "⚠️  LiteLLM installation failed. Install manually with: pip3 install --user litellm"
+        echo "   This is required for Red Hat Granite model access"
+    fi
+else
+    echo "✅ LiteLLM already installed"
+fi
+
 echo "✅ Red Hat PAI installation complete!"
 echo ""
 echo "🚀 Available commands:"
@@ -88,7 +192,40 @@ echo ""
 echo "🎭 Start Gemini CLI with: gemini"
 echo "📖 All pai- scripts available via run_shell_command"
 
-# Display secrets setup reminder
+# Verify installation
 echo ""
-echo "🔐 IMPORTANT: Configure your secrets in ~/.config/pai/secrets/"
-echo "   Example: ~/.config/pai/secrets/redhat-api-keys"
+echo "🔍 Verifying installation..."
+if command -v pai-context-current &> /dev/null; then
+    echo "✅ PAI scripts installed: $(pai-context-current)"
+else
+    echo "⚠️  PAI scripts not found in PATH. Add ~/.local/bin to your PATH:"
+    echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
+fi
+
+if command -v gemini &> /dev/null; then
+    echo "✅ Gemini CLI installed"
+else
+    echo "⚠️  Gemini CLI installation may have failed"
+fi
+
+if command -v litellm &> /dev/null; then
+    echo "✅ LiteLLM proxy available"
+else
+    echo "⚠️  LiteLLM may need manual PATH setup or installation"
+fi
+
+# Display setup completion and next steps
+echo ""
+echo "🔐 IMPORTANT: Configure your API keys and tokens"
+echo "   Add these to ~/.config/pai/secrets/redhat-api-keys:"
+echo "   • Red Hat AI Models API keys (from developer.models.corp.redhat.com)"
+echo "   • Gemini API key (from Red Hat GCP setup)"
+echo "   • Personal Access Token (for Confluence/Jira access)"
+echo ""
+echo "🏁 Next steps:"
+echo "   1. Restart your terminal or run: source ~/.bashrc"
+echo "   2. Add your API keys and tokens to ~/.config/pai/secrets/"
+echo "   3. Complete Cursor IDE setup if not done:"
+echo "      https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor"
+echo "   4. Test with: pai-context-current"
+echo "   5. Start Gemini CLI with: gemini"
