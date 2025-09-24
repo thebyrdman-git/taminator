@@ -77,13 +77,11 @@ The installation script:
 
 ## 🧠 **How Fabric + LiteLLM Works**
 
-### The Simple Truth: It's Just Model Selection
-
 ```mermaid
 graph TD
     A[PAI Script] --> B{Content Detection}
-    B -->|Customer Data| C[granite-34b-instruct]
-    B -->|Personal Data| D[gpt-4o, gemini-pro, etc.]
+    B -->|Customer Data| C[gemini-pro,RH Models,Local Models]
+    B -->|Personal Data| D[gpt-5, gemini-pro, etc.]
 
     C --> E[Fabric AI]
     D --> E[Fabric AI]
