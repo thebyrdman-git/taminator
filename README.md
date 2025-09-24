@@ -1,10 +1,8 @@
 # Red Hat PAI - Personal AI Infrastructure
 
-Enterprise-focused Personal AI Infrastructure for Red Hat teams, providing unified context management across AI tools while maintaining Red Hat AI policy compliance.
+Personal AI Infrastructure for Red Hat teams, providing unified context management across AI tools while maintaining Red Hat AI policy compliance.
 
 ## Features
-
-- **Red Hat AI Policy Compliant**: Automatic routing for customer data
 - **Multi-Tool Integration**: Gemini CLI, Cursor IDE, Fabric AI
 - **Secure by Design**: External secrets management, no hardcoded credentials
 - **TAM Workflow Tools**: Specialized scripts for Technical Account Managers
