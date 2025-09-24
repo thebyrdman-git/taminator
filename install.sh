@@ -101,10 +101,46 @@ chmod 700 ~/.config/pai/secrets
 
 echo "📁 Created PAI directory structure"
 
-# Install Gemini CLI if not present
+# Install AI Tools
+echo "🚀 Installing AI Tools..."
+
+# Install Fabric AI
+if ! command -v fabric &> /dev/null; then
+    echo "📦 Installing Fabric AI..."
+    if command -v go &> /dev/null; then
+        go install github.com/danielmiessler/fabric@latest
+    else
+        echo "⚠️  Go not found. Installing Fabric via pip..."
+        pip3 install --user fabric-ai
+    fi
+else
+    echo "✅ Fabric AI already installed"
+fi
+
+# Install Gemini CLI
 if ! command -v gemini &> /dev/null; then
     echo "📦 Installing Gemini CLI..."
     npm install -g @google/gemini-cli
+else
+    echo "✅ Gemini CLI already installed"
+fi
+
+# Install LiteLLM
+if ! command -v litellm &> /dev/null; then
+    echo "📦 Installing LiteLLM..."
+    if pip3 install --user litellm; then
+        echo "✅ LiteLLM installed successfully"
+        # Ensure ~/.local/bin is in PATH
+        if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+            echo "📝 Added ~/.local/bin to PATH in ~/.bashrc"
+        fi
+    else
+        echo "⚠️  LiteLLM installation failed. Install manually with: pip3 install --user litellm"
+        echo "   This is required for Red Hat model access"
+    fi
+else
+    echo "✅ LiteLLM already installed"
 fi
 
 # Copy Red Hat contexts
@@ -163,24 +199,6 @@ SETTINGS_EOF
 # Create GEMINI.md for Red Hat context
 curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/main/GEMINI.md > ~/GEMINI.md
 
-# Install LiteLLM for Red Hat model access
-echo "🚀 Installing LiteLLM for Red Hat model integration..."
-if ! command -v litellm &> /dev/null; then
-    if pip3 install --user litellm; then
-        echo "✅ LiteLLM installed successfully"
-        # Ensure ~/.local/bin is in PATH
-        if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-            echo "📝 Added ~/.local/bin to PATH in ~/.bashrc"
-        fi
-    else
-        echo "⚠️  LiteLLM installation failed. Install manually with: pip3 install --user litellm"
-        echo "   This is required for Red Hat Granite model access"
-    fi
-else
-    echo "✅ LiteLLM already installed"
-fi
-
 echo "✅ Red Hat PAI installation complete!"
 echo ""
 echo "🚀 Available commands:"
@@ -189,8 +207,12 @@ echo "   pai-case-processor     # Process support cases"
 echo "   pai-supportshell       # SupportShell integration"
 echo "   pai-compliance-check   # Check AI policy compliance"
 echo ""
-echo "🎭 Start Gemini CLI with: gemini"
-echo "📖 All pai- scripts available via run_shell_command"
+echo "🎭 AI Tools installed:"
+echo "   fabric                 # Fabric AI with Red Hat model routing"
+echo "   gemini                 # Gemini CLI with Hatter personality"
+echo "   litellm                # LiteLLM proxy for Red Hat AI models"
+echo ""
+echo "📖 All pai- scripts available via run_shell_command in Gemini CLI"
 
 # Verify installation
 echo ""
@@ -200,6 +222,12 @@ if command -v pai-context-current &> /dev/null; then
 else
     echo "⚠️  PAI scripts not found in PATH. Add ~/.local/bin to your PATH:"
     echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
+fi
+
+if command -v fabric &> /dev/null; then
+    echo "✅ Fabric AI installed"
+else
+    echo "⚠️  Fabric AI installation may have failed"
 fi
 
 if command -v gemini &> /dev/null; then

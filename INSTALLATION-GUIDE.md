@@ -2,13 +2,16 @@
 
 ## 🎯 **What Gets Installed**
 
-The Red Hat PAI system installs locally on your machine and includes:
+The Red Hat PAI system automatically installs and configures:
 
-1. **Fabric AI**: Universal AI processing framework
-2. **LiteLLM Proxy**: Local proxy for Red Hat Granite models (localhost:4000)
-3. **PAI Scripts**: 62+ Red Hat workflow automation tools
-4. **Context System**: Global PAI context for all AI tools
-5. **Agent Configurations**: AGENTS.md and GEMINI.md for cross-platform AI
+1. **AI Tools Suite**:
+   - **Fabric AI**: Universal AI processing framework (via Go or pip)
+   - **Gemini CLI**: Google Gemini interface with Red Hat context
+   - **LiteLLM Proxy**: Local proxy for Red Hat AI models
+2. **PAI Scripts**: 62+ Red Hat workflow automation tools
+3. **Context System**: Global PAI context for all AI tools
+4. **Agent Configurations**: AGENTS.md and GEMINI.md for cross-platform AI
+5. **Dependency Management**: Automatic installation of required tools
 
 ## 📋 **Prerequisites (Required)**
 
@@ -61,11 +64,17 @@ fabric --list-models | grep granite
 
 ## 🔧 **What the Installation Script Does**
 
-### 1. System Dependencies
+### 1. AI Tools Installation
 ```bash
-# Installs required tools
-npm install -g @danielmiessler/fabric
-pip install litellm
+# Fabric AI (Go preferred, pip fallback)
+go install github.com/danielmiessler/fabric@latest
+# OR: pip3 install --user fabric-ai
+
+# Gemini CLI
+npm install -g @google/gemini-cli
+
+# LiteLLM
+pip3 install --user litellm
 ```
 
 ### 2. Local LiteLLM Setup
