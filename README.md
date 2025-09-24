@@ -92,7 +92,7 @@ graph TD
     F -->|Red Hat Models| G[LiteLLM Proxy]
     F -->|External Models| H[Direct API]
 
-    G --> I[grimm@rhgrimm]
+    G --> I[Local Models]
     I --> J[Red Hat Infrastructure]
     J --> K[Granite Models]
 
