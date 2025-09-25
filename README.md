@@ -136,27 +136,6 @@ pai-fabric-hybrid --pattern summarize mixed_content.md
 fabric --model gemini-pro --pattern daily_brief personal_notes.md
 ```
 
-### LiteLLM: The Local Bridge to Red Hat Models
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant P as PAI Script
-    participant F as Fabric AI
-    participant L as LiteLLM (Local)
-    participant R as Red Hat Models
-
-    U->>P: pai-fabric-compliant customer_case.md
-    P->>P: Detect: Customer data
-    P->>F: fabric --model granite-34b-instruct
-    F->>L: API call to localhost:4000/granite-34b-instruct
-    L->>R: Route to Red Hat infrastructure (via VPN)
-    R-->>L: Compliant response
-    L-->>F: Response
-    F-->>P: Processed content
-    P-->>U: Results + audit trail
-```
-
 **LiteLLM Proxy Configuration** (installed locally):
 ```yaml
 model_list:
@@ -175,27 +154,9 @@ model_list:
 pai-case-processor support_ticket.md        # Uses granite-34b-instruct
 pai-email-processor customer_email.txt      # Uses granite-34b-instruct
 
-# For personal work - use any model you want
-fabric --model gpt-4o --pattern extract_ideas personal_research.md
+# For coding or personal work - use any model you want
+fabric --model gpt-5 --pattern extract_ideas personal_research.md
 fabric --model gemini-pro --pattern summarize meeting_notes.md
 ```
 
 📊 **For detailed architecture diagrams and flows, see [ARCHITECTURE-DIAGRAM.md](./ARCHITECTURE-DIAGRAM.md)**
-
-## Requirements
-
-- **Fabric AI**: Single installation, knows all models
-- **LiteLLM**: Installed locally as part of redhat-pai setup
-- Node.js (for Gemini CLI)
-- Git access to gitlab.cee.redhat.com
-- Red Hat VPN for internal model access (LiteLLM connects through VPN)
-
-## Enterprise Deployment
-
-This repository contains only Red Hat-specific content:
-- No personal business information
-- No health or consulting data
-- No email sync or personal secrets
-- Only Red Hat TAM and technical workflows
-
-Perfect for enterprise sharing and team deployment while maintaining privacy separation.
