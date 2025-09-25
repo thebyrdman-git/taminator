@@ -6,7 +6,6 @@ Personal AI Infrastructure for Red Hat teams, providing unified context manageme
 - **Multi-Tool Integration**: Gemini CLI, Cursor IDE, Fabric AI, LiteLLM Proxy
 - **Secure by Design**: External secrets management, no hardcoded credentials
 - **TAM Workflow Tools**: Specialized scripts for Technical Account Managers
-- **Enterprise Ready**: Clean separation of business contexts
 
 ## Prerequisites
 
@@ -28,7 +27,7 @@ The installer will verify you've completed the prerequisites before proceeding.
 ## What You Get
 
 ### AI Tools Integration
-- **Gemini CLI**: `gemini` with Hatter personality and Red Hat context
+- **Gemini CLI**: Project-specific rules and context
 - **Cursor IDE**: Project-specific rules and context
 - **Fabric AI**: Red Hat compliant patterns and processing via LiteLLM model selection
 - **LiteLLM Proxy**: Local proxy for Red Hat AI models with compliance routing
@@ -93,7 +92,7 @@ The installation script:
 graph TD
     A[PAI Script] --> B{Content Detection}
     B -->|Customer Data| C[gemini-pro,RH Models,Local Models]
-    B -->|Personal Data| D[gpt-5, gemini-pro, etc.]
+    B -->|Coding/Personal Data| D[gpt-5, gemini-pro, etc.]
 
     C --> E[Fabric AI]
     D --> E[Fabric AI]
