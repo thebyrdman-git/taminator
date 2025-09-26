@@ -335,6 +335,313 @@ alwaysApply: false
 ## Knowledge Base
 Reference: ~/.claude/context/knowledge/academic/'
             ;;
+        home-automation)
+            rule_file="50-home-automation.mdc"
+            rule_content='---
+description: Smart home devices, IoT management, and energy optimization
+globs: ["**/home/**", "**/iot/**", "**/smart-home/**", "**/automation/**"]
+alwaysApply: false
+---
+
+# Home Automation Context
+
+## Smart Home Management
+- IoT device configuration and monitoring
+- Home Assistant, Zigbee, Z-Wave integrations
+- Energy usage optimization and tracking
+- Security system management and automation
+
+## Available Platforms
+- Home Assistant ecosystem and add-ons
+- Node-RED for automation workflows
+- MQTT broker for device communication
+- InfluxDB + Grafana for metrics
+
+## Focus Areas
+- Device automation and scene creation
+- Energy monitoring and cost optimization
+- Security and privacy for IoT devices
+- Network segmentation and device isolation
+
+## Privacy & Security
+- Local-first processing preferred
+- Network segmentation for IoT devices
+- Regular security updates and monitoring
+- Data sovereignty for home metrics
+
+## Knowledge Base
+Reference: ~/.pai/context/knowledge/home-automation/'
+            ;;
+        finance)
+            rule_file="51-finance.mdc"
+            rule_content='---
+description: Personal finance, budgeting, and investment tracking
+globs: ["**/finance/**", "**/budget/**", "**/investment/**", "**/money/**"]
+alwaysApply: false
+---
+
+# Personal Finance Context
+
+## Financial Management
+- Budget tracking and expense categorization
+- Investment portfolio analysis and optimization
+- Bill management and subscription tracking
+- Tax preparation and record keeping
+
+## Available Tools
+- Mint, YNAB, or similar budgeting platforms
+- Portfolio tracking and analysis tools
+- Cryptocurrency tracking if applicable
+- Receipt scanning and expense automation
+
+## Focus Areas
+- Cash flow optimization and debt reduction
+- Investment strategy and diversification
+- Tax optimization and planning
+- Financial goal setting and tracking
+
+## Privacy & Security
+- Financial data NEVER leaves local environment
+- Encrypted storage for sensitive information
+- Secure API handling for bank connections
+- Regular security audits for financial tools
+
+## Knowledge Base
+Reference: ~/.pai/context/knowledge/finance/'
+            ;;
+        meal-planning)
+            rule_file="52-meal-planning.mdc"
+            rule_content='---
+description: Cooking, nutrition tracking, and meal preparation
+globs: ["**/meal/**", "**/recipe/**", "**/nutrition/**", "**/cooking/**"]
+alwaysApply: false
+---
+
+# Meal Planning Context
+
+## Meal Management
+- Recipe organization and meal planning
+- Nutritional analysis and diet tracking
+- Grocery list generation and optimization
+- Meal prep scheduling and batch cooking
+
+## Available Tools
+- Recipe management apps and databases
+- Nutritional analysis tools
+- Grocery delivery integration
+- Kitchen inventory tracking
+
+## Focus Areas
+- Healthy meal planning and nutrition goals
+- Cost-effective grocery shopping
+- Time-efficient meal preparation
+- Dietary restrictions and preferences
+
+## Health Integration
+- Calorie and macro tracking
+- Dietary goal monitoring
+- Food sensitivity management
+- Meal timing optimization
+
+## Knowledge Base
+Reference: ~/.pai/context/knowledge/meal-planning/'
+            ;;
+        family)
+            rule_file="53-family.mdc"
+            rule_content='---
+description: Family scheduling, communication, and relationship management
+globs: ["**/family/**", "**/schedule/**", "**/kids/**", "**/relationships/**"]
+alwaysApply: false
+---
+
+# Family Management Context
+
+## Family Coordination
+- Shared calendar management and scheduling
+- Activity coordination and transportation
+- Communication and relationship tracking
+- Gift planning and special occasions
+
+## Available Tools
+- Google Calendar or family scheduling apps
+- Chore and allowance tracking systems
+- Educational progress monitoring
+- Family communication platforms
+
+## Focus Areas
+- Efficient scheduling and time management
+- Activity planning and logistics
+- Educational support and progress tracking
+- Family relationship nurturing
+
+## Privacy & Family Safety
+- Child-safe internet and device usage
+- Location sharing for safety (when appropriate)
+- Screen time management and digital wellness
+- Privacy education for family members
+
+## Knowledge Base
+Reference: ~/.pai/context/knowledge/family/'
+            ;;
+        maintenance)
+            rule_file="54-maintenance.mdc"
+            rule_content='---
+description: Home and vehicle maintenance, seasonal tasks, and preventive care
+globs: ["**/maintenance/**", "**/repair/**", "**/home/**", "**/vehicle/**"]
+alwaysApply: false
+---
+
+# Maintenance Context
+
+## Maintenance Management
+- Preventive maintenance scheduling
+- Repair tracking and vendor management
+- Seasonal task planning and reminders
+- Warranty and service record keeping
+
+## Maintenance Areas
+- Home systems (HVAC, plumbing, electrical)
+- Appliance maintenance and troubleshooting
+- Vehicle maintenance and service tracking
+- Outdoor and landscaping maintenance
+
+## Focus Areas
+- Cost-effective DIY vs professional repairs
+- Preventive maintenance to avoid major issues
+- Energy efficiency improvements
+- Tool and supply inventory management
+
+## Knowledge Base
+- Home maintenance guides and schedules
+- Vehicle service manuals and specifications
+- Local contractor and vendor information
+- Parts sourcing and warranty tracking
+
+Reference: ~/.pai/context/knowledge/maintenance/'
+            ;;
+        learning)
+            rule_file="55-learning.mdc"
+            rule_content='---
+description: Personal development, skill building, and knowledge acquisition
+globs: ["**/learning/**", "**/course/**", "**/skill/**", "**/development/**"]
+alwaysApply: false
+---
+
+# Learning Context
+
+## Learning Management
+- Course tracking and progress monitoring
+- Skill development planning and practice
+- Reading list management and note-taking
+- Certification and goal tracking
+
+## Learning Platforms
+- Online course platforms (Coursera, Udemy, etc.)
+- Professional development resources
+- Technical skill practice environments
+- Language learning applications
+
+## Focus Areas
+- Career development and skill building
+- Personal interest exploration
+- Knowledge retention and application
+- Learning habit formation and tracking
+
+## Learning Methods
+- Spaced repetition for retention
+- Project-based learning application
+- Peer learning and study groups
+- Progress tracking and achievement
+
+## Knowledge Base
+Reference: ~/.pai/context/knowledge/learning/'
+            ;;
+        entertainment)
+            rule_file="56-entertainment.mdc"
+            rule_content='---
+description: Media management, hobby projects, and leisure activities
+globs: ["**/entertainment/**", "**/media/**", "**/hobby/**", "**/games/**"]
+alwaysApply: false
+---
+
+# Entertainment Context
+
+## Entertainment Management
+- Media library organization and streaming
+- Gaming progress and achievement tracking
+- Hobby project planning and supplies
+- Event and activity discovery
+
+## Available Platforms
+- Plex, Jellyfin for media management
+- Steam, console gaming platforms
+- Hobby-specific tools and communities
+- Local event and activity databases
+
+## Focus Areas
+- Media consumption tracking and recommendations
+- Gaming achievement and progress tracking
+- Hobby project planning and execution
+- Social activity coordination
+
+## Creative Projects
+- DIY project planning and tutorials
+- Creative skill development
+- Maker space and tool management
+- Project documentation and sharing
+
+## Knowledge Base
+Reference: ~/.pai/context/knowledge/entertainment/'
+            ;;
+        plex)
+            rule_file="57-plex-media-server.mdc"
+            rule_content='---
+description: Plex media server management and streaming optimization
+globs: ["**/plex/**", "**/media-server/**", "**/streaming/**", "**/transcoding/**"]
+alwaysApply: false
+---
+
+# Plex Media Server Context
+
+## Server Management
+- Plex Media Server configuration and optimization
+- Library organization and metadata management
+- User management and sharing settings
+- Hardware transcoding optimization
+
+## Media Organization
+- Automated media scanning and matching
+- Metadata correction and enhancement
+- Collection and playlist management
+- Media file organization and naming conventions
+
+## Performance Optimization
+- Transcoding settings and hardware acceleration
+- Network optimization for streaming
+- Storage management and cleanup
+- Cache and thumbnail optimization
+
+## Available Tools
+- Plex Web Interface and mobile apps
+- Third-party tools: Tautulli, Overseerr, Sonarr, Radarr
+- PlexAPI for automation scripting
+- Media analysis and quality tools
+
+## Focus Areas
+- Server performance monitoring and tuning
+- Media library curation and organization
+- Remote streaming optimization
+- Automated media acquisition workflows
+
+## Integration Opportunities
+- Home Assistant integration for smart home control
+- Energy monitoring for server power consumption
+- Network monitoring for bandwidth usage
+- Automated backup and disaster recovery
+
+## Knowledge Base
+Reference: ~/.pai/context/knowledge/plex/'
+            ;;
         general)
             # No additional context rule for general
             return 0
@@ -405,7 +712,7 @@ fi
 
 # Validate context
 case "$CONTEXT" in
-    redhat|mga|rec|warehouse|personal|content|health|academic|general) ;;
+    redhat|mga|rec|warehouse|personal|content|health|academic|home-automation|finance|meal-planning|family|maintenance|learning|entertainment|plex|general) ;;
     *)
         echo "Error: Invalid context '$CONTEXT'" >&2
         exit 1
@@ -421,6 +728,18 @@ if [[ "$DRY_RUN" == "true" ]]; then
         mga) echo "  - 20-context-mga.md" ;;
         rec) echo "  - 21-context-rec.md" ;;
         warehouse) echo "  - 30-project-warehouse.md" ;;
+        personal) echo "  - 40-personal-projects.md" ;;
+        content) echo "  - 41-content-creation.md" ;;
+        health) echo "  - 42-health-wellness.md" ;;
+        academic) echo "  - 43-academic-research.md" ;;
+        home-automation) echo "  - 50-home-automation.md" ;;
+        finance) echo "  - 51-finance.md" ;;
+        meal-planning) echo "  - 52-meal-planning.md" ;;
+        family) echo "  - 53-family.md" ;;
+        maintenance) echo "  - 54-maintenance.md" ;;
+        learning) echo "  - 55-learning.md" ;;
+        entertainment) echo "  - 56-entertainment.md" ;;
+        plex) echo "  - 57-plex-media-server.md" ;;
     esac
     exit 0
 fi
@@ -447,6 +766,14 @@ if [[ "$CONTEXT" != "general" ]]; then
         content) echo "Generated: 41-content-creation.mdc" ;;
         health) echo "Generated: 42-health-wellness.mdc" ;;
         academic) echo "Generated: 43-academic-research.mdc" ;;
+        home-automation) echo "Generated: 50-home-automation.mdc" ;;
+        finance) echo "Generated: 51-finance.mdc" ;;
+        meal-planning) echo "Generated: 52-meal-planning.mdc" ;;
+        family) echo "Generated: 53-family.mdc" ;;
+        maintenance) echo "Generated: 54-maintenance.mdc" ;;
+        learning) echo "Generated: 55-learning.mdc" ;;
+        entertainment) echo "Generated: 56-entertainment.mdc" ;;
+        plex) echo "Generated: 57-plex-media-server.mdc" ;;
     esac
 fi
 

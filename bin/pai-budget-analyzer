@@ -1,0 +1,337 @@
+#!/bin/bash
+# pai-budget-analyzer - Personal budget analysis and debt payoff planning
+# Part of PAI finance context - PRIVACY FIRST (all data stays local)
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+FINANCE_CONFIG_FILE="$PAI_CONFIG_DIR/finance-config.json"
+BUDGET_DATA_DIR="$PAI_CONFIG_DIR/budget-data"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+show_help() {
+    cat << EOF
+pai-budget-analyzer - Personal budget analysis and debt payoff planning
+
+USAGE:
+    pai-budget-analyzer <command> [options]
+
+COMMANDS:
+    setup                 Initial financial setup (income, expenses, debts)
+    budget-check         Current budget analysis and recommendations
+    debt-avalanche       Calculate debt payoff using avalanche method
+    debt-snowball        Calculate debt payoff using snowball method
+    expense-audit        Find expenses to cut (like our energy audit)
+    savings-tracker      Track progress toward financial goals
+    
+    monthly-report       Generate comprehensive monthly financial report
+    emergency-fund       Emergency fund analysis and recommendations
+
+OPTIONS:
+    --include-energy-savings    Include your $54.50/month energy savings
+    --privacy-mode             Extra privacy (no external suggestions)
+    --export-format FORMAT     json, csv, text (default: text)
+    --verbose                  Show detailed analysis
+    --help, -h                 Show this help
+
+EXAMPLES:
+    pai-budget-analyzer setup
+    pai-budget-analyzer budget-check --include-energy-savings
+    pai-budget-analyzer debt-avalanche --verbose
+    pai-budget-analyzer expense-audit
+
+PRIVACY GUARANTEE:
+    - All financial data stays on YOUR machine
+    - No cloud services, no external APIs
+    - GPG encryption for sensitive data
+    - Same security standards as Red Hat context
+EOF
+}
+
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_financial() { echo -e "${CYAN}[FINANCIAL]${NC} $*"; }
+log_success() { echo -e "${BOLD}${GREEN}[SUCCESS]${NC} $*"; }
+
+# Financial setup - gather basic info
+financial_setup() {
+    local privacy_mode="${1:-false}"
+    
+    log_financial "Starting financial analysis setup..."
+    log_info "All data stays local and encrypted. Complete privacy guaranteed."
+    
+    echo
+    echo "💰 FINANCIAL FOUNDATION SETUP"
+    echo "=============================="
+    
+    # Income
+    echo
+    read -r -p "Monthly take-home income (after taxes): $" monthly_income
+    if ! [[ "$monthly_income" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+        log_error "Invalid income format"
+        exit 1
+    fi
+    
+    # Essential expenses
+    echo
+    echo "📋 ESSENTIAL MONTHLY EXPENSES:"
+    read -r -p "Rent/Mortgage: $" housing
+    read -r -p "Utilities (before energy savings): $" utilities_old
+    
+    # Factor in energy savings
+    local utilities_new
+    utilities_new=$(echo "$utilities_old - 54.50" | bc -l 2>/dev/null || echo "$utilities_old")
+    echo "   → With energy optimization: \$${utilities_new} (saving \$54.50/month!)"
+    
+    read -r -p "Food/Groceries: $" food
+    read -r -p "Transportation: $" transportation
+    read -r -p "Insurance: $" insurance
+    read -r -p "Phone: $" phone
+    read -r -p "Other essentials: $" other_essentials
+    
+    # Debt information
+    echo
+    echo "💳 DEBT INFORMATION:"
+    local debts=()
+    local total_debt=0
+    local total_min_payments=0
+    
+    while true; do
+        echo
+        read -r -p "Debt name (credit card, loan, etc.) or 'done': " debt_name
+        [[ "$debt_name" == "done" ]] && break
+        
+        read -r -p "Balance for $debt_name: $" balance
+        read -r -p "Interest rate (%) for $debt_name: " rate
+        read -r -p "Minimum payment for $debt_name: $" min_payment
+        
+        debts+=("{\"name\":\"$debt_name\",\"balance\":$balance,\"rate\":$rate,\"min_payment\":$min_payment}")
+        total_debt=$(echo "$total_debt + $balance" | bc -l)
+        total_min_payments=$(echo "$total_min_payments + $min_payment" | bc -l)
+    done
+    
+    # Calculate essentials
+    local total_essentials
+    total_essentials=$(echo "$housing + $utilities_new + $food + $transportation + $insurance + $phone + $other_essentials + $total_min_payments" | bc -l)
+    
+    local remaining_income
+    remaining_income=$(echo "$monthly_income - $total_essentials" | bc -l)
+    
+    # Create financial profile
+    local financial_profile
+    financial_profile=$(jq -n \
+        --arg setup_date "$(date -Iseconds)" \
+        --arg monthly_income "$monthly_income" \
+        --arg housing "$housing" \
+        --arg utilities_old "$utilities_old" \
+        --arg utilities_new "$utilities_new" \
+        --arg food "$food" \
+        --arg transportation "$transportation" \
+        --arg insurance "$insurance" \
+        --arg phone "$phone" \
+        --arg other_essentials "$other_essentials" \
+        --arg total_essentials "$total_essentials" \
+        --arg remaining_income "$remaining_income" \
+        --arg total_debt "$total_debt" \
+        --arg total_min_payments "$total_min_payments" \
+        --argjson debts "[$(IFS=,; echo "${debts[*]}")]" \
+        '{
+            setup_date: $setup_date,
+            monthly_income: ($monthly_income | tonumber),
+            essential_expenses: {
+                housing: ($housing | tonumber),
+                utilities_before_optimization: ($utilities_old | tonumber),
+                utilities_after_optimization: ($utilities_new | tonumber),
+                energy_savings_monthly: 54.50,
+                food: ($food | tonumber),
+                transportation: ($transportation | tonumber),
+                insurance: ($insurance | tonumber),
+                phone: ($phone | tonumber),
+                other_essentials: ($other_essentials | tonumber),
+                total_essentials: ($total_essentials | tonumber)
+            },
+            debt_summary: {
+                total_debt: ($total_debt | tonumber),
+                total_min_payments: ($total_min_payments | tonumber),
+                debts: $debts
+            },
+            cash_flow: {
+                monthly_income: ($monthly_income | tonumber),
+                total_expenses: ($total_essentials | tonumber),
+                remaining_for_goals: ($remaining_income | tonumber)
+            }
+        }')
+    
+    # Save encrypted
+    mkdir -p "$BUDGET_DATA_DIR"
+    echo "$financial_profile" | gpg --cipher-algo AES256 --armor --output "$FINANCE_CONFIG_FILE.gpg" --symmetric
+    
+    # Show summary
+    echo
+    log_success "Financial profile created and encrypted!"
+    echo
+    show_financial_summary "$financial_profile"
+}
+
+# Show financial summary
+show_financial_summary() {
+    local profile="$1"
+    
+    echo "$profile" | jq -r '
+        "💰 FINANCIAL SUMMARY",
+        "==================",
+        "",
+        "Monthly Income: $\(.monthly_income)",
+        "Essential Expenses: $\(.essential_expenses.total_essentials)",
+        "  • Housing: $\(.essential_expenses.housing)",
+        "  • Utilities: $\(.essential_expenses.utilities_after_optimization) (was $\(.essential_expenses.utilities_before_optimization))",
+        "  • Energy Savings: $\(.essential_expenses.energy_savings_monthly)/month ✅",
+        "  • Food: $\(.essential_expenses.food)",
+        "  • Transportation: $\(.essential_expenses.transportation)",
+        "  • Debt Payments: $\(.debt_summary.total_min_payments)",
+        "",
+        "Available for Goals: $\(.cash_flow.remaining_for_goals)",
+        "Total Debt: $\(.debt_summary.total_debt)",
+        "",
+        if .cash_flow.remaining_for_goals > 0 then
+            "✅ POSITIVE CASH FLOW - Ready for debt payoff!"
+        else
+            "⚠️  NEGATIVE CASH FLOW - Need expense reduction first"
+        end'
+}
+
+# Load financial profile
+load_financial_profile() {
+    if [[ ! -f "$FINANCE_CONFIG_FILE.gpg" ]]; then
+        log_error "No financial profile found. Run: pai-budget-analyzer setup"
+        exit 1
+    fi
+    
+    gpg --quiet --decrypt "$FINANCE_CONFIG_FILE.gpg" 2>/dev/null
+}
+
+# Budget check with recommendations
+budget_check() {
+    local include_energy_savings="${1:-true}"
+    local verbose="${2:-false}"
+    
+    log_financial "Analyzing current budget..."
+    
+    local profile
+    profile=$(load_financial_profile)
+    
+    show_financial_summary "$profile"
+    
+    if [[ "$verbose" == "true" ]]; then
+        echo
+        echo "🎯 OPTIMIZATION OPPORTUNITIES:"
+        
+        # Debt-to-income ratio
+        local debt_ratio
+        debt_ratio=$(echo "$profile" | jq -r '(.debt_summary.total_debt / .monthly_income) * 100')
+        
+        if (( $(echo "$debt_ratio > 40" | bc -l) )); then
+            echo "  ⚠️  High debt-to-income ratio: ${debt_ratio}% (target: <30%)"
+        elif (( $(echo "$debt_ratio > 20" | bc -l) )); then
+            echo "  ⚠️  Moderate debt-to-income ratio: ${debt_ratio}% (target: <20%)"
+        else
+            echo "  ✅ Good debt-to-income ratio: ${debt_ratio}%"
+        fi
+        
+        # Cash flow analysis
+        local remaining
+        remaining=$(echo "$profile" | jq -r '.cash_flow.remaining_for_goals')
+        
+        if (( $(echo "$remaining > 500" | bc -l) )); then
+            echo "  ✅ Strong cash flow: \$${remaining} available for debt payoff"
+        elif (( $(echo "$remaining > 100" | bc -l) )); then
+            echo "  ⚠️  Tight cash flow: \$${remaining} available (need expense reduction)"
+        else
+            echo "  🚨 Negative/minimal cash flow: Need immediate expense audit"
+        fi
+        
+        echo "  💡 Energy optimization already saving: \$54.50/month ✅"
+    fi
+}
+
+# Create directories
+mkdir -p "$PAI_CONFIG_DIR" "$BUDGET_DATA_DIR"
+
+# Parse arguments
+COMMAND=""
+INCLUDE_ENERGY_SAVINGS=true
+PRIVACY_MODE=false
+EXPORT_FORMAT="text"
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --include-energy-savings)
+            INCLUDE_ENERGY_SAVINGS=true
+            shift
+            ;;
+        --privacy-mode)
+            PRIVACY_MODE=true
+            shift
+            ;;
+        --export-format)
+            EXPORT_FORMAT="$2"
+            shift 2
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            exit 1
+            ;;
+        *)
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$COMMAND" ]]; then
+    log_error "Command required"
+    show_help >&2
+    exit 1
+fi
+
+# Execute command
+case "$COMMAND" in
+    setup)
+        financial_setup "$PRIVACY_MODE"
+        ;;
+    budget-check)
+        budget_check "$INCLUDE_ENERGY_SAVINGS" "$VERBOSE"
+        ;;
+    debt-avalanche|debt-snowball|expense-audit|savings-tracker|monthly-report|emergency-fund)
+        log_warn "Command '$COMMAND' not yet implemented"
+        log_info "Available: setup, budget-check"
+        exit 1
+        ;;
+    *)
+        log_error "Invalid command: $COMMAND"
+        exit 1
+        ;;
+esac
+
+exit 0

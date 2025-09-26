@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# pai-litellm-start - Quick start LiteLLM proxy for testing
+# Part of the PAI (Personal AI Infrastructure) System
+
+CONFIG_FILE="$HOME/.config/litellm/config.yaml"
+PORT="${1:-4000}"
+
+echo "Starting LiteLLM proxy on port $PORT..."
+echo "Configuration: $CONFIG_FILE"
+echo "Press Ctrl+C to stop"
+echo ""
+
+# Start in background for testing
+litellm --config "$CONFIG_FILE" --port "$PORT" --host 0.0.0.0 --debug &
+LITELLM_PID=$!
+
+echo "LiteLLM started with PID: $LITELLM_PID"
+echo "Waiting 5 seconds for startup..."
+sleep 5
+
+# Test if it's running
+if curl -s "http://localhost:$PORT/health" >/dev/null; then
+    echo "✅ LiteLLM proxy is running successfully!"
+    echo "API available at: http://localhost:$PORT"
+    echo ""
+    echo "Available endpoints:"
+    echo "  - Health: http://localhost:$PORT/health"
+    echo "  - Models: http://localhost:$PORT/v1/models"
+    echo "  - Chat: http://localhost:$PORT/v1/chat/completions"
+    echo "  - Embeddings: http://localhost:$PORT/v1/embeddings"
+    echo ""
+    echo "To stop: kill $LITELLM_PID"
+else
+    echo "❌ LiteLLM proxy failed to start"
+    kill $LITELLM_PID 2>/dev/null
+    exit 1
+fi

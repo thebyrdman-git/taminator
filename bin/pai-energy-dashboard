@@ -1,0 +1,639 @@
+#!/bin/bash
+# pai-energy-dashboard - Real-time energy cost optimization dashboard
+# Part of PAI home automation energy optimization suite
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+DASHBOARD_DATA_DIR="$PAI_CONFIG_DIR/dashboard-data"
+DASHBOARD_PORT="${PAI_DASHBOARD_PORT:-8080}"
+HA_TOOL="/home/jbyrd/hatter-pai/bin/pai-home-assistant"
+DISCOVERY_TOOL="/home/jbyrd/hatter-pai/bin/pai-energy-discovery"
+SCHEDULER_TOOL="/home/jbyrd/hatter-pai/bin/pai-energy-scheduler"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+show_help() {
+    cat << EOF
+pai-energy-dashboard - Real-time energy cost optimization dashboard
+
+USAGE:
+    pai-energy-dashboard <command> [options]
+
+COMMANDS:
+    live-monitor        Real-time energy monitoring and optimization display
+    cost-analysis       Live cost analysis with savings tracking
+    device-status       Current status of all monitored devices
+    optimization-hub    Central optimization control and status
+    savings-tracker     Track actual vs projected savings
+    
+    generate-report     Generate comprehensive energy report
+    export-metrics      Export metrics for external analysis
+    web-dashboard       Start web-based dashboard (experimental)
+    
+    setup               Setup dashboard configuration
+
+OPTIONS:
+    --refresh-interval SEC  Update interval in seconds (default: 30)
+    --compact              Compact display mode
+    --web-port PORT        Web dashboard port (default: 8080)
+    --export-format FMT    Export format: json, csv, html (default: json)
+    --verbose              Show detailed information
+    --help, -h             Show this help message
+
+EXAMPLES:
+    pai-energy-dashboard live-monitor
+    pai-energy-dashboard cost-analysis --verbose
+    pai-energy-dashboard generate-report --export-format html
+    pai-energy-dashboard web-dashboard --web-port 8080
+
+EXIT CODES:
+    0   Success
+    1   Dashboard errors or no data
+    2   Configuration error
+    3   Invalid arguments
+EOF
+}
+
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_dashboard() { echo -e "${CYAN}[DASHBOARD]${NC} $*"; }
+log_debug() { [[ "${DEBUG:-0}" == "1" ]] && echo -e "${BLUE}[DEBUG]${NC} $*" >&2 || true; }
+
+# Clear screen and show header
+show_dashboard_header() {
+    local title="$1"
+    clear
+    echo -e "${BOLD}${CYAN}🏠 PAI ENERGY OPTIMIZATION DASHBOARD${NC}"
+    echo -e "${BOLD}${title}${NC}"
+    echo -e "${CYAN}$(date '+%Y-%m-%d %H:%M:%S')${NC} | Context: home-automation | Monitoring: 432 devices"
+    echo "======================================================================="
+    echo
+}
+
+# Get real-time energy status
+get_realtime_status() {
+    local current_time
+    current_time=$(date -Iseconds)
+    
+    # Get current HA power data
+    local ha_power
+    if ha_power=$("$DISCOVERY_TOOL" ha-power-devices 2>/dev/null); then
+        ha_power=$(echo "$ha_power" | jq 'map(select(.category == "power" and .current_value > 0))')
+    else
+        ha_power="[]"
+    fi
+    
+    # Get network device status
+    local network_status
+    if network_status=$("$DISCOVERY_TOOL" power-analysis 2>/dev/null); then
+        network_status=$(echo "$network_status" | jq '.network_devices.estimated_total_power // 0')
+    else
+        network_status="0"
+    fi
+    
+    # Load Green Button data for cost calculations
+    local gb_data=""
+    local gb_file
+    gb_file=$(find "$PAI_CONFIG_DIR/energy-data" -name "greenbutton-import-*.json" -type f -newest 2>/dev/null | head -1)
+    if [[ -n "$gb_file" && -f "$gb_file" ]]; then
+        gb_data=$(cat "$gb_file" 2>/dev/null || echo "{}")
+    fi
+    
+    # Calculate real-time metrics
+    local realtime_data
+    realtime_data=$(jq -n \
+        --argjson ha_power "$ha_power" \
+        --arg network_power "$network_status" \
+        --argjson gb_data "$gb_data" \
+        --arg timestamp "$current_time" \
+        '{
+            timestamp: $timestamp,
+            current_power: {
+                ha_monitored_watts: ($ha_power | map(.current_value) | add // 0),
+                network_estimated_watts: ($network_power | tonumber),
+                total_estimated_watts: (($ha_power | map(.current_value) | add // 0) + ($network_power | tonumber)),
+                device_count: {
+                    ha_active: ($ha_power | length),
+                    network_total: 432
+                }
+            },
+            cost_analysis: {
+                rate_cents_kwh: ($gb_data.billing_summary.effective_rate_cents_kwh // 14.2),
+                hourly_cost_usd: ((($ha_power | map(.current_value) | add // 0) + ($network_power | tonumber)) / 1000 * ($gb_data.billing_summary.effective_rate_cents_kwh // 14.2) / 100),
+                daily_projection_usd: ((($ha_power | map(.current_value) | add // 0) + ($network_power | tonumber)) / 1000 * 24 * ($gb_data.billing_summary.effective_rate_cents_kwh // 14.2) / 100),
+                monthly_projection_usd: ((($ha_power | map(.current_value) | add // 0) + ($network_power | tonumber)) / 1000 * 24 * 30 * ($gb_data.billing_summary.effective_rate_cents_kwh // 14.2) / 100)
+            },
+            top_consumers: ($ha_power | sort_by(.current_value) | reverse | .[0:5]),
+            baseline_comparison: {
+                avg_daily_kwh: ($gb_data.usage_statistics.avg_daily_kwh // 53.3),
+                current_daily_pace: ((($ha_power | map(.current_value) | add // 0) + ($network_power | tonumber)) / 1000 * 24),
+                variance_percent: (
+                    if ($gb_data.usage_statistics.avg_daily_kwh // 53.3) > 0 then
+                        ((((($ha_power | map(.current_value) | add // 0) + ($network_power | tonumber)) / 1000 * 24) - ($gb_data.usage_statistics.avg_daily_kwh // 53.3)) / ($gb_data.usage_statistics.avg_daily_kwh // 53.3) * 100)
+                    else 0 end
+                )
+            }
+        }')
+    
+    echo "$realtime_data"
+}
+
+# Live monitoring display
+live_monitor() {
+    local refresh_interval="${1:-30}"
+    local compact="${2:-false}"
+    
+    log_dashboard "Starting live energy monitoring (refresh: ${refresh_interval}s)"
+    
+    while true; do
+        local realtime_data
+        realtime_data=$(get_realtime_status)
+        
+        if [[ "$compact" == "true" ]]; then
+            show_compact_monitor "$realtime_data"
+        else
+            show_full_monitor "$realtime_data"
+        fi
+        
+        echo
+        echo -e "${BLUE}Press Ctrl+C to exit | Next update in ${refresh_interval}s${NC}"
+        sleep "$refresh_interval"
+    done
+}
+
+# Show full monitoring display
+show_full_monitor() {
+    local data="$1"
+    
+    show_dashboard_header "LIVE ENERGY MONITORING"
+    
+    # Current Power Status
+    echo -e "${BOLD}⚡ CURRENT POWER STATUS${NC}"
+    echo "$data" | jq -r '
+        "  HA Monitored:     \(.current_power.ha_monitored_watts)W (\(.current_power.device_count.ha_active) devices)",
+        "  Network Estimated: \(.current_power.network_estimated_watts)W (\(.current_power.device_count.network_total) devices)",
+        "  Total Estimated:   \(.current_power.total_estimated_watts)W",
+        ""'
+    
+    # Cost Analysis
+    echo -e "${BOLD}💰 COST ANALYSIS${NC}"
+    echo "$data" | jq -r '
+        "  Rate:              \(.cost_analysis.rate_cents_kwh)¢/kWh",
+        "  Current Hourly:    $\(.cost_analysis.hourly_cost_usd | tonumber | . * 100 | floor / 100)",
+        "  Daily Projection:  $\(.cost_analysis.daily_projection_usd | tonumber | floor)",
+        "  Monthly Projection: $\(.cost_analysis.monthly_projection_usd | tonumber | floor)",
+        ""'
+    
+    # Baseline Comparison
+    echo -e "${BOLD}📊 BASELINE COMPARISON${NC}"
+    echo "$data" | jq -r '
+        "  Historical Avg:    \(.baseline_comparison.avg_daily_kwh) kWh/day",
+        "  Current Daily Pace: \(.baseline_comparison.current_daily_pace | floor) kWh/day",
+        "  Variance:          " + (
+            if .baseline_comparison.variance_percent > 0 then
+                "+\(.baseline_comparison.variance_percent | floor)% (above average)"
+            elif .baseline_comparison.variance_percent < 0 then
+                "\(.baseline_comparison.variance_percent | floor)% (below average)"
+            else
+                "0% (on target)"
+            end
+        ),
+        ""'
+    
+    # Top Consumers
+    echo -e "${BOLD}🔥 TOP POWER CONSUMERS${NC}"
+    echo "$data" | jq -r '
+        if (.top_consumers | length) > 0 then
+            .top_consumers[] | "  \(.friendly_name | .[0:35]): \(.current_value)W"
+        else
+            "  No active power monitoring devices"
+        end'
+    echo
+    
+    # Status indicators
+    local total_power
+    total_power=$(echo "$data" | jq -r '.current_power.total_estimated_watts')
+    
+    echo -e "${BOLD}🚦 STATUS INDICATORS${NC}"
+    if (( $(echo "$total_power > 3000" | bc -l) )); then
+        echo -e "  Power Level: ${RED}HIGH${NC} - Consider load reduction"
+    elif (( $(echo "$total_power > 1500" | bc -l) )); then
+        echo -e "  Power Level: ${YELLOW}MEDIUM${NC} - Normal operation"
+    else
+        echo -e "  Power Level: ${GREEN}LOW${NC} - Efficient operation"
+    fi
+    
+    local variance
+    variance=$(echo "$data" | jq -r '.baseline_comparison.variance_percent')
+    
+    if (( $(echo "$variance > 20" | bc -l) )); then
+        echo -e "  Usage Trend: ${RED}ABOVE AVERAGE${NC} - Optimization recommended"
+    elif (( $(echo "$variance < -10" | bc -l) )); then
+        echo -e "  Usage Trend: ${GREEN}BELOW AVERAGE${NC} - Great savings!"
+    else
+        echo -e "  Usage Trend: ${YELLOW}NORMAL${NC} - On track"
+    fi
+}
+
+# Show compact monitoring display
+show_compact_monitor() {
+    local data="$1"
+    
+    show_dashboard_header "LIVE MONITOR (COMPACT)"
+    
+    echo "$data" | jq -r '
+        "⚡ Power: \(.current_power.total_estimated_watts)W | 💰 Cost: $\(.cost_analysis.hourly_cost_usd | tonumber | . * 100 | floor / 100)/hr | 📊 Trend: " + (
+            if .baseline_comparison.variance_percent > 10 then "↗️ HIGH"
+            elif .baseline_comparison.variance_percent < -10 then "↘️ LOW" 
+            else "➡️ NORMAL"
+        ),
+        "",
+        "Top Consumers:"'
+    
+    echo "$data" | jq -r '.top_consumers[0:3][] | "  • \(.friendly_name | .[0:25]): \(.current_value)W"'
+}
+
+# Cost analysis with optimization recommendations
+cost_analysis() {
+    local verbose="${1:-false}"
+    
+    show_dashboard_header "COST ANALYSIS & OPTIMIZATION"
+    
+    # Get current data
+    local realtime_data discovery_data scheduling_data
+    realtime_data=$(get_realtime_status)
+    
+    if discovery_data=$("$DISCOVERY_TOOL" power-analysis --verbose 2>/dev/null); then
+        : # Success
+    else
+        discovery_data="{}"
+    fi
+    
+    if scheduling_data=$("$SCHEDULER_TOOL" analyze-patterns --verbose 2>/dev/null); then
+        : # Success  
+    else
+        scheduling_data="{}"
+    fi
+    
+    # Combined cost analysis
+    local cost_analysis
+    cost_analysis=$(jq -n \
+        --argjson realtime "$realtime_data" \
+        --argjson discovery "$discovery_data" \
+        --argjson scheduling "$scheduling_data" \
+        --arg analysis_time "$(date -Iseconds)" \
+        '{
+            analysis_timestamp: $analysis_time,
+            current_costs: $realtime.cost_analysis,
+            optimization_potential: {
+                immediate_savings: ($scheduling.estimated_savings.monthly_cost_savings // 0),
+                device_optimizations: ($discovery.network_devices.optimization_candidates // 0),
+                scheduling_opportunities: ($scheduling.scheduling_opportunities.immediate_candidates | length // 0)
+            },
+            cost_breakdown: {
+                ha_monitored_cost_per_hour: ($realtime.current_power.ha_monitored_watts / 1000 * $realtime.cost_analysis.rate_cents_kwh / 100),
+                network_estimated_cost_per_hour: ($realtime.current_power.network_estimated_watts / 1000 * $realtime.cost_analysis.rate_cents_kwh / 100),
+                total_cost_per_hour: ($realtime.cost_analysis.hourly_cost_usd)
+            },
+            recommendations: [
+                {
+                    action: "Implement smart scheduling",
+                    potential_savings_usd: ($scheduling.estimated_savings.monthly_cost_savings // 40),
+                    priority: "high",
+                    effort: "medium"
+                },
+                {
+                    action: "Add power monitoring to high-power devices",
+                    potential_savings_usd: 25,
+                    priority: "medium", 
+                    effort: "low"
+                },
+                {
+                    action: "Peak load shifting optimization",
+                    potential_savings_usd: 35,
+                    priority: "high",
+                    effort: "high"
+                }
+            ]
+        }')
+    
+    # Display cost analysis
+    echo -e "${BOLD}💰 COMPREHENSIVE COST ANALYSIS${NC}"
+    echo "$cost_analysis" | jq -r '
+        "Current Costs:",
+        "  • Hourly rate: $\(.current_costs.hourly_cost_usd | tonumber | . * 100 | floor / 100)",
+        "  • Daily projection: $\(.current_costs.daily_projection_usd | tonumber | floor)",
+        "  • Monthly projection: $\(.current_costs.monthly_projection_usd | tonumber | floor)",
+        "",
+        "Cost Breakdown:",
+        "  • HA monitored devices: $\(.cost_breakdown.ha_monitored_cost_per_hour | tonumber | . * 100 | floor / 100)/hr",
+        "  • Network devices (est): $\(.cost_breakdown.network_estimated_cost_per_hour | tonumber | . * 100 | floor / 100)/hr",
+        "",
+        "Optimization Potential:",
+        "  • Immediate monthly savings: $\(.optimization_potential.immediate_savings | floor)",
+        "  • Devices with optimization potential: \(.optimization_potential.device_optimizations)",
+        "  • Scheduling opportunities: \(.optimization_potential.scheduling_opportunities)",
+        ""'
+    
+    echo -e "${BOLD}🎯 OPTIMIZATION RECOMMENDATIONS${NC}"
+    echo "$cost_analysis" | jq -r '
+        .recommendations[] | 
+        "  Priority: \(.priority | ascii_upcase) | \(.action)",
+        "    Potential savings: $\(.potential_savings_usd)/month | Effort: \(.effort)",
+        ""'
+    
+    if [[ "$verbose" == "true" ]]; then
+        echo -e "${BOLD}📈 DETAILED ANALYSIS${NC}"
+        echo "Real-time data collected: $(echo "$realtime_data" | jq -r '.timestamp')"
+        echo "Discovery data available: $(echo "$discovery_data" | jq -r 'if . == {} then "No" else "Yes" end')"
+        echo "Scheduling analysis available: $(echo "$scheduling_data" | jq -r 'if . == {} then "No" else "Yes" end')"
+    fi
+}
+
+# Generate comprehensive energy report
+generate_comprehensive_report() {
+    local export_format="${1:-json}"
+    local verbose="${2:-false}"
+    
+    log_dashboard "Generating comprehensive energy report..."
+    
+    # Gather all data sources
+    local realtime_data discovery_data scheduling_data monitoring_data
+    realtime_data=$(get_realtime_status)
+    discovery_data=$("$DISCOVERY_TOOL" generate-map --output-format json 2>/dev/null || echo "{}")
+    scheduling_data=$("$SCHEDULER_TOOL" analyze-patterns 2>/dev/null || echo "{}")
+    monitoring_data=$("$SCHEDULER_TOOL" monitor-savings 2>/dev/null || echo "{}")
+    
+    # Create comprehensive report
+    local report
+    report=$(jq -n \
+        --argjson realtime "$realtime_data" \
+        --argjson discovery "$discovery_data" \
+        --argjson scheduling "$scheduling_data" \
+        --argjson monitoring "$monitoring_data" \
+        --arg report_time "$(date -Iseconds)" \
+        --arg format "$export_format" \
+        '{
+            report_metadata: {
+                generation_time: $report_time,
+                format: $format,
+                data_sources: {
+                    realtime: ($realtime != {}),
+                    discovery: ($discovery != {}),
+                    scheduling: ($scheduling != {}), 
+                    monitoring: ($monitoring != {})
+                }
+            },
+            executive_summary: {
+                current_power_watts: $realtime.current_power.total_estimated_watts,
+                daily_cost_usd: $realtime.cost_analysis.daily_projection_usd,
+                monthly_cost_usd: $realtime.cost_analysis.monthly_projection_usd,
+                devices_monitored: ($realtime.current_power.device_count.ha_active + $realtime.current_power.device_count.network_total),
+                optimization_potential_usd: ($scheduling.estimated_savings.monthly_cost_savings // 0)
+            },
+            detailed_analysis: {
+                power_analysis: $realtime,
+                device_discovery: $discovery,
+                scheduling_analysis: $scheduling,
+                savings_monitoring: $monitoring
+            },
+            action_items: [
+                {
+                    priority: 1,
+                    action: "Implement energy scheduling automation",
+                    estimated_savings: "$\($scheduling.estimated_savings.monthly_cost_savings // 40)/month",
+                    timeline: "1-2 weeks"
+                },
+                {
+                    priority: 2, 
+                    action: "Add power monitoring to unmonitored devices",
+                    estimated_savings: "$25/month",
+                    timeline: "2-4 weeks"
+                },
+                {
+                    priority: 3,
+                    action: "Optimize always-on device power consumption",
+                    estimated_savings: "$30/month", 
+                    timeline: "1 month"
+                }
+            ]
+        }')
+    
+    # Output in requested format
+    case "$export_format" in
+        json)
+            echo "$report" | jq '.'
+            ;;
+        html)
+            generate_html_report "$report"
+            ;;
+        csv)
+            generate_csv_report "$report"
+            ;;
+        *)
+            log_error "Invalid export format: $export_format"
+            exit 3
+            ;;
+    esac
+    
+    # Save report
+    local report_file="$DASHBOARD_DATA_DIR/energy-report-$(date +%Y%m%d-%H%M%S).$export_format"
+    mkdir -p "$DASHBOARD_DATA_DIR"
+    
+    case "$export_format" in
+        json)
+            echo "$report" > "$report_file"
+            ;;
+        html)
+            generate_html_report "$report" > "$report_file"
+            ;;
+        csv)
+            generate_csv_report "$report" > "$report_file"
+            ;;
+    esac
+    
+    log_info "Report saved to: $report_file"
+    
+    if [[ "$verbose" == "true" ]]; then
+        echo
+        echo -e "${BOLD}📋 EXECUTIVE SUMMARY${NC}"
+        echo "$report" | jq -r '
+            .executive_summary | 
+            "Current Power: \(.current_power_watts)W",
+            "Daily Cost: $\(.daily_cost_usd | floor)",
+            "Monthly Cost: $\(.monthly_cost_usd | floor)",
+            "Devices Monitored: \(.devices_monitored)",
+            "Optimization Potential: $\(.optimization_potential_usd | floor)/month"'
+    fi
+}
+
+# Generate HTML report
+generate_html_report() {
+    local report="$1"
+    
+    cat << EOF
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PAI Energy Optimization Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 5px; }
+        .summary { background: #ecf0f1; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .metric { display: inline-block; margin: 10px 20px; }
+        .metric .value { font-size: 24px; font-weight: bold; color: #27ae60; }
+        .metric .label { font-size: 12px; color: #7f8c8d; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #bdc3c7; padding: 8px; text-align: left; }
+        th { background: #34495e; color: white; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏠 PAI Energy Optimization Report</h1>
+        <p>Generated: $(echo "$report" | jq -r '.report_metadata.generation_time')</p>
+    </div>
+    
+    <div class="summary">
+        <h2>Executive Summary</h2>
+        <div class="metric">
+            <div class="value">$(echo "$report" | jq -r '.executive_summary.current_power_watts')W</div>
+            <div class="label">Current Power</div>
+        </div>
+        <div class="metric">
+            <div class="value">\$$(echo "$report" | jq -r '.executive_summary.monthly_cost_usd | floor')</div>
+            <div class="label">Monthly Cost</div>
+        </div>
+        <div class="metric">
+            <div class="value">$(echo "$report" | jq -r '.executive_summary.devices_monitored')</div>
+            <div class="label">Devices Monitored</div>
+        </div>
+        <div class="metric">
+            <div class="value">\$$(echo "$report" | jq -r '.executive_summary.optimization_potential_usd | floor')</div>
+            <div class="label">Potential Savings</div>
+        </div>
+    </div>
+    
+    <h2>Action Items</h2>
+    <table>
+        <tr><th>Priority</th><th>Action</th><th>Estimated Savings</th><th>Timeline</th></tr>
+$(echo "$report" | jq -r '.action_items[] | "<tr><td>\(.priority)</td><td>\(.action)</td><td>\(.estimated_savings)</td><td>\(.timeline)</td></tr>"')
+    </table>
+</body>
+</html>
+EOF
+}
+
+# Parse arguments
+COMMAND=""
+REFRESH_INTERVAL=30
+COMPACT=false
+WEB_PORT=8080
+EXPORT_FORMAT="json"
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --refresh-interval)
+            REFRESH_INTERVAL="$2"
+            if ! [[ "$REFRESH_INTERVAL" =~ ^[0-9]+$ ]]; then
+                log_error "Refresh interval must be a number"
+                exit 3
+            fi
+            shift 2
+            ;;
+        --compact)
+            COMPACT=true
+            shift
+            ;;
+        --web-port)
+            WEB_PORT="$2"
+            shift 2
+            ;;
+        --export-format)
+            EXPORT_FORMAT="$2"
+            shift 2
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            show_help >&2
+            exit 3
+            ;;
+        *)
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+            else
+                log_error "Multiple commands specified"
+                exit 3
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$COMMAND" ]]; then
+    log_error "Command required"
+    show_help >&2
+    exit 3
+fi
+
+# Create directories
+mkdir -p "$PAI_CONFIG_DIR" "$DASHBOARD_DATA_DIR"
+
+# Export variables
+export VERBOSE
+
+# Execute command
+case "$COMMAND" in
+    live-monitor)
+        live_monitor "$REFRESH_INTERVAL" "$COMPACT"
+        ;;
+    cost-analysis)
+        cost_analysis "$VERBOSE"
+        ;;
+    device-status)
+        show_dashboard_header "DEVICE STATUS"
+        "$DISCOVERY_TOOL" generate-map --output-format table
+        ;;
+    optimization-hub)
+        show_dashboard_header "OPTIMIZATION HUB"
+        cost_analysis "$VERBOSE"
+        ;;
+    savings-tracker)
+        show_dashboard_header "SAVINGS TRACKER"
+        "$SCHEDULER_TOOL" monitor-savings --verbose
+        ;;
+    generate-report)
+        generate_comprehensive_report "$EXPORT_FORMAT" "$VERBOSE"
+        ;;
+    setup|export-metrics|web-dashboard)
+        log_warn "Command '$COMMAND' not yet implemented"
+        log_info "Available: live-monitor, cost-analysis, device-status, optimization-hub, savings-tracker, generate-report"
+        exit 1
+        ;;
+    *)
+        log_error "Invalid command: $COMMAND"
+        show_help >&2
+        exit 3
+        ;;
+esac
+
+exit 0

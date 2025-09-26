@@ -1,0 +1,214 @@
+#!/bin/bash
+# pai-greenbutton-import - Import Green Button utility data into PAI energy system
+# Part of PAI home automation context
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+ENERGY_CONFIG_FILE="$PAI_CONFIG_DIR/energy-config.json"
+ENERGY_DATA_DIR="$PAI_CONFIG_DIR/energy-data"
+
+# Help function
+show_help() {
+    cat << EOF
+pai-greenbutton-import - Import Green Button utility data
+
+USAGE:
+    pai-greenbutton-import <green_button_file.xml> [options]
+
+OPTIONS:
+    --output-dir DIR    Override output directory
+    --dry-run          Show what would be imported
+    --help, -h         Show this help message
+
+EXAMPLES:
+    pai-greenbutton-import green_button_data.xml
+    pai-greenbutton-import data.xml --dry-run
+EOF
+}
+
+# Parse and import Green Button XML data
+import_greenbutton_data() {
+    local xml_file="$1"
+    local output_dir="$2"
+    local dry_run="${3:-false}"
+    
+    if [[ ! -f "$xml_file" ]]; then
+        echo "Error: File $xml_file not found" >&2
+        exit 1
+    fi
+    
+    echo "[INFO] Importing Green Button data from $xml_file"
+    
+    # Use Python to parse the XML and extract structured data
+    python3 << EOF
+import xml.etree.ElementTree as ET
+import json
+import sys
+from datetime import datetime
+
+try:
+    # Parse XML
+    tree = ET.parse('$xml_file')
+    root = tree.getroot()
+    
+    # Extract billing summary
+    billing_data = {}
+    usage_data = []
+    
+    for entry in root.findall('.//{http://www.w3.org/2005/Atom}entry'):
+        # Extract billing summary
+        summary = entry.find('.//{http://naesb.org/espi}ElectricPowerUsageSummary')
+        if summary is not None:
+            bill_elem = summary.find('.//{http://naesb.org/espi}billLastPeriod')
+            consumption_elem = summary.find('.//{http://naesb.org/espi}overallConsumptionLastPeriod')
+            if bill_elem is not None and consumption_elem is not None:
+                bill_amount = float(bill_elem.text)
+                kwh_used = float(consumption_elem.find('.//{http://naesb.org/espi}value').text)
+                rate = (bill_amount / kwh_used) * 100  # cents/kWh
+                
+                billing_data = {
+                    'last_bill_amount': bill_amount,
+                    'last_period_kwh': kwh_used,
+                    'effective_rate_cents_kwh': round(rate, 1),
+                    'analysis_date': datetime.now().isoformat()
+                }
+        
+        # Extract daily usage readings
+        interval_block = entry.find('.//{http://naesb.org/espi}IntervalBlock')
+        if interval_block is not None:
+            readings = interval_block.findall('.//{http://naesb.org/espi}IntervalReading')
+            for reading in readings:
+                cost_elem = reading.find('.//{http://naesb.org/espi}cost')
+                value_elem = reading.find('.//{http://naesb.org/espi}value')
+                time_elem = reading.find('.//{http://naesb.org/espi}timePeriod')
+                
+                if all(elem is not None for elem in [cost_elem, value_elem, time_elem]):
+                    cost = float(cost_elem.text)
+                    kwh = float(value_elem.text) / 1000  # Convert Wh to kWh
+                    start_time = int(time_elem.find('.//{http://naesb.org/espi}start').text)
+                    
+                    usage_data.append({
+                        'timestamp': start_time,
+                        'date': datetime.fromtimestamp(start_time).strftime('%Y-%m-%d'),
+                        'kwh_used': round(kwh, 1),
+                        'cost_usd': round(cost, 2),
+                        'effective_rate_cents_kwh': round((cost/kwh)*100, 1) if kwh > 0 else 0
+                    })
+    
+    # Calculate statistics
+    if usage_data:
+        daily_kwh = [d['kwh_used'] for d in usage_data]
+        daily_costs = [d['cost_usd'] for d in usage_data]
+        
+        stats = {
+            'total_days': len(daily_kwh),
+            'avg_daily_kwh': round(sum(daily_kwh) / len(daily_kwh), 1),
+            'avg_daily_cost': round(sum(daily_costs) / len(daily_costs), 2),
+            'min_daily_kwh': min(daily_kwh),
+            'max_daily_kwh': max(daily_kwh),
+            'total_kwh': round(sum(daily_kwh), 1),
+            'total_cost': round(sum(daily_costs), 2)
+        }
+    else:
+        stats = {}
+    
+    # Output JSON
+    result = {
+        'import_date': datetime.now().isoformat(),
+        'source_file': '$xml_file',
+        'billing_summary': billing_data,
+        'usage_statistics': stats,
+        'daily_usage': usage_data[:10]  # First 10 days for display
+    }
+    
+    print(json.dumps(result, indent=2))
+    
+except Exception as e:
+    print(f"Error parsing Green Button data: {e}", file=sys.stderr)
+    sys.exit(1)
+EOF
+}
+
+# Parse arguments
+XML_FILE=""
+OUTPUT_DIR="$ENERGY_DATA_DIR"
+DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --output-dir)
+            OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            show_help >&2
+            exit 1
+            ;;
+        *)
+            if [[ -z "$XML_FILE" ]]; then
+                XML_FILE="$1"
+            else
+                echo "Error: Multiple files specified" >&2
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$XML_FILE" ]]; then
+    echo "Error: Green Button XML file required" >&2
+    show_help >&2
+    exit 1
+fi
+
+# Create output directory
+mkdir -p "$OUTPUT_DIR"
+
+# Import the data
+if [[ "$DRY_RUN" == "true" ]]; then
+    echo "Dry run: Would import $XML_FILE to $OUTPUT_DIR"
+    import_greenbutton_data "$XML_FILE" "$OUTPUT_DIR" true | head -20
+else
+    IMPORTED_DATA=$(import_greenbutton_data "$XML_FILE" "$OUTPUT_DIR" false)
+    
+    # Save to file
+    OUTPUT_FILE="$OUTPUT_DIR/greenbutton-import-$(date +%Y%m%d).json"
+    echo "$IMPORTED_DATA" > "$OUTPUT_FILE"
+    
+    echo "[INFO] Green Button data imported successfully"
+    echo "[INFO] Saved to: $OUTPUT_FILE"
+    
+    # Update energy config with discovered rate
+    RATE=$(echo "$IMPORTED_DATA" | jq -r '.billing_summary.effective_rate_cents_kwh // 12.0')
+    
+    if [[ -f "$ENERGY_CONFIG_FILE" ]]; then
+        # Update existing config
+        jq --arg rate "$RATE" '.electricity_rate_cents_kwh = ($rate | tonumber)' "$ENERGY_CONFIG_FILE" > "$ENERGY_CONFIG_FILE.tmp"
+        mv "$ENERGY_CONFIG_FILE.tmp" "$ENERGY_CONFIG_FILE"
+        echo "[INFO] Updated energy config with rate: ${RATE}¢/kWh"
+    fi
+    
+    # Show summary
+    echo
+    echo "Import Summary:"
+    echo "$IMPORTED_DATA" | jq -r '
+        "  Billing Period: \(.billing_summary.last_period_kwh) kWh → $\(.billing_summary.last_bill_amount)",
+        "  Effective Rate: \(.billing_summary.effective_rate_cents_kwh)¢/kWh",
+        "  Daily Average: \(.usage_statistics.avg_daily_kwh) kWh → $\(.usage_statistics.avg_daily_cost)",
+        "  Usage Range: \(.usage_statistics.min_daily_kwh)-\(.usage_statistics.max_daily_kwh) kWh/day"
+    '
+fi
+
+exit 0

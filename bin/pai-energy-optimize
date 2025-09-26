@@ -1,0 +1,601 @@
+#!/bin/bash
+# pai-energy-optimize - Energy usage analysis and optimization for Home Assistant
+# Part of PAI home automation context
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+ENERGY_CONFIG_FILE="$PAI_CONFIG_DIR/energy-config.json"
+ENERGY_DATA_DIR="$PAI_CONFIG_DIR/energy-data"
+HA_TOOL="/home/jbyrd/hatter-pai/bin/pai-home-assistant"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Help function
+show_help() {
+    cat << EOF
+pai-energy-optimize - Energy usage analysis and optimization
+
+USAGE:
+    pai-energy-optimize <command> [options]
+
+COMMANDS:
+    analyze             Analyze current energy usage patterns
+    report              Generate comprehensive energy report
+    recommendations     Get AI-powered optimization suggestions
+    monitor             Start continuous energy monitoring
+    costs               Calculate energy costs and potential savings
+    trends              Show usage trends over time
+    devices             Show per-device energy consumption
+    
+    setup               Initial setup and configuration
+    update-rates        Update utility rate information
+
+OPTIONS:
+    --period DAYS       Analysis period in days (default: 7)
+    --device ENTITY     Focus on specific device
+    --json              Output in JSON format
+    --verbose           Show detailed analysis
+    --help, -h          Show this help message
+
+EXAMPLES:
+    pai-energy-optimize analyze
+    pai-energy-optimize report --period 30
+    pai-energy-optimize recommendations --verbose
+    pai-energy-optimize costs
+    pai-energy-optimize devices
+    pai-energy-optimize setup
+
+EXIT CODES:
+    0   Success
+    1   Home Assistant error or no data
+    2   Configuration error
+    3   Invalid arguments
+EOF
+}
+
+# Logging
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_debug() { [[ "${DEBUG:-0}" == "1" ]] && echo -e "${BLUE}[DEBUG]${NC} $*" >&2 || true; }
+
+# Check dependencies
+check_dependencies() {
+    if [[ ! -f "$HA_TOOL" ]]; then
+        log_error "pai-home-assistant not found. Please ensure it's installed and working."
+        exit 2
+    fi
+    
+    if ! command -v jq >/dev/null; then
+        log_error "jq is required but not installed"
+        exit 2
+    fi
+    
+    if ! command -v bc >/dev/null; then
+        log_warn "bc not found - numerical calculations may be limited"
+    fi
+}
+
+# Get energy entities from Home Assistant
+get_energy_entities() {
+    local entities
+    entities=$("$HA_TOOL" devices --json | jq -r '
+        [.[] | select(
+            .entity_id | test("energy|power|kwh|watt"; "i")
+        )] | 
+        map({
+            entity_id: .entity_id,
+            state: .state,
+            unit: (.attributes.unit_of_measurement // "unknown"),
+            device_class: (.attributes.device_class // "unknown"),
+            friendly_name: (.attributes.friendly_name // .entity_id)
+        })' 2>/dev/null)
+    
+    if [[ -z "$entities" || "$entities" == "null" ]]; then
+        echo "[]"
+    else
+        echo "$entities"
+    fi
+}
+
+# Setup energy monitoring configuration
+setup_energy() {
+    log_info "Setting up energy monitoring..."
+    
+    # Create data directory
+    mkdir -p "$ENERGY_DATA_DIR"
+    
+    # Test HA connection
+    if ! "$HA_TOOL" status >/dev/null 2>&1; then
+        log_error "Cannot connect to Home Assistant. Please run: pai-home-assistant setup"
+        exit 1
+    fi
+    
+    # Get available energy entities
+    local energy_entities
+    energy_entities=$(get_energy_entities)
+    local entity_count
+    entity_count=$(echo "$energy_entities" | jq 'length')
+    
+    log_info "Found $entity_count energy-related entities"
+    
+    if [[ "$entity_count" -eq 0 ]]; then
+        log_warn "No energy entities found in Home Assistant"
+        echo "Consider adding:"
+        echo "  - Smart plugs with power monitoring"
+        echo "  - Whole-home energy monitors (like Sense, Emporia Vue)"
+        echo "  - Smart thermostats with energy reporting"
+        echo "  - Solar panels with production monitoring"
+        exit 1
+    fi
+    
+    # Show discovered entities
+    echo "Energy entities discovered:"
+    echo "$energy_entities" | jq -r '.[] | "  \(.entity_id): \(.friendly_name) (\(.unit))"'
+    echo
+    
+    # Get utility rate information
+    echo "Energy rate configuration:"
+    read -r -p "Enter your electricity rate (¢/kWh, default: 12): " rate
+    rate=${rate:-12}
+    
+    if ! [[ "$rate" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+        log_warn "Invalid rate format, using default of 12¢/kWh"
+        rate=12
+    fi
+    
+    read -r -p "Do you have time-of-use rates? (y/N): " tou_response
+    local time_of_use=false
+    [[ "$tou_response" =~ ^[Yy] ]] && time_of_use=true
+    
+    # Create configuration
+    local config
+    config=$(jq -n \
+        --argjson entities "$energy_entities" \
+        --arg rate "$rate" \
+        --argjson tou "$time_of_use" \
+        --arg setup_date "$(date -Iseconds)" \
+        '{
+            entities: $entities,
+            electricity_rate_cents_kwh: ($rate | tonumber),
+            time_of_use_rates: $tou,
+            setup_date: $setup_date,
+            monitoring_enabled: true
+        }')
+    
+    echo "$config" > "$ENERGY_CONFIG_FILE"
+    chmod 600 "$ENERGY_CONFIG_FILE"
+    
+    log_info "✓ Configuration saved to $ENERGY_CONFIG_FILE"
+    log_info "✓ Energy monitoring setup complete"
+    
+    # Initial data collection
+    log_info "Collecting initial energy data..."
+    collect_current_data
+}
+
+# Collect current energy data
+collect_current_data() {
+    local timestamp
+    timestamp=$(date -Iseconds)
+    local data_file="$ENERGY_DATA_DIR/energy-$(date +%Y%m%d).json"
+    
+    local energy_entities
+    energy_entities=$(get_energy_entities)
+    
+    # Create timestamped entry
+    local entry
+    entry=$(jq -n \
+        --arg timestamp "$timestamp" \
+        --argjson entities "$energy_entities" \
+        '{
+            timestamp: $timestamp,
+            entities: $entities
+        }')
+    
+    # Append to daily file
+    if [[ -f "$data_file" ]]; then
+        jq --argjson new_entry "$entry" '. += [$new_entry]' "$data_file" > "${data_file}.tmp"
+        mv "${data_file}.tmp" "$data_file"
+    else
+        echo "[$entry]" > "$data_file"
+    fi
+    
+    log_debug "Data collected: $(echo "$entry" | jq -c .)"
+}
+
+# Analyze energy usage
+analyze_usage() {
+    local period_days="${1:-7}"
+    local json_output="${JSON_OUTPUT:-false}"
+    local verbose="${VERBOSE:-false}"
+    
+    log_info "Analyzing energy usage for the last $period_days days..."
+    
+    # Check if we have enough data
+    local data_files
+    data_files=$(find "$ENERGY_DATA_DIR" -name "energy-*.json" -mtime -"$period_days" 2>/dev/null | wc -l)
+    
+    if [[ "$data_files" -eq 0 ]]; then
+        log_warn "No recent energy data found. Consider running monitoring or setup first."
+        exit 1
+    fi
+    
+    # Get current state
+    local current_entities
+    current_entities=$(get_energy_entities)
+    
+    # Basic analysis
+    local total_power=0
+    local total_energy=0
+    local active_devices=0
+    
+    # Calculate current power consumption
+    while IFS= read -r entity; do
+        local state unit
+        state=$(echo "$entity" | jq -r '.state')
+        unit=$(echo "$entity" | jq -r '.unit')
+        
+        if [[ "$state" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+            if [[ "$unit" =~ [Ww]att ]]; then
+                total_power=$(echo "$total_power + $state" | bc -l 2>/dev/null || echo "$total_power")
+                ((active_devices++))
+            elif [[ "$unit" =~ kWh ]]; then
+                total_energy=$(echo "$total_energy + $state" | bc -l 2>/dev/null || echo "$total_energy")
+            fi
+        fi
+    done < <(echo "$current_entities" | jq -c '.[]')
+    
+    if [[ "$json_output" == "true" ]]; then
+        jq -n \
+            --arg period "$period_days" \
+            --arg total_power "$total_power" \
+            --arg total_energy "$total_energy" \
+            --arg active_devices "$active_devices" \
+            --arg analysis_date "$(date -Iseconds)" \
+            '{
+                analysis_period_days: ($period | tonumber),
+                current_power_watts: ($total_power | tonumber),
+                total_energy_kwh: ($total_energy | tonumber),
+                active_devices: ($active_devices | tonumber),
+                analysis_date: $analysis_date
+            }'
+    else
+        echo "Energy Usage Analysis ($period_days days):"
+        echo "  Current total power: ${total_power} W"
+        echo "  Total energy tracked: ${total_energy} kWh"  
+        echo "  Active monitoring devices: $active_devices"
+        echo "  Analysis date: $(date)"
+        
+        if [[ "$verbose" == "true" ]]; then
+            echo
+            echo "Top energy consumers:"
+            echo "$current_entities" | jq -r '
+                map(select(.state | test("^[0-9]+(\\.[0-9]+)?$")) |
+                    select(.unit | test("[Ww]att|kWh"))) |
+                sort_by(.state | tonumber) | reverse |
+                .[0:5] |
+                .[] | 
+                "  \(.friendly_name): \(.state) \(.unit)"'
+        fi
+    fi
+}
+
+# Generate energy recommendations
+generate_recommendations() {
+    local verbose="${VERBOSE:-false}"
+    local json_output="${JSON_OUTPUT:-false}"
+    
+    log_info "Generating energy optimization recommendations..."
+    
+    # Get current energy data
+    local current_entities
+    current_entities=$(get_energy_entities)
+    
+    # Load configuration for rates
+    local config
+    if [[ -f "$ENERGY_CONFIG_FILE" ]]; then
+        config=$(cat "$ENERGY_CONFIG_FILE")
+    else
+        config='{"electricity_rate_cents_kwh": 12}'
+    fi
+    
+    local rate
+    rate=$(echo "$config" | jq -r '.electricity_rate_cents_kwh')
+    
+    # Analyze current usage and generate recommendations
+    local recommendations=()
+    local potential_savings=0
+    
+    # High power devices that could be optimized
+    local high_power_devices
+    high_power_devices=$(echo "$current_entities" | jq -r '
+        map(select(.state | test("^[0-9]+(\\.[0-9]+)?$")) |
+            select(.unit | test("[Ww]att")) |
+            select(.state | tonumber > 100)) |
+        sort_by(.state | tonumber) | reverse')
+    
+    # Generate specific recommendations
+    local rec_count=0
+    
+    while IFS= read -r device; do
+        local entity_id state friendly_name
+        entity_id=$(echo "$device" | jq -r '.entity_id')
+        state=$(echo "$device" | jq -r '.state')
+        friendly_name=$(echo "$device" | jq -r '.friendly_name')
+        
+        if [[ "$state" =~ ^[0-9]+\.?[0-9]*$ ]] && (( $(echo "$state > 200" | bc -l) )); then
+            local daily_cost
+            daily_cost=$(echo "scale=2; $state * 24 / 1000 * $rate / 100" | bc -l 2>/dev/null || echo "0.00")
+            recommendations+=("Consider scheduling $friendly_name (${state}W) - costs \$${daily_cost}/day when running")
+            potential_savings=$(echo "$potential_savings + ($daily_cost * 0.3)" | bc -l 2>/dev/null || echo "$potential_savings")
+            ((rec_count++))
+        fi
+    done < <(echo "$high_power_devices" | jq -c '.[]')
+    
+    # Always-on device detection
+    local always_on
+    always_on=$(echo "$current_entities" | jq -r '
+        map(select(.state | test("^[0-9]+(\\.[0-9]+)?$")) |
+            select(.unit | test("[Ww]att")) |
+            select(.state | tonumber > 5 and .state | tonumber < 100)) |
+        length')
+    
+    if [[ "$always_on" -gt 5 ]]; then
+        recommendations+=("$always_on devices appear to be always-on - consider smart plugs for phantom load reduction")
+        potential_savings=$(echo "$potential_savings + 2.50" | bc -l 2>/dev/null || echo "$potential_savings")
+        ((rec_count++))
+    fi
+    
+    # General recommendations
+    recommendations+=("Set up automated schedules for high-power devices during off-peak hours")
+    recommendations+=("Consider upgrading to more efficient LED lighting if not already done")
+    recommendations+=("Install smart thermostats for HVAC optimization")
+    
+    if [[ "$json_output" == "true" ]]; then
+        printf '%s\n' "${recommendations[@]}" | jq -R . | jq -s \
+            --arg savings "$potential_savings" \
+            --arg analysis_date "$(date -Iseconds)" \
+            '{
+                recommendations: .,
+                potential_monthly_savings_usd: ($savings | tonumber * 30),
+                analysis_date: $analysis_date
+            }'
+    else
+        echo "Energy Optimization Recommendations:"
+        echo
+        local i=1
+        for rec in "${recommendations[@]}"; do
+            echo "$i. $rec"
+            ((i++))
+        done
+        echo
+        echo "Estimated potential monthly savings: \$$(echo "scale=2; $potential_savings * 30" | bc -l 2>/dev/null || echo "0.00")"
+        
+        if [[ "$verbose" == "true" ]]; then
+            echo
+            echo "Implementation tips:"
+            echo "  - Use Home Assistant automations for scheduling"
+            echo "  - Set up scenes for energy-efficient modes"
+            echo "  - Consider motion sensors for automatic shutoffs"
+            echo "  - Monitor baseline usage to track improvements"
+        fi
+    fi
+}
+
+# Show energy costs
+show_costs() {
+    local json_output="${JSON_OUTPUT:-false}"
+    
+    # Load configuration
+    local config
+    if [[ -f "$ENERGY_CONFIG_FILE" ]]; then
+        config=$(cat "$ENERGY_CONFIG_FILE")
+    else
+        log_warn "No energy configuration found. Run: pai-energy-optimize setup"
+        exit 2
+    fi
+    
+    local rate
+    rate=$(echo "$config" | jq -r '.electricity_rate_cents_kwh')
+    
+    # Get current power usage
+    local current_entities
+    current_entities=$(get_energy_entities)
+    
+    local total_power=0
+    while IFS= read -r entity; do
+        local state unit
+        state=$(echo "$entity" | jq -r '.state')
+        unit=$(echo "$entity" | jq -r '.unit')
+        
+        if [[ "$state" =~ ^[0-9]+\.?[0-9]*$ ]] && [[ "$unit" =~ [Ww]att ]]; then
+            total_power=$(echo "$total_power + $state" | bc -l 2>/dev/null || echo "$total_power")
+        fi
+    done < <(echo "$current_entities" | jq -c '.[]')
+    
+    # Calculate costs
+    local hourly_cost daily_cost monthly_cost yearly_cost
+    hourly_cost=$(echo "scale=4; $total_power / 1000 * $rate / 100" | bc -l 2>/dev/null || echo "0.0000")
+    daily_cost=$(echo "scale=2; $hourly_cost * 24" | bc -l 2>/dev/null || echo "0.00")
+    monthly_cost=$(echo "scale=2; $daily_cost * 30" | bc -l 2>/dev/null || echo "0.00")
+    yearly_cost=$(echo "scale=2; $daily_cost * 365" | bc -l 2>/dev/null || echo "0.00")
+    
+    if [[ "$json_output" == "true" ]]; then
+        jq -n \
+            --arg power "$total_power" \
+            --arg rate "$rate" \
+            --arg hourly "$hourly_cost" \
+            --arg daily "$daily_cost" \
+            --arg monthly "$monthly_cost" \
+            --arg yearly "$yearly_cost" \
+            '{
+                current_power_watts: ($power | tonumber),
+                electricity_rate_cents_kwh: ($rate | tonumber),
+                costs_usd: {
+                    hourly: ($hourly | tonumber),
+                    daily: ($daily | tonumber),
+                    monthly: ($monthly | tonumber),
+                    yearly: ($yearly | tonumber)
+                },
+                calculation_date: now | strftime("%Y-%m-%d %H:%M:%S")
+            }'
+    else
+        echo "Current Energy Costs:"
+        echo "  Current power draw: ${total_power} W"
+        echo "  Electricity rate: ${rate}¢/kWh"
+        echo
+        echo "Cost projections (if maintained 24/7):"
+        echo "  Hourly: \$${hourly_cost}"
+        echo "  Daily: \$${daily_cost}"
+        echo "  Monthly: \$${monthly_cost}"
+        echo "  Yearly: \$${yearly_cost}"
+        echo
+        echo "Note: These are instantaneous projections based on current usage."
+    fi
+}
+
+# Show top energy consuming devices
+show_devices() {
+    local json_output="${JSON_OUTPUT:-false}"
+    
+    local current_entities
+    current_entities=$(get_energy_entities)
+    
+    # Filter and sort by power consumption
+    local power_devices
+    power_devices=$(echo "$current_entities" | jq '
+        map(select(.state | test("^[0-9]+(\\.[0-9]+)?$")) |
+            select(.unit | test("[Ww]att"))) |
+        map(. + {power_numeric: (.state | tonumber)}) |
+        sort_by(.power_numeric) | reverse')
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$power_devices"
+    else
+        local device_count
+        device_count=$(echo "$power_devices" | jq 'length')
+        
+        echo "Energy Consuming Devices (Top $device_count):"
+        echo
+        
+        if [[ "$device_count" -eq 0 ]]; then
+            echo "  No power monitoring devices found"
+        else
+            echo "$power_devices" | jq -r '.[] | 
+                "  \(.friendly_name): \(.state) \(.unit) (\(.entity_id))"' | head -20
+        fi
+    fi
+}
+
+# Parse arguments
+COMMAND=""
+PERIOD_DAYS=7
+DEVICE_ENTITY=""
+JSON_OUTPUT=false
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --period)
+            PERIOD_DAYS="$2"
+            if ! [[ "$PERIOD_DAYS" =~ ^[0-9]+$ ]]; then
+                log_error "Period must be a number"
+                exit 3
+            fi
+            shift 2
+            ;;
+        --device)
+            DEVICE_ENTITY="$2"
+            shift 2
+            ;;
+        --json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            show_help >&2
+            exit 3
+            ;;
+        *)
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+            else
+                log_error "Multiple commands specified"
+                exit 3
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Validate command
+if [[ -z "$COMMAND" ]]; then
+    log_error "Command required"
+    show_help >&2
+    exit 3
+fi
+
+# Check dependencies
+check_dependencies
+
+# Create directories
+mkdir -p "$PAI_CONFIG_DIR" "$ENERGY_DATA_DIR"
+
+# Export variables for functions
+export JSON_OUTPUT VERBOSE
+
+# Execute command
+case "$COMMAND" in
+    setup)
+        setup_energy
+        ;;
+    analyze)
+        analyze_usage "$PERIOD_DAYS"
+        ;;
+    report)
+        log_info "Generating comprehensive energy report..."
+        analyze_usage "$PERIOD_DAYS"
+        echo
+        show_costs
+        echo
+        generate_recommendations
+        ;;
+    recommendations)
+        generate_recommendations
+        ;;
+    costs)
+        show_costs
+        ;;
+    devices)
+        show_devices
+        ;;
+    trends|monitor|update-rates)
+        log_warn "Command '$COMMAND' not yet implemented"
+        log_info "Available: setup, analyze, report, recommendations, costs, devices"
+        exit 1
+        ;;
+    *)
+        log_error "Invalid command: $COMMAND"
+        show_help >&2
+        exit 3
+        ;;
+esac
+
+exit 0

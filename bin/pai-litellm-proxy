@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# pai-litellm-proxy - Start LiteLLM proxy server with Red Hat internal models
+# Part of the PAI (Personal AI Infrastructure) System
+
+set -euo pipefail
+
+# Configuration
+CONFIG_FILE="$HOME/.config/litellm/config.yaml"
+DEFAULT_PORT="4000"
+DEFAULT_HOST="0.0.0.0"
+
+# Parse command line arguments
+PORT="${1:-$DEFAULT_PORT}"
+HOST="${2:-$DEFAULT_HOST}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${BLUE}[PAI-LiteLLM]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[PAI-LiteLLM]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[PAI-LiteLLM]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[PAI-LiteLLM]${NC} $1"
+}
+
+# Check if config file exists
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    print_error "Configuration file not found: $CONFIG_FILE"
+    print_status "Please run the setup script first or create the configuration manually."
+    exit 1
+fi
+
+# Check if litellm is installed
+if ! command -v litellm &> /dev/null; then
+    print_error "LiteLLM is not installed or not in PATH"
+    print_status "Install with: pip install litellm"
+    exit 1
+fi
+
+# Validate configuration
+print_status "Validating configuration..."
+if ! litellm --config "$CONFIG_FILE" --test 2>/dev/null; then
+    print_warning "Configuration validation failed, but continuing anyway..."
+fi
+
+print_status "Starting LiteLLM proxy server..."
+print_status "Configuration: $CONFIG_FILE"
+print_status "Host: $HOST"
+print_status "Port: $PORT"
+print_status ""
+print_success "Available Red Hat models:"
+print_success "  - granite-3.2-8b-instruct (Latest, recommended)"
+print_success "  - granite-3.1-8b-instruct"
+print_success "  - granite-3.0-8b-instruct"
+print_success "  - granite-8b-code-instruct (Best for code)"
+print_success "  - mistral-7b-instruct (Larger context)"
+print_success "  - modernbert-embed-base (Embeddings)"
+print_success "  - nomic-embed-text (Embeddings)"
+print_status ""
+print_status "API Base URL: http://$HOST:$PORT"
+print_status "OpenAI-compatible endpoints will be available at:"
+print_status "  - Chat: http://$HOST:$PORT/v1/chat/completions"
+print_status "  - Embeddings: http://$HOST:$PORT/v1/embeddings"
+print_status "  - Models: http://$HOST:$PORT/v1/models"
+print_status ""
+print_status "Press Ctrl+C to stop the server"
+print_status "========================================"
+
+# Start the proxy server
+exec litellm --config "$CONFIG_FILE" --port "$PORT" --host "$HOST" --detailed_debug

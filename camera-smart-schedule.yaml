@@ -1,0 +1,31 @@
+alias: "Smart Camera Motion Detection Schedule"
+description: "Reduce camera motion detection during low-risk hours to save energy"
+trigger:
+  - platform: time
+    at: "02:00:00"
+  - platform: time
+    at: "06:00:00"
+action:
+  - choose:
+      - conditions:
+          - condition: time
+            at: "02:00:00"
+        sequence:
+          - service: switch.turn_off
+            entity_id: switch.birdhouse_feed_camera_motion_detection
+          - service: notify.persistent_notification
+            data:
+              title: "📷 Camera Energy Savings"
+              message: "Birdhouse camera motion detection paused for low-activity hours (2-6 AM). Saving ~$0.27 per night!"
+              notification_id: "camera_energy_savings"
+      - conditions:
+          - condition: time
+            at: "06:00:00"
+        sequence:
+          - service: switch.turn_on
+            entity_id: switch.birdhouse_feed_camera_motion_detection
+          - service: notify.persistent_notification
+            data:
+              title: "📷 Camera Security Active"
+              message: "Birdhouse camera motion detection restored. Full security monitoring resumed!"
+              notification_id: "camera_security_restored"

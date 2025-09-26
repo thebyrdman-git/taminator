@@ -1,0 +1,64 @@
+# PAI Personal Configuration - Sensitive Data Protection
+
+# Secrets and tokens (already GPG encrypted, but extra protection)
+.config/pai/secrets/
+*.token
+*.key
+*-token.gpg
+*-key.gpg
+
+# Personal energy data and utility bills
+green_button_data_*.zip
+green_button_data_*.xml
+utility_bills/
+energy_data/
+*.gbxml
+
+# Personal attachments and case data
+attachments/
+extracts/
+case_*.md
+job_*.txt
+job_*.md
+sosreport-*/
+*.tar.xz
+
+# SUSE/Customer specific files with personal data
+suse_*.md
+suse_*.yml
+customer_*.md
+
+# Cursor and IDE files
+.cursor/
+.vscode/
+
+# Local configuration and temporary files
+*.log
+*.tmp
+temp/
+logs/
+
+# Plex personal data
+plex_data/
+media_analysis/
+
+# Home Assistant specific configs with personal data
+home_assistant_snapshots/
+ha_backups/
+
+# Personal documents and analysis
+*_personal.md
+*_private.md
+customer_*.md
+my_*.md
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+
+# Local PAI runtime data
+.pai_runtime/
+pai_cache/

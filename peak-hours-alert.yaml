@@ -1,0 +1,27 @@
+alias: "Peak Hours Energy Cost Alert"
+description: "Notify when high-power devices are used during expensive peak electricity hours"
+trigger:
+  - platform: time
+    at: "17:00:00"
+  - platform: state
+    entity_id:
+      - media_player.xboxone
+      - media_player.xboxone_2
+    to: "playing"
+condition:
+  - condition: time
+    after: "17:00:00"
+    before: "21:00:00"
+  - condition: time
+    weekday:
+      - mon
+      - tue
+      - wed
+      - thu
+      - fri
+action:
+  - service: notify.persistent_notification
+    data:
+      title: "⚡ PEAK HOURS ALERT"
+      message: "Gaming now costs 40% more! Peak electricity: 5-9 PM. Consider playing after 9 PM to save $0.15/hour per Xbox."
+      notification_id: "peak_hours_gaming_alert"

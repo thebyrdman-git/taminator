@@ -1,0 +1,329 @@
+#!/bin/bash
+# pai-context-task - Task-focused context initialization 
+# Based on best practice: fresh context + focused base info for each task
+
+set -euo pipefail
+
+PAI_CONFIG_DIR="$HOME/.config/pai"
+TASK_CONTEXTS_DIR="$PAI_CONFIG_DIR/task-contexts"
+
+show_help() {
+    cat << EOF
+pai-context-task - Initialize focused context for specific tasks
+
+USAGE:
+    pai-context-task <task-type> [--create-new]
+
+TASK TYPES:
+    energy-optimization    Focus: Home energy management, costs, automation
+    redhat-case           Focus: Customer support, compliance, technical analysis  
+    home-automation       Focus: IoT devices, smart home integration
+    code-optimization     Focus: Performance, debugging, architecture
+    data-analysis         Focus: Analytics, reporting, insights
+    security-audit        Focus: Security scanning, vulnerability analysis
+    plex-management       Focus: Plex media server, streaming, library organization
+
+OPTIONS:
+    --create-new          Start completely fresh context
+    --show-base-info      Show what base information gets loaded
+    --list-tasks         List available task types
+    --help, -h           Show this help
+
+CONCEPT:
+    Each task gets a FRESH context with only essential base information:
+    - Core identity (Hatter personality)
+    - Task-specific knowledge
+    - Relevant tools/commands
+    - Current system state
+    
+    This prevents context dilution while maintaining focus.
+
+EXAMPLES:
+    pai-context-task energy-optimization
+    pai-context-task redhat-case --create-new
+    pai-context-task home-automation --show-base-info
+EOF
+}
+
+# Generate focused context for specific task types
+generate_task_context() {
+    local task_type="$1"
+    local create_new="${2:-false}"
+    
+    echo "🎯 Initializing focused context for: $task_type"
+    
+    # Create task-specific context directory
+    mkdir -p "$TASK_CONTEXTS_DIR/$task_type"
+    
+    # Generate base context file
+    local context_file="$TASK_CONTEXTS_DIR/$task_type/context-$(date +%Y%m%d-%H%M).md"
+    
+    case "$task_type" in
+        energy-optimization)
+            generate_energy_context "$context_file"
+            ;;
+        redhat-case)
+            generate_redhat_context "$context_file"
+            ;;
+        home-automation)
+            generate_home_automation_context "$context_file"
+            ;;
+        code-optimization)
+            generate_code_context "$context_file"
+            ;;
+        data-analysis)
+            generate_data_context "$context_file"
+            ;;
+        security-audit)
+            generate_security_context "$context_file"
+            ;;
+        plex-management)
+            generate_plex_context "$context_file"
+            ;;
+        *)
+            echo "❌ Unknown task type: $task_type"
+            exit 1
+            ;;
+    esac
+    
+    echo "✅ Context file created: $context_file"
+    echo "📋 Copy this content to start your AI session:"
+    echo
+    cat "$context_file"
+}
+
+# Energy optimization focused context
+generate_energy_context() {
+    local file="$1"
+    cat > "$file" << 'EOF'
+# Energy Optimization Task Context
+
+## Core Identity
+- You are Hatter, Red Hat Digital Assistant
+- INTJ + Type 8: Direct, truth-focused, systematic
+- Context: home-automation active
+
+## Current System State
+- 432-device smart home with Home Assistant at byrdhome.duckdns.org
+- Baseline: 53.3 kWh/day, rate: 14.2¢/kWh
+- Active optimizations: Xbox auto-shutdown, peak alerts, camera scheduling, load balancing
+- Monthly target savings: $54.50
+
+## Available Tools
+```bash
+pai-home-assistant status|devices|energy
+pai-energy-optimize analyze|costs|recommendations  
+pai-energy-discovery full-discovery
+pai-energy-scheduler create-schedules
+pai-energy-dashboard live-monitor|cost-analysis
+```
+
+## Focus Areas
+- Energy usage analysis and cost optimization
+- Smart device automation and scheduling  
+- Peak demand management and load balancing
+- ROI calculations and savings tracking
+
+## Current Task Objective
+[Specify what specific energy optimization task you're working on]
+EOF
+}
+
+# Red Hat case work focused context  
+generate_redhat_context() {
+    local file="$1"
+    cat > "$file" << 'EOF'
+# Red Hat Case Work Task Context
+
+## Core Identity  
+- You are Hatter, Red Hat Digital Assistant
+- INTJ + Type 8: Direct, truth-focused, systematic
+- Context: redhat active (COMPLIANCE REQUIRED)
+
+## Compliance Requirements
+- Customer data: Red Hat Granite models ONLY
+- External APIs: BLOCKED for customer data
+- Audit logging: All operations tracked
+- Data classification: Customer data = CONFIDENTIAL
+
+## Available Tools
+```bash
+pai-case-processor
+pai-supportshell  
+pai-compliance-check
+pai-audit
+pai-fabric-compliant
+```
+
+## Focus Areas
+- Customer technical issue analysis
+- PSIRT vulnerability assessment
+- Compliance verification and documentation
+- Case escalation and resolution tracking
+
+## Current Case Objective  
+[Specify case number and specific technical issue you're analyzing]
+EOF
+}
+
+# Home automation focused context
+generate_home_automation_context() {
+    local file="$1"
+    cat > "$file" << 'EOF'
+# Home Automation Task Context
+
+## Core Identity
+- You are Hatter, Red Hat Digital Assistant  
+- INTJ + Type 8: Direct, truth-focused, systematic
+- Context: home-automation active
+
+## Current System State
+- Home Assistant: byrdhome.duckdns.org (192.168.1.39)
+- 286 HA entities, 432 network devices
+- Integration: Xbox, cameras, sensors, smart switches
+
+## Available Tools
+```bash
+pai-home-assistant status|devices|api
+pai-iot-security scan|audit
+pai-energy-optimize analyze
+pai-context-switch home-automation
+```
+
+## Focus Areas
+- Device integration and automation
+- Smart home security and monitoring
+- IoT device management and optimization
+- Home Assistant configuration and troubleshooting
+
+## Current Automation Objective
+[Specify what specific home automation task you're working on]
+EOF
+}
+
+# Additional context generators...
+generate_code_context() {
+    local file="$1"
+    echo "# Code Optimization Task Context - [Implementation would go here]" > "$file"
+}
+
+generate_data_context() {
+    local file="$1" 
+    echo "# Data Analysis Task Context - [Implementation would go here]" > "$file"
+}
+
+generate_security_context() {
+    local file="$1"
+    echo "# Security Audit Task Context - [Implementation would go here]" > "$file"
+}
+
+generate_plex_context() {
+    local file="$1"
+    cat > "$file" << 'EOF'
+# Plex Media Server Task Context
+
+## Core Identity
+- You are Hatter, Red Hat Digital Assistant
+- INTJ + Type 8: Direct, truth-focused, systematic
+- Context: plex active
+
+## Current System State
+- Plex Media Server deployment and optimization
+- Media library organization and management
+- Streaming performance and transcoding optimization
+- Integration with smart home energy management
+
+## Available Tools
+```bash
+pai-context-switch plex
+pai-home-assistant api
+pai-energy-optimize analyze  # For server power consumption
+pai-iot-security scan        # For network security
+```
+
+## Focus Areas
+- Media server configuration and performance tuning
+- Library organization and metadata management
+- Transcoding optimization and hardware acceleration
+- Remote streaming and bandwidth optimization
+- Automated media workflows (Sonarr, Radarr, etc.)
+
+## Server Management Priorities
+- Performance monitoring and optimization
+- Storage management and cleanup
+- User access and sharing configuration
+- Security and network optimization
+- Energy efficiency for media server hardware
+
+## Integration Opportunities
+- Smart home integration for automated controls
+- Energy monitoring for server power usage
+- Network optimization for streaming quality
+- Backup and disaster recovery planning
+
+## Current Media Server Objective
+[Specify what specific Plex management task you're working on]
+EOF
+}
+
+# Parse arguments
+TASK_TYPE=""
+CREATE_NEW=false
+SHOW_BASE_INFO=false
+LIST_TASKS=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --create-new)
+            CREATE_NEW=true
+            shift
+            ;;
+        --show-base-info)
+            SHOW_BASE_INFO=true
+            shift
+            ;;
+        --list-tasks)
+            LIST_TASKS=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            if [[ -z "$TASK_TYPE" ]]; then
+                TASK_TYPE="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ "$LIST_TASKS" == "true" ]]; then
+    echo "Available task types:"
+    echo "  energy-optimization    Home energy management"
+    echo "  redhat-case           Customer support work"  
+    echo "  home-automation       Smart home integration"
+    echo "  code-optimization     Performance optimization"
+    echo "  data-analysis         Analytics and reporting"
+    echo "  security-audit        Security scanning"
+    echo "  plex-management       Plex media server management"
+    exit 0
+fi
+
+if [[ -z "$TASK_TYPE" ]]; then
+    echo "Task type required. Use --list-tasks to see options."
+    exit 1
+fi
+
+# Create directories
+mkdir -p "$PAI_CONFIG_DIR" "$TASK_CONTEXTS_DIR"
+
+# Generate task context
+generate_task_context "$TASK_TYPE" "$CREATE_NEW"
+
+exit 0

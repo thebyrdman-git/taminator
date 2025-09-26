@@ -1,0 +1,626 @@
+#!/bin/bash
+# pai-iot-security - IoT device security monitoring and auditing
+# Part of PAI home automation context
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+SECURITY_CONFIG_FILE="$PAI_CONFIG_DIR/iot-security.json"
+SECURITY_DATA_DIR="$PAI_CONFIG_DIR/security-data"
+HA_TOOL="/home/jbyrd/hatter-pai/bin/pai-home-assistant"
+
+# Network configuration for local subnet
+LOCAL_NETWORK="192.168.1.0/24"
+GATEWAY_IP="192.168.1.1"
+HA_VM_IP="192.168.1.39"
+HOST_IP="192.168.1.34"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Help function
+show_help() {
+    cat << EOF
+pai-iot-security - IoT device security monitoring and auditing
+
+USAGE:
+    pai-iot-security <command> [options]
+
+COMMANDS:
+    scan                Network scan for all devices on local subnet
+    audit               Perform comprehensive security audit
+    monitor             Start continuous security monitoring
+    report              Generate security report with recommendations
+    devices             Show known IoT devices and their security status
+    
+    baseline            Establish security baseline for comparison
+    check-updates       Check for firmware updates on known devices
+    network-analysis    Analyze network traffic patterns
+    
+    setup               Initial setup and configuration
+
+OPTIONS:
+    --subnet CIDR       Override default subnet (192.168.1.0/24)
+    --ha-only           Focus only on Home Assistant connected devices
+    --json              Output in JSON format
+    --verbose           Show detailed information
+    --help, -h          Show this help message
+
+EXAMPLES:
+    pai-iot-security scan
+    pai-iot-security audit --verbose
+    pai-iot-security report
+    pai-iot-security devices --ha-only
+    pai-iot-security setup
+
+EXIT CODES:
+    0   Success
+    1   Security issues found or connection error
+    2   Configuration error
+    3   Invalid arguments
+EOF
+}
+
+# Logging with security focus
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_security() { echo -e "${MAGENTA}[SECURITY]${NC} $*" >&2; }
+log_debug() { [[ "${DEBUG:-0}" == "1" ]] && echo -e "${BLUE}[DEBUG]${NC} $*" >&2 || true; }
+
+# Check dependencies
+check_dependencies() {
+    local missing_deps=()
+    
+    # Essential tools
+    if ! command -v nmap >/dev/null; then
+        missing_deps+=("nmap")
+    fi
+    
+    if ! command -v jq >/dev/null; then
+        missing_deps+=("jq")
+    fi
+    
+    # Optional but helpful tools
+    if ! command -v netstat >/dev/null && ! command -v ss >/dev/null; then
+        log_warn "netstat or ss recommended for network analysis"
+    fi
+    
+    if ! command -v arp >/dev/null; then
+        log_warn "arp command not found - MAC address lookup limited"
+    fi
+    
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        log_error "Missing required dependencies: ${missing_deps[*]}"
+        log_error "Install with: sudo dnf install nmap jq"
+        exit 2
+    fi
+}
+
+# Network discovery scan
+network_scan() {
+    local subnet="${1:-$LOCAL_NETWORK}"
+    local json_output="${JSON_OUTPUT:-false}"
+    local verbose="${VERBOSE:-false}"
+    
+    log_info "Scanning network: $subnet"
+    
+    # Use nmap for host discovery
+    local nmap_output
+    nmap_output=$(nmap -sn "$subnet" 2>/dev/null | grep -E "Nmap scan report|MAC Address" || true)
+    
+    if [[ -z "$nmap_output" ]]; then
+        log_warn "No devices found or nmap failed"
+        return 1
+    fi
+    
+    # Parse nmap output into structured data
+    local devices=()
+    local current_device=""
+    
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^Nmap\ scan\ report\ for\ (.+)$ ]]; then
+            if [[ -n "$current_device" ]]; then
+                devices+=("$current_device")
+            fi
+            local host="${BASH_REMATCH[1]}"
+            local ip_addr=""
+            
+            # Extract IP if it's in format "hostname (ip)"
+            if [[ "$host" =~ ^(.+)\ \(([0-9.]+)\)$ ]]; then
+                ip_addr="${BASH_REMATCH[2]}"
+                host="${BASH_REMATCH[1]}"
+            elif [[ "$host" =~ ^[0-9.]+$ ]]; then
+                ip_addr="$host"
+                host="unknown"
+            fi
+            
+            current_device=$(jq -n \
+                --arg ip "$ip_addr" \
+                --arg hostname "$host" \
+                --arg scan_time "$(date -Iseconds)" \
+                '{
+                    ip_address: $ip,
+                    hostname: $hostname,
+                    mac_address: null,
+                    vendor: null,
+                    scan_time: $scan_time,
+                    device_type: "unknown",
+                    security_score: 0
+                }')
+                
+        elif [[ "$line" =~ MAC\ Address:\ ([A-Fa-f0-9:]+)\ \((.+)\) ]]; then
+            local mac="${BASH_REMATCH[1]}"
+            local vendor="${BASH_REMATCH[2]}"
+            
+            current_device=$(echo "$current_device" | jq \
+                --arg mac "$mac" \
+                --arg vendor "$vendor" \
+                '.mac_address = $mac | .vendor = $vendor')
+        fi
+    done <<< "$nmap_output"
+    
+    # Add the last device
+    if [[ -n "$current_device" ]]; then
+        devices+=("$current_device")
+    fi
+    
+    # Classify devices and assess security
+    local enhanced_devices=()
+    for device_json in "${devices[@]}"; do
+        enhanced_devices+=($(classify_device "$device_json"))
+    done
+    
+    if [[ "$json_output" == "true" ]]; then
+        printf '%s\n' "${enhanced_devices[@]}" | jq -s '.'
+    else
+        local device_count=${#enhanced_devices[@]}
+        echo "Network Scan Results ($device_count devices found):"
+        echo
+        
+        printf "%-15s %-20s %-12s %-20s %s\n" "IP Address" "Hostname" "Type" "Vendor" "Security"
+        printf "%-15s %-20s %-12s %-20s %s\n" "----------" "---------" "----" "------" "--------"
+        
+        for device_json in "${enhanced_devices[@]}"; do
+            local ip hostname device_type vendor security_score
+            ip=$(echo "$device_json" | jq -r '.ip_address')
+            hostname=$(echo "$device_json" | jq -r '.hostname')
+            device_type=$(echo "$device_json" | jq -r '.device_type')
+            vendor=$(echo "$device_json" | jq -r '.vendor // "Unknown"')
+            security_score=$(echo "$device_json" | jq -r '.security_score')
+            
+            # Truncate long strings for display
+            hostname=${hostname:0:18}
+            vendor=${vendor:0:18}
+            
+            local security_status
+            if [[ "$security_score" -ge 80 ]]; then
+                security_status="${GREEN}Good${NC}"
+            elif [[ "$security_score" -ge 60 ]]; then
+                security_status="${YELLOW}Fair${NC}"
+            else
+                security_status="${RED}Poor${NC}"
+            fi
+            
+            printf "%-15s %-20s %-12s %-20s %s\n" "$ip" "$hostname" "$device_type" "$vendor" "$security_status"
+        done
+        
+        if [[ "$verbose" == "true" ]]; then
+            echo
+            echo "Security Concerns:"
+            for device_json in "${enhanced_devices[@]}"; do
+                local concerns
+                concerns=$(echo "$device_json" | jq -r 'if .security_concerns then .security_concerns[] else empty end' 2>/dev/null)
+                if [[ -n "$concerns" ]]; then
+                    local ip
+                    ip=$(echo "$device_json" | jq -r '.ip_address')
+                    echo "  $ip: $concerns"
+                fi
+            done
+        fi
+    fi
+}
+
+# Classify device type and assess basic security
+classify_device() {
+    local device_json="$1"
+    local vendor mac ip
+    
+    vendor=$(echo "$device_json" | jq -r '.vendor // ""' | tr '[:upper:]' '[:lower:]')
+    mac=$(echo "$device_json" | jq -r '.mac_address // ""')
+    ip=$(echo "$device_json" | jq -r '.ip_address')
+    
+    local device_type="unknown"
+    local security_score=50
+    local security_concerns=()
+    
+    # Device classification based on vendor/MAC
+    case "$vendor" in
+        *amazon*|*echo*|*alexa*)
+            device_type="smart_speaker"
+            security_score=70
+            ;;
+        *google*|*nest*)
+            device_type="smart_home"
+            security_score=75
+            ;;
+        *apple*|*cupertino*)
+            device_type="mobile_device"
+            security_score=85
+            ;;
+        *samsung*|*lg*|*sony*)
+            if [[ "$vendor" == *tv* ]]; then
+                device_type="smart_tv"
+                security_score=60
+            else
+                device_type="mobile_device"
+                security_score=75
+            fi
+            ;;
+        *tp-link*|*netgear*|*linksys*|*asus*)
+            device_type="network_device"
+            security_score=65
+            ;;
+        *raspberry*|*pi*)
+            device_type="embedded_system"
+            security_score=40
+            security_concerns+=("Raspberry Pi - ensure updated and secured")
+            ;;
+        *espressif*|*esp32*|*esp8266*)
+            device_type="iot_sensor"
+            security_score=30
+            security_concerns+=("ESP device - check firmware updates")
+            ;;
+        *)
+            # Try to identify by IP patterns or ports
+            if [[ "$ip" == "$HA_VM_IP" ]]; then
+                device_type="home_assistant"
+                security_score=80
+            elif [[ "$ip" == "$HOST_IP" ]]; then
+                device_type="host_server"
+                security_score=75
+            elif [[ "$ip" == "$GATEWAY_IP" ]]; then
+                device_type="router"
+                security_score=70
+            fi
+            ;;
+    esac
+    
+    # Additional security checks
+    if [[ -z "$mac" ]]; then
+        security_concerns+=("No MAC address detected - possible security device")
+        security_score=$((security_score - 10))
+    fi
+    
+    # Create enhanced device record
+    local concerns_json
+    if [[ ${#security_concerns[@]} -gt 0 ]]; then
+        concerns_json=$(printf '%s\n' "${security_concerns[@]}" | jq -R . | jq -s '.')
+    else
+        concerns_json="null"
+    fi
+    
+    echo "$device_json" | jq \
+        --arg device_type "$device_type" \
+        --arg security_score "$security_score" \
+        --argjson security_concerns "$concerns_json" \
+        '.device_type = $device_type | 
+         .security_score = ($security_score | tonumber) |
+         .security_concerns = $security_concerns'
+}
+
+# Perform comprehensive security audit
+security_audit() {
+    local json_output="${JSON_OUTPUT:-false}"
+    local verbose="${VERBOSE:-false}"
+    
+    log_info "Performing comprehensive IoT security audit..."
+    
+    # Network scan first
+    local scan_results
+    scan_results=$(network_scan "$LOCAL_NETWORK" | jq -s '.[0]' 2>/dev/null || echo "[]")
+    
+    # Get Home Assistant device info
+    local ha_devices
+    if "$HA_TOOL" status >/dev/null 2>&1; then
+        ha_devices=$("$HA_TOOL" devices --json 2>/dev/null || echo "[]")
+    else
+        ha_devices="[]"
+        log_warn "Home Assistant not accessible - limited audit scope"
+    fi
+    
+    # Analyze security posture
+    local total_devices scanned_devices low_security_devices
+    total_devices=$(echo "$scan_results" | jq 'length')
+    scanned_devices=$total_devices
+    low_security_devices=$(echo "$scan_results" | jq '[.[] | select(.security_score < 60)] | length')
+    
+    # Security findings
+    local findings=()
+    local overall_score=100
+    
+    # Check for common security issues
+    if [[ "$low_security_devices" -gt 0 ]]; then
+        findings+=("$low_security_devices devices have low security scores")
+        overall_score=$((overall_score - (low_security_devices * 5)))
+    fi
+    
+    # Check for unidentified devices
+    local unknown_devices
+    unknown_devices=$(echo "$scan_results" | jq '[.[] | select(.device_type == "unknown")] | length')
+    if [[ "$unknown_devices" -gt 2 ]]; then
+        findings+=("$unknown_devices unidentified devices on network")
+        overall_score=$((overall_score - (unknown_devices * 3)))
+    fi
+    
+    # Check Home Assistant security
+    if [[ "$(echo "$ha_devices" | jq 'length')" -gt 0 ]]; then
+        findings+=("Home Assistant integration active with $(echo "$ha_devices" | jq 'length') entities")
+    else
+        findings+=("Home Assistant not accessible or no devices configured")
+        overall_score=$((overall_score - 10))
+    fi
+    
+    # Network segmentation check
+    local iot_devices
+    iot_devices=$(echo "$scan_results" | jq '[.[] | select(.device_type | test("smart_|iot_"))] | length')
+    if [[ "$iot_devices" -gt 3 ]]; then
+        findings+=("Consider IoT network segmentation for $iot_devices smart devices")
+        overall_score=$((overall_score - 5))
+    fi
+    
+    # Generate recommendations
+    local recommendations=()
+    recommendations+=("Enable automatic security updates on all devices")
+    recommendations+=("Change default passwords on IoT devices")
+    recommendations+=("Consider setting up a dedicated IoT VLAN")
+    recommendations+=("Regular firmware updates for all smart devices")
+    recommendations+=("Monitor network traffic for unusual patterns")
+    
+    if [[ "$json_output" == "true" ]]; then
+        jq -n \
+            --argjson scan_results "$scan_results" \
+            --argjson ha_devices "$ha_devices" \
+            --arg total_devices "$total_devices" \
+            --arg low_security "$low_security_devices" \
+            --arg overall_score "$overall_score" \
+            --argjson findings "$(printf '%s\n' "${findings[@]}" | jq -R . | jq -s .)" \
+            --argjson recommendations "$(printf '%s\n' "${recommendations[@]}" | jq -R . | jq -s .)" \
+            --arg audit_date "$(date -Iseconds)" \
+            '{
+                audit_summary: {
+                    total_devices: ($total_devices | tonumber),
+                    low_security_devices: ($low_security | tonumber),
+                    overall_security_score: ($overall_score | tonumber),
+                    audit_date: $audit_date
+                },
+                findings: $findings,
+                recommendations: $recommendations,
+                scanned_devices: $scan_results,
+                ha_devices: $ha_devices
+            }'
+    else
+        echo "IoT Security Audit Report"
+        echo "========================="
+        echo "Audit Date: $(date)"
+        echo "Network: $LOCAL_NETWORK"
+        echo
+        echo "Summary:"
+        echo "  Total devices found: $total_devices"
+        echo "  Low security devices: $low_security_devices"
+        echo "  Overall security score: $overall_score/100"
+        echo
+        
+        if [[ ${#findings[@]} -gt 0 ]]; then
+            echo "Security Findings:"
+            for finding in "${findings[@]}"; do
+                echo "  • $finding"
+            done
+            echo
+        fi
+        
+        echo "Recommendations:"
+        for rec in "${recommendations[@]}"; do
+            echo "  1. $rec"
+        done
+        
+        if [[ "$verbose" == "true" ]]; then
+            echo
+            echo "Detailed Device Analysis:"
+            network_scan "$LOCAL_NETWORK" >/dev/null
+        fi
+    fi
+    
+    # Return exit code based on security score
+    if [[ "$overall_score" -lt 70 ]]; then
+        return 1
+    fi
+}
+
+# Show known IoT devices with HA integration
+show_devices() {
+    local ha_only="${HA_ONLY:-false}"
+    local json_output="${JSON_OUTPUT:-false}"
+    
+    local devices
+    if [[ "$ha_only" == "true" ]]; then
+        if "$HA_TOOL" status >/dev/null 2>&1; then
+            devices=$("$HA_TOOL" devices --json 2>/dev/null || echo "[]")
+        else
+            log_error "Home Assistant not accessible"
+            exit 1
+        fi
+    else
+        # Combine network scan with HA devices
+        devices=$(network_scan "$LOCAL_NETWORK" 2>/dev/null || echo "[]")
+    fi
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$devices"
+    else
+        local device_count
+        device_count=$(echo "$devices" | jq 'length')
+        
+        if [[ "$ha_only" == "true" ]]; then
+            echo "Home Assistant Connected Devices ($device_count):"
+        else
+            echo "Network IoT Devices ($device_count):"
+        fi
+        
+        echo "$devices" | jq -r '
+            if type == "array" then 
+                .[] | 
+                if .entity_id then
+                    "  \(.entity_id): \(.attributes.friendly_name // .entity_id)"
+                else
+                    "  \(.ip_address): \(.hostname) (\(.device_type))"
+                end
+            else
+                "No devices found"
+            end' 2>/dev/null || echo "  No devices found or parsing error"
+    fi
+}
+
+# Setup security monitoring
+setup_security() {
+    log_info "Setting up IoT security monitoring..."
+    
+    # Create directories
+    mkdir -p "$SECURITY_DATA_DIR"
+    
+    # Test network access
+    if ! ping -c 1 -W 2 "$GATEWAY_IP" >/dev/null 2>&1; then
+        log_warn "Cannot reach gateway at $GATEWAY_IP"
+        log_warn "Network connectivity may be limited"
+    fi
+    
+    # Initial network baseline
+    log_info "Creating network baseline..."
+    local baseline
+    baseline=$(network_scan "$LOCAL_NETWORK" 2>/dev/null || echo "[]")
+    
+    # Save baseline
+    echo "$baseline" > "$SECURITY_DATA_DIR/baseline-$(date +%Y%m%d).json"
+    
+    # Create configuration
+    local config
+    config=$(jq -n \
+        --arg network "$LOCAL_NETWORK" \
+        --arg setup_date "$(date -Iseconds)" \
+        --argjson baseline "$baseline" \
+        '{
+            network_subnet: $network,
+            setup_date: $setup_date,
+            baseline_devices: $baseline,
+            monitoring_enabled: true,
+            alert_on_new_devices: true,
+            alert_on_security_changes: true
+        }')
+    
+    echo "$config" > "$SECURITY_CONFIG_FILE"
+    chmod 600 "$SECURITY_CONFIG_FILE"
+    
+    log_info "✓ Baseline created with $(echo "$baseline" | jq 'length') devices"
+    log_info "✓ Configuration saved to $SECURITY_CONFIG_FILE"
+    log_info "✓ Security monitoring setup complete"
+}
+
+# Parse arguments
+COMMAND=""
+SUBNET="$LOCAL_NETWORK"
+HA_ONLY=false
+JSON_OUTPUT=false
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --subnet)
+            SUBNET="$2"
+            shift 2
+            ;;
+        --ha-only)
+            HA_ONLY=true
+            shift
+            ;;
+        --json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            show_help >&2
+            exit 3
+            ;;
+        *)
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+            else
+                log_error "Multiple commands specified"
+                exit 3
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Validate command
+if [[ -z "$COMMAND" ]]; then
+    log_error "Command required"
+    show_help >&2
+    exit 3
+fi
+
+# Check dependencies
+check_dependencies
+
+# Create directories
+mkdir -p "$PAI_CONFIG_DIR" "$SECURITY_DATA_DIR"
+
+# Export variables for functions
+export JSON_OUTPUT VERBOSE HA_ONLY
+
+# Execute command
+case "$COMMAND" in
+    setup)
+        setup_security
+        ;;
+    scan)
+        network_scan "$SUBNET"
+        ;;
+    audit)
+        security_audit
+        ;;
+    devices)
+        show_devices
+        ;;
+    report)
+        log_info "Generating comprehensive security report..."
+        security_audit
+        ;;
+    baseline|check-updates|monitor|network-analysis)
+        log_warn "Command '$COMMAND' not yet implemented"
+        log_info "Available: setup, scan, audit, devices, report"
+        exit 1
+        ;;
+    *)
+        log_error "Invalid command: $COMMAND"
+        show_help >&2
+        exit 3
+        ;;
+esac
+
+exit 0

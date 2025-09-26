@@ -1,0 +1,410 @@
+#!/bin/bash
+# pai-home-assistant - Home Assistant integration for PAI system
+# Part of PAI home automation context
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+HA_CONFIG_FILE="$PAI_CONFIG_DIR/home-assistant.conf"
+HA_INTERNAL_URL="http://192.168.1.39:8123"
+HA_EXTERNAL_URL="https://byrdhome.duckdns.org"
+HA_TOKEN_FILE="$PAI_CONFIG_DIR/secrets/ha-token.gpg"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Help function
+show_help() {
+    cat << EOF
+pai-home-assistant - Home Assistant integration for PAI system
+
+USAGE:
+    pai-home-assistant <command> [options]
+
+COMMANDS:
+    status              Show Home Assistant status and system info
+    devices             List all devices and their states
+    energy              Show energy usage data and analysis
+    security            Perform security audit of connected devices
+    backup              Trigger backup and show recent backup info
+    logs                Show recent Home Assistant logs
+    optimize            Analyze usage patterns and suggest optimizations
+    
+    api <endpoint>      Direct API call to Home Assistant
+    setup               Initial setup (configure token)
+
+OPTIONS:
+    --internal          Force use of internal IP (192.168.1.39)
+    --external          Force use of external URL (byrdhome.duckdns.org)
+    --json              Output in JSON format
+    --help, -h          Show this help message
+
+EXAMPLES:
+    pai-home-assistant status
+    pai-home-assistant devices --json
+    pai-home-assistant energy
+    pai-home-assistant api states/light.living_room
+    pai-home-assistant setup
+
+EXIT CODES:
+    0   Success
+    1   Home Assistant unreachable or error
+    2   Authentication failed
+    3   Invalid arguments
+EOF
+}
+
+# Logging
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_debug() { [[ "${DEBUG:-0}" == "1" ]] && echo -e "${BLUE}[DEBUG]${NC} $*" >&2 || true; }
+
+# Get HA token (decrypt from GPG)
+get_ha_token() {
+    if [[ ! -f "$HA_TOKEN_FILE" ]]; then
+        log_error "Home Assistant token not found. Run: pai-home-assistant setup"
+        exit 2
+    fi
+    
+    if ! gpg --quiet --decrypt "$HA_TOKEN_FILE" 2>/dev/null; then
+        log_error "Failed to decrypt Home Assistant token"
+        exit 2
+    fi
+}
+
+# Determine best HA URL (internal first, fallback to external)
+get_ha_url() {
+    local force_internal="${FORCE_INTERNAL:-false}"
+    local force_external="${FORCE_EXTERNAL:-false}"
+    
+    if [[ "$force_external" == "true" ]]; then
+        echo "$HA_EXTERNAL_URL"
+        return 0
+    fi
+    
+    if [[ "$force_internal" == "true" ]]; then
+        echo "$HA_INTERNAL_URL"
+        return 0
+    fi
+    
+    # Auto-detect best URL
+    if curl -s --connect-timeout 2 "$HA_INTERNAL_URL/api/" >/dev/null 2>&1; then
+        echo "$HA_INTERNAL_URL"
+    else
+        echo "$HA_EXTERNAL_URL"
+    fi
+}
+
+# Make authenticated API call to Home Assistant
+ha_api_call() {
+    local endpoint="$1"
+    local method="${2:-GET}"
+    local data="${3:-}"
+    
+    local token
+    token=$(get_ha_token)
+    local ha_url
+    ha_url=$(get_ha_url)
+    
+    local curl_args=(
+        -s
+        -H "Authorization: Bearer $token"
+        -H "Content-Type: application/json"
+        -X "$method"
+    )
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=(-d "$data")
+    fi
+    
+    if ! curl "${curl_args[@]}" "$ha_url/api/$endpoint"; then
+        log_error "Failed to connect to Home Assistant at $ha_url"
+        return 1
+    fi
+}
+
+# Setup function - configure HA token
+setup_ha() {
+    log_info "Setting up Home Assistant integration"
+    
+    # Create config directory
+    mkdir -p "$PAI_CONFIG_DIR/secrets"
+    
+    # Test connectivity
+    local ha_url
+    ha_url=$(get_ha_url)
+    log_info "Testing connectivity to $ha_url"
+    
+    if ! curl -s --connect-timeout 5 "$ha_url/api/" >/dev/null; then
+        log_error "Cannot reach Home Assistant at $ha_url"
+        log_error "Check that Home Assistant is running and accessible"
+        exit 1
+    fi
+    
+    log_info "Home Assistant is reachable"
+    
+    # Get token from user
+    echo
+    echo "To get a Long-Lived Access Token:"
+    echo "1. Open Home Assistant: $ha_url"
+    echo "2. Go to Profile → Security → Long-Lived Access Tokens"
+    echo "3. Create new token named 'PAI-System'"
+    echo "4. Copy the token"
+    echo
+    
+    read -r -s -p "Enter your Home Assistant Long-Lived Access Token: " token
+    echo
+    
+    if [[ -z "$token" ]]; then
+        log_error "Token cannot be empty"
+        exit 3
+    fi
+    
+    # Test the token
+    log_info "Testing token..."
+    if ! curl -s -H "Authorization: Bearer $token" "$ha_url/api/states" >/dev/null; then
+        log_error "Token authentication failed"
+        exit 2
+    fi
+    
+    # Encrypt and store token
+    if ! echo "$token" | gpg --cipher-algo AES256 --armor --output "$HA_TOKEN_FILE" --symmetric; then
+        log_error "Failed to encrypt and store token"
+        exit 1
+    fi
+    
+    # Set secure permissions
+    chmod 600 "$HA_TOKEN_FILE"
+    
+    log_info "✓ Token encrypted and stored securely"
+    log_info "✓ Setup complete"
+    
+    # Test the integration
+    echo
+    log_info "Testing integration..."
+    "$0" status --json | jq -r '.message' 2>/dev/null || echo "Integration ready!"
+}
+
+# Show HA status
+show_status() {
+    local json_output="${JSON_OUTPUT:-false}"
+    local ha_url
+    ha_url=$(get_ha_url)
+    
+    local config_data
+    config_data=$(ha_api_call "config" || echo "{}")
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$config_data"
+    else
+        local version location_name
+        version=$(echo "$config_data" | jq -r '.version // "unknown"')
+        location_name=$(echo "$config_data" | jq -r '.location_name // "Home"')
+        
+        log_info "Home Assistant Status"
+        echo "  URL: $ha_url"
+        echo "  Version: $version"
+        echo "  Location: $location_name"
+        echo "  Connection: $(echo "$config_data" | jq -r 'if .version then "✓ Connected" else "✗ Error" end')"
+        
+        # Show basic stats
+        local states_count
+        states_count=$(ha_api_call "states" | jq '. | length' 2>/dev/null || echo "0")
+        echo "  Entities: $states_count"
+    fi
+}
+
+# List devices
+show_devices() {
+    local json_output="${JSON_OUTPUT:-false}"
+    
+    local states_data
+    states_data=$(ha_api_call "states" || echo "[]")
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$states_data"
+    else
+        log_info "Connected Devices Summary"
+        
+        # Count by domain
+        echo "$states_data" | jq -r '
+        group_by(.entity_id | split(".")[0]) | 
+        map({domain: .[0].entity_id | split(".")[0], count: length}) | 
+        sort_by(.domain) | 
+        .[] | 
+        "  \(.domain): \(.count) entities"'
+        
+        echo
+        echo "Recent activity:"
+        echo "$states_data" | jq -r '
+        map(select(.last_changed | . != null)) | 
+        sort_by(.last_changed) | reverse | 
+        .[0:5] | 
+        .[] | 
+        "  \(.entity_id): \(.state) (\(.last_changed | split("T")[0]))"'
+    fi
+}
+
+# Show energy data
+show_energy() {
+    local json_output="${JSON_OUTPUT:-false}"
+    
+    # Get energy entities
+    local energy_entities
+    energy_entities=$(ha_api_call "states" | jq '[.[] | select(.entity_id | contains("energy") or contains("power") or contains("kwh"))]' 2>/dev/null || echo "[]")
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$energy_entities"
+    else
+        log_info "Energy Usage Overview"
+        
+        local energy_count
+        energy_count=$(echo "$energy_entities" | jq 'length')
+        
+        if [[ "$energy_count" == "0" ]]; then
+            echo "  No energy entities found"
+            echo "  Consider adding energy monitoring devices"
+        else
+            echo "  Energy entities: $energy_count"
+            echo
+            echo "Current readings:"
+            echo "$energy_entities" | jq -r '.[] | "  \(.entity_id): \(.state) \(.attributes.unit_of_measurement // "")"' | head -10
+        fi
+    fi
+}
+
+# Security audit
+security_audit() {
+    local json_output="${JSON_OUTPUT:-false}"
+    
+    log_info "Performing security audit..."
+    
+    # Get all devices and their info
+    local devices_data
+    devices_data=$(ha_api_call "states" || echo "[]")
+    
+    # Basic security checks
+    local total_entities unsecured_entities
+    total_entities=$(echo "$devices_data" | jq 'length')
+    
+    # Look for potentially unsecured devices (basic heuristics)
+    unsecured_entities=$(echo "$devices_data" | jq '[.[] | select(.attributes.device_class == null and (.entity_id | contains("camera") or contains("lock") or contains("alarm")))] | length')
+    
+    if [[ "$json_output" == "true" ]]; then
+        jq -n --arg total "$total_entities" --arg unsecured "$unsecured_entities" '{
+            total_entities: ($total | tonumber),
+            potentially_unsecured: ($unsecured | tonumber),
+            audit_date: now | strftime("%Y-%m-%d %H:%M:%S")
+        }'
+    else
+        echo "Security Audit Results:"
+        echo "  Total entities: $total_entities"
+        echo "  Potentially unsecured: $unsecured_entities"
+        echo "  Audit date: $(date)"
+        echo
+        echo "Recommendations:"
+        echo "  - Review device configurations for security settings"
+        echo "  - Ensure all devices have latest firmware"
+        echo "  - Consider network segmentation for IoT devices"
+        echo "  - Enable 2FA on Home Assistant if not already enabled"
+    fi
+}
+
+# Parse arguments
+COMMAND=""
+FORCE_INTERNAL=false
+FORCE_EXTERNAL=false
+JSON_OUTPUT=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --internal)
+            FORCE_INTERNAL=true
+            shift
+            ;;
+        --external)
+            FORCE_EXTERNAL=true
+            shift
+            ;;
+        --json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            show_help >&2
+            exit 3
+            ;;
+        *)
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+            else
+                # Additional arguments for some commands
+                break
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Validate command
+if [[ -z "$COMMAND" ]]; then
+    log_error "Command required"
+    show_help >&2
+    exit 3
+fi
+
+# Create config directory
+mkdir -p "$PAI_CONFIG_DIR"
+
+# Export variables for functions
+export FORCE_INTERNAL FORCE_EXTERNAL JSON_OUTPUT
+
+# Execute command
+case "$COMMAND" in
+    setup)
+        setup_ha
+        ;;
+    status)
+        show_status
+        ;;
+    devices)
+        show_devices
+        ;;
+    energy)
+        show_energy
+        ;;
+    security)
+        security_audit
+        ;;
+    api)
+        if [[ $# -eq 0 ]]; then
+            log_error "API endpoint required"
+            exit 3
+        fi
+        ha_api_call "$1"
+        echo
+        ;;
+    backup|logs|optimize)
+        log_warn "Command '$COMMAND' not yet implemented"
+        log_info "Available: status, devices, energy, security, api, setup"
+        exit 1
+        ;;
+    *)
+        log_error "Invalid command: $COMMAND"
+        show_help >&2
+        exit 3
+        ;;
+esac
+
+exit 0

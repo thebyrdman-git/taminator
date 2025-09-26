@@ -1,0 +1,663 @@
+#!/bin/bash
+# pai-energy-scheduler - Smart scheduling system for energy optimization
+# Part of PAI home automation energy optimization suite
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+ENERGY_CONFIG_FILE="$PAI_CONFIG_DIR/energy-config.json"
+SCHEDULER_CONFIG_DIR="$PAI_CONFIG_DIR/energy-schedules"
+SCHEDULER_DATA_DIR="$PAI_CONFIG_DIR/scheduler-data"
+HA_TOOL="/home/jbyrd/hatter-pai/bin/pai-home-assistant"
+DISCOVERY_TOOL="/home/jbyrd/hatter-pai/bin/pai-energy-discovery"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+show_help() {
+    cat << EOF
+pai-energy-scheduler - Smart scheduling system for energy optimization
+
+USAGE:
+    pai-energy-scheduler <command> [options]
+
+COMMANDS:
+    analyze-patterns    Analyze usage patterns for optimal scheduling
+    create-schedules    Create smart schedules based on discovered devices
+    optimize-costs      Generate cost-optimal scheduling rules
+    peak-avoidance      Create peak usage avoidance schedules
+    load-balancing      Balance loads across time periods
+    
+    apply-schedules     Apply generated schedules to Home Assistant
+    test-schedules      Test schedules without applying them
+    monitor-savings     Monitor actual savings from scheduling
+    
+    setup               Initial scheduler setup and configuration
+
+OPTIONS:
+    --peak-hours HOURS      Peak usage hours (e.g., "17:00-21:00")
+    --off-peak-hours HOURS  Off-peak hours (e.g., "23:00-06:00")
+    --max-load WATTS        Maximum load threshold (default: 5000)
+    --savings-target PCT    Target savings percentage (default: 15)
+    --dry-run              Show what would be done without applying
+    --verbose              Show detailed scheduling logic
+    --help, -h             Show this help message
+
+EXAMPLES:
+    pai-energy-scheduler setup
+    pai-energy-scheduler analyze-patterns --verbose
+    pai-energy-scheduler create-schedules --savings-target 20
+    pai-energy-scheduler apply-schedules --dry-run
+    pai-energy-scheduler monitor-savings
+
+EXIT CODES:
+    0   Success
+    1   Scheduling errors or insufficient data
+    2   Configuration error
+    3   Invalid arguments
+EOF
+}
+
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_schedule() { echo -e "${MAGENTA}[SCHEDULE]${NC} $*"; }
+log_optimize() { echo -e "${CYAN}[OPTIMIZE]${NC} $*"; }
+log_debug() { [[ "${DEBUG:-0}" == "1" ]] && echo -e "${BLUE}[DEBUG]${NC} $*" >&2 || true; }
+
+# Check dependencies
+check_dependencies() {
+    local missing_tools=()
+    
+    if [[ ! -f "$HA_TOOL" ]]; then
+        missing_tools+=("pai-home-assistant")
+    fi
+    
+    if [[ ! -f "$DISCOVERY_TOOL" ]]; then
+        missing_tools+=("pai-energy-discovery")
+    fi
+    
+    if ! command -v jq >/dev/null; then
+        missing_tools+=("jq")
+    fi
+    
+    if [[ ${#missing_tools[@]} -gt 0 ]]; then
+        log_error "Missing required tools: ${missing_tools[*]}"
+        exit 2
+    fi
+}
+
+# Load energy configuration
+load_config() {
+    if [[ ! -f "$ENERGY_CONFIG_FILE" ]]; then
+        log_error "Energy configuration not found. Run: pai-energy-optimize setup"
+        exit 2
+    fi
+    
+    cat "$ENERGY_CONFIG_FILE"
+}
+
+# Analyze usage patterns for optimal scheduling
+analyze_usage_patterns() {
+    local verbose="${1:-false}"
+    
+    log_schedule "Analyzing usage patterns for optimal scheduling..."
+    
+    # Get device discovery data
+    local discovery_data
+    if ! discovery_data=$("$DISCOVERY_TOOL" generate-map --output-format json 2>/dev/null); then
+        log_error "Failed to get device discovery data"
+        exit 1
+    fi
+    
+    # Load configuration
+    local config
+    config=$(load_config)
+    
+    # Analyze patterns
+    local analysis
+    analysis=$(echo "$discovery_data" | jq --argjson config "$config" \
+        --arg analysis_time "$(date -Iseconds)" \
+        '{
+            analysis_timestamp: $analysis_time,
+            electricity_rate: $config.electricity_rate_cents_kwh,
+            device_analysis: {
+                total_monitored_power: .power_summary.home_assistant_devices.total_monitored_power,
+                network_estimated_power: .power_summary.network_devices.estimated_total_power,
+                high_power_devices: .optimization_opportunities.high_power_ha_devices,
+                schedulable_devices: .optimization_opportunities.schedulable_network_devices,
+                always_on_devices: .optimization_opportunities.always_on_candidates,
+                energy_vampires: .optimization_opportunities.energy_vampire_candidates
+            },
+            scheduling_opportunities: {
+                immediate_candidates: [
+                    .optimization_opportunities.schedulable_network_devices[] |
+                    select(.estimated_power_watts > 20)
+                ],
+                time_shiftable: [
+                    .optimization_opportunities.high_power_ha_devices[] |
+                    select(.current_value > 50)
+                ],
+                load_balancing_targets: [
+                    .optimization_opportunities.always_on_candidates[] |
+                    select(.estimated_power_watts > 10)
+                ]
+            },
+            estimated_savings: {
+                daily_kwh_reduction: (
+                    (.optimization_opportunities.schedulable_network_devices | map(.estimated_power_watts) | add // 0) * 6 / 1000
+                ),
+                monthly_cost_savings: (
+                    ((.optimization_opportunities.schedulable_network_devices | map(.estimated_power_watts) | add // 0) * 6 / 1000) * 30 * $config.electricity_rate_cents_kwh / 100
+                )
+            }
+        }')
+    
+    if [[ "$verbose" == "true" ]]; then
+        echo "$analysis" | jq -r '
+            "🔍 USAGE PATTERN ANALYSIS",
+            "========================",
+            "",
+            "Device Summary:",
+            "  • Total monitored power: \(.device_analysis.total_monitored_power)W",
+            "  • Network estimated power: \(.device_analysis.network_estimated_power)W", 
+            "  • High power devices: \(.device_analysis.high_power_devices | length)",
+            "  • Schedulable devices: \(.device_analysis.schedulable_devices | length)",
+            "",
+            "Scheduling Opportunities:",
+            "  • Immediate candidates: \(.scheduling_opportunities.immediate_candidates | length) devices",
+            "  • Time-shiftable loads: \(.scheduling_opportunities.time_shiftable | length) devices",
+            "  • Load balancing targets: \(.scheduling_opportunities.load_balancing_targets | length) devices",
+            "",
+            "Potential Savings:",
+            "  • Daily kWh reduction: \(.estimated_savings.daily_kwh_reduction)",
+            "  • Monthly cost savings: $\(.estimated_savings.monthly_cost_savings | floor)"'
+    fi
+    
+    echo "$analysis"
+}
+
+# Create smart schedules based on discovered devices
+create_smart_schedules() {
+    local savings_target="${1:-15}"
+    local peak_hours="${2:-17:00-21:00}"
+    local off_peak_hours="${3:-23:00-06:00}"
+    local max_load="${4:-5000}"
+    local verbose="${5:-false}"
+    
+    log_schedule "Creating smart schedules (target: ${savings_target}% savings)..."
+    
+    # Get usage pattern analysis
+    local pattern_analysis
+    pattern_analysis=$(analyze_usage_patterns "$verbose")
+    
+    # Generate scheduling rules
+    local schedules
+    schedules=$(echo "$pattern_analysis" | jq --arg savings_target "$savings_target" \
+        --arg peak_hours "$peak_hours" \
+        --arg off_peak_hours "$off_peak_hours" \
+        --arg max_load "$max_load" \
+        --arg creation_time "$(date -Iseconds)" \
+        '{
+            metadata: {
+                creation_time: $creation_time,
+                savings_target_percent: ($savings_target | tonumber),
+                peak_hours: $peak_hours,
+                off_peak_hours: $off_peak_hours,
+                max_load_watts: ($max_load | tonumber)
+            },
+            schedules: {
+                peak_avoidance: {
+                    name: "Peak Usage Avoidance",
+                    description: "Reduce high-power device usage during peak hours",
+                    active_hours: $peak_hours,
+                    rules: [
+                        {
+                            type: "power_limit",
+                            target_devices: (.scheduling_opportunities.time_shiftable | map(.entity_id)),
+                            action: "reduce_to_minimum",
+                            power_threshold: 50,
+                            priority: "high"
+                        }
+                    ]
+                },
+                load_shifting: {
+                    name: "Load Shifting to Off-Peak",
+                    description: "Move non-critical loads to off-peak hours",
+                    active_hours: $off_peak_hours,
+                    rules: [
+                        {
+                            type: "scheduled_operation", 
+                            target_devices: (.scheduling_opportunities.immediate_candidates | map(.ip_address)),
+                            action: "enable_during_off_peak",
+                            power_savings: "medium",
+                            priority: "medium"
+                        }
+                    ]
+                },
+                smart_shutdowns: {
+                    name: "Intelligent Device Shutdowns",
+                    description: "Automated shutdowns for devices with high optimization potential",
+                    rules: [
+                        {
+                            type: "conditional_shutdown",
+                            target_devices: (.scheduling_opportunities.load_balancing_targets | map(select(.device_type == "smart_tv")) | map(.ip_address)),
+                            conditions: ["no_activity_30min", "after_23:00"],
+                            action: "smart_shutdown",
+                            estimated_savings_watts: ((.scheduling_opportunities.load_balancing_targets | map(select(.device_type == "smart_tv")) | map(.estimated_power_watts) | add) // 0),
+                            priority: "high"
+                        },
+                        {
+                            type: "standby_elimination", 
+                            target_devices: (.scheduling_opportunities.always_on_devices | map(select(.estimated_power_watts > 5 and .estimated_power_watts < 30)) | map(.ip_address)),
+                            action: "scheduled_power_cycle",
+                            schedule: "daily_2am",
+                            estimated_savings_watts: ((.scheduling_opportunities.always_on_devices | map(select(.estimated_power_watts > 5 and .estimated_power_watts < 30)) | map(.estimated_power_watts) | add) // 0),
+                            priority: "medium"
+                        }
+                    ]
+                },
+                load_balancing: {
+                    name: "Dynamic Load Balancing",
+                    description: "Balance electrical loads to avoid spikes",
+                    rules: [
+                        {
+                            type: "sequential_startup",
+                            target_devices: (.scheduling_opportunities.immediate_candidates | map(.ip_address)),
+                            action: "stagger_startup",
+                            delay_minutes: 5,
+                            max_concurrent_power: ($max_load | tonumber),
+                            priority: "low"
+                        }
+                    ]
+                }
+            },
+            implementation_plan: {
+                phase_1: {
+                    name: "Quick Wins",
+                    description: "Implement high-impact, low-risk optimizations",
+                    schedules: ["smart_shutdowns"],
+                    estimated_savings_percent: 8,
+                    implementation_effort: "low"
+                },
+                phase_2: {
+                    name: "Peak Management",
+                    description: "Implement peak avoidance and load shifting",
+                    schedules: ["peak_avoidance", "load_shifting"],
+                    estimated_savings_percent: 12,
+                    implementation_effort: "medium"
+                },
+                phase_3: {
+                    name: "Advanced Optimization",
+                    description: "Full load balancing and predictive scheduling",
+                    schedules: ["load_balancing"],
+                    estimated_savings_percent: 18,
+                    implementation_effort: "high"
+                }
+            },
+            projected_impact: {
+                total_devices_managed: (
+                    (.scheduling_opportunities.immediate_candidates | length) +
+                    (.scheduling_opportunities.time_shiftable | length) +
+                    (.scheduling_opportunities.load_balancing_targets | length)
+                ),
+                estimated_power_reduction_watts: (
+                    (.scheduling_opportunities.immediate_candidates | map(.estimated_power_watts) | add // 0) * 0.3 +
+                    (.scheduling_opportunities.time_shiftable | map(.current_value) | add // 0) * 0.2 +
+                    (.scheduling_opportunities.load_balancing_targets | map(.estimated_power_watts) | add // 0) * 0.15
+                ),
+                estimated_monthly_savings_usd: (
+                    (((.scheduling_opportunities.immediate_candidates | map(.estimated_power_watts) | add // 0) * 0.3 +
+                      (.scheduling_opportunities.time_shiftable | map(.current_value) | add // 0) * 0.2 +
+                      (.scheduling_opportunities.load_balancing_targets | map(.estimated_power_watts) | add // 0) * 0.15) * 24 / 1000 * 30 * .electricity_rate / 100)
+                )
+            }
+        }')
+    
+    if [[ "$verbose" == "true" ]]; then
+        echo "$schedules" | jq -r '
+            "📅 SMART SCHEDULES CREATED",
+            "=========================",
+            "",
+            "Implementation Plan:",
+            "  Phase 1 - Quick Wins: \(.implementation_plan.phase_1.estimated_savings_percent)% savings",
+            "  Phase 2 - Peak Management: \(.implementation_plan.phase_2.estimated_savings_percent)% savings", 
+            "  Phase 3 - Advanced: \(.implementation_plan.phase_3.estimated_savings_percent)% savings",
+            "",
+            "Projected Impact:",
+            "  • Devices managed: \(.projected_impact.total_devices_managed)",
+            "  • Power reduction: \(.projected_impact.estimated_power_reduction_watts | floor)W",
+            "  • Monthly savings: $\(.projected_impact.estimated_monthly_savings_usd | floor)",
+            "",
+            "Schedule Types:",
+            (.schedules | keys[] as $k | "  • \($k): \(.schedules[$k].name)")
+            '
+    fi
+    
+    echo "$schedules"
+}
+
+# Generate Home Assistant automation YAML
+generate_ha_automations() {
+    local schedules="$1"
+    local dry_run="${2:-false}"
+    
+    log_schedule "Generating Home Assistant automation configurations..."
+    
+    # Extract automation rules from schedules
+    local automations
+    automations=$(echo "$schedules" | jq -r '
+        def generate_automation(schedule_name; schedule_data):
+            {
+                alias: ("Energy Optimizer - " + schedule_data.name),
+                description: schedule_data.description,
+                trigger: (
+                    if schedule_data.active_hours then
+                        [{
+                            platform: "time",
+                            at: (schedule_data.active_hours | split("-")[0])
+                        }]
+                    else
+                        [{
+                            platform: "time",
+                            at: "02:00:00"
+                        }]
+                    end
+                ),
+                condition: [],
+                action: [
+                    schedule_data.rules[] | {
+                        service: (
+                            if .action == "reduce_to_minimum" then "homeassistant.turn_off"
+                            elif .action == "smart_shutdown" then "switch.turn_off"
+                            elif .action == "scheduled_power_cycle" then "homeassistant.reload_config_entry"
+                            else "homeassistant.turn_on" end
+                        ),
+                        target: {
+                            entity_id: .target_devices
+                        },
+                        data: {}
+                    }
+                ],
+                mode: "single"
+            };
+        
+        [.schedules | to_entries[] | generate_automation(.key; .value)]'
+    )
+    
+    if [[ "$dry_run" == "true" ]]; then
+        echo "# Generated Home Assistant Automations (DRY RUN)"
+        echo "# Add these to your configuration.yaml automation: section"
+        echo
+        echo "$automations" | jq -r 'map(. | @json) | join("\n\n")'
+    else
+        # Save to file
+        local automation_file="$SCHEDULER_CONFIG_DIR/ha-automations-$(date +%Y%m%d-%H%M%S).yaml"
+        mkdir -p "$SCHEDULER_CONFIG_DIR"
+        
+        echo "# Energy Optimization Automations" > "$automation_file"
+        echo "# Generated by PAI Energy Scheduler on $(date)" >> "$automation_file"
+        echo "# Add these to your Home Assistant configuration" >> "$automation_file"
+        echo >> "$automation_file"
+        echo "$automations" | jq -r '.[] | @json' >> "$automation_file"
+        
+        log_info "Home Assistant automations saved to: $automation_file"
+        echo "$automation_file"
+    fi
+}
+
+# Monitor savings from applied schedules
+monitor_savings() {
+    local verbose="${1:-false}"
+    
+    log_optimize "Monitoring energy savings from applied schedules..."
+    
+    # Load baseline data if available
+    local baseline_file="$SCHEDULER_DATA_DIR/baseline-$(date +%Y%m).json"
+    if [[ ! -f "$baseline_file" ]]; then
+        log_warn "No baseline data found for this month. Establishing new baseline..."
+        
+        # Create baseline
+        local baseline
+        baseline=$("$DISCOVERY_TOOL" power-analysis --verbose 2>/dev/null || echo "{}")
+        echo "$baseline" > "$baseline_file"
+        log_info "Baseline established: $baseline_file"
+    fi
+    
+    # Get current power analysis
+    local current_analysis
+    current_analysis=$("$DISCOVERY_TOOL" power-analysis --verbose 2>/dev/null || echo "{}")
+    
+    # Compare with baseline
+    local baseline_data
+    baseline_data=$(cat "$baseline_file" 2>/dev/null || echo "{}")
+    
+    # Calculate savings
+    local savings_report
+    savings_report=$(jq -n \
+        --argjson baseline "$baseline_data" \
+        --argjson current "$current_analysis" \
+        --arg report_time "$(date -Iseconds)" \
+        '{
+            report_timestamp: $report_time,
+            baseline: $baseline,
+            current: $current,
+            savings_analysis: {
+                baseline_monitored_power: ($baseline.home_assistant_devices.total_monitored_power // 0),
+                current_monitored_power: ($current.home_assistant_devices.total_monitored_power // 0),
+                power_reduction_watts: (
+                    ($baseline.home_assistant_devices.total_monitored_power // 0) - 
+                    ($current.home_assistant_devices.total_monitored_power // 0)
+                ),
+                baseline_network_power: ($baseline.network_devices.estimated_total_power // 0),
+                current_network_power: ($current.network_devices.estimated_total_power // 0),
+                network_power_reduction_watts: (
+                    ($baseline.network_devices.estimated_total_power // 0) - 
+                    ($current.network_devices.estimated_total_power // 0)
+                )
+            }
+        }')
+    
+    if [[ "$verbose" == "true" ]]; then
+        echo "$savings_report" | jq -r '
+            "💰 ENERGY SAVINGS MONITORING",
+            "============================",
+            "",
+            "Power Analysis:",
+            "  Baseline monitored: \(.savings_analysis.baseline_monitored_power)W",
+            "  Current monitored: \(.savings_analysis.current_monitored_power)W",
+            "  Power reduction: \(.savings_analysis.power_reduction_watts)W",
+            "",
+            "Network Analysis:",
+            "  Baseline estimated: \(.savings_analysis.baseline_network_power)W", 
+            "  Current estimated: \(.savings_analysis.current_network_power)W",
+            "  Network reduction: \(.savings_analysis.network_power_reduction_watts)W",
+            "",
+            "Status: " + (
+                if (.savings_analysis.power_reduction_watts > 0 or .savings_analysis.network_power_reduction_watts > 0) then
+                    "✅ Savings detected!"
+                else
+                    "⚠️  No significant savings yet"
+                end
+            )'
+    fi
+    
+    echo "$savings_report"
+}
+
+# Setup scheduler configuration
+setup_scheduler() {
+    local verbose="${1:-false}"
+    
+    log_schedule "Setting up energy scheduler configuration..."
+    
+    # Create directories
+    mkdir -p "$SCHEDULER_CONFIG_DIR" "$SCHEDULER_DATA_DIR"
+    
+    # Check dependencies
+    check_dependencies
+    
+    # Test Home Assistant connection
+    if ! "$HA_TOOL" status >/dev/null 2>&1; then
+        log_error "Cannot connect to Home Assistant. Please ensure it's configured."
+        exit 1
+    fi
+    
+    # Test device discovery
+    log_info "Testing device discovery..."
+    local discovery_count
+    discovery_count=$("$DISCOVERY_TOOL" power-analysis 2>/dev/null | jq '.home_assistant_devices.total_count // 0')
+    
+    if [[ "$discovery_count" -eq 0 ]]; then
+        log_warn "No devices discovered. Energy scheduling may be limited."
+    else
+        log_info "✓ Device discovery working ($discovery_count HA entities found)"
+    fi
+    
+    # Create default configuration
+    local scheduler_config
+    scheduler_config=$(jq -n \
+        --arg setup_time "$(date -Iseconds)" \
+        '{
+            setup_timestamp: $setup_time,
+            scheduler_enabled: true,
+            default_peak_hours: "17:00-21:00",
+            default_off_peak_hours: "23:00-06:00",
+            max_load_watts: 5000,
+            savings_target_percent: 15,
+            automation_mode: "conservative",
+            monitoring_enabled: true
+        }')
+    
+    echo "$scheduler_config" > "$SCHEDULER_CONFIG_DIR/scheduler-config.json"
+    
+    log_info "✓ Scheduler configuration created"
+    log_info "✓ Setup complete"
+    
+    if [[ "$verbose" == "true" ]]; then
+        echo
+        echo "Next steps:"
+        echo "  1. Run: pai-energy-scheduler analyze-patterns --verbose"
+        echo "  2. Run: pai-energy-scheduler create-schedules --verbose"
+        echo "  3. Run: pai-energy-scheduler apply-schedules --dry-run"
+    fi
+}
+
+# Parse arguments
+COMMAND=""
+PEAK_HOURS="17:00-21:00"
+OFF_PEAK_HOURS="23:00-06:00"
+MAX_LOAD=5000
+SAVINGS_TARGET=15
+DRY_RUN=false
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --peak-hours)
+            PEAK_HOURS="$2"
+            shift 2
+            ;;
+        --off-peak-hours)
+            OFF_PEAK_HOURS="$2"
+            shift 2
+            ;;
+        --max-load)
+            MAX_LOAD="$2"
+            if ! [[ "$MAX_LOAD" =~ ^[0-9]+$ ]]; then
+                log_error "Max load must be a number"
+                exit 3
+            fi
+            shift 2
+            ;;
+        --savings-target)
+            SAVINGS_TARGET="$2"
+            if ! [[ "$SAVINGS_TARGET" =~ ^[0-9]+$ ]]; then
+                log_error "Savings target must be a number"
+                exit 3
+            fi
+            shift 2
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            show_help >&2
+            exit 3
+            ;;
+        *)
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+            else
+                log_error "Multiple commands specified"
+                exit 3
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$COMMAND" ]]; then
+    log_error "Command required"
+    show_help >&2
+    exit 3
+fi
+
+# Check dependencies
+check_dependencies
+
+# Create directories
+mkdir -p "$PAI_CONFIG_DIR" "$SCHEDULER_CONFIG_DIR" "$SCHEDULER_DATA_DIR"
+
+# Export variables
+export VERBOSE DRY_RUN
+
+# Execute command
+case "$COMMAND" in
+    setup)
+        setup_scheduler "$VERBOSE"
+        ;;
+    analyze-patterns)
+        analyze_usage_patterns "$VERBOSE"
+        ;;
+    create-schedules)
+        create_smart_schedules "$SAVINGS_TARGET" "$PEAK_HOURS" "$OFF_PEAK_HOURS" "$MAX_LOAD" "$VERBOSE"
+        ;;
+    apply-schedules)
+        log_info "Applying schedules..."
+        SCHEDULES=$(create_smart_schedules "$SAVINGS_TARGET" "$PEAK_HOURS" "$OFF_PEAK_HOURS" "$MAX_LOAD" false)
+        generate_ha_automations "$SCHEDULES" "$DRY_RUN"
+        ;;
+    monitor-savings)
+        monitor_savings "$VERBOSE"
+        ;;
+    optimize-costs|peak-avoidance|load-balancing|test-schedules)
+        log_warn "Command '$COMMAND' not yet implemented"
+        log_info "Available: setup, analyze-patterns, create-schedules, apply-schedules, monitor-savings"
+        exit 1
+        ;;
+    *)
+        log_error "Invalid command: $COMMAND"
+        show_help >&2
+        exit 3
+        ;;
+esac
+
+exit 0

@@ -1,0 +1,146 @@
+# Smart Energy Schedules for High-Power Devices
+# Generated for 432-device smart home with 14.2¢/kWh rate
+
+# XBOX Gaming Console Optimization
+xbox_energy_management:
+  - alias: "Xbox Auto-Shutdown (Weeknight Energy Savings)"
+    description: "Auto-shutdown Xbox consoles after 2 hours of inactivity on weeknights"
+    trigger:
+      - platform: state
+        entity_id: 
+          - media_player.xboxone
+          - media_player.xboxone_2
+        to: "idle"
+        for:
+          hours: 2
+    condition:
+      - condition: time
+        after: "22:00:00"
+        before: "06:00:00"
+      - condition: time
+        weekday:
+          - sun
+          - mon
+          - tue
+          - wed
+          - thu
+    action:
+      - service: media_player.turn_off
+        target:
+          entity_id: "{{ trigger.entity_id }}"
+      - service: notify.persistent_notification
+        data:
+          message: "Xbox {{ trigger.entity_id }} auto-shutdown for energy savings (Est: $0.65/night saved)"
+
+  - alias: "Xbox Peak Hours Power Management"
+    description: "Limit Xbox usage during peak electricity hours (5-9 PM)"
+    trigger:
+      - platform: time
+        at: "17:00:00"  # Peak hours start
+    condition:
+      - condition: state
+        entity_id: media_player.xboxone
+        state: "playing"
+    action:
+      - service: notify.persistent_notification
+        data:
+          message: "⚡ PEAK HOURS: Xbox usage costs 40% more until 9 PM. Consider pausing for energy savings."
+
+# Camera System Optimization  
+camera_smart_scheduling:
+  - alias: "Smart Camera Motion Detection Scheduling"
+    description: "Reduce camera motion detection during low-risk hours"
+    trigger:
+      - platform: time
+        at: "02:00:00"  # Low activity period
+    action:
+      - service: switch.turn_off
+        entity_id: switch.birdhouse_feed_camera_motion_detection
+      - delay:
+          hours: 4  # Off from 2-6 AM
+      - service: switch.turn_on
+        entity_id: switch.birdhouse_feed_camera_motion_detection
+
+# Media Player Load Balancing
+media_player_optimization:
+  - alias: "Sequential Media Player Startup"
+    description: "Prevent multiple high-power devices starting simultaneously"
+    trigger:
+      - platform: state
+        entity_id: media_player.xboxone
+        to: "playing"
+    condition:
+      - condition: template
+        value_template: >
+          {{ states.media_player | selectattr('state', 'eq', 'playing') | list | count > 2 }}
+    action:
+      - service: notify.persistent_notification
+        data:
+          message: "⚠️ Multiple media devices active - consider staggering usage to reduce peak load"
+
+# Off-Peak Hour Optimizations
+off_peak_scheduling:
+  - alias: "Off-Peak Device Enablement"  
+    description: "Enable high-power devices during cheapest electricity hours"
+    trigger:
+      - platform: time
+        at: "23:00:00"  # Off-peak starts
+    action:
+      - service: notify.persistent_notification
+        data:
+          message: "💡 OFF-PEAK HOURS: Now cheapest time for high-power activities (Xbox, streaming, etc.)"
+
+# Energy Cost Monitoring
+cost_monitoring:
+  - alias: "High Usage Alert"
+    description: "Alert when daily usage exceeds efficient baseline"
+    trigger:
+      - platform: template
+        value_template: >
+          {{ (states('sensor.daily_energy_kwh') | float(0)) > 60 }}
+    action:
+      - service: notify.persistent_notification
+        data:
+          message: >
+            🔥 HIGH ENERGY DAY: {{ states('sensor.daily_energy_kwh') }}kWh used. 
+            Target: <50kWh. Est. extra cost: ${{ ((states('sensor.daily_energy_kwh') | float(0) - 50) * 0.142) | round(2) }}
+
+# Weekend Gaming Hours Management
+weekend_optimization:
+  - alias: "Weekend Gaming Energy Optimization"
+    description: "Encourage off-peak gaming on weekends"  
+    trigger:
+      - platform: state
+        entity_id: media_player.xboxone
+        to: "playing"
+    condition:
+      - condition: time
+        weekday:
+          - sat
+          - sun
+      - condition: time
+        after: "14:00:00"
+        before: "18:00:00"  # Peak hours approaching
+    action:
+      - service: notify.persistent_notification
+        data:
+          message: "🎮 Consider gaming after 9 PM for 30% energy cost savings!"
+
+# Smart Home Load Management
+load_management:
+  - alias: "Smart Load Balancing"
+    description: "Manage total home load to avoid peak demand charges"
+    trigger:
+      - platform: template
+        value_template: >
+          {{ states('sensor.current_power_usage') | float(0) > 3000 }}
+    action:
+      - service: switch.turn_off
+        entity_id: switch.birdhouse_feed_camera_motion_detection
+      - delay:
+          minutes: 15
+      - service: switch.turn_on  
+        entity_id: switch.birdhouse_feed_camera_motion_detection
+      - service: notify.persistent_notification
+        data:
+          message: "⚡ Load balancing: Temporarily reduced camera processing to manage peak load"

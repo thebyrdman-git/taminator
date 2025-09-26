@@ -18,15 +18,23 @@ USAGE:
     pai-context-switch <context>
 
 CONTEXTS:
-    redhat      Red Hat PSIRT work (compliance required)
-    mga         Midnight Garden Apothecary business
-    rec         Raven's Eye Consulting business
-    warehouse   Warehouse consolidation project
-    personal    Personal projects and learning
-    content     Content creation and analysis
-    health      Health and wellness tracking
-    academic    Academic research and studies
-    general     General development (no specific business context)
+    redhat         Red Hat PSIRT work (compliance required)
+    mga            Midnight Garden Apothecary business
+    rec            Raven's Eye Consulting business
+    warehouse      Warehouse consolidation project
+    personal       Personal projects and learning
+    content        Content creation and analysis
+    health         Health and wellness tracking
+    academic       Academic research and studies
+    home-automation Home automation and IoT management
+    finance        Personal finance and investment tracking
+    meal-planning  Cooking, nutrition, and meal preparation
+    family         Family scheduling and relationship management
+    maintenance    Home and vehicle maintenance tasks
+    learning       Personal development and skill building
+    entertainment  Media management and hobby projects
+    plex           Plex media server management and optimization
+    general        General development (no specific business context)
 
 OPTIONS:
     --help, -h  Show this help message
@@ -47,7 +55,7 @@ EOF
 validate_context() {
     local context="$1"
     case "$context" in
-        redhat|mga|rec|warehouse|personal|content|health|academic|general)
+        redhat|mga|rec|warehouse|personal|content|health|academic|home-automation|finance|meal-planning|family|maintenance|learning|entertainment|plex|general)
             return 0
             ;;
         *)
@@ -96,7 +104,7 @@ fi
 # Validate context
 if ! validate_context "$CONTEXT"; then
     echo "Error: Invalid context '$CONTEXT'" >&2
-    echo "Valid contexts: redhat, mga, rec, warehouse, personal, content, health, academic, general" >&2
+    echo "Valid contexts: redhat, mga, rec, warehouse, personal, content, health, academic, home-automation, finance, meal-planning, family, maintenance, learning, entertainment, plex, general" >&2
     exit 1
 fi
 
@@ -174,6 +182,38 @@ case "$CONTEXT" in
     academic)
         echo "📚 Academic research context active"
         echo "   Focus: Research papers, scholarly work"
+        ;;
+    home-automation)
+        echo "🏠 Home automation context active"
+        echo "   Focus: Smart home devices, IoT management, energy optimization"
+        ;;
+    finance)
+        echo "💰 Personal finance context active"
+        echo "   Focus: Budgeting, investments, bill tracking, financial optimization"
+        ;;
+    meal-planning)
+        echo "🍽️ Meal planning context active"
+        echo "   Focus: Cooking, nutrition tracking, grocery management, meal prep"
+        ;;
+    family)
+        echo "👨‍👩‍👧‍👦 Family management context active"
+        echo "   Focus: Scheduling, communication, relationships, activities coordination"
+        ;;
+    maintenance)
+        echo "🔧 Maintenance context active"
+        echo "   Focus: Home repairs, vehicle maintenance, seasonal tasks, preventive care"
+        ;;
+    learning)
+        echo "🎓 Learning context active"
+        echo "   Focus: Personal development, courses, skills, knowledge acquisition"
+        ;;
+    entertainment)
+        echo "🎮 Entertainment context active"
+        echo "   Focus: Media management, hobby projects, gaming, leisure activities"
+        ;;
+    plex)
+        echo "🎬 Plex media server context active"
+        echo "   Focus: Media server management, streaming optimization, library organization"
         ;;
     general)
         echo "⚙️ General development context active"

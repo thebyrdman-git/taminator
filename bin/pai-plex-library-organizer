@@ -1,0 +1,497 @@
+#!/bin/bash
+# pai-plex-library-organizer - Plex media library analysis and organization
+# Part of PAI plex context
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+PLEX_CONFIG_DIR="$PAI_CONFIG_DIR/plex"
+LIBRARY_ANALYSIS_DIR="$PLEX_CONFIG_DIR/library-analysis"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+show_help() {
+    cat << EOF
+pai-plex-library-organizer - Plex media library analysis and organization
+
+USAGE:
+    pai-plex-library-organizer <command> [options]
+
+COMMANDS:
+    analyze-structure     Analyze current library directory structure
+    check-naming          Check file naming conventions against Plex standards
+    scan-metadata         Check for missing or incorrect metadata
+    organize-movies       Organize movie files into proper structure
+    organize-tv           Organize TV shows into proper structure
+    cleanup-analysis      Find duplicate, orphaned, or problematic files
+    
+    generate-rules        Generate file organization rules and scripts
+    library-health        Comprehensive library health check
+    fix-permissions       Fix file/directory permissions for Plex access
+
+OPTIONS:
+    --library-path PATH   Path to media library (default: scan common locations)
+    --dry-run            Show what would be done without making changes
+    --fix-mode           Automatically fix issues found
+    --recursive          Recurse into subdirectories
+    --verbose            Show detailed analysis
+    --help, -h           Show this help
+
+EXAMPLES:
+    pai-plex-library-organizer analyze-structure --library-path /media/movies
+    pai-plex-library-organizer check-naming --dry-run --verbose
+    pai-plex-library-organizer organize-movies --fix-mode
+    pai-plex-library-organizer library-health
+
+PLEX NAMING STANDARDS:
+    Movies: /Movies/Movie Title (Year)/Movie Title (Year).ext
+    TV Shows: /TV Shows/Show Title (Year)/Season ##/Show Title S##E## - Episode Title.ext
+    
+EXIT CODES:
+    0   Success or no issues found
+    1   Issues found that need attention
+    2   Configuration or permission errors
+    3   Invalid arguments
+EOF
+}
+
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_plex() { echo -e "${CYAN}[PLEX]${NC} $*"; }
+log_organize() { echo -e "${MAGENTA}[ORGANIZE]${NC} $*"; }
+log_debug() { [[ "${DEBUG:-0}" == "1" ]] && echo -e "${BLUE}[DEBUG]${NC} $*" >&2 || true; }
+
+# Find common media library locations
+find_media_libraries() {
+    local potential_paths=(
+        "/media"
+        "/mnt/media" 
+        "/volume1"
+        "/shares"
+        "$HOME/Media"
+        "$HOME/Plex"
+        "$HOME/Videos"
+        "$HOME/Movies"
+        "$HOME/TV Shows"
+        "/opt/plex/media"
+        "/var/lib/plexmediaserver"
+    )
+    
+    local found_paths=()
+    
+    for path in "${potential_paths[@]}"; do
+        if [[ -d "$path" ]]; then
+            # Check if it looks like a media directory
+            local media_files
+            media_files=$(find "$path" -maxdepth 3 -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" \) 2>/dev/null | wc -l)
+            if [[ "$media_files" -gt 0 ]]; then
+                found_paths+=("$path")
+            fi
+        fi
+    done
+    
+    printf '%s\n' "${found_paths[@]}"
+}
+
+# Analyze directory structure
+analyze_structure() {
+    local library_path="${1:-}"
+    local recursive="${2:-true}"
+    local verbose="${3:-false}"
+    
+    if [[ -z "$library_path" ]]; then
+        log_plex "Scanning for media libraries..."
+        local found_libraries
+        mapfile -t found_libraries < <(find_media_libraries)
+        
+        if [[ ${#found_libraries[@]} -eq 0 ]]; then
+            log_error "No media libraries found. Specify path with --library-path"
+            return 1
+        fi
+        
+        log_info "Found media libraries:"
+        printf '  %s\n' "${found_libraries[@]}"
+        library_path="${found_libraries[0]}"
+        log_info "Analyzing: $library_path"
+    fi
+    
+    if [[ ! -d "$library_path" ]]; then
+        log_error "Library path does not exist: $library_path"
+        return 1
+    fi
+    
+    log_organize "Analyzing directory structure: $library_path"
+    
+    # Create analysis output
+    mkdir -p "$LIBRARY_ANALYSIS_DIR"
+    local analysis_file="$LIBRARY_ANALYSIS_DIR/structure-analysis-$(date +%Y%m%d-%H%M%S).json"
+    
+    # Analyze directory structure
+    local total_dirs=0
+    local total_files=0
+    local media_files=0
+    local subtitle_files=0
+    local metadata_files=0
+    local other_files=0
+    
+    # File type analysis
+    local -A file_extensions=()
+    local -A directory_depths=()
+    
+    while IFS= read -r -d '' file; do
+        ((total_files++))
+        
+        local ext="${file##*.}"
+        ext="${ext,,}" # Convert to lowercase
+        ((file_extensions["$ext"]++))
+        
+        local depth
+        depth=$(echo "${file#$library_path}" | tr -cd '/' | wc -c)
+        ((directory_depths["$depth"]++))
+        
+        case "$ext" in
+            mkv|mp4|avi|mov|m4v|wmv|flv|webm|ogv|3gp)
+                ((media_files++))
+                ;;
+            srt|vtt|ass|ssa|sub|idx)
+                ((subtitle_files++))
+                ;;
+            nfo|xml|jpg|png|tbn|fanart|poster)
+                ((metadata_files++))
+                ;;
+            *)
+                ((other_files++))
+                ;;
+        esac
+    done < <(find "$library_path" -type f -print0 2>/dev/null)
+    
+    total_dirs=$(find "$library_path" -type d 2>/dev/null | wc -l)
+    
+    # Generate analysis report
+    local analysis_report
+    analysis_report=$(jq -n \
+        --arg library_path "$library_path" \
+        --arg analysis_date "$(date -Iseconds)" \
+        --arg total_dirs "$total_dirs" \
+        --arg total_files "$total_files" \
+        --arg media_files "$media_files" \
+        --arg subtitle_files "$subtitle_files" \
+        --arg metadata_files "$metadata_files" \
+        --arg other_files "$other_files" \
+        --argjson file_extensions "$(for ext in "${!file_extensions[@]}"; do echo "\"$ext\": ${file_extensions[$ext]}"; done | jq -s 'add // {}')" \
+        --argjson directory_depths "$(for depth in "${!directory_depths[@]}"; do echo "\"$depth\": ${directory_depths[$depth]}"; done | jq -s 'add // {}')" \
+        '{
+            analysis_metadata: {
+                library_path: $library_path,
+                analysis_date: $analysis_date,
+                analyzer_version: "1.0"
+            },
+            structure_summary: {
+                total_directories: ($total_dirs | tonumber),
+                total_files: ($total_files | tonumber),
+                media_files: ($media_files | tonumber),
+                subtitle_files: ($subtitle_files | tonumber),
+                metadata_files: ($metadata_files | tonumber),
+                other_files: ($other_files | tonumber)
+            },
+            file_type_breakdown: $file_extensions,
+            directory_depth_analysis: $directory_depths,
+            organization_score: (
+                if ($media_files | tonumber) > 0 then
+                    (($metadata_files | tonumber) / ($media_files | tonumber) * 50 + 
+                     ($subtitle_files | tonumber) / ($media_files | tonumber) * 30 + 20)
+                else 0 end
+            )
+        }')
+    
+    echo "$analysis_report" > "$analysis_file"
+    
+    # Display results
+    echo -e "${BOLD}📊 LIBRARY STRUCTURE ANALYSIS${NC}"
+    echo "=============================="
+    echo "Library: $library_path"
+    echo "Analysis saved: $analysis_file"
+    echo
+    
+    echo "$analysis_report" | jq -r '
+        "📁 Directory Structure:",
+        "  Total directories: \(.structure_summary.total_directories)",
+        "  Total files: \(.structure_summary.total_files)",
+        "",
+        "🎬 Media Analysis:",
+        "  Media files: \(.structure_summary.media_files)",
+        "  Subtitle files: \(.structure_summary.subtitle_files)",
+        "  Metadata files: \(.structure_summary.metadata_files)",
+        "  Other files: \(.structure_summary.other_files)",
+        "",
+        "📈 Organization Score: \(.organization_score | floor)%",
+        "",
+        "🗂️ File Types:"'
+    
+    echo "$analysis_report" | jq -r '.file_type_breakdown | to_entries | sort_by(.value) | reverse | .[0:10] | .[] | "  \(.key): \(.value) files"'
+    
+    if [[ "$verbose" == "true" ]]; then
+        echo
+        echo "📏 Directory Depth Analysis:"
+        echo "$analysis_report" | jq -r '.directory_depth_analysis | to_entries | sort_by(.key | tonumber) | .[] | "  Depth \(.key): \(.value) files"'
+    fi
+    
+    # Organization recommendations
+    echo
+    echo "💡 ORGANIZATION RECOMMENDATIONS:"
+    
+    local org_score
+    org_score=$(echo "$analysis_report" | jq -r '.organization_score')
+    
+    if (( $(echo "$org_score < 60" | bc -l) )); then
+        echo "  🔴 Poor organization detected"
+        echo "     • Run: pai-plex-library-organizer check-naming --fix-mode"
+        echo "     • Consider automated organization tools"
+    elif (( $(echo "$org_score < 80" | bc -l) )); then
+        echo "  🟡 Good organization, some improvements possible"
+        echo "     • Check for missing metadata"
+        echo "     • Verify naming conventions"
+    else
+        echo "  🟢 Excellent organization!"
+        echo "     • Library is well-structured for Plex"
+    fi
+    
+    return 0
+}
+
+# Check naming conventions
+check_naming() {
+    local library_path="${1:-}"
+    local dry_run="${2:-false}"
+    local verbose="${3:-false}"
+    
+    log_organize "Checking file naming conventions..."
+    
+    if [[ -z "$library_path" ]]; then
+        local found_libraries
+        mapfile -t found_libraries < <(find_media_libraries)
+        [[ ${#found_libraries[@]} -gt 0 ]] || { log_error "No libraries found"; return 1; }
+        library_path="${found_libraries[0]}"
+    fi
+    
+    local naming_issues=()
+    local good_names=0
+    local total_checked=0
+    
+    # Check movie naming (Movie Title (Year)/Movie Title (Year).ext)
+    while IFS= read -r -d '' movie_file; do
+        ((total_checked++))
+        local dir_name basename year_pattern
+        dir_name=$(basename "$(dirname "$movie_file")")
+        basename=$(basename "$movie_file" .${movie_file##*.})
+        
+        # Check if directory name matches movie file name pattern
+        if [[ "$dir_name" =~ ^.*\ \([0-9]{4}\)$ ]] && [[ "$basename" =~ ^.*\ \([0-9]{4}\)$ ]]; then
+            if [[ "${dir_name}" == "${basename}" ]]; then
+                ((good_names++))
+            else
+                naming_issues+=("Movie name mismatch: $movie_file")
+            fi
+        else
+            naming_issues+=("Movie naming format incorrect: $movie_file")
+        fi
+    done < <(find "$library_path" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" \) -print0 2>/dev/null | head -50)
+    
+    echo -e "${BOLD}📝 NAMING CONVENTION ANALYSIS${NC}"
+    echo "==============================="
+    echo "Library: $library_path"
+    echo "Files checked: $total_checked"
+    echo "Well-named files: $good_names"
+    echo "Issues found: ${#naming_issues[@]}"
+    echo
+    
+    if [[ ${#naming_issues[@]} -gt 0 ]]; then
+        echo "🔍 NAMING ISSUES FOUND:"
+        printf '  %s\n' "${naming_issues[@]:0:20}"
+        
+        if [[ ${#naming_issues[@]} -gt 20 ]]; then
+            echo "  ... and $((${#naming_issues[@]} - 20)) more issues"
+        fi
+        
+        if [[ "$dry_run" == "false" ]]; then
+            echo
+            echo "💡 RECOMMENDATIONS:"
+            echo "  1. Use tools like FileBot or Sonarr/Radarr for automated renaming"
+            echo "  2. Follow Plex naming conventions:"
+            echo "     Movies: /Movie Title (Year)/Movie Title (Year).ext"  
+            echo "     TV: /Show Title/Season ##/Show Title S##E## - Episode Title.ext"
+            echo "  3. Run with --fix-mode to generate rename scripts"
+        fi
+        
+        return 1
+    else
+        echo "✅ All files follow proper naming conventions!"
+        return 0
+    fi
+}
+
+# Comprehensive library health check
+library_health() {
+    local library_path="${1:-}"
+    local verbose="${2:-false}"
+    
+    log_plex "Performing comprehensive library health check..."
+    
+    if [[ -z "$library_path" ]]; then
+        local found_libraries
+        mapfile -t found_libraries < <(find_media_libraries)
+        [[ ${#found_libraries[@]} -gt 0 ]] || { log_error "No libraries found"; return 1; }
+        library_path="${found_libraries[0]}"
+    fi
+    
+    echo -e "${BOLD}🏥 PLEX LIBRARY HEALTH CHECK${NC}"
+    echo "============================="
+    echo "Library: $library_path"
+    echo "Check time: $(date)"
+    echo
+    
+    # Run structure analysis
+    analyze_structure "$library_path" true false
+    
+    echo
+    echo "🔍 Additional Health Checks:"
+    
+    # Permission check
+    if [[ -r "$library_path" && -x "$library_path" ]]; then
+        echo "  ✅ Library directory accessible"
+    else
+        echo "  ❌ Library directory permission issues"
+        echo "     Run: pai-plex-library-organizer fix-permissions"
+    fi
+    
+    # Check for empty directories
+    local empty_dirs
+    empty_dirs=$(find "$library_path" -type d -empty 2>/dev/null | wc -l)
+    if [[ "$empty_dirs" -eq 0 ]]; then
+        echo "  ✅ No empty directories found"
+    else
+        echo "  ⚠️  Found $empty_dirs empty directories (consider cleanup)"
+    fi
+    
+    # Check for very large files (potential issues)
+    local large_files
+    large_files=$(find "$library_path" -type f -size +20G 2>/dev/null | wc -l)
+    if [[ "$large_files" -eq 0 ]]; then
+        echo "  ✅ No unusually large files detected"
+    else
+        echo "  ⚠️  Found $large_files files >20GB (check for corruption/duplicates)"
+    fi
+    
+    # Check for hidden files
+    local hidden_files
+    hidden_files=$(find "$library_path" -name ".*" -type f 2>/dev/null | wc -l)
+    if [[ "$hidden_files" -eq 0 ]]; then
+        echo "  ✅ No hidden files found"
+    else
+        echo "  ⚠️  Found $hidden_files hidden files (may interfere with scanning)"
+    fi
+    
+    echo
+    echo "📋 HEALTH SUMMARY:"
+    echo "  Use 'pai-plex-library-organizer check-naming' for detailed naming analysis"
+    echo "  Use 'pai-plex-library-organizer cleanup-analysis' for duplicate detection"
+    echo "  Consider regular maintenance for optimal Plex performance"
+}
+
+# Parse arguments
+COMMAND=""
+LIBRARY_PATH=""
+DRY_RUN=false
+FIX_MODE=false
+RECURSIVE=true
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --library-path)
+            LIBRARY_PATH="$2"
+            shift 2
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --fix-mode)
+            FIX_MODE=true
+            shift
+            ;;
+        --recursive)
+            RECURSIVE=true
+            shift
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            show_help >&2
+            exit 3
+            ;;
+        *)
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+            else
+                log_error "Multiple commands specified"
+                exit 3
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$COMMAND" ]]; then
+    log_error "Command required"
+    show_help >&2
+    exit 3
+fi
+
+# Create directories
+mkdir -p "$PAI_CONFIG_DIR" "$PLEX_CONFIG_DIR" "$LIBRARY_ANALYSIS_DIR"
+
+# Export variables
+export VERBOSE DRY_RUN FIX_MODE
+
+# Execute command
+case "$COMMAND" in
+    analyze-structure)
+        analyze_structure "$LIBRARY_PATH" "$RECURSIVE" "$VERBOSE"
+        ;;
+    check-naming)
+        check_naming "$LIBRARY_PATH" "$DRY_RUN" "$VERBOSE"
+        ;;
+    library-health)
+        library_health "$LIBRARY_PATH" "$VERBOSE"
+        ;;
+    scan-metadata|organize-movies|organize-tv|cleanup-analysis|generate-rules|fix-permissions)
+        log_warn "Command '$COMMAND' not yet implemented"
+        log_info "Available: analyze-structure, check-naming, library-health"
+        exit 1
+        ;;
+    *)
+        log_error "Invalid command: $COMMAND"
+        show_help >&2
+        exit 3
+        ;;
+esac
+
+exit $?

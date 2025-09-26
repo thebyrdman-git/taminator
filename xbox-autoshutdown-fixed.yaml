@@ -1,0 +1,31 @@
+alias: "Xbox Auto-Shutdown Energy Saver"
+description: "Automatically shut down Xbox consoles after 2 hours of idle time to save energy"
+trigger:
+  - platform: state
+    entity_id: 
+      - media_player.xboxone
+      - media_player.xboxone_2
+    to: "idle"
+    for:
+      hours: 2
+condition:
+  - condition: time
+    after: "22:00:00"
+    before: "06:00:00"
+  - condition: time
+    weekday:
+      - sun
+      - mon
+      - tue
+      - wed
+      - thu
+action:
+  - service: media_player.turn_off
+    target:
+      entity_id: "{{ trigger.entity_id }}"
+  - service: notify.persistent_notification
+    data:
+      title: "💡 Energy Savings"
+      message: "Xbox {{ trigger.entity_id.split('.')[1] }} auto-shutdown after 2hrs idle. Saving ~$0.65 tonight!"
+      notification_id: "xbox_energy_{{ trigger.entity_id.split('.')[1] }}"
+mode: parallel
