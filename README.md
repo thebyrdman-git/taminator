@@ -1,162 +1,130 @@
-# Red Hat PAI - Personal AI Infrastructure
+# Personal PAI - Home AI Infrastructure 
 
-Personal AI Infrastructure for Red Hat teams, providing unified context management across AI tools while maintaining Red Hat AI policy compliance.
+Personal AI Infrastructure for home automation, media management, and energy optimization.
 
-## Features
-- **Multi-Tool Integration**: Gemini CLI, Cursor IDE, Fabric AI, LiteLLM Proxy
-- **Secure by Design**: External secrets management, no hardcoded credentials
-- **TAM Workflow Tools**: Specialized scripts for Technical Account Managers
+## 🏠 What This Is
 
-## Prerequisites
+**Hatter** - Your personal AI assistant for smart home management, based on Red Hat's PAI framework but customized for home use.
 
-**Complete these Red Hat-specific steps first:**
+### Key Capabilities
 
-1. **Red Hat AI Models API Keys** (VPN required): https://developer.models.corp.redhat.com
-2. **Cursor IDE Setup**: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor
-3. **Gemini API Key**: https://source.redhat.com/departments/it/datacenter_infrastructure/itcloudservices/itpubliccloudpage/cloud/gcp/gcpgeminiapi
-4. **Personal Access Token**: https://spaces.redhat.com/spaces/OMEGA/pages/228005232/Personal+Access+Token+Usage
+🏡 **Home Automation**
+- Home Assistant integration with 432+ devices
+- Energy monitoring and optimization (Green Button data support)
+- Smart scheduling and automation templates
+- IoT security monitoring
 
-## Quick Install
+🎬 **Media Management** 
+- Plex Media Server management (miraclemax server)
+- Library organization and optimization
+- Remote server administration
 
-```bash
-curl -sSL https://gitlab.cee.redhat.com/gvaughn/hatter-pai/-/raw/main/install.sh | bash
-```
+⚡ **Energy Optimization**
+- Real-time cost monitoring and alerts  
+- Smart device scheduling (Xbox auto-shutdown, camera scheduling)
+- Peak hours optimization (projected $54.50/month savings)
+- Green Button utility data integration
 
-The installer will verify you've completed the prerequisites before proceeding.
+🤖 **Private AI Processing**
+- LiteLLM integration for data sovereignty
+- Context-aware task management
+- Anti-dilution focused contexts
 
-## What You Get
-
-### AI Tools Integration
-- **Gemini CLI**: Project-specific rules and context
-- **Cursor IDE**: Project-specific rules and context
-- **Fabric AI**: Red Hat compliant patterns and processing via LiteLLM model selection
-- **LiteLLM Proxy**: Local proxy for Red Hat AI models with compliance routing
-
-### Red Hat Workflow Scripts
-- **Case Management**: pai-case-processor, pai-supportshell, pai-case-sync-improved
-- **Customer Tools**: pai-hydra, pai-onboard-customer, pai-meeting-prep
-- **Compliance**: pai-compliance-check, pai-audit, pai-fabric-compliant
-- **Documentation**: pai-confluence, pai-gdocs-sync, pai-projects
-
-### Security & Compliance
-- **Secrets Management**: External secrets in `~/.config/pai/secrets/`
-- **Audit Logging**: Complete audit trail for all operations
-- **Data Classification**: Automatic Red Hat model routing
-- **Zero Hardcoded Credentials**: All authentication externalized
-
-## Directory Structure
-
-```
-~/pai-context/
-├── redhat/                 # Red Hat business context
-│   ├── contexts/           # Hatter personality, Red Hat context
-│   ├── config/             # Red Hat model configurations
-│   └── bin/                # Red Hat workflow scripts
-└── personal/               # Personal/other business contexts
-
-~/.config/pai/
-└── secrets/                # Secure credential storage (NOT in repo)
-```
-
-## Usage Examples
+## 🚀 Quick Start
 
 ```bash
-# Check current PAI status
-pai-context-current
+# Switch to home automation context
+pai-context-switch home-automation
 
-# Process a support case
-pai-case-processor
+# Check Home Assistant status
+pai-home-assistant status
 
-# Generate compliance brief
-pai-brief-generate
+# Analyze energy usage
+pai-energy-optimize analyze
 
-# Use Gemini with Red Hat context
-gemini
-> Run pai-supportshell for case 04243222
+# Set up Plex management
+pai-plex-remote setup
+
+# Create focused task context  
+pai-context-task plex-management
 ```
 
-## Installation for Red Hat Teams
+## 🛠️ Available Tools
 
-The installation script:
-1. Creates Red Hat PAI context structure
-2. Installs Fabric AI and LiteLLM proxy locally
-3. Installs Red Hat specific workflow scripts
-4. Configures Gemini CLI with Hatter personality
-5. Sets up secure secrets management
-6. Configures Cursor IDE integration
-7. Starts local LiteLLM proxy for Red Hat model access
+### Core PAI System
+- `pai-context-switch` - Switch between home, plex, finance, etc.
+- `pai-context-task` - Create focused task contexts (prevents AI dilution)
+- `pai-rules-generate` - Generate Cursor AI rules for contexts
 
-## 🧠 **How Fabric + LiteLLM Works**
+### Home Automation
+- `pai-home-assistant` - HA integration (secure token management)
+- `pai-energy-optimize` - Energy analysis and optimization
+- `pai-energy-scheduler` - Smart automation generation
+- `pai-iot-security` - Network security monitoring
 
-```mermaid
-graph TD
-    A[PAI Script] --> B{Content Detection}
-    B -->|Customer Data| C[gemini-pro,RH Models,Local Models]
-    B -->|Coding/Personal Data| D[gpt-5, gemini-pro, etc.]
+### Media & Entertainment  
+- `pai-plex-remote` - Plex server management (miraclemax)
+- `pai-plex-library-organizer` - Media library organization
 
-    C --> E[Fabric AI]
-    D --> E[Fabric AI]
+### Energy Management
+- `pai-greenbutton-import` - Utility data import and analysis
+- `pai-energy-dashboard` - Real-time monitoring
+- `pai-energy-discovery` - Device power profiling
 
-    E --> F{Model Router}
-    F -->|Red Hat Models| G[LiteLLM Proxy]
-    F -->|External Models| H[Direct API]
+## 🏗️ System Architecture
 
-    G --> I[Local Models]
-    I --> J[Red Hat Infrastructure]
-    J --> K[Granite Models]
+```
+miraclemax (HP Server - 192.168.1.34)
+├── Home Assistant VM (192.168.1.39)  
+│   └── 432 smart home devices
+│   └── DuckDNS SSL: byrdhome.duckdns.org
+└── Plex Media Server (192.168.1.17)
+    └── Byrd Library media collection
 
-    H --> L[OpenAI/Google/Anthropic]
-
-    style C fill:#ff9999
-    style G fill:#ff9999
-    style K fill:#ff9999
-    style A fill:#99ccff
-    style E fill:#99ff99
+Local PAI Client (Fedora)
+├── ~/.config/pai/secrets/ (GPG encrypted tokens)
+├── ~/hatter-pai/ (this repository)
+└── Context management & AI tools
 ```
 
-**Fabric AI knows about ALL models**:
-- OpenAI models: `gpt-4o`, `gpt-5`, `o1-preview`
-- Google models: `gemini-pro`, `gemini-flash`
-- Anthropic models: `claude-3-5-sonnet`, `claude-3-haiku`
-- **Red Hat models (via LiteLLM)**: `granite-34b-instruct`, `granite-7b-instruct`
+## 🔐 Security & Privacy
 
-### Smart PAI Script Wrappers
+- **All tokens GPG encrypted** in `~/.config/pai/secrets/`
+- **No hardcoded credentials** in any scripts
+- **Personal data stays local** (customer/case files gitignored)
+- **Data sovereignty** via LiteLLM for sensitive processing
+
+## 📊 Energy Optimization Results
+
+**Smart Automations Deployed:**
+- Xbox auto-shutdown after 2hrs idle (nights/weekdays)  
+- Camera motion detection scheduling (2-6 AM pause)
+- Peak hours alerts (5-9 PM weekdays)
+- Load balancing recommendations
+
+**Projected Annual Savings: $654** 💰
+
+## 🤖 AI Context Management
+
+Smart context switching prevents AI dilution:
 
 ```bash
-# pai-fabric-compliant: Always uses Red Hat Granite models
-pai-fabric-compliant --pattern extract_wisdom customer_case.md
-# Internally runs: fabric --model granite-34b-instruct --pattern extract_wisdom
+# System-wide contexts
+pai-context-switch plex          # Media server focus
+pai-context-switch home-automation # Smart home focus  
+pai-context-switch finance       # Budget & investment focus
 
-# pai-fabric-hybrid: Context-aware model selection
-pai-fabric-hybrid --pattern summarize mixed_content.md
-# Customer data detected → uses granite-34b-instruct
-# Personal data → uses gpt-4o (or your preference)
-
-# Direct fabric: Full model choice for personal work
-fabric --model gemini-pro --pattern daily_brief personal_notes.md
+# Task-specific contexts (anti-dilution)
+pai-context-task plex-management      # Focused Plex work
+pai-context-task energy-optimization  # Focused energy work
 ```
 
-**LiteLLM Proxy Configuration** (installed locally):
-```yaml
-model_list:
-  - model_name: granite-34b-instruct
-    litellm_params:
-      model: granite-34b-instruct
-      base_url: http://rh-internal-models:8080  # via Red Hat VPN
-```
+Each context provides:
+- ✅ Specialized tool access
+- ✅ Relevant knowledge base  
+- ✅ Context-appropriate AI behavior
+- ✅ Reduced cognitive load
 
-**Result**: Fabric sees `granite-34b-instruct` as just another model available at localhost!
+---
 
-### Compliance Made Simple
-
-```bash
-# For customer data - PAI scripts choose compliant models automatically
-pai-case-processor support_ticket.md        # Uses granite-34b-instruct
-pai-email-processor customer_email.txt      # Uses granite-34b-instruct
-
-# For coding or personal work - use any model you want
-fabric --model gpt-5 --pattern extract_ideas personal_research.md
-fabric --model gemini-pro --pattern summarize meeting_notes.md
-```
-
-📊 **For detailed architecture diagrams and flows, see [ARCHITECTURE-DIAGRAM.md](./ARCHITECTURE-DIAGRAM.md)**
+**Built on Red Hat PAI Framework** | **Home AI Infrastructure** | **Privacy-First Design**
