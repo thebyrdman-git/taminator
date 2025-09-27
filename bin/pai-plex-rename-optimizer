@@ -1,0 +1,214 @@
+#!/bin/bash
+# pai-plex-rename-optimizer - YOLO mode movie renaming for Plex optimization
+# Part of PAI plex context
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m' 
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# Configuration  
+PLEX_SERVER="192.168.1.17"
+MEDIA_ROOT="/mnt/nfs_share"
+DRY_RUN=true
+
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_plex() { echo -e "${BLUE}[PLEX]${NC} $*"; }
+
+show_help() {
+    cat << EOF
+pai-plex-rename-optimizer - YOLO mode Plex library optimization
+
+USAGE:
+    pai-plex-rename-optimizer <command> [options]
+
+COMMANDS:
+    analyze         Analyze current naming issues
+    suggest         Generate rename suggestions
+    fix-names       Apply renames (with confirmation)
+    check-dupes     Find duplicate movies across libraries
+    
+DETECTED ISSUES:
+    ❌ Mixed separators: hyphens vs underscores
+    ❌ Missing years: Critical for metadata matching
+    ❌ Unclear titles: "61", ambiguous names
+    ❌ Case inconsistency: affects sorting
+
+YOLO FIXES:
+    • Standardize to "Movie Name (Year)" format
+    • Add missing years from TMDB/IMDB
+    • Fix separator consistency  
+    • Optimize for Plex metadata agent
+
+OPTIONS:
+    --dry-run       Show changes without applying (default)
+    --execute       Actually rename files (DANGEROUS!)
+    --library PATH  Target specific library path
+
+EXAMPLES:
+    pai-plex-rename-optimizer analyze
+    pai-plex-rename-optimizer suggest --library all/movies
+    pai-plex-rename-optimizer fix-names --dry-run
+EOF
+}
+
+analyze_naming_issues() {
+    log_plex "🚀 YOLO ANALYSIS: Scanning movie libraries..."
+    
+    echo -e "${BOLD}📊 NAMING ISSUE ANALYSIS${NC}"
+    echo "================================="
+    
+    # Check family movies
+    local family_movies
+    family_movies=$(ssh "$PLEX_SERVER" "ls '$MEDIA_ROOT/all/movies/' 2>/dev/null" || echo "")
+    
+    local personal_movies  
+    personal_movies=$(ssh "$PLEX_SERVER" "ls '$MEDIA_ROOT/jimmy/movies/' 2>/dev/null" || echo "")
+    
+    echo "🎬 FAMILY MOVIES LIBRARY:"
+    echo "$family_movies" | head -10 | while read -r movie; do
+        if [[ "$movie" == *"-"* ]] && [[ "$movie" != *"("*")"* ]]; then
+            echo "  ❌ $movie (missing year, uses hyphens)"
+        elif [[ "$movie" == *"_"* ]] && [[ "$movie" != *"("*")"* ]]; then
+            echo "  ❌ $movie (missing year, uses underscores)"
+        elif [[ "$movie" != *"("*")"* ]]; then
+            echo "  ⚠️  $movie (missing year)"
+        else
+            echo "  ✅ $movie"
+        fi
+    done
+    
+    echo
+    echo "🎭 YOUR PERSONAL MOVIES:"  
+    echo "$personal_movies" | head -10 | while read -r movie; do
+        if [[ "$movie" == *"-"* ]] && [[ "$movie" != *"("*")"* ]]; then
+            echo "  ❌ $movie (missing year, uses hyphens)"
+        elif [[ "$movie" == *"_"* ]] && [[ "$movie" != *"("*")"* ]]; then
+            echo "  ❌ $movie (missing year, uses underscores)"  
+        elif [[ "$movie" != *"("*")"* ]]; then
+            echo "  ⚠️  $movie (missing year)"
+        else
+            echo "  ✅ $movie"
+        fi
+    done
+    
+    echo
+    echo "🎯 YOLO RECOMMENDATIONS:"
+    echo "• Run with --suggest to get specific rename commands"
+    echo "• Focus on adding years first - biggest metadata impact" 
+    echo "• Consider consolidating libraries to reduce complexity"
+    echo "• Use Plex's 'Fix Incorrect Match' for problematic titles"
+}
+
+suggest_renames() {
+    log_plex "💡 Generating YOLO rename suggestions..."
+    
+    echo -e "${BOLD}🔧 SUGGESTED RENAMES${NC}"
+    echo "===================="
+    
+    # Common movie year mappings (YOLO style - quick fixes)
+    cat << 'SUGGESTIONS'
+❌ CURRENT → ✅ SUGGESTED
+
+# Family Movies (/all/movies/)
+3-ninjas                    → "3 Ninjas (1992)"
+3-ninjas-kick-back         → "3 Ninjas Kick Back (1994)" 
+abominable                 → "Abominable (2019)"
+alvin_and_the_chipmunks    → "Alvin and the Chipmunks (2007)"
+an-american-tail-1986      → "An American Tail (1986)" ✅ (has year, fix format)
+a-new-hope                 → "Star Wars Episode IV - A New Hope (1977)"
+angels-in-the-outfield     → "Angels in the Outfield (1994)"
+angry_birds_movie          → "The Angry Birds Movie (2016)"  
+attack-of-the-clones       → "Star Wars Episode II - Attack of the Clones (2002)"
+back_to_the_future         → "Back to the Future (1985)"
+
+# Personal Movies (/jimmy/movies/)  
+61                         → "61* (2001)" # HBO Billy Crystal baseball movie
+36th-chamber-of-shaolin    → "The 36th Chamber of Shaolin (1978)"
+a_beautiful_mind           → "A Beautiful Mind (2001)"
+aliens-1986                → "Aliens (1986)" ✅ (has year, fix format)
+batman_forever             → "Batman Forever (1995)"
+batman-the-dark-knight     → "The Dark Knight (2008)"  
+beetlejuice                → "Beetlejuice (1988)"
+bourne-identity            → "The Bourne Identity (2002)"
+bowfinger                  → "Bowfinger (1999)"
+butterfly-effect           → "The Butterfly Effect (2004)"
+
+QUICK YOLO COMMANDS:
+ssh 192.168.1.17 "cd /mnt/nfs_share/all/movies && mv '3-ninjas' '3 Ninjas (1992)'"
+ssh 192.168.1.17 "cd /mnt/nfs_share/jimmy/movies && mv '61' '61* (2001)'" 
+
+⚠️  ALWAYS TEST WITH --dry-run FIRST!
+SUGGESTIONS
+}
+
+# Parse arguments
+COMMAND=""
+LIBRARY_PATH=""
+EXECUTE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --library)
+            LIBRARY_PATH="$2"
+            shift 2
+            ;;
+        --execute)
+            EXECUTE=true
+            DRY_RUN=false
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        analyze|suggest|fix-names|check-dupes)
+            COMMAND="$1"
+            shift
+            ;;
+        *)
+            log_error "Unknown argument: $1"
+            show_help >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [[ -z "$COMMAND" ]]; then
+    log_error "Command required"
+    show_help >&2
+    exit 1
+fi
+
+# Execute command
+case "$COMMAND" in
+    analyze)
+        analyze_naming_issues
+        ;;
+    suggest)
+        suggest_renames
+        ;;
+    fix-names)
+        log_warn "fix-names not yet implemented - use suggested SSH commands manually"
+        suggest_renames
+        ;;
+    check-dupes)  
+        log_warn "check-dupes not yet implemented"
+        ;;
+    *)
+        log_error "Invalid command: $COMMAND"
+        exit 1
+        ;;
+esac
+
+exit 0

@@ -9,7 +9,7 @@ PAI_CONFIG_DIR="$HOME/.config/pai"
 PLEX_CONFIG_DIR="$PAI_CONFIG_DIR/plex"
 PLEX_SERVER_IP="192.168.1.17"
 PLEX_PORT="32400"
-PLEX_TOKEN_FILE="$PAI_CONFIG_DIR/secrets/plex-token.gpg"
+PLEX_TOKEN_FILE="$PAI_CONFIG_DIR/secrets/plex-token.txt"
 
 # Colors
 RED='\033[0;31m'
@@ -84,8 +84,8 @@ get_plex_token() {
         exit 2
     fi
     
-    if ! gpg --quiet --decrypt "$PLEX_TOKEN_FILE" 2>/dev/null; then
-        log_error "Failed to decrypt Plex token"
+    if ! cat "$PLEX_TOKEN_FILE" 2>/dev/null; then
+        log_error "Failed to read Plex token"
         exit 2
     fi
 }
@@ -264,7 +264,7 @@ show_recent_activity() {
     sessions=$(plex_api_call "/status/sessions")
     if [[ $? -eq 0 ]]; then
         local active_streams
-        active_streams=$(echo "$sessions" | grep -c "Video\|Audio" || echo "0")
+        active_streams=$(echo "$sessions" | grep -c "Video\|Audio" 2>/dev/null || echo "0")
         
         if [[ "$json_output" == "true" ]]; then
             echo "$sessions"
