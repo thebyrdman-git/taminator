@@ -1,0 +1,242 @@
+#!/bin/bash
+
+# PAI Cursor Integration Script
+# Integrates voice commands with Cursor IDE toolbar and context menus
+# Part of the Personal AI Infrastructure (PAI)
+
+SCRIPT_DIR="$(dirname "$0")"
+PAI_ROOT="$(dirname "$SCRIPT_DIR")"
+UI_CONFIG_DIR="$PAI_ROOT/ui-integration"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+NC='\033[0m'
+BOLD='\033[1m'
+
+# Handle command routing from Cursor
+handle_cursor_command() {
+    local command="$1"
+    
+    case "$command" in
+        "pai.voice.live")
+            echo -e "${CYAN}🎤 Starting Live Voice Recognition from Cursor...${NC}"
+            exec "$SCRIPT_DIR/pai-voice-live"
+            ;;
+        "pai.voice.chat")
+            echo -e "${BLUE}💬 Starting Voice Chat Mode from Cursor...${NC}"
+            exec "$SCRIPT_DIR/pai-voice-command" 
+            ;;
+        "pai.voice.plex")
+            echo -e "${YELLOW}🎬 Starting Plex Voice Control from Cursor...${NC}"
+            exec "$SCRIPT_DIR/pai-voice-plex"
+            ;;
+        "pai.voice.toggle")
+            echo -e "${GREEN}🎛️ Opening Voice UI Toggle from Cursor...${NC}"
+            exec "$SCRIPT_DIR/pai-ui-voice-toggle"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}"
+            exit 1
+            ;;
+    esac
+}
+
+# Install integration
+install_cursor_integration() {
+    echo -e "${BOLD}${CYAN}🚀 Installing PAI Voice Commands in Cursor${NC}"
+    echo "================================================"
+    
+    # Find Cursor config directory
+    local cursor_config=""
+    local possible_paths=(
+        "$HOME/.cursor"
+        "$HOME/.config/cursor"
+        "$HOME/Library/Application Support/Cursor"
+        "$HOME/AppData/Roaming/Cursor"
+    )
+    
+    for path in "${possible_paths[@]}"; do
+        if [[ -d "$path" ]]; then
+            cursor_config="$path"
+            break
+        fi
+    done
+    
+    if [[ -z "$cursor_config" ]]; then
+        echo -e "${YELLOW}⚠️  Cursor config directory not found automatically${NC}"
+        echo "Please manually copy the configuration:"
+        echo ""
+        echo -e "${BLUE}Configuration file:${NC} $UI_CONFIG_DIR/cursor-commands.json"
+        echo ""
+        echo -e "${BOLD}Manual Setup Instructions:${NC}"
+        echo "1. Open Cursor Settings"
+        echo "2. Go to Keyboard Shortcuts"
+        echo "3. Add custom commands from cursor-commands.json"
+        echo "4. Set keybindings: Ctrl+Alt+V, Ctrl+Alt+C, Ctrl+Alt+P, Ctrl+Alt+T"
+        return
+    fi
+    
+    echo -e "${GREEN}✅ Found Cursor config at: $cursor_config${NC}"
+    
+    # Create commands integration
+    local user_config="$cursor_config/User"
+    mkdir -p "$user_config"
+    
+    # Copy configuration
+    if [[ -f "$UI_CONFIG_DIR/cursor-commands.json" ]]; then
+        echo -e "${BLUE}📋 Installing command palette integration...${NC}"
+        cp "$UI_CONFIG_DIR/cursor-commands.json" "$user_config/pai-voice-commands.json"
+        echo -e "${GREEN}✅ Commands installed${NC}"
+    fi
+    
+    # Create launcher script
+    local launcher_script="$user_config/pai-launcher.sh"
+    cat > "$launcher_script" << 'EOF'
+#!/bin/bash
+# PAI Voice Command Launcher for Cursor
+SCRIPT_DIR="$(dirname "$0")"
+source /home/jbyrd/hatter-pai/bin/pai-cursor-integration
+handle_cursor_command "$1"
+EOF
+    chmod +x "$launcher_script"
+    
+    echo ""
+    echo -e "${BOLD}${GREEN}🎉 PAI Voice Integration Installed!${NC}"
+    echo "=================================="
+    echo ""
+    echo -e "${BOLD}Available Keyboard Shortcuts:${NC}"
+    echo -e "  ${CYAN}Ctrl+Alt+V${NC} - 🎤 Live Voice Recognition"
+    echo -e "  ${CYAN}Ctrl+Alt+C${NC} - 💬 Voice Chat Mode"
+    echo -e "  ${CYAN}Ctrl+Alt+P${NC} - 🎬 Plex Voice Control"
+    echo -e "  ${CYAN}Ctrl+Alt+T${NC} - 🎛️ Voice UI Toggle"
+    echo ""
+    echo -e "${BOLD}Context Menu:${NC}"
+    echo "  Right-click in editor → PAI Voice Commands"
+    echo ""
+    echo -e "${BOLD}Command Palette:${NC}"
+    echo "  Ctrl+Shift+P → Search 'PAI Voice'"
+    echo ""
+    echo -e "${YELLOW}💡 Restart Cursor to activate the integration${NC}"
+}
+
+# Show current status
+show_status() {
+    echo -e "${BOLD}${BLUE}📊 PAI Voice Integration Status${NC}"
+    echo "================================"
+    echo ""
+    
+    echo -e "${BOLD}Available Commands:${NC}"
+    echo -e "  🎤 Live Voice: ${GREEN}$(command -v pai-voice-live >/dev/null && echo "Ready" || echo "Not Found")${NC}"
+    echo -e "  💬 Voice Chat: ${GREEN}$(command -v pai-voice-command >/dev/null && echo "Ready" || echo "Not Found")${NC}"
+    echo -e "  🎬 Plex Voice: ${GREEN}$(command -v pai-voice-plex >/dev/null && echo "Ready" || echo "Not Found")${NC}"
+    echo -e "  🎛️ UI Toggle: ${GREEN}$(command -v pai-ui-voice-toggle >/dev/null && echo "Ready" || echo "Not Found")${NC}"
+    echo ""
+    
+    echo -e "${BOLD}Voice System Status:${NC}"
+    if [[ -f "$HOME/.config/pai/voice-ui-state" ]]; then
+        local current_mode=$(cat "$HOME/.config/pai/voice-ui-state")
+        echo -e "  Current Mode: ${YELLOW}$current_mode${NC}"
+    else
+        echo -e "  Current Mode: ${RED}off${NC}"
+    fi
+    
+    echo ""
+    echo -e "${BOLD}Integration Files:${NC}"
+    echo -e "  Config: ${BLUE}$UI_CONFIG_DIR/cursor-commands.json${NC}"
+    echo -e "  Toggle UI: ${BLUE}$SCRIPT_DIR/pai-ui-voice-toggle${NC}"
+}
+
+# Create desktop/launcher shortcuts
+create_shortcuts() {
+    echo -e "${BOLD}${GREEN}🔗 Creating Desktop Shortcuts${NC}"
+    echo "============================="
+    
+    local desktop_dir="$HOME/Desktop"
+    local applications_dir="$HOME/.local/share/applications"
+    
+    mkdir -p "$applications_dir"
+    
+    # Voice Toggle shortcut
+    cat > "$applications_dir/pai-voice-toggle.desktop" << EOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=PAI Voice Commands
+Comment=Voice-controlled Personal AI Infrastructure
+Exec=$SCRIPT_DIR/pai-ui-voice-toggle
+Icon=audio-input-microphone
+Terminal=true
+StartupNotify=true
+Categories=Development;Utility;
+Keywords=voice;ai;plex;automation;
+EOF
+    
+    # Live Voice shortcut
+    cat > "$applications_dir/pai-voice-live.desktop" << EOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=PAI Live Voice
+Comment=Real-time speech recognition with Hatter
+Exec=$SCRIPT_DIR/pai-voice-live
+Icon=audio-input-microphone
+Terminal=true
+StartupNotify=true
+Categories=Development;Utility;
+Keywords=voice;speech;recognition;ai;
+EOF
+    
+    chmod +x "$applications_dir"/*.desktop
+    
+    echo -e "${GREEN}✅ Desktop shortcuts created${NC}"
+    echo -e "${BLUE}💡 Check Applications menu for 'PAI Voice' entries${NC}"
+}
+
+# Main function
+main() {
+    case "${1:-}" in
+        "install")
+            install_cursor_integration
+            create_shortcuts
+            ;;
+        "status")
+            show_status
+            ;;
+        "shortcuts")
+            create_shortcuts
+            ;;
+        "pai.voice.live"|"pai.voice.chat"|"pai.voice.plex"|"pai.voice.toggle")
+            handle_cursor_command "$1"
+            ;;
+        "--help"|"-h"|"")
+            echo -e "${BOLD}${CYAN}PAI Cursor Integration${NC}"
+            echo "====================="
+            echo ""
+            echo -e "${BOLD}Usage:${NC}"
+            echo "  $0 install    - Install Cursor integration"
+            echo "  $0 status     - Show integration status" 
+            echo "  $0 shortcuts  - Create desktop shortcuts"
+            echo ""
+            echo -e "${BOLD}Voice Commands (for Cursor):${NC}"
+            echo "  $0 pai.voice.live   - Start live voice recognition"
+            echo "  $0 pai.voice.chat   - Start voice chat mode"
+            echo "  $0 pai.voice.plex   - Start Plex voice control"
+            echo "  $0 pai.voice.toggle - Open voice UI toggle"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown option: $1${NC}"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Export function for sourcing
+export -f handle_cursor_command
+
+main "$@"
+

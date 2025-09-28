@@ -1,0 +1,424 @@
+#!/bin/bash
+
+# PAI YouTube Subscription Detector
+# Monitors for new YouTube subscriptions and auto-configures them
+# Part of YouTube-Plex Collections automation
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+YOUTUBE_CONFIG_DIR="$PAI_CONFIG_DIR/youtube"
+DATABASE_FILE="$YOUTUBE_CONFIG_DIR/subscriptions.db"
+YOUTUBE_ACCOUNT="cebyrdlegomaster@gmail.com"
+LOG_FILE="$YOUTUBE_CONFIG_DIR/subscription-detector.log"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+log_info() { 
+    echo -e "${GREEN}[INFO]${NC} $*" | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*" >> "$LOG_FILE"
+}
+
+log_warn() { 
+    echo -e "${YELLOW}[WARN]${NC} $*" >&2 | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $*" >> "$LOG_FILE"
+}
+
+log_error() { 
+    echo -e "${RED}[ERROR]${NC} $*" >&2 | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >> "$LOG_FILE"
+}
+
+show_help() {
+    cat << EOF
+pai-youtube-subscription-detector - Monitor for new YouTube subscriptions
+
+USAGE:
+    pai-youtube-subscription-detector <command> [options]
+
+COMMANDS:
+    detect               Check for new subscriptions and configure them
+    status               Show detection status and recent changes
+    list-new             Show newly detected subscriptions
+    configure-new        Configure new subscriptions with default settings
+    
+OPTIONS:
+    --account EMAIL      YouTube account (default: cebyrdlegomaster@gmail.com)
+    --auto-configure     Automatically configure new subscriptions
+    --notify             Send notifications for new subscriptions
+    --dry-run           Show what would be done without making changes
+    --verbose           Show detailed output
+    --help, -h          Show this help
+
+EXAMPLES:
+    pai-youtube-subscription-detector detect --auto-configure
+    pai-youtube-subscription-detector status
+    pai-youtube-subscription-detector list-new
+
+AUTOMATION:
+    This script runs hourly to detect new subscriptions and automatically
+    configure them with the 30-day retention policy.
+EOF
+}
+
+# Initialize database if it doesn't exist
+init_database() {
+    if [[ ! -f "$DATABASE_FILE" ]]; then
+        pai-youtube-subscription-sync setup
+    fi
+}
+
+# Get current subscriptions from YouTube
+get_current_subscriptions() {
+    local account="$1"
+    
+    log_info "Fetching current subscription list for $account..."
+    
+    # For demonstration - in production this would use YouTube Data API v3
+    # This simulates what yt-dlp or YouTube API would return
+    local temp_file="$YOUTUBE_CONFIG_DIR/temp_subscriptions.json"
+    
+    # Sample subscription data structure
+    cat > "$temp_file" << 'EOF'
+{
+    "subscriptions": [
+        {
+            "id": "UCZiQOv0-yNYaehq_yfx1RXw",
+            "name": "LEGO",
+            "url": "https://www.youtube.com/channel/UCZiQOv0-yNYaehq_yfx1RXw",
+            "subscriber_count": 1500000,
+            "description": "Official LEGO channel"
+        },
+        {
+            "id": "UCsXVk37bltHxD1rDPwtNM8Q", 
+            "name": "Kurzgesagt – In a Nutshell",
+            "url": "https://www.youtube.com/channel/UCsXVk37bltHxD1rDPwtNM8Q",
+            "subscriber_count": 18000000,
+            "description": "Educational animated videos"
+        },
+        {
+            "id": "UC_x5XG1OV2P6uZZ5FSM9Ttw",
+            "name": "Google for Developers",
+            "url": "https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw", 
+            "subscriber_count": 2100000,
+            "description": "Developer tutorials and talks"
+        }
+    ]
+}
+EOF
+    
+    echo "$temp_file"
+}
+
+# Get known subscriptions from database
+get_known_subscriptions() {
+    init_database
+    
+    sqlite3 "$DATABASE_FILE" "SELECT id, name, url FROM channels WHERE active=1" 2>/dev/null | \
+    while IFS='|' read -r id name url; do
+        echo "$id"
+    done
+}
+
+# Detect new subscriptions
+detect_new_subscriptions() {
+    local account="$1"
+    local auto_configure="${2:-false}"
+    local notify="${3:-false}"
+    local dry_run="${4:-false}"
+    
+    log_info "Detecting new subscriptions for $account..."
+    
+    # Get current subscriptions from YouTube
+    local current_subs_file
+    current_subs_file=$(get_current_subscriptions "$account")
+    
+    if [[ ! -f "$current_subs_file" ]]; then
+        log_error "Failed to get current subscriptions"
+        return 1
+    fi
+    
+    # Get known subscriptions from database
+    local known_subs
+    mapfile -t known_subs < <(get_known_subscriptions)
+    
+    # Find new subscriptions
+    local new_subscriptions=()
+    
+    while IFS=$'\t' read -r channel_id channel_name channel_url subscriber_count description; do
+        local is_known=false
+        
+        for known_id in "${known_subs[@]}"; do
+            if [[ "$channel_id" == "$known_id" ]]; then
+                is_known=true
+                break
+            fi
+        done
+        
+        if [[ "$is_known" == false ]]; then
+            new_subscriptions+=("$channel_id|$channel_name|$channel_url|$subscriber_count|$description")
+        fi
+        
+    done < <(jq -r '.subscriptions[] | [.id, .name, .url, .subscriber_count, .description] | @tsv' "$current_subs_file")
+    
+    # Report findings
+    if [[ ${#new_subscriptions[@]} -eq 0 ]]; then
+        log_info "No new subscriptions detected"
+        return 0
+    fi
+    
+    log_info "🎉 Found ${#new_subscriptions[@]} new subscription(s)!"
+    
+    for sub in "${new_subscriptions[@]}"; do
+        IFS='|' read -r id name url count desc <<< "$sub"
+        log_info "  📺 NEW: $name ($count subscribers)"
+        
+        if [[ "$notify" == "true" ]]; then
+            # Send notification (could integrate with system notifications)
+            notify-send "New YouTube Subscription" "Your son subscribed to: $name" 2>/dev/null || true
+        fi
+    done
+    
+    # Auto-configure new subscriptions
+    if [[ "$auto_configure" == "true" ]]; then
+        configure_new_subscriptions "${new_subscriptions[@]}" "$dry_run"
+    fi
+    
+    # Clean up temp file
+    rm -f "$current_subs_file"
+    
+    return 0
+}
+
+# Configure new subscriptions with default settings
+configure_new_subscriptions() {
+    local dry_run="${!#}"  # Last argument
+    local new_subs=("${@:1:$#-1}")  # All but last argument
+    
+    if [[ ${#new_subs[@]} -eq 0 ]]; then
+        log_info "No new subscriptions to configure"
+        return 0
+    fi
+    
+    log_info "Configuring ${#new_subs[@]} new subscription(s) with default settings..."
+    
+    init_database
+    
+    for sub in "${new_subs[@]}"; do
+        IFS='|' read -r id name url count desc <<< "$sub"
+        
+        log_info "  ⚙️  Configuring: $name"
+        
+        if [[ "$dry_run" == "true" ]]; then
+            log_info "     DRY RUN: Would add to database with 30-day retention"
+            continue
+        fi
+        
+        # Add to database with default settings
+        sqlite3 "$DATABASE_FILE" << EOF
+INSERT OR IGNORE INTO channels (id, name, url, added_date, last_check, video_count, active)
+VALUES ('$id', '$name', '$url', datetime('now'), NULL, 0, 1);
+EOF
+        
+        log_info "     ✅ Added to database"
+        log_info "     📅 30-day retention policy applied"
+        log_info "     🎬 Will start downloading new videos on next sync"
+    done
+    
+    # Log the configuration event
+    if [[ "$dry_run" != "true" ]]; then
+        sqlite3 "$DATABASE_FILE" << EOF
+INSERT INTO sync_log (timestamp, action, details, status)
+VALUES (datetime('now'), 'new_subscription_config', 'Configured ${#new_subs[@]} new channels', 'completed');
+EOF
+    fi
+    
+    log_info "New subscription configuration complete!"
+}
+
+# Show detection status
+show_status() {
+    echo -e "${BOLD}🔍 YOUTUBE SUBSCRIPTION DETECTOR STATUS${NC}"
+    echo "========================================"
+    echo "Account: $YOUTUBE_ACCOUNT"
+    echo ""
+    
+    if [[ -f "$DATABASE_FILE" ]]; then
+        local total_channels
+        local newest_channel
+        local newest_date
+        local last_detection
+        
+        total_channels=$(sqlite3 "$DATABASE_FILE" "SELECT COUNT(*) FROM channels WHERE active=1")
+        newest_channel=$(sqlite3 "$DATABASE_FILE" "SELECT name FROM channels WHERE active=1 ORDER BY added_date DESC LIMIT 1")
+        newest_date=$(sqlite3 "$DATABASE_FILE" "SELECT added_date FROM channels WHERE active=1 ORDER BY added_date DESC LIMIT 1")
+        last_detection=$(sqlite3 "$DATABASE_FILE" "SELECT timestamp FROM sync_log WHERE action='new_subscription_config' ORDER BY timestamp DESC LIMIT 1")
+        
+        echo "📊 Current Status:"
+        echo "  Total monitored channels: $total_channels"
+        echo "  Newest channel: ${newest_channel:-None}"
+        echo "  Added: ${newest_date:-Never}"
+        echo "  Last detection run: ${last_detection:-Never}"
+        echo ""
+        
+        echo "🆕 Recent New Subscriptions (Last 7 days):"
+        sqlite3 "$DATABASE_FILE" -header -column \
+            "SELECT name, added_date, video_count 
+             FROM channels 
+             WHERE active=1 AND added_date > datetime('now', '-7 days') 
+             ORDER BY added_date DESC"
+        
+    else
+        echo "⚠️  Database not found. Run setup first."
+    fi
+}
+
+# List newly detected subscriptions
+list_new_subscriptions() {
+    local days_back="${1:-7}"
+    
+    echo -e "${BOLD}🆕 NEW SUBSCRIPTIONS (Last $days_back days)${NC}"
+    echo "=================================="
+    
+    if [[ -f "$DATABASE_FILE" ]]; then
+        local new_count
+        new_count=$(sqlite3 "$DATABASE_FILE" "SELECT COUNT(*) FROM channels WHERE active=1 AND added_date > datetime('now', '-$days_back days')")
+        
+        if [[ "$new_count" -eq 0 ]]; then
+            echo "No new subscriptions in the last $days_back days."
+            return 0
+        fi
+        
+        echo "Found $new_count new subscription(s):"
+        echo ""
+        
+        sqlite3 "$DATABASE_FILE" \
+            "SELECT name, added_date, video_count, 
+                    CASE WHEN last_check IS NOT NULL THEN 'Active' ELSE 'Pending' END as status
+             FROM channels 
+             WHERE active=1 AND added_date > datetime('now', '-$days_back days')
+             ORDER BY added_date DESC" | \
+        while IFS='|' read -r name added_date video_count status; do
+            echo "📺 $name"
+            echo "   Added: $added_date"
+            echo "   Videos downloaded: $video_count"
+            echo "   Status: $status"
+            echo ""
+        done
+        
+    else
+        echo "Database not found. Run setup first."
+    fi
+}
+
+# Parse arguments
+COMMAND=""
+ACCOUNT="$YOUTUBE_ACCOUNT"
+AUTO_CONFIGURE=false
+NOTIFY=false
+DRY_RUN=false
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --account)
+            ACCOUNT="$2"
+            shift 2
+            ;;
+        --auto-configure)
+            AUTO_CONFIGURE=true
+            shift
+            ;;
+        --notify)
+            NOTIFY=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            show_help >&2
+            exit 1
+            ;;
+        *)
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+            else
+                log_error "Multiple commands specified"
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$COMMAND" ]]; then
+    COMMAND="detect"
+fi
+
+# Create directories
+mkdir -p "$YOUTUBE_CONFIG_DIR"
+
+# Export variables
+export VERBOSE DRY_RUN
+
+# Execute command
+case "$COMMAND" in
+    detect)
+        detect_new_subscriptions "$ACCOUNT" "$AUTO_CONFIGURE" "$NOTIFY" "$DRY_RUN"
+        ;;
+    status)
+        show_status
+        ;;
+    list-new)
+        list_new_subscriptions
+        ;;
+    configure-new)
+        # Get new subscriptions and configure them
+        current_subs_file=$(get_current_subscriptions "$ACCOUNT")
+        mapfile -t known_subs < <(get_known_subscriptions)
+        new_subs=()
+        
+        while IFS=$'\t' read -r channel_id channel_name channel_url subscriber_count description; do
+            local is_known=false
+            for known_id in "${known_subs[@]}"; do
+                if [[ "$channel_id" == "$known_id" ]]; then
+                    is_known=true
+                    break
+                fi
+            done
+            if [[ "$is_known" == false ]]; then
+                new_subs+=("$channel_id|$channel_name|$channel_url|$subscriber_count|$description")
+            fi
+        done < <(jq -r '.subscriptions[] | [.id, .name, .url, .subscriber_count, .description] | @tsv' "$current_subs_file")
+        
+        configure_new_subscriptions "${new_subs[@]}" "$DRY_RUN"
+        rm -f "$current_subs_file"
+        ;;
+    *)
+        log_error "Invalid command: $COMMAND"
+        show_help >&2
+        exit 1
+        ;;
+esac
+
+exit $?
+

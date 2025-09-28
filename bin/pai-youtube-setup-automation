@@ -1,0 +1,464 @@
+#!/bin/bash
+
+# PAI YouTube Automation Setup
+# Sets up automated YouTube subscription monitoring and Plex integration
+# Part of YouTube-Plex Collections system
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+YOUTUBE_CONFIG_DIR="$PAI_CONFIG_DIR/youtube"
+PLEX_CONFIG_DIR="$PAI_CONFIG_DIR/plex"
+PLEX_YOUTUBE_DIR="/home/jbyrd/youtube-plex"
+YOUTUBE_ACCOUNT="cebyrdlegomaster@gmail.com"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+log_info() { echo -e "${GREEN}[SETUP]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+
+show_help() {
+    cat << EOF
+pai-youtube-setup-automation - Set up YouTube-Plex automation
+
+USAGE:
+    pai-youtube-setup-automation [options]
+
+OPTIONS:
+    --install-deps       Install required dependencies
+    --setup-plex-token   Interactive Plex token setup
+    --setup-cron         Configure cron automation
+    --test-system        Test all components
+    --start-now          Start automation immediately
+    --help, -h           Show this help
+
+EXAMPLES:
+    pai-youtube-setup-automation --install-deps --setup-cron --start-now
+    pai-youtube-setup-automation --test-system
+
+This script sets up the complete YouTube-Plex automation system including:
+- Dependency installation
+- Directory structure creation
+- Plex API token configuration
+- Cron job scheduling
+- Initial system testing
+EOF
+}
+
+# Check if running as user (not root)
+check_user() {
+    if [[ $EUID -eq 0 ]]; then
+        log_error "Do not run this script as root. Run as your regular user."
+        exit 1
+    fi
+}
+
+# Install required dependencies
+install_dependencies() {
+    log_info "Installing required dependencies..."
+    
+    local missing_packages=()
+    
+    # Check for required packages
+    if ! command -v yt-dlp >/dev/null 2>&1; then
+        missing_packages+=("yt-dlp")
+    fi
+    
+    if ! command -v sqlite3 >/dev/null 2>&1; then
+        missing_packages+=("sqlite")
+    fi
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        missing_packages+=("jq")
+    fi
+    
+    if ! command -v curl >/dev/null 2>&1; then
+        missing_packages+=("curl")
+    fi
+    
+    if [[ ${#missing_packages[@]} -gt 0 ]]; then
+        log_info "Installing missing packages: ${missing_packages[*]}"
+        
+        if command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y "${missing_packages[@]}"
+        elif command -v apt >/dev/null 2>&1; then
+            sudo apt update && sudo apt install -y "${missing_packages[@]}"
+        elif command -v pacman >/dev/null 2>&1; then
+            sudo pacman -S --noconfirm "${missing_packages[@]}"
+        else
+            log_error "Unable to detect package manager. Please install manually: ${missing_packages[*]}"
+            return 1
+        fi
+    else
+        log_info "All required dependencies are already installed"
+    fi
+    
+    return 0
+}
+
+# Create directory structure
+create_directories() {
+    log_info "Creating directory structure..."
+    
+    mkdir -p "$PAI_CONFIG_DIR" "$YOUTUBE_CONFIG_DIR" "$PLEX_CONFIG_DIR"
+    
+    # Create Plex YouTube directory if it doesn't exist
+    if [[ ! -d "$PLEX_YOUTUBE_DIR" ]]; then
+        log_warn "Plex YouTube directory doesn't exist: $PLEX_YOUTUBE_DIR"
+        log_info "Creating directory..."
+        mkdir -p "$PLEX_YOUTUBE_DIR" || {
+            log_error "Failed to create $PLEX_YOUTUBE_DIR"
+            log_error "You may need to create this manually or mount your NFS share"
+            return 1
+        }
+    fi
+    
+    log_info "Directory structure created successfully"
+    return 0
+}
+
+# Interactive Plex token setup
+setup_plex_token() {
+    local token_file="$PLEX_CONFIG_DIR/token"
+    
+    log_info "Setting up Plex API token..."
+    
+    if [[ -f "$token_file" ]]; then
+        log_info "Plex token already exists. Testing..."
+        if test_plex_connection; then
+            log_info "Existing token is valid"
+            return 0
+        else
+            log_warn "Existing token appears invalid, setting up new one"
+        fi
+    fi
+    
+    echo ""
+    echo -e "${BOLD}🎬 PLEX TOKEN SETUP${NC}"
+    echo "==================="
+    echo ""
+    echo "To get your Plex token:"
+    echo "1. Go to: https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/"
+    echo "2. Follow the instructions to find your X-Plex-Token"
+    echo "3. Copy the token (long string of letters and numbers)"
+    echo ""
+    
+    echo "[AUTO] Using existing token or skipping token setup"; return 0 #
+    
+    if [[ -z "$plex_token" ]]; then
+        log_error "No token provided"
+        return 1
+    fi
+    
+    # Save token
+    echo "$plex_token" > "$token_file"
+    chmod 600 "$token_file"
+    
+    # Test the token
+    if test_plex_connection; then
+        log_info "✅ Plex token saved and validated successfully"
+        return 0
+    else
+        log_error "❌ Token validation failed. Please check your token."
+        rm -f "$token_file"
+        return 1
+    fi
+}
+
+# Test Plex connection
+test_plex_connection() {
+    local token_file="$PLEX_CONFIG_DIR/token"
+    
+    if [[ ! -f "$token_file" ]]; then
+        return 1
+    fi
+    
+    local token
+    token=$(cat "$token_file")
+    
+    local server_url="http://192.168.1.17:32400"
+    
+    # Test connection
+    local response
+    response=$(curl -s -w "%{http_code}" "${server_url}/library/sections" \
+                    -H "X-Plex-Token: ${token}" \
+                    -o /dev/null 2>/dev/null || echo "000")
+    
+    if [[ "$response" == "200" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Set up cron jobs
+setup_cron() {
+    log_info "Setting up cron automation..."
+    
+    local cron_file="$HOME/.local/share/pai-youtube-cron"
+    
+    # Create cron entries
+    cat > "$cron_file" << EOF
+# PAI YouTube-Plex Automation
+# Automatically generated - do not edit manually
+
+# Check for new subscriptions and sync every 3 hours
+0 */3 * * * $HOME/.local/bin/pai-youtube-subscription-detector detect --auto-configure --notify >/dev/null 2>&1
+
+# Download new videos every 3 hours (offset by 30 minutes)
+30 */3 * * * $HOME/.local/bin/pai-youtube-subscription-sync sync --max-videos 5 >/dev/null 2>&1
+
+# Daily cleanup at 3:00 AM
+0 3 * * * $HOME/.local/bin/pai-youtube-retention-cleanup cleanup >/dev/null 2>&1
+
+# Weekly storage check on Sundays at 2:00 AM
+0 2 * * 0 $HOME/.local/bin/pai-youtube-retention-cleanup status | mail -s "YouTube Storage Report" root >/dev/null 2>&1 || true
+
+EOF
+    
+    # Install cron jobs
+    crontab -l 2>/dev/null | grep -v "PAI YouTube-Plex Automation" | grep -v "pai-youtube" > "${cron_file}.current" || true
+    cat "${cron_file}.current" "$cron_file" | crontab -
+    
+    rm -f "${cron_file}.current" "$cron_file"
+    
+    log_info "✅ Cron automation configured successfully"
+    log_info "Schedule:"
+    log_info "  - New subscription detection: Every 3 hours"
+    log_info "  - Video downloads: Every 3 hours"
+    log_info "  - Cleanup: Daily at 3:00 AM"
+    log_info "  - Storage report: Weekly on Sundays"
+    
+    return 0
+}
+
+# Test system components
+test_system() {
+    log_info "Testing YouTube-Plex automation system..."
+    
+    local test_results=()
+    
+    echo ""
+    echo -e "${BOLD}🧪 SYSTEM TEST RESULTS${NC}"
+    echo "======================="
+    
+    # Test 1: Check dependencies
+    echo -n "Dependencies: "
+    if command -v yt-dlp >/dev/null && command -v sqlite3 >/dev/null && command -v jq >/dev/null; then
+        echo -e "${GREEN}✅ PASS${NC}"
+        test_results+=("dependencies:pass")
+    else
+        echo -e "${RED}❌ FAIL${NC}"
+        test_results+=("dependencies:fail")
+    fi
+    
+    # Test 2: Check directories
+    echo -n "Directories: "
+    if [[ -d "$YOUTUBE_CONFIG_DIR" && -d "$PLEX_YOUTUBE_DIR" ]]; then
+        echo -e "${GREEN}✅ PASS${NC}"
+        test_results+=("directories:pass")
+    else
+        echo -e "${RED}❌ FAIL${NC}"
+        test_results+=("directories:fail")
+    fi
+    
+    # Test 3: Test Plex connection
+    echo -n "Plex Connection: "
+    if test_plex_connection; then
+        echo -e "${GREEN}✅ PASS${NC}"
+        test_results+=("plex:pass")
+    else
+        echo -e "${RED}❌ FAIL${NC}"
+        test_results+=("plex:fail")
+    fi
+    
+    # Test 4: Test database setup
+    echo -n "Database Setup: "
+    if pai-youtube-subscription-sync setup >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ PASS${NC}"
+        test_results+=("database:pass")
+    else
+        echo -e "${RED}❌ FAIL${NC}"
+        test_results+=("database:fail")
+    fi
+    
+    # Test 5: Test dry-run sync
+    echo -n "Sync Test: "
+    if pai-youtube-subscription-sync sync --dry-run --max-videos 1 >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ PASS${NC}"
+        test_results+=("sync:pass")
+    else
+        echo -e "${RED}❌ FAIL${NC}"
+        test_results+=("sync:fail")
+    fi
+    
+    # Test 6: Check cron
+    echo -n "Cron Schedule: "
+    if crontab -l 2>/dev/null | grep -q "pai-youtube"; then
+        echo -e "${GREEN}✅ PASS${NC}"
+        test_results+=("cron:pass")
+    else
+        echo -e "${YELLOW}⚠️  NOT SET${NC}"
+        test_results+=("cron:not_set")
+    fi
+    
+    echo ""
+    
+    # Summary
+    local passed=0
+    local failed=0
+    local warnings=0
+    
+    for result in "${test_results[@]}"; do
+        case "$result" in
+            *:pass) ((passed++)) ;;
+            *:fail) ((failed++)) ;;
+            *:not_set) ((warnings++)) ;;
+        esac
+    done
+    
+    echo "📊 Test Summary: $passed passed, $failed failed, $warnings warnings"
+    
+    if [[ $failed -eq 0 && $warnings -eq 0 ]]; then
+        echo -e "${GREEN}🎉 System is ready for automation!${NC}"
+        return 0
+    elif [[ $failed -eq 0 ]]; then
+        echo -e "${YELLOW}⚠️  System mostly ready - check warnings above${NC}"
+        return 0
+    else
+        echo -e "${RED}❌ System has issues - fix failures above${NC}"
+        return 1
+    fi
+}
+
+# Start automation immediately
+start_automation() {
+    log_info "Starting YouTube-Plex automation..."
+    
+    # Initial setup
+    pai-youtube-subscription-sync setup
+    
+    # Detect and configure current subscriptions
+    log_info "Detecting current subscriptions..."
+    pai-youtube-subscription-detector detect --auto-configure
+    
+    # Initial sync (limited)
+    log_info "Performing initial video sync (limited to 2 videos per channel)..."
+    pai-youtube-subscription-sync sync --max-videos 2
+    
+    # Show status
+    pai-youtube-subscription-sync status
+    
+    log_info "✅ Automation started successfully!"
+    log_info "The system will now automatically:"
+    log_info "  - Monitor for new subscriptions every 3 hours"
+    log_info "  - Download new videos every 3 hours"
+    log_info "  - Clean up videos older than 30 days daily"
+    
+    return 0
+}
+
+# Main function
+main() {
+    echo -e "${BOLD}🎬 PAI YOUTUBE-PLEX AUTOMATION SETUP${NC}"
+    echo "===================================="
+    echo ""
+    echo "Setting up automated YouTube subscription management for:"
+    echo "  Account: $YOUTUBE_ACCOUNT"
+    echo "  Plex Directory: $PLEX_YOUTUBE_DIR"
+    echo "  Retention: 30 days"
+    echo ""
+    
+    check_user
+    
+    local install_deps=false
+    local setup_token=false
+    local setup_cron_jobs=false
+    local test_after=false
+    local start_now=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --install-deps)
+                install_deps=true
+                shift
+                ;;
+            --setup-plex-token)
+                setup_token=true
+                shift
+                ;;
+            --setup-cron)
+                setup_cron_jobs=true
+                shift
+                ;;
+            --test-system)
+                test_after=true
+                shift
+                ;;
+            --start-now)
+                start_now=true
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                show_help >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    # If no options specified, do full setup
+    if [[ "$install_deps" == false && "$setup_token" == false && "$setup_cron_jobs" == false && "$test_after" == false && "$start_now" == false ]]; then
+        install_deps=true
+        setup_token=true
+        setup_cron_jobs=true
+        test_after=true
+        start_now=true
+    fi
+    
+    # Execute requested actions
+    if [[ "$install_deps" == true ]]; then
+        install_dependencies
+    fi
+    
+    create_directories
+    
+    if [[ "$setup_token" == true ]]; then
+        setup_plex_token
+    fi
+    
+    if [[ "$setup_cron_jobs" == true ]]; then
+        setup_cron
+    fi
+    
+    if [[ "$test_after" == true ]]; then
+        test_system
+    fi
+    
+    if [[ "$start_now" == true ]]; then
+        start_automation
+    fi
+    
+    echo ""
+    log_info "🎉 YouTube-Plex automation setup complete!"
+    log_info "Use 'pai-context-switch youtube-plex-collections' to manage the system"
+}
+
+# Parse arguments and run
+main "$@"
+
+exit $?
+

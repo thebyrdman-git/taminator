@@ -1,0 +1,101 @@
+#!/bin/bash
+
+# PAI Progress Tracking System
+# Part of the Personal AI Infrastructure (PAI)
+# Created for Hatter - Red Hat Digital Assistant
+
+# Progress Bar System for Transparent Task Execution
+# Usage: source this file and use the progress functions
+
+show_progress() {
+    local current=$1
+    local total=$2
+    local task_name="${3:-Task}"
+    local percent=$((current * 100 / total))
+    local filled=$((percent / 2))
+    local empty=$((50 - filled))
+    
+    # Create progress bar
+    local bar=""
+    for ((i=0; i<filled; i++)); do bar+="█"; done
+    for ((i=0; i<empty; i++)); do bar+="░"; done
+    
+    # Clear line and show progress
+    printf "\r🎯 %s: [%s] %d%% (%d/%d)" "$task_name" "$bar" "$percent" "$current" "$total"
+    
+    # Add newline if complete
+    if [[ $current -eq $total ]]; then
+        printf " ✅ COMPLETE!\n"
+    fi
+}
+
+# Task status tracker with ETA support
+show_task_status() {
+    local task_name="$1"
+    local status="$2"
+    local eta="${3:-}"
+    
+    case $status in
+        "starting")
+            echo "🚀 STARTING: $task_name"
+            [[ -n "$eta" ]] && echo "   ⏱️  ETA: $eta"
+            ;;
+        "progress"|"working")
+            echo "⚙️  WORKING: $task_name..."
+            ;;
+        "complete")
+            echo "✅ COMPLETE: $task_name"
+            ;;
+        "error")
+            echo "❌ ERROR: $task_name"
+            ;;
+        "paused")
+            echo "⏸️  PAUSED: $task_name"
+            ;;
+    esac
+}
+
+# Multi-step task execution with progress
+run_with_progress() {
+    local total_steps=$1
+    shift
+    local task_name="$1"
+    shift
+    
+    show_task_status "$task_name" "starting"
+    
+    local step=0
+    for cmd in "$@"; do
+        ((step++))
+        show_progress $step $total_steps "$task_name"
+        sleep 0.5  # Visual feedback delay
+        eval "$cmd" || {
+            echo ""
+            show_task_status "$task_name" "error"
+            return 1
+        }
+    done
+    
+    echo ""
+    show_task_status "$task_name" "complete"
+}
+
+# Plex-specific progress tracker
+track_plex_task() {
+    local task="$1"
+    local current="$2"
+    local total="$3"
+    
+    show_progress "$current" "$total" "Plex: $task"
+}
+
+# Export functions for global use
+export -f show_progress
+export -f show_task_status  
+export -f run_with_progress
+export -f track_plex_task
+
+# Auto-load message
+echo "📊 PAI Progress Tracking System loaded"
+echo "   Functions available: show_progress, show_task_status, run_with_progress"
+

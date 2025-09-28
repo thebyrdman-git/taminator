@@ -1,0 +1,231 @@
+#!/bin/bash
+
+# PAI miraclemax Deployment Tool
+# Deploy PAI contexts and automation to miraclemax HP Server
+# PRIORITY #1: VISUALLY STUNNING deployment experience
+
+set -euo pipefail
+
+# Configuration
+MIRACLEMAX_HOST="${MIRACLEMAX_HOST:-miraclemax.local}"
+MIRACLEMAX_USER="${MIRACLEMAX_USER:-jbyrd}"
+DEPLOY_TYPE="${DEPLOY_TYPE:-container}"  # container or vm
+PAI_ROOT="/home/jbyrd/hatter-pai"
+
+# Visual excellence
+MAGIC='🪄'
+SPARKLES='✨'
+DIAMOND='💎'
+
+source "$(dirname "$0")/pai-youtube-progress-bar" 2>/dev/null || {
+    show_youtube_progress() { echo "Progress: $1/$2 - $3"; }
+    show_youtube_header() { echo "=== $1 ==="; }
+}
+
+show_deployment_header() {
+    echo
+    echo -e "${BOLD}${MAGENTA}╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BOLD}${MAGENTA}║${NC} ${BOLD}${CYAN}🚀 PAI MIRACLEMAX DEPLOYMENT - STUNNING ${MAGIC} ${BOLD}${MAGENTA}║${NC}"
+    echo -e "${BOLD}${MAGENTA}║${NC} ${DIM}Deploying to miraclemax HP Server infrastructure${NC} ${BOLD}${MAGENTA}║${NC}"
+    echo -e "${BOLD}${MAGENTA}╚═══════════════════════════════════════════════════════╝${NC}"
+    echo
+}
+
+show_help() {
+    show_deployment_header
+    cat << EOF
+${BOLD}${CYAN}USAGE:${NC}
+    pai-miraclemax-deploy <context> [options]
+
+${BOLD}${CYAN}OPTIONS:${NC}
+    --type TYPE         Deployment type: container, vm (default: container)
+    --host HOST         miraclemax hostname (default: miraclemax.local)
+    --user USER         SSH user (default: jbyrd)
+    --test              Test deployment without changes
+    --help, -h          Show this stunning help
+
+${BOLD}${CYAN}EXAMPLES:${NC}
+    pai-miraclemax-deploy youtube-plex-collections --type container
+    pai-miraclemax-deploy smart-home --type vm --test
+
+${BOLD}${YELLOW}DEPLOYMENT TYPES:${NC}
+${SPARKLES} **Container**: Docker/Podman container (recommended)
+    - Isolated environment
+    - Easy resource management
+    - Quick deployment and updates
+
+${DIAMOND} **Virtual Machine**: Full VM deployment
+    - Complete OS isolation
+    - Dedicated resources
+    - Traditional deployment model
+
+EOF
+}
+
+# Deploy to container
+deploy_container() {
+    local context_name="$1"
+    local test_mode="${2:-false}"
+    
+    show_youtube_header "Container Deployment" "Deploying $context_name to miraclemax container"
+    
+    echo "🐳 Creating container deployment for $context_name..."
+    
+    # Create Dockerfile
+    local dockerfile=$(cat << 'DOCKERFILE'
+FROM fedora:latest
+
+# Install dependencies with beautiful progress
+RUN dnf update -y && \
+    dnf install -y yt-dlp sqlite jq curl bash crontabs && \
+    dnf clean all
+
+# Set up PAI user
+RUN useradd -m -s /bin/bash pai
+USER pai
+WORKDIR /home/pai
+
+# Copy PAI tools
+COPY --chown=pai:pai bin/ /home/pai/.local/bin/
+COPY --chown=pai:pai contexts/ /home/pai/hatter-pai/contexts/
+
+# Set up directories
+RUN mkdir -p /home/pai/.config/pai /home/pai/hatter-pai
+
+# Make scripts executable
+RUN chmod +x /home/pai/.local/bin/pai-*
+
+# Beautiful startup message
+RUN echo 'echo "✨ PAI Container Started - Visually Stunning Automation Ready! 🚀"' >> /home/pai/.bashrc
+
+DOCKERFILE
+)
+    
+    if [[ "$test_mode" == "false" ]]; then
+        echo "$dockerfile" | ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "cat > /tmp/pai-${context_name}.dockerfile"
+        
+        # Build and run container
+        ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" << EOF
+cd /tmp
+echo "🔨 Building stunning PAI container..."
+docker build -f pai-${context_name}.dockerfile -t pai-${context_name}:latest .
+
+echo "🚀 Starting PAI container with beautiful visuals..."
+docker run -d \
+  --name pai-${context_name} \
+  --restart unless-stopped \
+  -v /mnt/nfs_share/charles:/mnt/nfs_share/charles \
+  -v pai-${context_name}-config:/home/pai/.config \
+  pai-${context_name}:latest \
+  bash -c 'while true; do sleep 3600; done'
+
+echo "✅ Container deployment complete! 🎉"
+EOF
+    else
+        echo "🧪 TEST MODE: Would deploy container with stunning visuals"
+    fi
+}
+
+# Deploy to VM
+deploy_vm() {
+    local context_name="$1" 
+    local test_mode="${2:-false}"
+    
+    show_youtube_header "VM Deployment" "Deploying $context_name to miraclemax VM"
+    
+    if [[ "$test_mode" == "false" ]]; then
+        echo "🖥️  Creating VM deployment for $context_name..."
+        echo "⚠️  VM deployment requires manual hypervisor setup on miraclemax"
+        echo "📝 Deploy PAI tools to VM after creation"
+    else
+        echo "🧪 TEST MODE: Would create VM with beautiful PAI interface"
+    fi
+}
+
+# Main deployment function
+main() {
+    show_deployment_header
+    
+    if [[ $# -eq 0 ]]; then
+        echo "❌ Context name required"
+        show_help
+        exit 1
+    fi
+    
+    local context_name="$1"
+    local deploy_type="$DEPLOY_TYPE"
+    local host="$MIRACLEMAX_HOST"
+    local user="$MIRACLEMAX_USER"
+    local test_mode=false
+    
+    shift
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --type)
+                deploy_type="$2"
+                shift 2
+                ;;
+            --host)
+                host="$2"
+                shift 2
+                ;;
+            --user)
+                user="$2"
+                shift 2
+                ;;
+            --test)
+                test_mode=true
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                echo "❌ Unknown option: $1"
+                show_help >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    echo -e "🎯 ${BOLD}Deployment Configuration:${NC}"
+    echo -e "  📦 Context: ${CYAN}$context_name${NC}"
+    echo -e "  🏗️  Type: ${YELLOW}$deploy_type${NC}"
+    echo -e "  🖥️  Host: ${MAGENTA}$host${NC}"
+    echo -e "  👤 User: ${BLUE}$user${NC}"
+    echo -e "  🧪 Test Mode: ${GREEN}$test_mode${NC}"
+    echo
+    
+    # Check if context exists
+    if [[ ! -f "$PAI_ROOT/contexts/${context_name}.md" ]]; then
+        echo "❌ Context not found: $context_name"
+        echo "💡 Create it with: pai-context-create $context_name"
+        exit 1
+    fi
+    
+    # Deploy based on type
+    case "$deploy_type" in
+        "container")
+            deploy_container "$context_name" "$test_mode"
+            ;;
+        "vm")
+            deploy_vm "$context_name" "$test_mode"
+            ;;
+        *)
+            echo "❌ Invalid deployment type: $deploy_type"
+            echo "💡 Use: container or vm"
+            exit 1
+            ;;
+    esac
+    
+    if [[ "$test_mode" == "false" ]]; then
+        echo
+        echo "✅ ${GREEN}${BOLD}STUNNING DEPLOYMENT COMPLETE!${NC}"
+        echo "🚀 $context_name is now running on miraclemax with beautiful visuals"
+        echo "💎 All operations include elegant progress bars and visual feedback"
+    fi
+}
+
+main "$@"

@@ -1,0 +1,213 @@
+#!/bin/bash
+
+# PAI Recipe Manager
+# Recipe storage, search, and management tool
+# Part of the Personal AI Infrastructure (PAI)
+
+set -euo pipefail
+
+CONFIG_DIR="$HOME/.config/pai/meal-planning"
+RECIPES_DIR="$CONFIG_DIR/recipes"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+mkdir -p "$RECIPES_DIR"
+
+show_help() {
+    cat << 'EOF'
+pai-recipe-manager - Recipe Collection Manager
+
+COMMANDS:
+    list                List all recipes
+    search TERM         Search recipes by name or ingredient
+    show RECIPE         Show recipe details
+    add RECIPE          Add new recipe (interactive)
+    edit RECIPE         Edit existing recipe
+    delete RECIPE       Delete recipe
+    random              Show random recipe suggestion
+    scale RECIPE FACTOR Scale recipe portions
+    
+EXAMPLES:
+    pai-recipe-manager list
+    pai-recipe-manager search chicken
+    pai-recipe-manager show "chicken-stir-fry"
+    pai-recipe-manager add "beef-tacos"
+    pai-recipe-manager scale "pasta-salad" 2
+EOF
+}
+
+list_recipes() {
+    echo -e "${BLUE}📚 RECIPE COLLECTION${NC}"
+    echo "===================="
+    
+    if [[ ! "$(ls -A "$RECIPES_DIR" 2>/dev/null)" ]]; then
+        echo -e "${YELLOW}📝 No recipes found. Add some with 'pai-recipe-manager add'${NC}"
+        return 0
+    fi
+    
+    for recipe in "$RECIPES_DIR"/*.md; do
+        if [[ -f "$recipe" ]]; then
+            local recipe_name=$(basename "$recipe" .md)
+            echo "• $recipe_name"
+        fi
+    done
+}
+
+search_recipes() {
+    local search_term="$1"
+    
+    echo -e "${BLUE}🔍 SEARCHING FOR: '$search_term'${NC}"
+    echo "==============================="
+    
+    local found=0
+    for recipe in "$RECIPES_DIR"/*.md; do
+        if [[ -f "$recipe" ]]; then
+            if grep -qi "$search_term" "$recipe"; then
+                local recipe_name=$(basename "$recipe" .md)
+                echo "• $recipe_name"
+                found=1
+            fi
+        fi
+    done
+    
+    if [[ $found -eq 0 ]]; then
+        echo -e "${YELLOW}📝 No recipes found containing '$search_term'${NC}"
+    fi
+}
+
+show_recipe() {
+    local recipe_name="$1"
+    local recipe_file="$RECIPES_DIR/${recipe_name}.md"
+    
+    if [[ ! -f "$recipe_file" ]]; then
+        echo -e "${RED}❌ Recipe not found: $recipe_name${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}🍽️ RECIPE: ${recipe_name^^}${NC}"
+    echo "=========================="
+    cat "$recipe_file"
+}
+
+add_recipe() {
+    local recipe_name="$1"
+    local recipe_file="$RECIPES_DIR/${recipe_name}.md"
+    
+    if [[ -f "$recipe_file" ]]; then
+        echo -e "${YELLOW}⚠️  Recipe '$recipe_name' already exists${NC}"
+        return 1
+    fi
+    
+    echo -e "${CYAN}📝 Creating recipe: $recipe_name${NC}"
+    
+    cat > "$recipe_file" << EOF
+# $recipe_name
+
+## Details
+- **Prep Time:** [X minutes]
+- **Cook Time:** [X minutes]
+- **Servings:** [X people]
+- **Difficulty:** [Easy/Medium/Hard]
+- **Cuisine:** [Type]
+
+## Ingredients
+- [ ] [Ingredient 1 - amount]
+- [ ] [Ingredient 2 - amount]
+- [ ] [Add more ingredients]
+
+## Instructions
+1. [First step]
+2. [Second step]
+3. [Add more steps]
+
+## Notes
+- [Any special notes, variations, or tips]
+
+## Nutrition (per serving)
+- **Calories:** [X]
+- **Protein:** [X]g
+- **Carbs:** [X]g  
+- **Fat:** [X]g
+
+## Tags
+- [dietary-restrictions]
+- [meal-type]
+- [cuisine-type]
+EOF
+
+    echo -e "${GREEN}✅ Recipe template created: $recipe_file${NC}"
+    echo -e "${BLUE}💡 Edit the file to add your recipe details${NC}"
+}
+
+random_recipe() {
+    if [[ ! "$(ls -A "$RECIPES_DIR" 2>/dev/null)" ]]; then
+        echo -e "${YELLOW}📝 No recipes available for random selection${NC}"
+        return 0
+    fi
+    
+    local recipes=("$RECIPES_DIR"/*.md)
+    local random_recipe="${recipes[RANDOM % ${#recipes[@]}]}"
+    local recipe_name=$(basename "$random_recipe" .md)
+    
+    echo -e "${CYAN}🎲 RANDOM RECIPE SUGGESTION${NC}"
+    echo "============================"
+    echo -e "${GREEN}Today's suggestion: $recipe_name${NC}"
+    echo ""
+    show_recipe "$recipe_name"
+}
+
+scale_recipe() {
+    local recipe_name="$1"
+    local factor="${2:-1}"
+    local recipe_file="$RECIPES_DIR/${recipe_name}.md"
+    
+    if [[ ! -f "$recipe_file" ]]; then
+        echo -e "${RED}❌ Recipe not found: $recipe_name${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}📏 SCALING RECIPE: $recipe_name (x$factor)${NC}"
+    echo "======================================="
+    echo -e "${YELLOW}⚠️  Recipe scaling requires manual calculation${NC}"
+    echo -e "${CYAN}💡 Multiply all ingredient quantities by $factor${NC}"
+    echo ""
+    show_recipe "$recipe_name"
+}
+
+main() {
+    case "${1:-}" in
+        list) list_recipes ;;
+        search) search_recipes "${2:-}" ;;
+        show) show_recipe "${2:-}" ;;
+        add) add_recipe "${2:-}" ;;
+        random) random_recipe ;;
+        scale) scale_recipe "${2:-}" "${3:-1}" ;;
+        edit) 
+            local recipe_file="$RECIPES_DIR/${2:-}.md"
+            if [[ -f "$recipe_file" ]]; then
+                ${EDITOR:-nano} "$recipe_file"
+            else
+                echo -e "${RED}❌ Recipe not found: ${2:-}${NC}"
+            fi
+            ;;
+        delete)
+            local recipe_file="$RECIPES_DIR/${2:-}.md"
+            if [[ -f "$recipe_file" ]]; then
+                rm "$recipe_file"
+                echo -e "${GREEN}✅ Recipe deleted: ${2:-}${NC}"
+            else
+                echo -e "${RED}❌ Recipe not found: ${2:-}${NC}"
+            fi
+            ;;
+        --help|-h) show_help ;;
+        *) show_help ;;
+    esac
+}
+
+main "$@"

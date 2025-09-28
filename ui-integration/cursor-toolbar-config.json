@@ -1,0 +1,50 @@
+{
+  "pai_voice_integration": {
+    "name": "PAI Voice Commands",
+    "description": "Voice-controlled PAI system with Hatter assistant",
+    "buttons": [
+      {
+        "id": "pai_voice_live",
+        "label": "🎤 Voice Live",
+        "tooltip": "Start live voice recognition with Google STT",
+        "command": "/home/jbyrd/hatter-pai/bin/pai-voice-live",
+        "type": "radio",
+        "group": "pai_voice",
+        "shortcut": "Ctrl+Alt+V"
+      },
+      {
+        "id": "pai_voice_command",
+        "label": "💬 Voice Chat",
+        "tooltip": "Interactive voice command system (keyboard mode)",
+        "command": "/home/jbyrd/hatter-pai/bin/pai-voice-command",
+        "type": "radio",
+        "group": "pai_voice",
+        "shortcut": "Ctrl+Alt+C"
+      },
+      {
+        "id": "pai_plex_voice",
+        "label": "🎬 Plex Voice",
+        "tooltip": "Quick voice commands for Plex media server",
+        "command": "/home/jbyrd/hatter-pai/bin/pai-voice-plex",
+        "type": "button",
+        "shortcut": "Ctrl+Alt+P"
+      }
+    ],
+    "context_menu": {
+      "enabled": true,
+      "items": [
+        {
+          "label": "Start Voice Commands",
+          "command": "/home/jbyrd/hatter-pai/bin/pai-voice-live",
+          "icon": "🎤"
+        },
+        {
+          "label": "Voice System Help",
+          "command": "/home/jbyrd/hatter-pai/bin/pai-voice-command --help",
+          "icon": "❓"
+        }
+      ]
+    }
+  }
+}
+

@@ -1,0 +1,176 @@
+#!/bin/bash
+
+# PAI Mobile Setup Demo with Progress Tracking
+# Demonstrates the enhanced progress tracking system for Google Cloud setup
+
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/pai-progress-tracker"
+
+demo_google_cloud_setup() {
+    echo "🎯 DEMONSTRATING ENHANCED PROGRESS TRACKING"
+    echo "==========================================="
+    echo ""
+    
+    # Overall setup progress
+    show_task_status "Google Cloud Mobile Setup Demo" "starting" "2 minutes"
+    
+    # Step 1: CLI Check
+    show_progress 1 7 "Google Cloud Setup"
+    show_task_status "Google Cloud CLI Check" "starting"
+    sleep 1
+    show_task_status "Google Cloud CLI Check" "complete"
+    
+    # Step 2: Authentication
+    show_progress 2 7 "Google Cloud Setup"
+    show_task_status "Google Cloud Authentication" "starting"
+    sleep 1.5
+    show_task_status "Google Cloud Authentication" "complete"
+    
+    # Step 3: Project Creation
+    show_progress 3 7 "Google Cloud Setup"
+    show_task_status "Project Creation" "starting"
+    for i in {1..3}; do
+        show_progress $i 3 "Project Setup"
+        sleep 0.5
+    done
+    echo ""
+    show_task_status "Project Creation" "complete"
+    
+    # Step 4: API Enablement
+    show_progress 4 7 "Google Cloud Setup"
+    show_task_status "API Enablement" "starting"
+    local apis=("Dialogflow API" "Cloud Functions API" "Cloud Build API" "Logging API" "Monitoring API")
+    for i in "${!apis[@]}"; do
+        show_progress $((i+1)) ${#apis[@]} "Enabling APIs"
+        echo "   ✅ ${apis[$i]} enabled"
+        sleep 0.3
+    done
+    echo ""
+    show_task_status "API Enablement" "complete"
+    
+    # Step 5: Service Account
+    show_progress 5 7 "Google Cloud Setup"
+    show_task_status "Service Account Setup" "starting"
+    for i in {1..4}; do
+        show_progress $i 4 "Service Account"
+        case $i in
+            1) echo "   📝 Creating service account..." ;;
+            2) echo "   🔑 Assigning IAM roles..." ;;
+            3) echo "   📄 Generating key file..." ;;
+            4) echo "   ✅ Service account ready" ;;
+        esac
+        sleep 0.4
+    done
+    echo ""
+    show_task_status "Service Account Setup" "complete"
+    
+    # Step 6: Configuration
+    show_progress 6 7 "Google Cloud Setup"
+    show_task_status "Configuration Generation" "starting"
+    sleep 1
+    show_task_status "Configuration Generation" "complete"
+    
+    # Step 7: Final Setup
+    show_progress 7 7 "Google Cloud Setup"
+    show_task_status "Final Setup" "starting"
+    sleep 1
+    show_task_status "Final Setup" "complete"
+    
+    echo ""
+    echo "🎉 DEMO COMPLETE!"
+    echo "================"
+    echo ""
+    echo "✅ Progress tracking system fully integrated"
+    echo "✅ Visual feedback during long operations"
+    echo "✅ Step-by-step transparency"
+    echo "✅ ETA and status information"
+    echo ""
+    echo "🚀 Ready to run real Google Cloud setup with:"
+    echo "   ./mobile-integration/google-cloud-setup.sh"
+}
+
+# Progress tracking for webhook operations
+demo_webhook_operations() {
+    echo ""
+    echo "📱 WEBHOOK OPERATIONS WITH PROGRESS"
+    echo "=================================="
+    
+    show_task_status "Webhook Server Startup" "starting"
+    
+    # Simulate webhook server startup steps
+    local steps=("Loading configuration" "Initializing PAI bridge" "Starting Express server" "Testing endpoints")
+    for i in "${!steps[@]}"; do
+        show_progress $((i+1)) ${#steps[@]} "Webhook Startup"
+        echo "   ${steps[$i]}..."
+        sleep 0.5
+    done
+    
+    echo ""
+    show_task_status "Webhook Server Startup" "complete"
+    
+    # Simulate intent processing
+    show_task_status "Processing Voice Intent" "starting"
+    local intent_steps=("Parse intent" "Route to PAI tool" "Execute command" "Format response")
+    for i in "${!intent_steps[@]}"; do
+        show_progress $((i+1)) ${#intent_steps[@]} "Intent Processing"
+        echo "   ${intent_steps[$i]}..."
+        sleep 0.3
+    done
+    
+    echo ""
+    show_task_status "Processing Voice Intent" "complete"
+    echo "   🎤 'Hey Google, ask PAI to check Plex status' → ✅ Success"
+}
+
+# Show usage
+show_usage() {
+    cat << 'EOF'
+🎯 PAI MOBILE SETUP DEMO
+=======================
+
+Demonstrates enhanced progress tracking for Google Cloud setup
+
+USAGE:
+  pai-mobile-setup-demo [command]
+
+COMMANDS:
+  gcloud       Demo Google Cloud setup progress
+  webhook      Demo webhook operations progress
+  all          Run complete demo (default)
+
+FEATURES DEMONSTRATED:
+  ✓ Visual progress bars with percentages
+  ✓ Step-by-step task status tracking  
+  ✓ ETA and timing information
+  ✓ Multi-level progress (overall + subtasks)
+  ✓ Clear completion indicators
+
+INTEGRATION:
+  This progress system is now integrated into:
+  • Google Cloud setup script
+  • Mobile webhook server operations  
+  • PAI tool execution monitoring
+EOF
+}
+
+# Main demo function
+case "${1:-all}" in
+    gcloud)
+        demo_google_cloud_setup
+        ;;
+    webhook)
+        demo_webhook_operations
+        ;;
+    all)
+        demo_google_cloud_setup
+        demo_webhook_operations
+        ;;
+    --help|-h)
+        show_usage
+        ;;
+    *)
+        echo "❌ Unknown command: $1"
+        show_usage
+        exit 1
+        ;;
+esac

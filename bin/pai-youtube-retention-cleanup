@@ -1,0 +1,532 @@
+#!/bin/bash
+
+# PAI YouTube Retention Cleanup
+# Removes YouTube videos older than 30 days from Plex storage
+# Part of YouTube-Plex Collections automation
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+YOUTUBE_CONFIG_DIR="$PAI_CONFIG_DIR/youtube"
+PLEX_YOUTUBE_DIR="/home/jbyrd/youtube-plex"
+DATABASE_FILE="$YOUTUBE_CONFIG_DIR/subscriptions.db"
+LOG_FILE="$YOUTUBE_CONFIG_DIR/cleanup.log"
+RETENTION_DAYS=30
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# Progress tracking with beautiful progress bars
+source "$(dirname "$0")/pai-progress-tracker" 2>/dev/null || {
+    show_progress() { echo "Progress: $1/$2 - $3"; }
+    show_task_status() { echo "$2: $1"; }
+}
+
+# Beautiful YouTube progress bars
+source "$(dirname "$0")/pai-youtube-progress-bar" 2>/dev/null || {
+    show_youtube_progress() { echo "Progress: $1/$2 - $3"; }
+    show_youtube_header() { echo "=== $1 ==="; }
+    show_channel_status() { echo "$1: $2"; }
+    show_summary() { echo "Summary: Downloads=$1, Errors=$2, Channels=$3, Space=$4MB"; }
+}
+
+log_info() { 
+    echo -e "${GREEN}[INFO]${NC} $*" | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*" >> "$LOG_FILE"
+}
+
+log_warn() { 
+    echo -e "${YELLOW}[WARN]${NC} $*" >&2 | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $*" >> "$LOG_FILE"
+}
+
+log_error() { 
+    echo -e "${RED}[ERROR]${NC} $*" >&2 | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >> "$LOG_FILE"
+}
+
+show_help() {
+    cat << EOF
+pai-youtube-retention-cleanup - YouTube video retention management
+
+USAGE:
+    pai-youtube-retention-cleanup <command> [options]
+
+COMMANDS:
+    cleanup              Remove videos older than retention period
+    analyze              Show what would be removed without deleting
+    status               Show current storage and retention status
+    emergency            Force cleanup when storage is critically full
+    
+OPTIONS:
+    --retention-days N   Days to retain videos (default: 30)
+    --force             Skip confirmation prompts
+    --dry-run           Show what would be deleted without deleting
+    --min-free-gb N     Minimum free space to maintain (default: 5)
+    --verbose           Show detailed output
+    --help, -h          Show this help
+
+EXAMPLES:
+    pai-youtube-retention-cleanup analyze
+    pai-youtube-retention-cleanup cleanup --retention-days 30
+    pai-youtube-retention-cleanup emergency --force
+
+RETENTION POLICY:
+    - Default: Keep videos for 30 days
+    - Protected: Recently watched videos (7 days)
+    - Protected: Favorited videos (marked in database)
+    - Emergency: Clean older content first when storage is >95% full
+
+AUTOMATION:
+    This script runs daily at 3:00 AM via cron to maintain storage.
+EOF
+}
+
+# Get storage information
+get_storage_info() {
+    if [[ -d "$PLEX_YOUTUBE_DIR" ]]; then
+        local size_info
+        size_info=$(df -h "$PLEX_YOUTUBE_DIR" | tail -1)
+        echo "$size_info"
+    else
+        echo "YouTube directory not found"
+        return 1
+    fi
+}
+
+# Calculate storage usage percentage
+get_storage_percentage() {
+    if [[ -d "$PLEX_YOUTUBE_DIR" ]]; then
+        df "$PLEX_YOUTUBE_DIR" | tail -1 | awk '{print $5}' | sed 's/%//'
+    else
+        echo "0"
+    fi
+}
+
+# Find videos older than retention period
+find_old_videos() {
+    local retention_days="${1:-$RETENTION_DAYS}"
+    local find_pattern="$PLEX_YOUTUBE_DIR"
+    
+    if [[ ! -d "$find_pattern" ]]; then
+        log_warn "YouTube directory does not exist: $find_pattern"
+        return 1
+    fi
+    
+    # Find video files older than retention period
+    find "$find_pattern" -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" \) \
+         -mtime "+$retention_days" 2>/dev/null || true
+}
+
+# Find associated files (thumbnails, info files) for a video
+find_associated_files() {
+    local video_file="$1"
+    local base_name="${video_file%.*}"
+    
+    # Find thumbnail, info, and subtitle files
+    find "$(dirname "$video_file")" -name "${base_name}.*" \( \
+        -name "*.jpg" -o -name "*.png" -o -name "*.webp" -o \
+        -name "*.info.json" -o -name "*.description" -o \
+        -name "*.srt" -o -name "*.vtt" \) 2>/dev/null || true
+}
+
+# Check if video is protected from deletion
+is_video_protected() {
+    local video_file="$1"
+    local retention_days="${2:-$RETENTION_DAYS}"
+    
+    # Check if recently watched (within 7 days)
+    local recent_threshold=$((retention_days - 7))
+    if [[ $recent_threshold -gt 0 ]]; then
+        local recent_access
+        recent_access=$(find "$video_file" -atime "-$recent_threshold" 2>/dev/null | wc -l)
+        if [[ "$recent_access" -gt 0 ]]; then
+            return 0  # Protected - recently accessed
+        fi
+    fi
+    
+    # Check database for favorite status (if database exists)
+    if [[ -f "$DATABASE_FILE" ]]; then
+        local basename
+        basename=$(basename "$video_file")
+        local is_favorite
+        is_favorite=$(sqlite3 "$DATABASE_FILE" \
+            "SELECT COUNT(*) FROM videos WHERE file_path LIKE '%$basename%' AND status='favorite'" 2>/dev/null || echo "0")
+        
+        if [[ "$is_favorite" -gt 0 ]]; then
+            return 0  # Protected - marked as favorite
+        fi
+    fi
+    
+    return 1  # Not protected
+}
+
+# Analyze what would be cleaned up
+analyze_cleanup() {
+    local retention_days="${1:-$RETENTION_DAYS}"
+    
+    log_info "Analyzing YouTube video retention (${retention_days} days)..."
+    
+    local old_videos
+    mapfile -t old_videos < <(find_old_videos "$retention_days")
+    
+    if [[ ${#old_videos[@]} -eq 0 ]]; then
+        log_info "No videos found older than $retention_days days"
+        return 0
+    fi
+    
+    local total_size=0
+    local protected_count=0
+    local deletable_count=0
+    local protected_size=0
+    local deletable_size=0
+    
+    echo -e "${BOLD}📊 RETENTION ANALYSIS${NC}"
+    echo "===================="
+    echo "Retention period: $retention_days days"
+    echo "Videos found: ${#old_videos[@]}"
+    echo ""
+    
+    echo "📁 Videos by channel:"
+    declare -A channel_stats
+    
+    for video in "${old_videos[@]}"; do
+        if [[ ! -f "$video" ]]; then
+            continue
+        fi
+        
+        local size
+        size=$(stat -c%s "$video" 2>/dev/null || echo 0)
+        total_size=$((total_size + size))
+        
+        local channel_name
+        channel_name=$(dirname "$video" | xargs basename)
+        
+        if is_video_protected "$video" "$retention_days"; then
+            ((protected_count++))
+            protected_size=$((protected_size + size))
+            echo "  🔒 PROTECTED: $(basename "$video") ($(numfmt --to=iec "$size"))"
+        else
+            ((deletable_count++))
+            deletable_size=$((deletable_size + size))
+            channel_stats["$channel_name"]=$((${channel_stats["$channel_name"]:-0} + 1))
+        fi
+    done
+    
+    echo ""
+    echo "📈 Summary:"
+    echo "  Total videos: ${#old_videos[@]}"
+    echo "  Protected: $protected_count ($(numfmt --to=iec "$protected_size"))"
+    echo "  Can delete: $deletable_count ($(numfmt --to=iec "$deletable_size"))"
+    echo "  Space recoverable: $(numfmt --to=iec "$deletable_size")"
+    
+    if [[ ${#channel_stats[@]} -gt 0 ]]; then
+        echo ""
+        echo "🗂️  Deletable videos by channel:"
+        for channel in "${!channel_stats[@]}"; do
+            echo "  $channel: ${channel_stats[$channel]} videos"
+        done
+    fi
+    
+    return 0
+}
+
+# Perform actual cleanup
+perform_cleanup() {
+    local retention_days="${1:-$RETENTION_DAYS}"
+    local force="${2:-false}"
+    local dry_run="${3:-false}"
+    
+    show_youtube_header "YouTube Retention Cleanup" "Removing videos older than ${retention_days} days"
+    
+    log_info "Starting YouTube video cleanup (${retention_days} days retention)"
+    
+    local old_videos
+    mapfile -t old_videos < <(find_old_videos "$retention_days")
+    
+    if [[ ${#old_videos[@]} -eq 0 ]]; then
+        log_info "No videos found older than $retention_days days"
+        show_task_status "YouTube Retention Cleanup" "complete"
+        return 0
+    fi
+    
+    local deletable_videos=()
+    local total_size=0
+    
+    # Build list of deletable videos
+    for video in "${old_videos[@]}"; do
+        if [[ ! -f "$video" ]]; then
+            continue
+        fi
+        
+        if ! is_video_protected "$video" "$retention_days"; then
+            deletable_videos+=("$video")
+            local size
+            size=$(stat -c%s "$video" 2>/dev/null || echo 0)
+            total_size=$((total_size + size))
+        fi
+    done
+    
+    if [[ ${#deletable_videos[@]} -eq 0 ]]; then
+        log_info "No deletable videos found (all are protected)"
+        show_task_status "YouTube Retention Cleanup" "complete"
+        return 0
+    fi
+    
+    log_info "Found ${#deletable_videos[@]} videos to delete ($(numfmt --to=iec "$total_size"))"
+    
+    # Confirmation prompt
+    if [[ "$force" != "true" && "$dry_run" != "true" ]]; then
+        echo ""
+        echo "⚠️  About to delete ${#deletable_videos[@]} videos ($(numfmt --to=iec "$total_size"))"
+        read -p "Proceed with cleanup? (y/N): " confirm
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            log_info "Cleanup cancelled by user"
+            return 0
+        fi
+    fi
+    
+    # Delete videos
+    local deleted_count=0
+    local deleted_size=0
+    local current=0
+    
+    for video in "${deletable_videos[@]}"; do
+        ((current++))
+        local video_name=$(basename "$video")
+        local channel_name=$(basename "$(dirname "$video")")
+        
+        show_youtube_progress "$current" "${#deletable_videos[@]}" "Cleaning up videos" 40 true
+        show_channel_status "$channel_name" "processing" 1 "Removing $video_name"
+        
+        if [[ "$dry_run" == "true" ]]; then
+            log_info "DRY RUN: Would delete $video"
+            continue
+        fi
+        
+        local size
+        size=$(stat -c%s "$video" 2>/dev/null || echo 0)
+        
+        # Delete associated files first
+        local associated_files
+        mapfile -t associated_files < <(find_associated_files "$video")
+        
+        for assoc_file in "${associated_files[@]}"; do
+            if [[ -f "$assoc_file" && "$assoc_file" != "$video" ]]; then
+                rm -f "$assoc_file" 2>/dev/null || log_warn "Failed to delete associated file: $assoc_file"
+            fi
+        done
+        
+        # Delete the main video file
+        if rm -f "$video" 2>/dev/null; then
+            ((deleted_count++))
+            deleted_size=$((deleted_size + size))
+            show_channel_status "$channel_name" "complete" 1 "Removed $video_name ($(numfmt --to=iec "$size"))"
+        else
+            show_channel_status "$channel_name" "error" 1 "Failed to remove $video_name"
+            log_error "Failed to delete: $video"
+        fi
+    done
+    
+    # Clean up empty directories
+    if [[ "$dry_run" != "true" ]]; then
+        find "$PLEX_YOUTUBE_DIR" -type d -empty -delete 2>/dev/null || true
+    fi
+    
+    # Update database if it exists
+    if [[ -f "$DATABASE_FILE" && "$dry_run" != "true" ]]; then
+        sqlite3 "$DATABASE_FILE" << EOF
+INSERT INTO sync_log (timestamp, action, details, status)
+VALUES (datetime('now'), 'retention_cleanup', 'Deleted: $deleted_count videos, Size: $(numfmt --to=iec "$deleted_size")', 'completed');
+EOF
+    fi
+    
+    # Show beautiful cleanup summary
+    local space_mb=$((deleted_size / 1024 / 1024))
+    local unique_channels=$(find "$PLEX_YOUTUBE_DIR" -type d -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)
+    
+    show_summary 0 0 "$unique_channels" "$space_mb"
+    log_info "Cleanup completed: $deleted_count videos deleted, $(numfmt --to=iec "$deleted_size") space recovered"
+    
+    # Trigger Plex library refresh
+    if command -v pai-youtube-plex-library-refresh >/dev/null 2>&1 && [[ "$dry_run" != "true" ]]; then
+        log_info "Refreshing Plex library..."
+        pai-youtube-plex-library-refresh
+    fi
+    
+    return 0
+}
+
+# Show retention status
+show_status() {
+    echo -e "${BOLD}🧹 YOUTUBE RETENTION STATUS${NC}"
+    echo "============================="
+    echo ""
+    
+    echo "💾 Storage Information:"
+    local storage_info
+    storage_info=$(get_storage_info)
+    echo "$storage_info" | while read -r line; do
+        echo "  $line"
+    done
+    
+    local usage_pct
+    usage_pct=$(get_storage_percentage)
+    echo "  Usage: ${usage_pct}%"
+    
+    if [[ "$usage_pct" -gt 95 ]]; then
+        echo "  ⚠️  CRITICAL: Storage >95% full - emergency cleanup recommended"
+    elif [[ "$usage_pct" -gt 85 ]]; then
+        echo "  ⚠️  WARNING: Storage >85% full - cleanup recommended"
+    else
+        echo "  ✅ Storage usage normal"
+    fi
+    
+    echo ""
+    echo "📊 Retention Analysis:"
+    local old_videos
+    mapfile -t old_videos < <(find_old_videos "$RETENTION_DAYS" 2>/dev/null)
+    echo "  Videos older than $RETENTION_DAYS days: ${#old_videos[@]}"
+    
+    if [[ ${#old_videos[@]} -gt 0 ]]; then
+        local total_size=0
+        for video in "${old_videos[@]}"; do
+            if [[ -f "$video" ]]; then
+                local size
+                size=$(stat -c%s "$video" 2>/dev/null || echo 0)
+                total_size=$((total_size + size))
+            fi
+        done
+        echo "  Total size of old videos: $(numfmt --to=iec "$total_size")"
+    fi
+    
+    if [[ -f "$DATABASE_FILE" ]]; then
+        local last_cleanup
+        last_cleanup=$(sqlite3 "$DATABASE_FILE" \
+            "SELECT timestamp FROM sync_log WHERE action='retention_cleanup' ORDER BY timestamp DESC LIMIT 1" 2>/dev/null || echo "Never")
+        echo "  Last cleanup: $last_cleanup"
+    fi
+}
+
+# Emergency cleanup when storage is critical
+emergency_cleanup() {
+    local force="${1:-false}"
+    
+    log_warn "EMERGENCY CLEANUP INITIATED"
+    
+    local usage_pct
+    usage_pct=$(get_storage_percentage)
+    
+    if [[ "$usage_pct" -lt 95 ]]; then
+        log_info "Storage usage is $usage_pct% - emergency cleanup not needed"
+        return 0
+    fi
+    
+    log_warn "Storage usage is $usage_pct% - proceeding with emergency cleanup"
+    
+    # More aggressive cleanup - start with 45 days, then 30, then 14 if needed
+    for retention in 45 30 14; do
+        log_info "Trying emergency cleanup with $retention day retention..."
+        perform_cleanup "$retention" "$force" false
+        
+        # Check if we've freed enough space
+        usage_pct=$(get_storage_percentage)
+        if [[ "$usage_pct" -lt 85 ]]; then
+            log_info "Emergency cleanup successful - storage now at $usage_pct%"
+            return 0
+        fi
+    done
+    
+    log_error "Emergency cleanup completed but storage still critical: $usage_pct%"
+    return 1
+}
+
+# Parse arguments
+COMMAND=""
+RETENTION_DAYS=30
+FORCE=false
+DRY_RUN=false
+MIN_FREE_GB=5
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --retention-days)
+            RETENTION_DAYS="$2"
+            shift 2
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --min-free-gb)
+            MIN_FREE_GB="$2"
+            shift 2
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            show_help >&2
+            exit 1
+            ;;
+        *)
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+            else
+                log_error "Multiple commands specified"
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$COMMAND" ]]; then
+    COMMAND="cleanup"
+fi
+
+# Create directories if they don't exist
+mkdir -p "$YOUTUBE_CONFIG_DIR"
+
+# Export variables
+export VERBOSE DRY_RUN FORCE
+
+# Execute command
+case "$COMMAND" in
+    cleanup)
+        perform_cleanup "$RETENTION_DAYS" "$FORCE" "$DRY_RUN"
+        ;;
+    analyze)
+        analyze_cleanup "$RETENTION_DAYS"
+        ;;
+    status)
+        show_status
+        ;;
+    emergency)
+        emergency_cleanup "$FORCE"
+        ;;
+    *)
+        log_error "Invalid command: $COMMAND"
+        show_help >&2
+        exit 1
+        ;;
+esac
+
+exit $?

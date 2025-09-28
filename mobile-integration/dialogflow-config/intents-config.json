@@ -1,0 +1,184 @@
+{
+  "projectId": "pai-mobile-assistant",
+  "intents": [
+    {
+      "displayName": "plex.status",
+      "trainingPhrases": [
+        "check Plex status",
+        "how is Plex running", 
+        "is Plex server online",
+        "Plex server status",
+        "check media server",
+        "is the server running"
+      ],
+      "messageTexts": [
+        "Let me check your Plex server status"
+      ],
+      "parameters": []
+    },
+    {
+      "displayName": "plex.libraries",
+      "trainingPhrases": [
+        "show Plex libraries",
+        "list media libraries",
+        "what libraries do I have",
+        "show my Plex collections"
+      ],
+      "messageTexts": [
+        "Here are your Plex libraries"
+      ],
+      "parameters": []
+    },
+    {
+      "displayName": "plex.health",
+      "trainingPhrases": [
+        "run Plex health check",
+        "check Plex health",
+        "is Plex healthy",
+        "media server health check"
+      ],
+      "messageTexts": [
+        "Running Plex health check"
+      ],
+      "parameters": []
+    },
+    {
+      "displayName": "context.switch",
+      "trainingPhrases": [
+        "switch to work context",
+        "change to personal mode", 
+        "switch context to redhat",
+        "change to meal planning context",
+        "switch to plex context",
+        "change context to $context"
+      ],
+      "messageTexts": [
+        "Switching to $context context"
+      ],
+      "parameters": [
+        {
+          "name": "context",
+          "entityType": "@pai-contexts",
+          "required": true,
+          "prompts": ["Which context would you like to switch to?"]
+        }
+      ]
+    },
+    {
+      "displayName": "context.current",
+      "trainingPhrases": [
+        "what's my current context",
+        "which context am I in",
+        "show current PAI context"
+      ],
+      "messageTexts": [
+        "Let me check your current context"
+      ],
+      "parameters": []
+    },
+    {
+      "displayName": "system.status",
+      "trainingPhrases": [
+        "system status",
+        "show PAI status",
+        "how is everything running",
+        "overall system health"
+      ],
+      "messageTexts": [
+        "Checking overall system status"
+      ],
+      "parameters": []
+    },
+    {
+      "displayName": "meal.plan",
+      "trainingPhrases": [
+        "plan my meals",
+        "generate meal plan",
+        "what should I eat this week",
+        "create meal planning"
+      ],
+      "messageTexts": [
+        "Creating your meal plan"
+      ],
+      "parameters": []
+    },
+    {
+      "displayName": "meal.shopping",
+      "trainingPhrases": [
+        "show shopping list",
+        "what do I need to buy",
+        "generate shopping list",
+        "meal shopping list"
+      ],
+      "messageTexts": [
+        "Here's your shopping list"
+      ],
+      "parameters": []
+    },
+    {
+      "displayName": "case.status",
+      "trainingPhrases": [
+        "check case status",
+        "show my Red Hat cases",
+        "case management status",
+        "what cases do I have"
+      ],
+      "messageTexts": [
+        "Checking your case status"
+      ],
+      "parameters": []
+    },
+    {
+      "displayName": "email.sync",
+      "trainingPhrases": [
+        "sync my emails",
+        "check email updates",
+        "refresh email",
+        "email synchronization"
+      ],
+      "messageTexts": [
+        "Synchronizing your emails"
+      ],
+      "parameters": []
+    }
+  ],
+  "entities": [
+    {
+      "displayName": "pai-contexts",
+      "entries": [
+        {
+          "value": "work",
+          "synonyms": ["work", "redhat", "red hat", "professional", "job"]
+        },
+        {
+          "value": "personal", 
+          "synonyms": ["personal", "home", "private"]
+        },
+        {
+          "value": "plex",
+          "synonyms": ["plex", "media", "entertainment", "movies", "tv"]
+        },
+        {
+          "value": "meal-planning",
+          "synonyms": ["meal planning", "meals", "food", "cooking", "kitchen"]
+        },
+        {
+          "value": "home-automation",
+          "synonyms": ["home automation", "smart home", "iot", "devices"]
+        },
+        {
+          "value": "finance",
+          "synonyms": ["finance", "money", "budget", "financial"]
+        }
+      ]
+    }
+  ],
+  "smallTalk": {
+    "enabled": true,
+    "responses": {
+      "greeting": "Hey there! I'm your PAI assistant. What can I help you with today?",
+      "goodbye": "See you later! Your PAI system is always here when you need it.",
+      "help": "I can help you with Plex management, system status, context switching, meal planning, case management, and email handling. What would you like to do?"
+    }
+  }
+}

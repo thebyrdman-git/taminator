@@ -1,0 +1,218 @@
+#!/bin/bash
+
+# PAI Voice Command System
+# Part of the Personal AI Infrastructure (PAI)
+# Created for Hatter - Red Hat Digital Assistant
+
+# Voice command processor with speech recognition and TTS feedback
+
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/pai-progress-tracker" 2>/dev/null || {
+    show_progress() { echo "Progress: $1/$2 - $3"; }
+    show_task_status() { echo "$2: $1"; }
+}
+
+# Configuration
+WAKE_WORDS=("hatter" "pai" "hey hatter" "hey pai")
+VOICE_LOG="$HOME/.config/pai/voice-commands.log"
+TTS_ENABLED=true
+VOICE_FEEDBACK=true
+
+# Create log directory
+mkdir -p "$(dirname "$VOICE_LOG")"
+
+# Text-to-speech function
+speak() {
+    local message="$1"
+    echo "🗣️  Hatter: $message"
+    echo "$(date): SPEAK: $message" >> "$VOICE_LOG"
+    
+    if [[ "$TTS_ENABLED" == "true" ]]; then
+        if command -v espeak >/dev/null 2>&1; then
+            echo "$message" | espeak -s 150 -v en+f3 2>/dev/null &
+        elif command -v say >/dev/null 2>&1; then
+            say "$message" 2>/dev/null &
+        fi
+    fi
+}
+
+# Speech recognition simulation (would use real STT in production)
+listen_for_command() {
+    echo "🎤 Listening for voice command..."
+    echo "   Say: 'Hey Hatter, [command]'"
+    echo "   Available commands:"
+    echo "   - 'status' - Show Plex status"
+    echo "   - 'scan library' - Refresh Plex libraries" 
+    echo "   - 'show progress' - Current task status"
+    echo "   - 'performance check' - Run health check"
+    echo "   - 'storage cleanup' - Clean up storage"
+    echo "   - 'stop listening' - Exit voice mode"
+    echo ""
+    
+    read -p "💬 Enter voice command (or 'exit' to stop): " voice_input
+    echo "$(date): INPUT: $voice_input" >> "$VOICE_LOG"
+    
+    # Process the voice command
+    process_voice_command "$voice_input"
+}
+
+# Command processing with PAI tool integration
+process_voice_command() {
+    local command="$1"
+    local cmd_lower=$(echo "$command" | tr '[:upper:]' '[:lower:]')
+    
+    # Remove wake words
+    for wake in "${WAKE_WORDS[@]}"; do
+        cmd_lower=${cmd_lower#*$wake}
+        cmd_lower=${cmd_lower# } # Remove leading space
+    done
+    
+    echo "🧠 Processing: '$cmd_lower'"
+    
+    case "$cmd_lower" in
+        *"status"*|*"server status"*)
+            local responses=(
+                "Let me check on the server for you..."
+                "Sure thing - checking how everything's running..."
+                "On it! Let me see what's happening with Plex..."
+            )
+            speak "${responses[$RANDOM % ${#responses[@]}]}"
+            pai-plex-remote status
+            local complete_responses=(
+                "There you go - everything looks good!"
+                "All done! Server's running smoothly."
+                "Status checked - we're looking good!"
+            )
+            speak "${complete_responses[$RANDOM % ${#complete_responses[@]}]}"
+            ;;
+            
+        *"scan"*|*"library"*|*"refresh"*)
+            speak "Library refresh is a manual operation. Please use the Plex web interface."
+            echo "🌐 Open: http://192.168.1.17:32400"
+            ;;
+            
+        *"progress"*|*"status"*)
+            speak "Showing current task progress"
+            show_task_status "Voice Command System" "working"
+            ;;
+            
+        *"performance"*|*"health"*)
+            speak "Running Plex health check"
+            pai-plex-remote health-check
+            speak "Health check complete"
+            ;;
+            
+        *"storage"*|*"cleanup"*)
+            speak "Storage cleanup available. Would you like me to run it?"
+            read -p "Run storage cleanup? (y/N): " confirm
+            if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                speak "Starting storage cleanup"
+                pai-plex-storage-cleanup
+                speak "Storage cleanup completed"
+            else
+                speak "Storage cleanup cancelled"
+            fi
+            ;;
+            
+        *"libraries"*|*"show libraries"*)
+            speak "Showing Plex libraries"
+            pai-plex-remote libraries
+            ;;
+            
+        *"recent"*|*"activity"*)
+            speak "Showing recent Plex activity"
+            pai-plex-remote recent-activity
+            ;;
+            
+        *"help"*|*"commands"*)
+            speak "Available voice commands"
+            show_help
+            ;;
+            
+        *"stop"*|*"exit"*|*"quit"*)
+            local goodbyes=(
+                "Alright, talk to you later!"
+                "See you around - voice mode's off!"
+                "Bye for now! Shutting down voice commands."
+                "Catch you later - going quiet now!"
+            )
+            speak "${goodbyes[$RANDOM % ${#goodbyes[@]}]}"
+            return 1
+            ;;
+            
+        "")
+            local confused=(
+                "Hmm, not sure I caught that. Try again?"
+                "I didn't quite get that one. Want to try again?"
+                "Sorry, that didn't click for me. What was that?"
+            )
+            speak "${confused[$RANDOM % ${#confused[@]}]}"
+            ;;
+            
+        *)
+            speak "Unknown command: $cmd_lower. Say 'help' for available commands."
+            echo "💡 Available: status, scan library, progress, performance, storage, help, stop"
+            ;;
+    esac
+    
+    return 0
+}
+
+# Help system
+show_help() {
+    cat << 'EOF'
+🎤 PAI VOICE COMMANDS
+===================
+
+Wake words: "Hey Hatter" or "Hey PAI"
+
+Available Commands:
+• "status" - Check Plex server status
+• "scan library" - Refresh Plex libraries (manual)
+• "show progress" - Current task status
+• "performance check" - Run health check  
+• "storage cleanup" - Clean up storage space
+• "show libraries" - List all Plex libraries
+• "recent activity" - Show current streams
+• "help" - Show this help
+• "stop listening" - Exit voice mode
+
+Examples:
+• "Hey Hatter, show status"
+• "PAI, run performance check"
+• "Hey Hatter, storage cleanup"
+EOF
+}
+
+# Main voice command loop
+main() {
+    echo "🎤 PAI VOICE COMMAND SYSTEM"
+    echo "=========================="
+    local greetings=(
+        "Hey! Voice system's ready - what can I help you with?"
+        "I'm here and listening! What do you need?"
+        "Voice mode activated - just tell me what you want to do!"
+    )
+    local random_greeting=${greetings[$RANDOM % ${#greetings[@]}]}
+    speak "$random_greeting"
+    
+    while true; do
+        if ! listen_for_command; then
+            break
+        fi
+        echo ""
+    done
+}
+
+# Handle command line arguments
+case "${1:-}" in
+    --help|-h)
+        show_help
+        ;;
+    --test)
+        speak "Voice system test successful"
+        ;;
+    *)
+        main "$@"
+        ;;
+esac

@@ -1,0 +1,263 @@
+#!/bin/bash
+
+# PAI YouTube Plex Library Refresh
+# Triggers Plex Media Server to scan YouTube library for new content
+# Part of YouTube-Plex Collections automation
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+PLEX_CONFIG_DIR="$PAI_CONFIG_DIR/plex"
+PLEX_SERVER_URL="${PLEX_SERVER_URL:-http://192.168.1.17:32400}"
+PLEX_TOKEN_FILE="$PLEX_CONFIG_DIR/token"
+YOUTUBE_LIBRARY_NAME="YouTube Collections"
+LOG_FILE="$PAI_CONFIG_DIR/youtube/plex-refresh.log"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info() { 
+    echo -e "${GREEN}[INFO]${NC} $*" | tee -a "$LOG_FILE"
+}
+
+log_warn() { 
+    echo -e "${YELLOW}[WARN]${NC} $*" >&2 | tee -a "$LOG_FILE"
+}
+
+log_error() { 
+    echo -e "${RED}[ERROR]${NC} $*" >&2 | tee -a "$LOG_FILE"
+}
+
+show_help() {
+    cat << EOF
+pai-youtube-plex-library-refresh - Refresh Plex YouTube library
+
+USAGE:
+    pai-youtube-plex-library-refresh [options]
+
+OPTIONS:
+    --server-url URL     Plex server URL (default: http://192.168.1.17:32400)
+    --library-name NAME  Library name (default: YouTube Collections)
+    --force-scan        Force full library scan instead of quick scan
+    --wait              Wait for scan completion
+    --help, -h          Show this help
+
+EXAMPLES:
+    pai-youtube-plex-library-refresh
+    pai-youtube-plex-library-refresh --force-scan --wait
+    pai-youtube-plex-library-refresh --library-name "YouTube Videos"
+
+This script automatically triggers Plex to scan for new YouTube content
+after downloads or cleanup operations.
+EOF
+}
+
+# Get Plex authentication token
+get_plex_token() {
+    if [[ -f "$PLEX_TOKEN_FILE" ]]; then
+        cat "$PLEX_TOKEN_FILE"
+    else
+        log_error "Plex token not found at $PLEX_TOKEN_FILE"
+        log_info "Set up Plex token with: echo 'YOUR_TOKEN' > $PLEX_TOKEN_FILE"
+        return 1
+    fi
+}
+
+# Get library sections from Plex
+get_library_sections() {
+    local server_url="$1"
+    local token="$2"
+    
+    curl -s "${server_url}/library/sections" \
+         -H "X-Plex-Token: ${token}" \
+         -H "Accept: application/json" 2>/dev/null || return 1
+}
+
+# Find YouTube library section key
+find_youtube_library() {
+    local server_url="$1" 
+    local token="$2"
+    local library_name="$3"
+    
+    local sections
+    sections=$(get_library_sections "$server_url" "$token")
+    
+    if [[ -z "$sections" ]]; then
+        log_error "Failed to get library sections from Plex"
+        return 1
+    fi
+    
+    # Extract section key for YouTube library
+    echo "$sections" | jq -r ".MediaContainer.Directory[] | select(.title == \"$library_name\") | .key" 2>/dev/null || true
+}
+
+# Trigger library scan
+trigger_scan() {
+    local server_url="$1"
+    local token="$2"
+    local section_key="$3"
+    local force_scan="${4:-false}"
+    
+    local scan_type="refresh"
+    if [[ "$force_scan" == "true" ]]; then
+        scan_type="refresh"  # Plex uses same endpoint, force is via parameter
+    fi
+    
+    log_info "Triggering Plex library scan for section $section_key..."
+    
+    local response
+    response=$(curl -s -X POST "${server_url}/library/sections/${section_key}/${scan_type}" \
+                    -H "X-Plex-Token: ${token}" \
+                    -w "%{http_code}" 2>/dev/null)
+    
+    local http_code="${response: -3}"
+    
+    if [[ "$http_code" == "200" ]]; then
+        log_info "Library scan triggered successfully"
+        return 0
+    else
+        log_error "Library scan failed with HTTP code: $http_code"
+        return 1
+    fi
+}
+
+# Check scan status
+check_scan_status() {
+    local server_url="$1"
+    local token="$2"
+    
+    local activities
+    activities=$(curl -s "${server_url}/activities" \
+                      -H "X-Plex-Token: ${token}" \
+                      -H "Accept: application/json" 2>/dev/null)
+    
+    if [[ -n "$activities" ]]; then
+        echo "$activities" | jq -r '.MediaContainer.Activity[] | select(.type == "library.refresh") | .title' 2>/dev/null || true
+    fi
+}
+
+# Wait for scan completion
+wait_for_scan() {
+    local server_url="$1"
+    local token="$2"
+    local timeout="${3:-300}"  # 5 minutes default
+    
+    log_info "Waiting for library scan to complete (timeout: ${timeout}s)..."
+    
+    local elapsed=0
+    local check_interval=10
+    
+    while [[ $elapsed -lt $timeout ]]; do
+        local active_scans
+        active_scans=$(check_scan_status "$server_url" "$token")
+        
+        if [[ -z "$active_scans" ]]; then
+            log_info "Library scan completed"
+            return 0
+        fi
+        
+        log_info "Scan in progress: $active_scans"
+        sleep $check_interval
+        elapsed=$((elapsed + check_interval))
+    done
+    
+    log_warn "Timeout waiting for scan completion"
+    return 1
+}
+
+# Main function
+refresh_library() {
+    local server_url="$1"
+    local library_name="$2"
+    local force_scan="$3"
+    local wait_for_completion="$4"
+    
+    mkdir -p "$PLEX_CONFIG_DIR" "$(dirname "$LOG_FILE")"
+    
+    log_info "Refreshing Plex library: $library_name"
+    log_info "Server: $server_url"
+    
+    # Get authentication token
+    local token
+    if ! token=$(get_plex_token); then
+        return 1
+    fi
+    
+    # Find YouTube library section
+    local section_key
+    section_key=$(find_youtube_library "$server_url" "$token" "$library_name")
+    
+    if [[ -z "$section_key" ]]; then
+        log_error "YouTube library '$library_name' not found on Plex server"
+        log_info "Available libraries:"
+        get_library_sections "$server_url" "$token" | jq -r '.MediaContainer.Directory[]? | "  \(.title) (key: \(.key))"' 2>/dev/null || log_error "Failed to list libraries"
+        return 1
+    fi
+    
+    log_info "Found YouTube library with key: $section_key"
+    
+    # Trigger the scan
+    if ! trigger_scan "$server_url" "$token" "$section_key" "$force_scan"; then
+        return 1
+    fi
+    
+    # Wait for completion if requested
+    if [[ "$wait_for_completion" == "true" ]]; then
+        wait_for_scan "$server_url" "$token"
+    fi
+    
+    log_info "Plex library refresh complete"
+    return 0
+}
+
+# Parse arguments
+SERVER_URL="$PLEX_SERVER_URL"
+LIBRARY_NAME="$YOUTUBE_LIBRARY_NAME"
+FORCE_SCAN=false
+WAIT_FOR_COMPLETION=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --server-url)
+            SERVER_URL="$2"
+            shift 2
+            ;;
+        --library-name)
+            LIBRARY_NAME="$2"
+            shift 2
+            ;;
+        --force-scan)
+            FORCE_SCAN=true
+            shift
+            ;;
+        --wait)
+            WAIT_FOR_COMPLETION=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            show_help >&2
+            exit 1
+            ;;
+        *)
+            log_error "Unexpected argument: $1"
+            show_help >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Execute the refresh
+refresh_library "$SERVER_URL" "$LIBRARY_NAME" "$FORCE_SCAN" "$WAIT_FOR_COMPLETION"
+
+exit $?
+

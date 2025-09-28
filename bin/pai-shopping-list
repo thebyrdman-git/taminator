@@ -1,0 +1,114 @@
+#!/bin/bash
+
+# PAI Shopping List Manager
+# Automated shopping list generation and management
+# Part of the Personal AI Infrastructure (PAI)
+
+set -euo pipefail
+
+CONFIG_DIR="$HOME/.config/pai/meal-planning"
+SHOPPING_LIST="$CONFIG_DIR/shopping-list.md"
+PANTRY_FILE="$CONFIG_DIR/pantry-inventory.md"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+mkdir -p "$CONFIG_DIR"
+
+show_help() {
+    cat << 'EOF'
+pai-shopping-list - Smart Shopping List Manager
+
+COMMANDS:
+    show                Display current shopping list
+    add ITEM           Add item to shopping list
+    remove ITEM        Remove item from shopping list  
+    clear              Clear shopping list
+    generate           Generate from meal plan
+    organize           Organize by store sections
+    check ITEM         Mark item as purchased
+    
+EXAMPLES:
+    pai-shopping-list add "organic chicken breast"
+    pai-shopping-list generate --from-meal-plan
+    pai-shopping-list organize --by-section
+    pai-shopping-list check "milk"
+EOF
+}
+
+add_item() {
+    local item="$1"
+    echo "- [ ] $item" >> "$SHOPPING_LIST"
+    echo -e "${GREEN}✅ Added '$item' to shopping list${NC}"
+}
+
+show_list() {
+    if [[ ! -f "$SHOPPING_LIST" ]]; then
+        echo -e "${YELLOW}📝 Shopping list is empty${NC}"
+        return 0
+    fi
+    
+    echo -e "${BLUE}🛒 SHOPPING LIST${NC}"
+    echo "================"
+    cat "$SHOPPING_LIST"
+}
+
+generate_from_meal_plan() {
+    local meal_plan="${1:-$CONFIG_DIR/current-meal-plan.md}"
+    
+    if [[ ! -f "$meal_plan" ]]; then
+        echo -e "${RED}❌ Meal plan not found: $meal_plan${NC}"
+        return 1
+    fi
+    
+    echo "# Shopping List - Generated $(date)" > "$SHOPPING_LIST"
+    echo "" >> "$SHOPPING_LIST"
+    echo "## Proteins" >> "$SHOPPING_LIST"
+    echo "- [ ] [Extract from meal plan]" >> "$SHOPPING_LIST"
+    echo "" >> "$SHOPPING_LIST"
+    echo "## Vegetables" >> "$SHOPPING_LIST"
+    echo "- [ ] [Extract from meal plan]" >> "$SHOPPING_LIST"
+    echo "" >> "$SHOPPING_LIST"
+    echo "## Grains & Starches" >> "$SHOPPING_LIST"
+    echo "- [ ] [Extract from meal plan]" >> "$SHOPPING_LIST"
+    echo "" >> "$SHOPPING_LIST"
+    echo "## Dairy" >> "$SHOPPING_LIST"
+    echo "- [ ] [Extract from meal plan]" >> "$SHOPPING_LIST"
+    echo "" >> "$SHOPPING_LIST"
+    echo "## Pantry Items" >> "$SHOPPING_LIST"
+    echo "- [ ] [Extract from meal plan]" >> "$SHOPPING_LIST"
+    
+    echo -e "${GREEN}✅ Shopping list generated from meal plan${NC}"
+}
+
+main() {
+    case "${1:-}" in
+        show) show_list ;;
+        add) add_item "${2:-}" ;;
+        generate) 
+            shift
+            meal_plan=""
+            if [[ $# -gt 0 ]]; then
+                while [[ $# -gt 0 ]]; do
+                    case $1 in
+                        --from-meal-plan) meal_plan="$2"; shift 2 ;;
+                        *) shift ;;
+                    esac
+                done
+            fi
+            generate_from_meal_plan "$meal_plan"
+            ;;
+        clear) 
+            rm -f "$SHOPPING_LIST"
+            echo -e "${GREEN}✅ Shopping list cleared${NC}"
+            ;;
+        --help|-h) show_help ;;
+        *) show_help ;;
+    esac
+}
+
+main "$@"

@@ -1,0 +1,82 @@
+{
+  "commands": [
+    {
+      "command": "pai.voice.live",
+      "title": "🎤 Start Live Voice",
+      "category": "PAI Voice",
+      "shortcut": "ctrl+alt+v"
+    },
+    {
+      "command": "pai.voice.chat", 
+      "title": "💬 Voice Chat Mode",
+      "category": "PAI Voice",
+      "shortcut": "ctrl+alt+c"
+    },
+    {
+      "command": "pai.voice.plex",
+      "title": "🎬 Plex Voice Control",
+      "category": "PAI Voice", 
+      "shortcut": "ctrl+alt+p"
+    },
+    {
+      "command": "pai.voice.toggle",
+      "title": "🎛️ Voice UI Toggle",
+      "category": "PAI Voice",
+      "shortcut": "ctrl+alt+t"
+    }
+  ],
+  "keybindings": [
+    {
+      "command": "pai.voice.live",
+      "key": "ctrl+alt+v",
+      "when": "true"
+    },
+    {
+      "command": "pai.voice.chat",
+      "key": "ctrl+alt+c", 
+      "when": "true"
+    },
+    {
+      "command": "pai.voice.plex",
+      "key": "ctrl+alt+p",
+      "when": "true"
+    },
+    {
+      "command": "pai.voice.toggle", 
+      "key": "ctrl+alt+t",
+      "when": "true"
+    }
+  ],
+  "menus": {
+    "commandPalette": [
+      {
+        "command": "pai.voice.live"
+      },
+      {
+        "command": "pai.voice.chat"
+      },
+      {
+        "command": "pai.voice.plex"
+      },
+      {
+        "command": "pai.voice.toggle"
+      }
+    ],
+    "editor/context": [
+      {
+        "command": "pai.voice.live",
+        "group": "pai@1",
+        "when": "true"
+      },
+      {
+        "command": "pai.voice.chat",
+        "group": "pai@2", 
+        "when": "true"
+      }
+    ]
+  },
+  "activationEvents": [
+    "*"
+  ]
+}
+

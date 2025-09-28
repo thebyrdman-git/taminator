@@ -1,0 +1,349 @@
+#!/bin/bash
+
+# PAI Meal Planner
+# Weekly meal planning and scheduling tool
+# Part of the Personal AI Infrastructure (PAI)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PAI_ROOT="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$HOME/.config/pai/meal-planning"
+MEAL_PLAN_FILE="$CONFIG_DIR/current-meal-plan.md"
+RECIPES_DIR="$CONFIG_DIR/recipes"
+
+# Colors and formatting
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Ensure config directories exist
+mkdir -p "$CONFIG_DIR" "$RECIPES_DIR"
+
+show_help() {
+    cat << 'EOF'
+pai-meal-planner - Weekly Meal Planning Tool
+
+USAGE:
+    pai-meal-planner <command> [options]
+
+COMMANDS:
+    plan                Create or update weekly meal plan
+    show                Display current meal plan
+    add-meal            Add specific meal to plan
+    generate-shopping   Generate shopping list from meal plan
+    nutrition           Show nutritional analysis
+    prep-schedule       Generate meal prep schedule
+    
+OPTIONS:
+    --week DATE         Target week (default: current week)
+    --family-size N     Number of people (default: 4)
+    --dietary PREF      Dietary preferences (vegetarian, vegan, keto, etc.)
+    --budget AMOUNT     Target weekly budget
+    --prep-day DAY      Main prep day (default: Sunday)
+    
+EXAMPLES:
+    pai-meal-planner plan --family-size 3 --dietary vegetarian
+    pai-meal-planner show
+    pai-meal-planner add-meal --day monday --meal dinner --recipe "chicken-stir-fry"
+    pai-meal-planner generate-shopping --budget 150
+    pai-meal-planner prep-schedule --prep-day sunday
+
+MEAL PLANNING INTEGRATION:
+    - Links with pai-shopping-list for automated shopping
+    - Connects to pai-recipe-manager for recipe details
+    - Integrates with pai-nutrition-tracker for health goals
+    - Coordinates with pai-kitchen-inventory for ingredient planning
+EOF
+}
+
+log_meal() {
+    local message="$1"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" >> "$CONFIG_DIR/meal-planner.log"
+    echo -e "${CYAN}[MEAL PLANNER]${NC} $message"
+}
+
+create_weekly_plan() {
+    local week_start="${1:-$(date +%Y-%m-%d)}"
+    local family_size="${2:-4}"
+    local dietary="${3:-mixed}"
+    local budget="${4:-0}"
+    
+    log_meal "Creating weekly meal plan for $week_start (family of $family_size)"
+    
+    cat > "$MEAL_PLAN_FILE" << EOF
+# Weekly Meal Plan - Week of $week_start
+
+## Planning Details
+- **Family Size:** $family_size people
+- **Dietary Preferences:** $dietary
+- **Budget Target:** \$${budget}
+- **Prep Day:** Sunday
+- **Generated:** $(date)
+
+## Weekly Schedule
+
+### Monday
+**Breakfast:** [To be planned]
+**Lunch:** [To be planned] 
+**Dinner:** [To be planned]
+**Snacks:** [To be planned]
+
+### Tuesday
+**Breakfast:** [To be planned]
+**Lunch:** [To be planned]
+**Dinner:** [To be planned]
+**Snacks:** [To be planned]
+
+### Wednesday
+**Breakfast:** [To be planned]
+**Lunch:** [To be planned]
+**Dinner:** [To be planned]
+**Snacks:** [To be planned]
+
+### Thursday
+**Breakfast:** [To be planned]
+**Lunch:** [To be planned]
+**Dinner:** [To be planned]
+**Snacks:** [To be planned]
+
+### Friday
+**Breakfast:** [To be planned]
+**Lunch:** [To be planned]
+**Dinner:** [To be planned]
+**Snacks:** [To be planned]
+
+### Saturday
+**Breakfast:** [To be planned]
+**Lunch:** [To be planned]
+**Dinner:** [To be planned]
+**Snacks:** [To be planned]
+
+### Sunday
+**Breakfast:** [To be planned]
+**Lunch:** [To be planned]
+**Dinner:** [To be planned]
+**Snacks:** [To be planned]
+
+## Shopping List
+- [ ] [Items will be generated from meal selections]
+
+## Meal Prep Schedule
+- **Sunday:** [Prep tasks will be generated]
+- **Wednesday:** [Mid-week prep if needed]
+
+## Nutritional Goals
+- [ ] Target: 2000-2500 calories per person per day
+- [ ] Protein: 25-30% of calories
+- [ ] Vegetables: 5+ servings per day
+- [ ] Whole grains: 3+ servings per day
+
+## Notes
+- Budget tracking: \$0 / \$${budget}
+- Special considerations: $dietary preferences
+- Family favorites to include: [Add preferences]
+EOF
+
+    echo -e "${GREEN}✅ Weekly meal plan created: $MEAL_PLAN_FILE${NC}"
+    echo -e "${BLUE}💡 Edit the plan manually or use 'pai-meal-planner add-meal' to add specific meals${NC}"
+}
+
+show_meal_plan() {
+    if [[ ! -f "$MEAL_PLAN_FILE" ]]; then
+        echo -e "${RED}❌ No meal plan found. Create one with 'pai-meal-planner plan'${NC}"
+        return 1
+    fi
+    
+    echo -e "${BOLD}🍽️  CURRENT MEAL PLAN${NC}"
+    echo "========================"
+    cat "$MEAL_PLAN_FILE"
+}
+
+add_meal() {
+    local day="$1"
+    local meal_type="$2"
+    local recipe="$3"
+    
+    if [[ ! -f "$MEAL_PLAN_FILE" ]]; then
+        echo -e "${RED}❌ No meal plan found. Create one first.${NC}"
+        return 1
+    fi
+    
+    log_meal "Adding $recipe to $day $meal_type"
+    
+    # This is a simplified version - in practice, you'd want more sophisticated editing
+    echo -e "${YELLOW}📝 Manual edit required: Add '$recipe' to $day $meal_type in $MEAL_PLAN_FILE${NC}"
+}
+
+generate_shopping_list() {
+    local budget="${1:-0}"
+    
+    if [[ ! -f "$MEAL_PLAN_FILE" ]]; then
+        echo -e "${RED}❌ No meal plan found. Create one first.${NC}"
+        return 1
+    fi
+    
+    log_meal "Generating shopping list with budget \$${budget}"
+    
+    # Integration point with pai-shopping-list
+    if command -v pai-shopping-list >/dev/null 2>&1; then
+        echo -e "${BLUE}🛒 Generating shopping list from meal plan...${NC}"
+        pai-shopping-list generate --from-meal-plan "$MEAL_PLAN_FILE" --budget "$budget"
+    else
+        echo -e "${YELLOW}⚠️  pai-shopping-list not found - creating basic list${NC}"
+        echo "# Shopping List from Meal Plan" > "$CONFIG_DIR/shopping-list.md"
+        echo "Generated: $(date)" >> "$CONFIG_DIR/shopping-list.md"
+        echo "" >> "$CONFIG_DIR/shopping-list.md"
+        echo "## Items Needed" >> "$CONFIG_DIR/shopping-list.md"
+        echo "- [ ] [Extract ingredients from meal plan manually]" >> "$CONFIG_DIR/shopping-list.md"
+        echo -e "${GREEN}✅ Basic shopping list created: $CONFIG_DIR/shopping-list.md${NC}"
+    fi
+}
+
+show_nutrition() {
+    if [[ ! -f "$MEAL_PLAN_FILE" ]]; then
+        echo -e "${RED}❌ No meal plan found. Create one first.${NC}"
+        return 1
+    fi
+    
+    log_meal "Analyzing nutrition for current meal plan"
+    
+    # Integration point with pai-nutrition-tracker
+    if command -v pai-nutrition-tracker >/dev/null 2>&1; then
+        pai-nutrition-tracker analyze --meal-plan "$MEAL_PLAN_FILE"
+    else
+        echo -e "${PURPLE}📊 NUTRITIONAL ANALYSIS${NC}"
+        echo "============================="
+        echo "📈 Meal plan analysis requires pai-nutrition-tracker"
+        echo "🎯 Estimated daily targets (family of 4):"
+        echo "   • Calories: 8000-10000 total"
+        echo "   • Protein: 200-300g"
+        echo "   • Vegetables: 20+ servings"
+        echo "   • Whole grains: 12+ servings"
+        echo ""
+        echo -e "${BLUE}💡 Install pai-nutrition-tracker for detailed analysis${NC}"
+    fi
+}
+
+generate_prep_schedule() {
+    local prep_day="${1:-sunday}"
+    
+    if [[ ! -f "$MEAL_PLAN_FILE" ]]; then
+        echo -e "${RED}❌ No meal plan found. Create one first.${NC}"
+        return 1
+    fi
+    
+    log_meal "Generating meal prep schedule for $prep_day"
+    
+    echo -e "${BOLD}🥘 MEAL PREP SCHEDULE${NC}"
+    echo "=========================="
+    echo -e "${BLUE}Main Prep Day: ${prep_day^}${NC}"
+    echo ""
+    echo "## Morning (2-3 hours)"
+    echo "• Wash and chop vegetables"
+    echo "• Marinate proteins"
+    echo "• Cook grains and starches"
+    echo ""
+    echo "## Afternoon (1-2 hours)"
+    echo "• Cook proteins"
+    echo "• Assemble make-ahead meals"
+    echo "• Portion snacks"
+    echo ""
+    echo "## Evening (30 minutes)"
+    echo "• Final prep for Monday meals"
+    echo "• Set up grab-and-go items"
+    echo ""
+    echo -e "${GREEN}💡 Customize this schedule based on your specific meal plan${NC}"
+}
+
+main() {
+    case "${1:-}" in
+        plan)
+            shift
+            week_start=""
+            family_size="4"
+            dietary="mixed"
+            budget="0"
+            
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --week) week_start="$2"; shift 2 ;;
+                    --family-size) family_size="$2"; shift 2 ;;
+                    --dietary) dietary="$2"; shift 2 ;;
+                    --budget) budget="$2"; shift 2 ;;
+                    *) echo "Unknown option: $1"; exit 1 ;;
+                esac
+            done
+            
+            create_weekly_plan "$week_start" "$family_size" "$dietary" "$budget"
+            ;;
+        show)
+            show_meal_plan
+            ;;
+        add-meal)
+            if [[ $# -lt 6 ]]; then
+                echo -e "${RED}❌ Usage: pai-meal-planner add-meal --day DAY --meal MEAL --recipe RECIPE${NC}"
+                exit 1
+            fi
+            # Parse arguments for day, meal, recipe
+            day="monday"
+            meal_type="dinner"
+            recipe="unknown"
+            
+            shift
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --day) day="$2"; shift 2 ;;
+                    --meal) meal_type="$2"; shift 2 ;;
+                    --recipe) recipe="$2"; shift 2 ;;
+                    *) echo "Unknown option: $1"; exit 1 ;;
+                esac
+            done
+            
+            add_meal "$day" "$meal_type" "$recipe"
+            ;;
+        generate-shopping)
+            shift
+            budget="0"
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --budget) budget="$2"; shift 2 ;;
+                    *) echo "Unknown option: $1"; exit 1 ;;
+                esac
+            done
+            generate_shopping_list "$budget"
+            ;;
+        nutrition)
+            show_nutrition
+            ;;
+        prep-schedule)
+            shift
+            prep_day="sunday"
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --prep-day) prep_day="$2"; shift 2 ;;
+                    *) echo "Unknown option: $1"; exit 1 ;;
+                esac
+            done
+            generate_prep_schedule "$prep_day"
+            ;;
+        --help|-h)
+            show_help
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: ${1:-}${NC}"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

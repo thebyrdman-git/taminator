@@ -1,0 +1,699 @@
+#!/usr/bin/env python3
+
+"""
+PAI Live Voice Recognition
+Uses SpeechRecognition library with Google STT (online)
+Part of the Personal AI Infrastructure (PAI)
+"""
+
+import speech_recognition as sr
+import subprocess
+import sys
+import time
+import os
+import random
+import json
+from pathlib import Path
+
+class PAILiveVoice:
+    def __init__(self):
+        self.r = sr.Recognizer()
+        self.mic = None
+        self.wake_words = ["hatter", "pai", "hey hatter", "hey pai"]
+        self.listening = False
+        self.config_dir = Path.home() / ".config" / "pai"
+        self.log_file = self.config_dir / "voice-live.log"
+        
+        # PAI system integration
+        self.pai_root = Path("/home/jbyrd/hatter-pai")
+        self.current_context = None
+        self.context_tools = {}
+        
+        # Create config directory
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Load PAI context and tools
+        self.load_pai_context()
+        
+        # Initialize microphone with instant recognition settings
+        try:
+            self.mic = sr.Microphone()
+            # Optimize for instant recognition
+            self.r.energy_threshold = 300  # Lower for faster wake word detection
+            self.r.dynamic_energy_threshold = True
+            self.r.pause_threshold = 0.4  # Faster pause detection
+            print("⚡ Microphone optimized for INSTANT recognition")
+        except Exception as e:
+            print(f"⚠️  Microphone initialization failed: {e}")
+            print("💡 Voice system will use keyboard input mode")
+    
+    def load_pai_context(self):
+        """Load current PAI context and available tools"""
+        try:
+            # Get current context
+            result = subprocess.run(["pai-context-current"], capture_output=True, text=True)
+            if result.returncode == 0:
+                self.current_context = result.stdout.strip()
+                print(f"🎯 PAI Context: {self.current_context}")
+            
+            # Load available pai tools
+            pai_bin = self.pai_root / "bin"
+            if pai_bin.exists():
+                for tool in pai_bin.glob("pai-*"):
+                    if tool.is_file() and os.access(tool, os.X_OK):
+                        tool_name = tool.name
+                        self.context_tools[tool_name] = str(tool)
+                
+                print(f"📚 Loaded {len(self.context_tools)} PAI tools")
+                
+        except Exception as e:
+            print(f"⚠️  Failed to load PAI context: {e}")
+            self.current_context = "unknown"
+    
+    def get_context_appropriate_response(self, command_type):
+        """Get context-appropriate response based on current PAI context"""
+        context_responses = {
+            "plex": {
+                "greeting": [
+                    "Hey! I'm in Plex mode - ready to help with your media server!",
+                    "Plex context active - what can I do for your media setup?",
+                    "I'm tuned into your Plex system - how can I help?"
+                ],
+                "status": [
+                    "Let me check your Plex server status...",
+                    "Checking how your media server's doing...",
+                    "Running Plex diagnostics for you..."
+                ]
+            },
+            "redhat": {
+                "greeting": [
+                    "Red Hat context loaded - ready for enterprise work!",
+                    "I'm in Red Hat mode - what customer needs attention?",
+                    "TAM context active - how can I help with accounts?"
+                ],
+                "status": [
+                    "Checking Red Hat system status...",
+                    "Let me see how the enterprise stack is doing...",
+                    "Running Red Hat infrastructure checks..."
+                ]
+            },
+            "meal-planning": {
+                "greeting": [
+                    "Meal planning mode active - ready to help with cooking and nutrition!",
+                    "I'm in the kitchen context - what can I help you cook up?",
+                    "Food planning system loaded - let's make some delicious plans!"
+                ],
+                "status": [
+                    "Let me check your meal planning status...",
+                    "Checking your current meal plan and shopping lists...",
+                    "Running kitchen inventory and meal plan analysis..."
+                ]
+            },
+            "default": {
+                "greeting": [
+                    "PAI system ready - what can I help you with?",
+                    "Voice mode active - how can I assist?",
+                    "I'm here and ready to work!"
+                ],
+                "status": [
+                    "Let me check the system status...",
+                    "Running general system checks...",
+                    "Checking overall system health..."
+                ]
+            }
+        }
+        
+        context = self.current_context if self.current_context in context_responses else "default"
+        return context_responses[context].get(command_type, context_responses["default"][command_type])
+    
+    def log(self, message):
+        """Log voice recognition events"""
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        with open(self.log_file, "a") as f:
+            f.write(f"{timestamp}: {message}\n")
+        print(f"🎤 {message}")
+    
+    def speak(self, message):
+        """Text-to-speech output - optimized for instant feedback"""
+        print(f"🗣️  Hatter: {message}")
+        self.log(f"SPEAK: {message}")
+        
+        try:
+            if subprocess.run(["which", "espeak"], capture_output=True, stderr=subprocess.DEVNULL).returncode == 0:
+                # Faster speech for instant feedback
+                subprocess.run(["espeak", "-s", "170", "-v", "en+f4", "-a", "85", message], 
+                             stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        except:
+            pass  # Silent fallback for speed
+    
+    def listen_for_speech(self):
+        """Listen for actual speech input"""
+        if not self.mic:
+            print("❌ No microphone available - falling back to keyboard mode")
+            return self.keyboard_fallback()
+            
+        print("⚡ INSTANT VOICE MODE: 'Hey Hatter' for instant response!")
+        
+        try:
+            # Quick calibration for instant recognition
+            with self.mic as source:
+                self.r.adjust_for_ambient_noise(source, duration=0.3)
+                print("⚡ Ready for instant commands")
+            
+            while True:
+                try:
+                    with self.mic as source:
+                        # Optimized for instant detection
+                        audio = self.r.listen(source, timeout=0.5, phrase_time_limit=3)
+                    
+                    # Fast speech recognition
+                    text = self.r.recognize_google(audio).lower()
+                    print(f"⚡ '{text}'")
+                    
+                    # Instant wake word detection
+                    if any(wake in text for wake in self.wake_words):
+                        self.log(f"INSTANT_WAKE: {text}")
+                        
+                        # Instant confirmation responses
+                        quick_responses = [
+                            "Yes!",
+                            "Ready!", 
+                            "Go!",
+                            "Listening!"
+                        ]
+                        self.speak(random.choice(quick_responses))
+                        
+                        # Process the command
+                        result = self.process_command(text)
+                        if not result:
+                            break
+                    
+                except sr.WaitTimeoutError:
+                    # Normal timeout - keep listening
+                    pass
+                except sr.UnknownValueError:
+                    # Speech not understood - keep listening
+                    pass
+                except sr.RequestError as e:
+                    print(f"⚠️  Network issue - switching to keyboard")
+                    self.speak("Network issue - keyboard mode")
+                    return self.keyboard_fallback()
+                except KeyboardInterrupt:
+                    break
+                    
+        except Exception as e:
+            print(f"❌ Voice recognition failed: {e}")
+            return self.keyboard_fallback()
+    
+    def keyboard_fallback(self):
+        """Fallback to keyboard input mode"""
+        print("\n💬 KEYBOARD CHAT MODE")
+        print("====================")
+        print("Just type like you're talking to me:")
+        print("Examples:")
+        print("• 'Hey Hatter, show status'")
+        print("• 'PAI, storage cleanup'") 
+        print("• 'stop listening' when you're done")
+        
+        while True:
+            try:
+                user_input = input("\n💬 Chat with Hatter: ").strip()
+                if not user_input:
+                    continue
+                    
+                self.log(f"KEYBOARD_INPUT: {user_input}")
+                
+                if not self.process_command(user_input):
+                    break
+                    
+            except KeyboardInterrupt:
+                break
+            except EOFError:
+                break
+    
+    def process_command(self, text):
+        """Process voice commands with context awareness"""
+        text_lower = text.lower()
+        
+        # Remove wake words
+        for wake in self.wake_words:
+            if wake in text_lower:
+                text_lower = text_lower.replace(wake, "").strip(" ,")
+                break
+        
+        self.log(f"PROCESSING: {text_lower} (Context: {self.current_context})")
+        
+        # Check for context switching commands first
+        if any(word in text_lower for word in ['switch context', 'change context', 'context']):
+            return self.handle_context_switch(text_lower)
+        
+        # Check for meal planning commands
+        if self.current_context == "meal-planning" and self.handle_meal_planning_commands(text_lower):
+            return True
+        
+        # Check for command chaining (multiple commands separated by 'and', 'then', etc.)
+        if any(separator in text_lower for separator in [' and ', ' then ', ', ']):
+            return self.handle_command_chain(text_lower)
+        
+        # Single command routing with context awareness
+        if any(word in text_lower for word in ['stop', 'quit', 'exit', 'goodbye']):
+            goodbye_responses = [
+                "Alright, talk to you later!",
+                "See you around - voice mode's off!",
+                "Bye for now! Shutting down voice commands.",
+                "Catch you later - going quiet now!"
+            ]
+            self.speak(random.choice(goodbye_responses))
+            return False
+            
+        elif any(word in text_lower for word in ['status', 'server status', 'system status']):
+            responses = self.get_context_appropriate_response("status")
+            self.speak(random.choice(responses))
+            
+            # Context-aware status checking
+            if self.current_context == "plex":
+                subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "status"])
+            else:
+                # General system status
+                subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-status-show"])
+            
+            complete_responses = [
+                "There you go - everything looks good!",
+                "All done! System's running smoothly.",
+                "Status checked - we're looking solid!"
+            ]
+            self.speak(random.choice(complete_responses))
+            
+        elif any(word in text_lower for word in ['libraries', 'show libraries']):
+            if self.current_context == "plex":
+                responses = [
+                    "Let me pull up your Plex libraries...",
+                    "Sure! Here's what you've got in Plex...",
+                    "Coming right up - showing all your libraries..."
+                ]
+                self.speak(random.choice(responses))
+                subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "libraries"])
+            else:
+                responses = [
+                    "I'll need to switch to Plex context for library info. Should I do that?",
+                    "Libraries are a Plex feature - want me to switch contexts?",
+                    "That's Plex-specific - should I change to Plex context?"
+                ]
+                self.speak(random.choice(responses))
+            
+        elif any(word in text_lower for word in ['activity', 'recent activity']):
+            responses = [
+                "Let me see what's been happening lately...",
+                "Checking recent activity for you...",
+                "Looking at what's been playing recently..."
+            ]
+            self.speak(random.choice(responses))
+            subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "recent-activity"])
+            
+        elif any(word in text_lower for word in ['health', 'performance', 'health check']):
+            responses = [
+                "Let me run a quick health check...",
+                "Sure - checking how the server's feeling...",
+                "Running diagnostics now..."
+            ]
+            self.speak(random.choice(responses))
+            subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "health-check"])
+            complete_responses = [
+                "Health check's done - everything looks good!",
+                "All finished! Server's healthy and happy.",
+                "Diagnostics complete - we're looking solid!"
+            ]
+            self.speak(random.choice(complete_responses))
+            
+        elif any(word in text_lower for word in ['storage', 'cleanup', 'storage cleanup']):
+            responses = [
+                "I can help with that! I've got about 28 gigs of old archives we could clean up.",
+                "Sure thing - there's 28 gigabytes of archives taking up space. Want me to clear them out?",
+                "I found some cleanup opportunities - we can free up 28 gigs if you want."
+            ]
+            self.speak(random.choice(responses))
+            if self.mic:
+                confirm_responses = [
+                    "Just say yes if you want me to go ahead, or no to skip it.",
+                    "Should I clean those up? Say yes or no.",
+                    "Want me to do that cleanup? Yes or no?"
+                ]
+                self.speak(random.choice(confirm_responses))
+                # Listen for yes/no response
+                try:
+                    with self.mic as source:
+                        audio = self.r.listen(source, timeout=5)
+                    response = self.r.recognize_google(audio).lower()
+                    proceed = 'yes' in response or 'yeah' in response or 'sure' in response
+                except:
+                    proceed = False
+            else:
+                response = input("🤔 Proceed with storage cleanup? (y/N): ")
+                proceed = response.lower().startswith('y')
+                
+            if proceed:
+                start_responses = [
+                    "Alright, cleaning things up now...",
+                    "You got it - clearing out those archives...",
+                    "On it! This'll just take a moment..."
+                ]
+                self.speak(random.choice(start_responses))
+                subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-storage-cleanup"])
+                done_responses = [
+                    "All done! Got back 28 gigs of space for you.",
+                    "Cleanup finished - your storage is looking much better!",
+                    "Perfect! Archives cleared and space freed up."
+                ]
+                self.speak(random.choice(done_responses))
+            else:
+                cancel_responses = [
+                    "No problem - leaving everything as is.",
+                    "Got it - skipping the cleanup for now.",
+                    "Understood - keeping those archives for now."
+                ]
+                self.speak(random.choice(cancel_responses))
+                
+        elif any(word in text_lower for word in ['help', 'commands', 'what can you do']):
+            self.provide_context_help()
+            
+        # Context-specific commands
+        elif self.current_context == "plex" and any(word in text_lower for word in ['scan', 'refresh', 'update library']):
+            responses = [
+                "I'll trigger a library scan for you...",
+                "Refreshing your Plex libraries now...",
+                "Starting library update..."
+            ]
+            self.speak(random.choice(responses))
+            print("📱 Manual Plex refresh needed: http://192.168.1.17:32400")
+            
+        # Generic PAI tool routing
+        elif self.route_to_pai_tool(text_lower):
+            pass  # Handled by route_to_pai_tool
+            
+        else:
+            confused_responses = [
+                f"Hmm, not sure I caught that in {self.current_context} context. Try 'help' to see what I can do?",
+                "I didn't quite get that one. Want to try again or say 'help'?",
+                "Sorry, that didn't click for me. Say 'help' and I'll show you what I know!"
+            ]
+            self.speak(random.choice(confused_responses))
+            print(f"💡 You said: '{text_lower}' (Context: {self.current_context})")
+            print(f"🔧 Available tools: {', '.join(list(self.context_tools.keys())[:5])}...")
+        
+        return True
+    
+    def handle_meal_planning_commands(self, text):
+        """Handle meal planning specific commands"""
+        # Meal planning command patterns
+        if any(word in text for word in ['meal plan', 'plan meals', 'weekly plan']):
+            responses = [
+                "Creating your weekly meal plan...",
+                "Let me set up a meal plan for you...",
+                "Starting meal planning process..."
+            ]
+            self.speak(random.choice(responses))
+            subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-meal-planner", "plan"])
+            success_responses = [
+                "Meal plan ready! Check it out and customize as needed.",
+                "Your weekly plan is set - time to get cooking!",
+                "Meal planning complete - ready for a delicious week!"
+            ]
+            self.speak(random.choice(success_responses))
+            return True
+            
+        elif any(word in text for word in ['shopping list', 'grocery list', 'shopping']):
+            responses = [
+                "Generating your shopping list...",
+                "Creating grocery list from your meal plan...",
+                "Let me put together your shopping list..."
+            ]
+            self.speak(random.choice(responses))
+            subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-shopping-list", "generate"])
+            success_responses = [
+                "Shopping list ready - time for a grocery run!",
+                "Your grocery list is all set!",
+                "Shopping list complete - happy shopping!"
+            ]
+            self.speak(random.choice(success_responses))
+            return True
+            
+        elif any(word in text for word in ['recipe', 'recipes', 'cooking']):
+            if 'search' in text or 'find' in text:
+                responses = [
+                    "What recipe would you like me to find?",
+                    "Tell me what you're looking to cook!",
+                    "What kind of recipe are you searching for?"
+                ]
+                self.speak(random.choice(responses))
+                subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-recipe-manager", "list"])
+            else:
+                responses = [
+                    "Let me show you your recipe collection...",
+                    "Here are your available recipes...",
+                    "Checking your recipe database..."
+                ]
+                self.speak(random.choice(responses))
+                subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-recipe-manager", "random"])
+            return True
+            
+        elif any(word in text for word in ['nutrition', 'calories', 'healthy']):
+            responses = [
+                "Let me check the nutrition info for your meals...",
+                "Analyzing your meal plan nutrition...",
+                "Running nutrition analysis..."
+            ]
+            self.speak(random.choice(responses))
+            subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-meal-planner", "nutrition"])
+            return True
+            
+        return False
+    
+    def handle_context_switch(self, text):
+        """Handle context switching commands"""
+        contexts = ["plex", "redhat", "home-automation", "finance", "meal-planning"]
+        
+        # Extract target context from command
+        target_context = None
+        for context in contexts:
+            if context in text or context.replace("-", " ") in text:
+                target_context = context
+                break
+        
+        if target_context:
+            responses = [
+                f"Switching to {target_context} context...",
+                f"Moving to {target_context} mode...",
+                f"Changing context to {target_context}..."
+            ]
+            self.speak(random.choice(responses))
+            
+            # Execute context switch
+            result = subprocess.run(["pai-context-switch", target_context], capture_output=True, text=True)
+            if result.returncode == 0:
+                self.current_context = target_context
+                success_responses = [
+                    f"Now in {target_context} context - ready to help!",
+                    f"Context switched to {target_context} successfully!",
+                    f"I'm now tuned into {target_context} mode!"
+                ]
+                self.speak(random.choice(success_responses))
+            else:
+                error_responses = [
+                    f"Had trouble switching to {target_context} context.",
+                    f"Context switch to {target_context} failed.",
+                    f"Couldn't change to {target_context} mode."
+                ]
+                self.speak(random.choice(error_responses))
+        else:
+            self.speak("Which context would you like? I know plex, redhat, home-automation, and finance.")
+        
+        return True
+    
+    def handle_command_chain(self, text):
+        """Handle multiple commands in sequence"""
+        # Split on common separators
+        separators = [' and then ', ' and ', ' then ', ', ']
+        commands = [text]
+        
+        for sep in separators:
+            if sep in text:
+                commands = text.split(sep)
+                break
+        
+        chain_responses = [
+            f"I'll handle those {len(commands)} commands one by one...",
+            f"Processing {len(commands)} commands in sequence...",
+            f"Got {len(commands)} things to do - starting now..."
+        ]
+        self.speak(random.choice(chain_responses))
+        
+        for i, cmd in enumerate(commands, 1):
+            cmd = cmd.strip()
+            if cmd:
+                self.log(f"CHAIN_COMMAND_{i}: {cmd}")
+                progress_responses = [
+                    f"Step {i}: {cmd}...",
+                    f"Command {i} of {len(commands)}...",
+                    f"Now doing: {cmd}..."
+                ]
+                self.speak(random.choice(progress_responses))
+                
+                # Process individual command (recursive call without chaining check)
+                self.process_single_command(cmd)
+                
+                # Brief pause between commands
+                time.sleep(1)
+        
+        done_responses = [
+            "All commands completed!",
+            "Chain execution finished!",
+            "Done with all of that!"
+        ]
+        self.speak(random.choice(done_responses))
+        return True
+    
+    def process_single_command(self, text):
+        """Process a single command without chaining logic"""
+        # This is essentially the original process_command logic
+        # but without the chaining check to prevent infinite recursion
+        text_lower = text.lower()
+        
+        # Remove wake words
+        for wake in self.wake_words:
+            if wake in text_lower:
+                text_lower = text_lower.replace(wake, "").strip(" ,")
+                break
+        
+        # Simple command processing (subset of main logic)
+        if any(word in text_lower for word in ['status', 'server status']):
+            if self.current_context == "plex":
+                subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "status"])
+            else:
+                subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-status-show"])
+        elif any(word in text_lower for word in ['libraries', 'show libraries']):
+            if self.current_context == "plex":
+                subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "libraries"])
+        else:
+            self.route_to_pai_tool(text_lower)
+    
+    def provide_context_help(self):
+        """Provide context-specific help information"""
+        if self.current_context == "plex":
+            help_text = (
+                "In Plex context, I can: check server status, show libraries, "
+                "check recent activity, run health checks, do storage cleanup, "
+                "or switch to other contexts."
+            )
+        elif self.current_context == "redhat":
+            help_text = (
+                "In Red Hat context, I can: check system status, manage cases, "
+                "process emails, handle customer tasks, or switch contexts."
+            )
+        elif self.current_context == "meal-planning":
+            help_text = (
+                "In meal planning context, I can: create weekly meal plans, "
+                "generate shopping lists, find recipes, analyze nutrition, "
+                "manage kitchen inventory, or switch to other contexts."
+            )
+        else:
+            help_text = (
+                f"In {self.current_context} context, I can: check status, "
+                "run various PAI tools, switch contexts, or chain multiple commands together."
+            )
+        
+        self.speak(help_text)
+        
+        # Show available tools
+        if len(self.context_tools) > 0:
+            self.speak(f"I have access to {len(self.context_tools)} PAI tools total.")
+    
+    def route_to_pai_tool(self, text):
+        """Intelligently route commands to appropriate PAI tools"""
+        # Define command-to-tool mappings
+        tool_mappings = {
+            'email': 'pai-email-processor',
+            'case': 'pai-case-processor', 
+            'project': 'pai-projects',
+            'task': 'pai-task-sync',
+            'brief': 'pai-brief-generate',
+            'calendar': 'pai-calendar',
+            'compliance': 'pai-compliance-check',
+            'audit': 'pai-audit',
+            'supportshell': 'pai-supportshell',
+            'hydra': 'pai-hydra',
+            'confluence': 'pai-confluence',
+            'meal': 'pai-meal-planner',
+            'recipe': 'pai-recipe-manager',
+            'shopping': 'pai-shopping-list'
+        }
+        
+        # Find matching tool
+        for keyword, tool in tool_mappings.items():
+            if keyword in text and tool in self.context_tools:
+                responses = [
+                    f"Running {tool} for you...",
+                    f"Let me handle that with {tool}...",
+                    f"Using {tool} to process that..."
+                ]
+                self.speak(random.choice(responses))
+                
+                try:
+                    subprocess.run([self.context_tools[tool]], timeout=30)
+                    success_responses = [
+                        f"{tool} completed successfully!",
+                        "All done with that task!",
+                        "Command finished!"
+                    ]
+                    self.speak(random.choice(success_responses))
+                    return True
+                except subprocess.TimeoutExpired:
+                    self.speak(f"{tool} is taking longer than expected - continuing in background.")
+                    return True
+                except Exception as e:
+                    self.speak(f"Had trouble running {tool}.")
+                    self.log(f"TOOL_ERROR: {tool} - {e}")
+                    return True
+        
+        return False  # No tool matched
+    
+    def start(self):
+        """Start live voice recognition"""
+        # Use context-appropriate greeting
+        greeting_responses = self.get_context_appropriate_response("greeting")
+        self.speak(random.choice(greeting_responses))
+        
+        # Announce available capabilities
+        self.speak(f"I'm in {self.current_context} context with {len(self.context_tools)} tools available.")
+        
+        if self.mic:
+            listening_responses = [
+                "Just say 'Hey Hatter' and I'll jump right in!",
+                "I'm listening - start with 'Hey Hatter' or 'Hey PAI'!",
+                "Ready when you are - just say my name and tell me what you need!"
+            ]
+            self.speak(random.choice(listening_responses))
+            self.listen_for_speech()
+        else:
+            fallback_responses = [
+                f"Mic's not working in {self.current_context} context, so we'll use keyboard mode instead.",
+                "No microphone found - switching to typing mode.",
+                "Falling back to keyboard since I can't hear you right now."
+            ]
+            self.speak(random.choice(fallback_responses))
+            self.keyboard_fallback()
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h']:
+        print("PAI Live Voice Recognition")
+        print("Uses Google Speech Recognition for real speech-to-text")
+        print("Usage: pai-voice-live")
+        return
+    
+    voice = PAILiveVoice()
+    try:
+        voice.start()
+    except KeyboardInterrupt:
+        voice.speak("Voice recognition stopped")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,41 @@
+{
+  "agent": {
+    "displayName": "Felicia",
+    "description": "Felicia - Your personal AI assistant for Plex, context switching, meal planning, and more",
+    "defaultLanguageCode": "en",
+    "supportedLanguageCodes": ["en"],
+    "timeZone": "America/New_York",
+    "enableLogging": true,
+    "matchMode": "MATCH_MODE_HYBRID",
+    "classificationThreshold": 0.3
+  },
+  "webhook": {
+    "url": "https://your-server.com/webhook",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "enabled": true,
+    "timeout": "30s"
+  },
+  "fulfillment": {
+    "genericWebService": {
+      "uri": "https://your-server.com/webhook",
+      "username": "",
+      "password": "",
+      "headers": {}
+    },
+    "features": {
+      "enableGenerativeFallback": false
+    }
+  },
+  "analytics": {
+    "enabled": true,
+    "exportGcsDestination": null
+  },
+  "humanHandoffConfig": {
+    "livePersonConfig": null
+  },
+  "newGenerativeAiSettings": {
+    "generativeAiSettings": null
+  }
+}

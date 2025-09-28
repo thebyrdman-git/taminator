@@ -265,6 +265,7 @@ show_recent_activity() {
     if [[ $? -eq 0 ]]; then
         local active_streams
         active_streams=$(echo "$sessions" | grep -c "Video\|Audio" 2>/dev/null || echo "0")
+        active_streams=$(echo "$active_streams" | tr -d '\n' | head -c1)
         
         if [[ "$json_output" == "true" ]]; then
             echo "$sessions"

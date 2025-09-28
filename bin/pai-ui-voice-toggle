@@ -1,0 +1,218 @@
+#!/bin/bash
+
+# PAI Voice UI Toggle
+# Creates a radio button-style interface for voice command modes
+# Part of the Personal AI Infrastructure (PAI)
+
+SCRIPT_DIR="$(dirname "$0")"
+CONFIG_DIR="$HOME/.config/pai"
+VOICE_STATE_FILE="$CONFIG_DIR/voice-ui-state"
+
+# Colors for UI
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+# Create config directory
+mkdir -p "$CONFIG_DIR"
+
+# UI Functions
+show_voice_toolbar() {
+    clear
+    echo -e "${BOLD}${CYAN}"
+    echo "╔══════════════════════════════════════════════════════════════════════╗"
+    echo "║                        🎤 PAI VOICE COMMAND TOOLBAR                  ║"
+    echo "╚══════════════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+    echo ""
+    
+    # Get current state
+    local current_mode
+    if [[ -f "$VOICE_STATE_FILE" ]]; then
+        current_mode=$(cat "$VOICE_STATE_FILE")
+    else
+        current_mode="off"
+    fi
+    
+    echo -e "${BOLD}Voice Command Modes:${NC}"
+    echo ""
+    
+    # Radio button style display
+    if [[ "$current_mode" == "live" ]]; then
+        echo -e "  ${GREEN}● 🎤 Live Speech Recognition${NC} ${YELLOW}(ACTIVE)${NC}"
+    else
+        echo -e "  ${WHITE}○ 🎤 Live Speech Recognition${NC}"
+    fi
+    
+    if [[ "$current_mode" == "command" ]]; then
+        echo -e "  ${GREEN}● 💬 Interactive Chat Mode${NC} ${YELLOW}(ACTIVE)${NC}"
+    else
+        echo -e "  ${WHITE}○ 💬 Interactive Chat Mode${NC}"
+    fi
+    
+    if [[ "$current_mode" == "plex" ]]; then
+        echo -e "  ${GREEN}● 🎬 Plex Quick Commands${NC} ${YELLOW}(ACTIVE)${NC}"
+    else
+        echo -e "  ${WHITE}○ 🎬 Plex Quick Commands${NC}"
+    fi
+    
+    if [[ "$current_mode" == "off" ]]; then
+        echo -e "  ${RED}● 🔇 Voice Commands Off${NC} ${YELLOW}(CURRENT)${NC}"
+    else
+        echo -e "  ${WHITE}○ 🔇 Voice Commands Off${NC}"
+    fi
+    
+    echo ""
+    echo -e "${BOLD}Quick Actions:${NC}"
+    echo -e "  ${BLUE}[1]${NC} Start Live Speech Recognition"
+    echo -e "  ${BLUE}[2]${NC} Interactive Chat Mode (Keyboard)" 
+    echo -e "  ${BLUE}[3]${NC} Plex Voice Commands"
+    echo -e "  ${BLUE}[4]${NC} Turn Off Voice Commands"
+    echo -e "  ${BLUE}[h]${NC} Help & Examples"
+    echo -e "  ${BLUE}[q]${NC} Quit"
+    echo ""
+}
+
+# State management
+set_voice_state() {
+    local mode="$1"
+    echo "$mode" > "$VOICE_STATE_FILE"
+    echo -e "${GREEN}✅ Voice mode set to: $mode${NC}"
+}
+
+# Voice command launchers
+start_live_voice() {
+    echo -e "${CYAN}🚀 Starting Live Voice Recognition...${NC}"
+    set_voice_state "live"
+    sleep 1
+    exec "$SCRIPT_DIR/pai-voice-live"
+}
+
+start_command_mode() {
+    echo -e "${CYAN}🚀 Starting Interactive Chat Mode...${NC}"
+    set_voice_state "command"
+    sleep 1
+    exec "$SCRIPT_DIR/pai-voice-command"
+}
+
+start_plex_voice() {
+    echo -e "${CYAN}🚀 Starting Plex Voice Commands...${NC}"
+    set_voice_state "plex"
+    sleep 1
+    exec "$SCRIPT_DIR/pai-voice-plex"
+}
+
+turn_off_voice() {
+    echo -e "${RED}🔇 Voice commands disabled${NC}"
+    set_voice_state "off"
+    
+    # Kill any running voice processes
+    pkill -f "pai-voice" 2>/dev/null || true
+    echo "Voice processes stopped."
+}
+
+show_help() {
+    clear
+    echo -e "${BOLD}${PURPLE}🎤 PAI VOICE COMMAND HELP${NC}"
+    echo "========================="
+    echo ""
+    echo -e "${BOLD}Voice Modes:${NC}"
+    echo ""
+    echo -e "${GREEN}🎤 Live Speech Recognition${NC}"
+    echo "   • Real speech-to-text with Google STT"
+    echo "   • Say: 'Hey Hatter, show status'"
+    echo "   • Works with microphone input"
+    echo ""
+    echo -e "${BLUE}💬 Interactive Chat Mode${NC}"
+    echo "   • Type commands as if speaking"
+    echo "   • Keyboard fallback for speech recognition"
+    echo "   • Same commands, just typed"
+    echo ""
+    echo -e "${CYAN}🎬 Plex Quick Commands${NC}"
+    echo "   • Direct Plex server control"
+    echo "   • Quick status, library, activity checks"
+    echo "   • Optimized for media server management"
+    echo ""
+    echo -e "${BOLD}Example Commands:${NC}"
+    echo "   'Hey Hatter, show status'"
+    echo "   'PAI, storage cleanup'"
+    echo "   'Hey Hatter, health check'"
+    echo "   'stop listening' to exit"
+    echo ""
+    echo "Press any key to return to toolbar..."
+    read -n 1 -s
+}
+
+# Main UI loop
+main() {
+    while true; do
+        show_voice_toolbar
+        
+        echo -ne "${BOLD}Select option: ${NC}"
+        read -n 1 choice
+        echo ""
+        
+        case "$choice" in
+            1)
+                start_live_voice
+                ;;
+            2)
+                start_command_mode
+                ;;
+            3)
+                start_plex_voice
+                ;;
+            4)
+                turn_off_voice
+                sleep 2
+                ;;
+            h|H)
+                show_help
+                ;;
+            q|Q)
+                echo -e "${YELLOW}👋 Goodbye!${NC}"
+                break
+                ;;
+            *)
+                echo -e "${RED}❌ Invalid option. Try again.${NC}"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# Handle command line arguments
+case "${1:-}" in
+    --help|-h)
+        show_help
+        ;;
+    --status)
+        if [[ -f "$VOICE_STATE_FILE" ]]; then
+            echo "Current voice mode: $(cat "$VOICE_STATE_FILE")"
+        else
+            echo "Voice mode: off"
+        fi
+        ;;
+    --live)
+        start_live_voice
+        ;;
+    --command)
+        start_command_mode
+        ;;
+    --plex)
+        start_plex_voice
+        ;;
+    --off)
+        turn_off_voice
+        ;;
+    *)
+        main
+        ;;
+esac
+

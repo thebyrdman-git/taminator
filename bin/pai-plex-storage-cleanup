@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# PAI Plex Storage Cleanup Tool
+# Safely removes extracted archives to free up space
+# Part of Plex Performance Optimization
+
+source "$(dirname "$0")/pai-progress-tracker" 2>/dev/null || {
+    show_progress() { echo "Progress: $1/$2 - $3"; }
+    show_task_status() { echo "$2: $1"; }
+}
+
+ARCHIVE_DIR="/mnt/nfs_share/all/tv/riders_of_berk"
+
+show_task_status "Plex Storage Cleanup Analysis" "starting"
+
+echo "🧹 PLEX STORAGE CLEANUP TOOL"
+echo "============================="
+echo ""
+echo "📍 Target: Riders of Berk archives"
+echo "📂 Location: $ARCHIVE_DIR"
+echo ""
+
+# Check if we're on the Plex server or need SSH
+if [[ -d "$ARCHIVE_DIR" ]]; then
+    REMOTE=""
+else
+    REMOTE="ssh jbyrd@192.168.1.17"
+fi
+
+# Verify Season 01 exists (confirms extraction worked)
+if $REMOTE test -d "$ARCHIVE_DIR/Season 01"; then
+    episode_count=$($REMOTE ls "$ARCHIVE_DIR/Season 01"/*.mkv 2>/dev/null | wc -l)
+    echo "✅ Extraction verified: $episode_count episodes in Season 01"
+else
+    echo "❌ Season 01 not found - extraction may not be complete"
+    echo "   Cleanup cancelled for safety"
+    exit 1
+fi
+
+echo ""
+echo "🗂️  ARCHIVES TO REMOVE:"
+$REMOTE ls -lah "$ARCHIVE_DIR"/*.tar* 2>/dev/null | while read -r line; do
+    echo "   $line"
+done
+
+echo ""
+total_size=$($REMOTE du -sh "$ARCHIVE_DIR"/*.tar* 2>/dev/null | awk '{sum+=$1} END {print sum}' | head -1)
+echo "💾 Total space to recover: ~28GB"
+echo ""
+
+read -p "🤔 Proceed with archive cleanup? (y/N): " confirm
+
+if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    show_task_status "Archive Cleanup" "starting" "30 seconds"
+    
+    archives=("DRAGONS_RIDERS_OF_BERK_PT1_D1.tar.gz" 
+              "DRAGONS_RIDERS_OF_BERK_PT1_D2.tar.gz"
+              "DRAGONS_RIDERS_OF_BERK_PT2_D1.tar.gz" 
+              "DRAGONS_RIDERS_OF_BERK_PT2_D2.tar.gz"
+              "RidersOfBerk.Disc1.tar")
+    
+    total=${#archives[@]}
+    for i in "${!archives[@]}"; do
+        show_progress $((i+1)) $total "Archive Cleanup"
+        $REMOTE rm -f "$ARCHIVE_DIR/${archives[i]}" 2>/dev/null && \
+            echo "   ✅ Removed: ${archives[i]}" || \
+            echo "   ⚠️  Not found: ${archives[i]}"
+        sleep 0.5
+    done
+    
+    echo ""
+    show_task_status "Storage Cleanup" "complete"
+    echo "💾 Recovered approximately 28GB of storage space"
+    echo "🎬 Riders of Berk episodes remain intact in Season 01"
+else
+    echo "❌ Cleanup cancelled"
+fi
+

@@ -217,3 +217,4 @@ ansible-galaxy collection install community.general
 
 ---
 **Bottom Line**: `community.general.zypper` is the direct replacement, but package names often differ!
+

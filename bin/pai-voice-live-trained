@@ -1,0 +1,398 @@
+#!/usr/bin/env python3
+
+"""
+PAI Live Voice Recognition - TRAINED MODEL VERSION
+Uses custom voice profiles for personalized recognition
+Part of the Personal AI Infrastructure (PAI)
+"""
+
+import speech_recognition as sr
+import subprocess
+import sys
+import time
+import os
+import random
+import json
+from pathlib import Path
+
+# Suppress ALSA warnings
+os.environ['ALSA_PCM_CARD'] = '0'
+os.environ['ALSA_PCM_DEVICE'] = '0'
+
+class PAITrainedVoice:
+    def __init__(self):
+        self.r = sr.Recognizer()
+        self.mic = None
+        self.wake_words = ["hatter", "pai", "hey hatter", "hey pai"]
+        self.config_dir = Path.home() / ".config" / "pai"
+        self.voice_config_dir = self.config_dir / "voice-training"
+        self.log_file = self.config_dir / "voice-trained.log"
+        
+        # PAI system integration
+        self.pai_root = Path("/home/jbyrd/hatter-pai")
+        self.current_context = None
+        self.context_tools = {}
+        self.voice_profile = None
+        
+        # Create directories
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Load voice training and PAI context
+        self.load_voice_profile()
+        self.load_pai_context()
+        
+        # Initialize microphone with trained settings
+        self.init_microphone()
+    
+    def load_voice_profile(self):
+        """Load custom voice profile if available"""
+        try:
+            profile_file = self.voice_config_dir / "voice_profile.json"
+            if profile_file.exists():
+                with open(profile_file) as f:
+                    self.voice_profile = json.load(f)
+                print("✅ Custom voice profile loaded")
+                
+                # Load integration settings
+                sys.path.append(str(self.voice_config_dir))
+                try:
+                    import voice_integration
+                    self.custom_settings = voice_integration.get_custom_recognition_settings()
+                    print("🎯 Using your trained voice settings")
+                except:
+                    self.custom_settings = None
+                    print("⚠️  Using default settings")
+            else:
+                print("💡 No custom voice profile found")
+                print("   Run 'pai-voice-trainer enroll' to train your voice")
+                self.voice_profile = None
+                self.custom_settings = None
+                
+        except Exception as e:
+            print(f"⚠️  Voice profile load error: {e}")
+            self.voice_profile = None
+            self.custom_settings = None
+    
+    def init_microphone(self):
+        """Initialize microphone with trained settings"""
+        try:
+            self.mic = sr.Microphone()
+            
+            if self.custom_settings:
+                # Apply trained settings
+                self.r.energy_threshold = self.custom_settings["energy_threshold"]
+                self.r.dynamic_energy_threshold = self.custom_settings["dynamic_energy_threshold"] 
+                self.r.pause_threshold = self.custom_settings["pause_threshold"]
+                print("🎤 Microphone optimized for YOUR voice")
+                print(f"   Energy threshold: {self.custom_settings['energy_threshold']}")
+                print(f"   Pause threshold: {self.custom_settings['pause_threshold']}")
+            else:
+                # Use fast default settings
+                self.r.energy_threshold = 250
+                self.r.dynamic_energy_threshold = True
+                self.r.pause_threshold = 0.4
+                print("🎤 Microphone ready (default settings)")
+                
+        except Exception as e:
+            print(f"⚠️  Microphone initialization failed: {e}")
+            self.mic = None
+    
+    def load_pai_context(self):
+        """Load PAI context quickly"""
+        try:
+            result = subprocess.run(["pai-context-current"], capture_output=True, text=True, timeout=1)
+            if result.returncode == 0:
+                self.current_context = result.stdout.strip()
+                print(f"⚡ Context: {self.current_context}")
+            else:
+                self.current_context = "general"
+            
+            # Load PAI tools
+            pai_bin = self.pai_root / "bin"
+            if pai_bin.exists():
+                for tool in pai_bin.glob("pai-*"):
+                    if tool.is_file() and os.access(tool, os.X_OK):
+                        self.context_tools[tool.name] = str(tool)
+                print(f"⚡ {len(self.context_tools)} PAI tools ready")
+                
+        except Exception:
+            self.current_context = "general"
+    
+    def log(self, message):
+        """Fast logging"""
+        with open(self.log_file, "a") as f:
+            f.write(f"{time.strftime('%H:%M:%S')}: {message}\n")
+    
+    def speak(self, message):
+        """Optimized speech with personality"""
+        print(f"🗣️  Hatter: {message}")
+        self.log(f"SPEAK: {message}")
+        
+        try:
+            # Async speech for no blocking
+            subprocess.Popen(["espeak", "-s", "165", "-v", "en+f4", "-a", "85", message], 
+                           stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        except:
+            pass
+    
+    def get_personalized_response(self, response_type):
+        """Get responses personalized to trained voice"""
+        if self.voice_profile:
+            user_name = self.voice_profile.get("user_id", "user")
+            
+            personalized_responses = {
+                "greeting": [
+                    f"Hey {user_name}! Your trained voice system is ready!",
+                    f"Voice recognition optimized for you, {user_name}!",
+                    f"Custom voice profile active - what can I help with?"
+                ],
+                "wake_confirm": [
+                    "Got it!",
+                    "I hear you!",
+                    "Yes!",
+                    "Ready!"
+                ],
+                "context_help": {
+                    "meal-planning": f"In meal planning, {user_name}, I can: plan meals, generate shopping lists, find recipes, check nutrition!",
+                    "plex": f"In Plex mode, {user_name}, I can: check server status, show libraries, recent activity, run health checks!",
+                    "default": f"I'm in {self.current_context} context, {user_name}. Try commands or say 'help'!"
+                }
+            }
+            
+            return personalized_responses
+        else:
+            # Standard responses if no training
+            return {
+                "greeting": [
+                    "Voice system ready!",
+                    "PAI voice mode active!",
+                    "Ready for commands!"
+                ],
+                "wake_confirm": [
+                    "Yes!",
+                    "Ready!",
+                    "Listening!"
+                ],
+                "context_help": {
+                    "meal-planning": "In meal planning: plan meals, shopping lists, recipes, nutrition!",
+                    "plex": "In Plex mode: status, libraries, activity, health checks!",
+                    "default": f"In {self.current_context} context - try commands or 'help'!"
+                }
+            }
+    
+    def listen_for_speech(self):
+        """Enhanced listening with voice profile"""
+        if not self.mic:
+            return self.keyboard_fallback()
+        
+        if self.voice_profile:
+            print("🎯 TRAINED VOICE MODE: Listening for YOUR voice patterns!")
+        else:
+            print("🎤 VOICE MODE: Say 'Hey Hatter' (train with pai-voice-trainer)")
+        
+        try:
+            # Quick calibration with trained settings
+            with self.mic as source:
+                duration = 0.3 if self.custom_settings else 0.5
+                self.r.adjust_for_ambient_noise(source, duration=duration)
+                print("⚡ Ready for your voice")
+            
+            while True:
+                try:
+                    with self.mic as source:
+                        # Use trained timeout settings
+                        timeout = self.custom_settings.get("timeout", 0.5) if self.custom_settings else 0.5
+                        phrase_limit = self.custom_settings.get("phrase_time_limit", 3) if self.custom_settings else 3
+                        
+                        audio = self.r.listen(source, timeout=timeout, phrase_time_limit=phrase_limit)
+                    
+                    # Enhanced recognition
+                    text = self.r.recognize_google(audio).lower()
+                    if text:
+                        print(f"🎯 Heard: '{text}'")
+                        
+                        # Enhanced wake word detection for trained voice
+                        if any(wake in text for wake in self.wake_words):
+                            self.log(f"TRAINED_WAKE: {text}")
+                            
+                            # Personalized response
+                            responses = self.get_personalized_response("wake_confirm")
+                            self.speak(random.choice(responses["wake_confirm"]))
+                            
+                            # Process with enhanced understanding
+                            if not self.process_command(text):
+                                break
+                                
+                except sr.WaitTimeoutError:
+                    continue
+                except sr.UnknownValueError:
+                    continue
+                except sr.RequestError:
+                    print("⚠️  Network issue - keyboard mode")
+                    self.speak("Network issue - switching to keyboard")
+                    return self.keyboard_fallback()
+                except KeyboardInterrupt:
+                    break
+                    
+        except Exception:
+            return self.keyboard_fallback()
+    
+    def process_command(self, text):
+        """Enhanced command processing with voice profile awareness"""
+        text_lower = text.lower()
+        
+        # Remove wake words
+        for wake in self.wake_words:
+            if wake in text_lower:
+                text_lower = text_lower.replace(wake, "").strip(" ,")
+                break
+        
+        self.log(f"TRAINED_CMD: {text_lower}")
+        
+        # Quick exit
+        if any(word in text_lower for word in ['stop', 'quit', 'exit', 'goodbye']):
+            if self.voice_profile:
+                user_name = self.voice_profile.get("user_id", "user")
+                self.speak(f"Goodbye {user_name}!")
+            else:
+                self.speak("Goodbye!")
+            return False
+        
+        # Enhanced help with personalization
+        elif any(word in text_lower for word in ['help', 'commands']):
+            responses = self.get_personalized_response("context_help")
+            help_text = responses["context_help"].get(self.current_context, responses["context_help"]["default"])
+            self.speak(help_text)
+            
+        # Status with training awareness
+        elif any(word in text_lower for word in ['status', 'server status']):
+            if self.voice_profile:
+                self.speak("Checking status with your trained preferences...")
+            else:
+                self.speak("Checking status...")
+                
+            if self.current_context == "plex":
+                subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "status"])
+            else:
+                subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-status-show"])
+        
+        # Voice training management
+        elif any(word in text_lower for word in ['retrain', 'train voice', 'voice training']):
+            self.speak("Starting voice retraining process...")
+            subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-voice-trainer", "enroll"])
+            
+        elif any(word in text_lower for word in ['voice profile', 'show profile']):
+            self.speak("Showing voice profile information...")
+            subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-voice-trainer", "show-profile"])
+        
+        # Meal planning (context-aware)
+        elif self.current_context == "meal-planning":
+            if any(word in text_lower for word in ['meal plan', 'plan meals']):
+                if self.voice_profile:
+                    self.speak("Creating personalized meal plan...")
+                else:
+                    self.speak("Creating meal plan...")
+                subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-meal-planner", "plan"])
+                
+            elif any(word in text_lower for word in ['shopping', 'grocery']):
+                self.speak("Generating shopping list...")
+                subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-shopping-list", "generate"])
+                
+            elif any(word in text_lower for word in ['recipe']):
+                self.speak("Finding recipes...")
+                subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-recipe-manager", "random"])
+            else:
+                self.speak("Try: plan meals, shopping list, recipes, or help!")
+        
+        # Context switching with training awareness
+        elif any(word in text_lower for word in ['context', 'switch']):
+            contexts = ["plex", "redhat", "meal-planning", "home-automation"]
+            target = None
+            for ctx in contexts:
+                if ctx in text_lower or ctx.replace("-", " ") in text_lower:
+                    target = ctx
+                    break
+            
+            if target:
+                if self.voice_profile:
+                    self.speak(f"Switching to {target} with your preferences...")
+                else:
+                    self.speak(f"Switching to {target}...")
+                subprocess.run(["pai-context-switch", target])
+                self.current_context = target
+                self.speak(f"{target} context ready!")
+            else:
+                self.speak("Say: switch to plex, redhat, meal planning, or home automation")
+        
+        else:
+            if self.voice_profile:
+                self.speak("I didn't catch that - try 'help' or retrain your voice!")
+            else:
+                self.speak("Try 'help' or train your voice with pai-voice-trainer!")
+            print(f"💡 Said: '{text_lower}' in {self.current_context}")
+        
+        return True
+    
+    def keyboard_fallback(self):
+        """Enhanced keyboard mode"""
+        print(f"\n⌨️  KEYBOARD MODE ({'Trained' if self.voice_profile else 'Standard'})")
+        print("=" * 30)
+        if self.voice_profile:
+            user_name = self.voice_profile.get("user_id", "user")
+            print(f"Hello {user_name}! Type commands:")
+        else:
+            print("Type commands (train voice with: pai-voice-trainer enroll):")
+        
+        print("• 'status', 'help', 'switch to [context]'")
+        print("• 'stop' when done")
+        
+        while True:
+            try:
+                user_input = input(f"\n🎯 {'Trained' if self.voice_profile else 'Standard'}: ").strip()
+                if not user_input:
+                    continue
+                    
+                if not self.process_command(user_input):
+                    break
+                    
+            except (KeyboardInterrupt, EOFError):
+                break
+    
+    def start(self):
+        """Start trained voice recognition"""
+        responses = self.get_personalized_response("greeting")
+        self.speak(random.choice(responses["greeting"]))
+        
+        if self.voice_profile:
+            training_date = self.voice_profile.get("created", "unknown")[:10]
+            self.speak(f"Voice profile from {training_date} loaded")
+            
+        self.speak(f"Context: {self.current_context} - Say 'Hey Hatter' anytime!")
+        
+        if self.mic:
+            self.listen_for_speech()
+        else:
+            self.speak("Microphone issue - using keyboard mode")
+            self.keyboard_fallback()
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h']:
+        print("PAI Trained Voice Recognition")
+        print("Uses custom voice profiles for personalized recognition")
+        print("Usage: pai-voice-live-trained")
+        print()
+        print("Train your voice: pai-voice-trainer enroll")
+        return
+    
+    voice = PAITrainedVoice()
+    try:
+        voice.start()
+    except KeyboardInterrupt:
+        if voice.voice_profile:
+            user_name = voice.voice_profile.get("user_id", "user")
+            voice.speak(f"Trained voice stopped. Goodbye {user_name}!")
+        else:
+            voice.speak("Voice system stopped")
+
+if __name__ == "__main__":
+    main()

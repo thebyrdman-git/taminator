@@ -1,0 +1,270 @@
+#!/bin/bash
+
+# PAI Mobile Webhook Server Manager
+# Part of the Personal AI Infrastructure (PAI)
+# Created for Hatter - Red Hat Digital Assistant
+
+SCRIPT_DIR="$(dirname "$0")"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+WEBHOOK_DIR="$PROJECT_ROOT/mobile-integration/webhook-server"
+PID_FILE="$HOME/.config/pai/mobile-webhook.pid"
+
+# Ensure config directory exists
+mkdir -p "$(dirname "$PID_FILE")"
+
+# Function to check if Node.js is installed
+check_node() {
+    if ! command -v node >/dev/null 2>&1; then
+        echo "❌ Node.js is not installed. Please install Node.js 16+ to run the mobile webhook server."
+        echo "💡 Install with: curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - && sudo apt-get install -y nodejs"
+        exit 1
+    fi
+    
+    local node_version=$(node --version | cut -c 2- | cut -d. -f1)
+    if [[ $node_version -lt 16 ]]; then
+        echo "❌ Node.js version $node_version is too old. Please upgrade to Node.js 16+."
+        exit 1
+    fi
+}
+
+# Function to install dependencies
+install_deps() {
+    echo "📦 Installing webhook server dependencies..."
+    cd "$WEBHOOK_DIR"
+    
+    if [[ ! -f package.json ]]; then
+        echo "❌ package.json not found in $WEBHOOK_DIR"
+        exit 1
+    fi
+    
+    if npm install; then
+        echo "✅ Dependencies installed successfully"
+    else
+        echo "❌ Failed to install dependencies"
+        exit 1
+    fi
+}
+
+# Function to start the webhook server
+start_server() {
+    check_node
+    
+    if [[ -f "$PID_FILE" ]]; then
+        local pid=$(cat "$PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "✅ Mobile webhook server is already running (PID: $pid)"
+            echo "🌐 Access at: http://localhost:3001"
+            return 0
+        else
+            rm -f "$PID_FILE"
+        fi
+    fi
+    
+    # Check if dependencies are installed
+    if [[ ! -d "$WEBHOOK_DIR/node_modules" ]]; then
+        echo "📦 Dependencies not found. Installing..."
+        install_deps
+    fi
+    
+    echo "🚀 Starting PAI mobile webhook server..."
+    cd "$WEBHOOK_DIR"
+    
+    # Start server in background
+    nohup node server.js > "$HOME/.config/pai/mobile-webhook.log" 2>&1 &
+    local server_pid=$!
+    
+    # Save PID
+    echo $server_pid > "$PID_FILE"
+    
+    # Wait a moment and check if server started successfully
+    sleep 2
+    if kill -0 "$server_pid" 2>/dev/null; then
+        echo "✅ Mobile webhook server started successfully"
+        echo "🆔 Process ID: $server_pid"
+        echo "🌐 Server URL: http://localhost:3001"
+        echo "🏥 Health Check: http://localhost:3001/health"
+        echo "🧪 Test Endpoint: http://localhost:3001/test"
+        echo "📋 Available Intents: http://localhost:3001/intents"
+        echo "📄 Logs: $HOME/.config/pai/mobile-webhook.log"
+    else
+        echo "❌ Failed to start mobile webhook server"
+        rm -f "$PID_FILE"
+        exit 1
+    fi
+}
+
+# Function to stop the webhook server
+stop_server() {
+    if [[ ! -f "$PID_FILE" ]]; then
+        echo "❌ Mobile webhook server is not running"
+        return 1
+    fi
+    
+    local pid=$(cat "$PID_FILE")
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "🛑 Stopping mobile webhook server (PID: $pid)..."
+        if kill "$pid"; then
+            rm -f "$PID_FILE"
+            echo "✅ Mobile webhook server stopped successfully"
+        else
+            echo "❌ Failed to stop mobile webhook server"
+            return 1
+        fi
+    else
+        echo "❌ Mobile webhook server process not found"
+        rm -f "$PID_FILE"
+        return 1
+    fi
+}
+
+# Function to restart the webhook server
+restart_server() {
+    echo "🔄 Restarting mobile webhook server..."
+    stop_server
+    sleep 2
+    start_server
+}
+
+# Function to show server status
+show_status() {
+    if [[ -f "$PID_FILE" ]]; then
+        local pid=$(cat "$PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "✅ Mobile webhook server is running"
+            echo "🆔 Process ID: $pid"
+            echo "🌐 Server URL: http://localhost:3001"
+            echo "📄 Log file: $HOME/.config/pai/mobile-webhook.log"
+            
+            # Test server response
+            if command -v curl >/dev/null 2>&1; then
+                echo ""
+                echo "🏥 Health check:"
+                curl -s http://localhost:3001/health | head -3 2>/dev/null || echo "   Server not responding"
+            fi
+        else
+            echo "❌ Mobile webhook server is not running (stale PID file)"
+            rm -f "$PID_FILE"
+            return 1
+        fi
+    else
+        echo "❌ Mobile webhook server is not running"
+        return 1
+    fi
+}
+
+# Function to show server logs
+show_logs() {
+    local log_file="$HOME/.config/pai/mobile-webhook.log"
+    if [[ -f "$log_file" ]]; then
+        echo "📄 Mobile webhook server logs:"
+        echo "================================"
+        tail -20 "$log_file"
+    else
+        echo "❌ No log file found at $log_file"
+    fi
+}
+
+# Function to test the server with a sample request
+test_server() {
+    if ! show_status >/dev/null 2>&1; then
+        echo "❌ Server is not running. Start it first with: pai-mobile-webhook start"
+        return 1
+    fi
+    
+    echo "🧪 Testing mobile webhook server..."
+    echo "=================================="
+    
+    # Test health endpoint
+    echo "🏥 Health check:"
+    curl -s -w "Status: %{http_code}\n" http://localhost:3001/health
+    echo ""
+    
+    # Test intents endpoint
+    echo "📋 Available intents:"
+    curl -s http://localhost:3001/intents | head -10
+    echo ""
+    
+    # Test sample PAI command
+    echo "🎯 Testing Plex status intent:"
+    curl -s -X POST http://localhost:3001/test \
+        -H "Content-Type: application/json" \
+        -d '{"intent": "plex.status"}' | head -5
+    echo ""
+    
+    echo "✅ Test completed"
+}
+
+# Show usage information
+show_usage() {
+    cat << 'EOF'
+🤖 PAI MOBILE WEBHOOK SERVER
+============================
+
+Webhook server for Google Assistant integration with PAI
+
+USAGE:
+  pai-mobile-webhook <command>
+
+COMMANDS:
+  start        Start the mobile webhook server
+  stop         Stop the mobile webhook server  
+  restart      Restart the mobile webhook server
+  status       Show server status and health
+  logs         Show recent server logs
+  test         Test server functionality
+  install      Install server dependencies
+  
+EXAMPLES:
+  pai-mobile-webhook start     # Start server
+  pai-mobile-webhook status    # Check if running
+  pai-mobile-webhook test      # Test server endpoints
+  pai-mobile-webhook logs      # View recent logs
+
+SERVER ENDPOINTS:
+  http://localhost:3001/webhook     # Main Dialogflow webhook
+  http://localhost:3001/health      # Health check
+  http://localhost:3001/test        # Test endpoint
+  http://localhost:3001/intents     # List available intents
+
+INTEGRATION:
+  Configure Dialogflow webhook URL: http://your-server:3001/webhook
+  
+📱 Mobile Integration for Personal AI Infrastructure
+   Part of the PAI (Personal AI Infrastructure) System
+EOF
+}
+
+# Main command router
+case "${1:-}" in
+    start)
+        start_server
+        ;;
+    stop)
+        stop_server
+        ;;
+    restart)
+        restart_server
+        ;;
+    status)
+        show_status
+        ;;
+    logs)
+        show_logs
+        ;;
+    test)
+        test_server
+        ;;
+    install)
+        check_node
+        install_deps
+        ;;
+    --help|-h|help)
+        show_usage
+        ;;
+    *)
+        echo "❌ Unknown command: ${1:-}"
+        echo ""
+        show_usage
+        exit 1
+        ;;
+esac

@@ -1,0 +1,324 @@
+#!/usr/bin/env python3
+
+"""
+PAI Live Voice Recognition
+Uses SpeechRecognition library with Google STT (online)
+Part of the Personal AI Infrastructure (PAI)
+"""
+
+import speech_recognition as sr
+import subprocess
+import sys
+import time
+import os
+import random
+from pathlib import Path
+
+class PAILiveVoice:
+    def __init__(self):
+        self.r = sr.Recognizer()
+        self.mic = None
+        self.wake_words = ["hatter", "pai", "hey hatter", "hey pai"]
+        self.listening = False
+        self.config_dir = Path.home() / ".config" / "pai"
+        self.log_file = self.config_dir / "voice-live.log"
+        
+        # Create config directory
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize microphone
+        try:
+            self.mic = sr.Microphone()
+            print("🎤 Microphone initialized successfully")
+        except Exception as e:
+            print(f"⚠️  Microphone initialization failed: {e}")
+            print("💡 Voice system will use keyboard input mode")
+    
+    def log(self, message):
+        """Log voice recognition events"""
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        with open(self.log_file, "a") as f:
+            f.write(f"{timestamp}: {message}\n")
+        print(f"🎤 {message}")
+    
+    def speak(self, message):
+        """Text-to-speech output with personality"""
+        print(f"🗣️  Hatter: {message}")
+        self.log(f"SPEAK: {message}")
+        
+        try:
+            if subprocess.run(["which", "espeak"], capture_output=True).returncode == 0:
+                # Use a warmer, more conversational voice
+                subprocess.run(["espeak", "-s", "140", "-v", "en+f4", "-a", "80", message], 
+                             stderr=subprocess.DEVNULL)
+        except:
+            pass
+    
+    def listen_for_speech(self):
+        """Listen for actual speech input"""
+        if not self.mic:
+            print("❌ No microphone available - falling back to keyboard mode")
+            return self.keyboard_fallback()
+            
+        print("🎙️  Ready to listen! (Just say 'Hey Hatter' when you want something)")
+        
+        try:
+            # Adjust for ambient noise
+            with self.mic as source:
+                self.r.adjust_for_ambient_noise(source, duration=1)
+                print("🔧 Calibrated for background noise")
+            
+            while True:
+                try:
+                    with self.mic as source:
+                        # Listen for audio with timeout
+                        audio = self.r.listen(source, timeout=1, phrase_time_limit=5)
+                    
+                    # Recognize speech using Google Speech Recognition
+                    text = self.r.recognize_google(audio).lower()
+                    print(f"🎯 Heard: '{text}'")
+                    
+                    # Check for wake words
+                    if any(wake in text for wake in self.wake_words):
+                        self.log(f"WAKE_WORD_DETECTED: {text}")
+                        responses = [
+                            "Yeah, what's up?",
+                            "I'm here - what can I help with?", 
+                            "Listening! What do you need?",
+                            "Hey there! What's going on?",
+                            "I'm all ears - what's up?"
+                        ]
+                        self.speak(random.choice(responses))
+                        
+                        # Process the command
+                        result = self.process_command(text)
+                        if not result:
+                            break
+                    
+                except sr.WaitTimeoutError:
+                    # Normal timeout - keep listening
+                    pass
+                except sr.UnknownValueError:
+                    # Speech not understood - keep listening
+                    pass
+                except sr.RequestError as e:
+                    print(f"❌ Speech recognition error: {e}")
+                    error_responses = [
+                        "Hmm, having trouble with the speech service. Let's try keyboard mode.",
+                        "Speech recognition's acting up - switching to typing instead.",
+                        "Can't reach the speech service right now. How about we type instead?"
+                    ]
+                    self.speak(random.choice(error_responses))
+                    return self.keyboard_fallback()
+                except KeyboardInterrupt:
+                    break
+                    
+        except Exception as e:
+            print(f"❌ Voice recognition failed: {e}")
+            return self.keyboard_fallback()
+    
+    def keyboard_fallback(self):
+        """Fallback to keyboard input mode"""
+        print("\n💬 KEYBOARD CHAT MODE")
+        print("====================")
+        print("Just type like you're talking to me:")
+        print("Examples:")
+        print("• 'Hey Hatter, show status'")
+        print("• 'PAI, storage cleanup'") 
+        print("• 'stop listening' when you're done")
+        
+        while True:
+            try:
+                user_input = input("\n💬 Chat with Hatter: ").strip()
+                if not user_input:
+                    continue
+                    
+                self.log(f"KEYBOARD_INPUT: {user_input}")
+                
+                if not self.process_command(user_input):
+                    break
+                    
+            except KeyboardInterrupt:
+                break
+            except EOFError:
+                break
+    
+    def process_command(self, text):
+        """Process voice commands"""
+        text_lower = text.lower()
+        
+        # Remove wake words
+        for wake in self.wake_words:
+            if wake in text_lower:
+                text_lower = text_lower.replace(wake, "").strip(" ,")
+                break
+        
+        self.log(f"PROCESSING: {text_lower}")
+        
+        # Command routing
+        if any(word in text_lower for word in ['stop', 'quit', 'exit', 'goodbye']):
+            goodbye_responses = [
+                "Alright, talk to you later!",
+                "See you around - voice mode's off!",
+                "Bye for now! Shutting down voice commands.",
+                "Catch you later - going quiet now!"
+            ]
+            self.speak(random.choice(goodbye_responses))
+            return False
+            
+        elif any(word in text_lower for word in ['status', 'server status']):
+            responses = [
+                "Let me check on the server for you...",
+                "Sure thing - checking how everything's running...",
+                "On it! Let me see what's happening with Plex..."
+            ]
+            self.speak(random.choice(responses))
+            subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "status"])
+            complete_responses = [
+                "There you go - everything looks good!",
+                "All done! Server's running smoothly.",
+                "Status checked - we're looking good!"
+            ]
+            self.speak(random.choice(complete_responses))
+            
+        elif any(word in text_lower for word in ['libraries', 'show libraries']):
+            responses = [
+                "Let me pull up your libraries...",
+                "Sure! Here's what you've got in Plex...",
+                "Coming right up - showing all your libraries..."
+            ]
+            self.speak(random.choice(responses))
+            subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "libraries"])
+            
+        elif any(word in text_lower for word in ['activity', 'recent activity']):
+            responses = [
+                "Let me see what's been happening lately...",
+                "Checking recent activity for you...",
+                "Looking at what's been playing recently..."
+            ]
+            self.speak(random.choice(responses))
+            subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "recent-activity"])
+            
+        elif any(word in text_lower for word in ['health', 'performance', 'health check']):
+            responses = [
+                "Let me run a quick health check...",
+                "Sure - checking how the server's feeling...",
+                "Running diagnostics now..."
+            ]
+            self.speak(random.choice(responses))
+            subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "health-check"])
+            complete_responses = [
+                "Health check's done - everything looks good!",
+                "All finished! Server's healthy and happy.",
+                "Diagnostics complete - we're looking solid!"
+            ]
+            self.speak(random.choice(complete_responses))
+            
+        elif any(word in text_lower for word in ['storage', 'cleanup', 'storage cleanup']):
+            responses = [
+                "I can help with that! I've got about 28 gigs of old archives we could clean up.",
+                "Sure thing - there's 28 gigabytes of archives taking up space. Want me to clear them out?",
+                "I found some cleanup opportunities - we can free up 28 gigs if you want."
+            ]
+            self.speak(random.choice(responses))
+            if self.mic:
+                confirm_responses = [
+                    "Just say yes if you want me to go ahead, or no to skip it.",
+                    "Should I clean those up? Say yes or no.",
+                    "Want me to do that cleanup? Yes or no?"
+                ]
+                self.speak(random.choice(confirm_responses))
+                # Listen for yes/no response
+                try:
+                    with self.mic as source:
+                        audio = self.r.listen(source, timeout=5)
+                    response = self.r.recognize_google(audio).lower()
+                    proceed = 'yes' in response or 'yeah' in response or 'sure' in response
+                except:
+                    proceed = False
+            else:
+                response = input("🤔 Proceed with storage cleanup? (y/N): ")
+                proceed = response.lower().startswith('y')
+                
+            if proceed:
+                start_responses = [
+                    "Alright, cleaning things up now...",
+                    "You got it - clearing out those archives...",
+                    "On it! This'll just take a moment..."
+                ]
+                self.speak(random.choice(start_responses))
+                subprocess.run(["/home/jbyrd/hatter-pai/bin/pai-plex-storage-cleanup"])
+                done_responses = [
+                    "All done! Got back 28 gigs of space for you.",
+                    "Cleanup finished - your storage is looking much better!",
+                    "Perfect! Archives cleared and space freed up."
+                ]
+                self.speak(random.choice(done_responses))
+            else:
+                cancel_responses = [
+                    "No problem - leaving everything as is.",
+                    "Got it - skipping the cleanup for now.",
+                    "Understood - keeping those archives for now."
+                ]
+                self.speak(random.choice(cancel_responses))
+                
+        elif any(word in text_lower for word in ['help', 'commands']):
+            help_responses = [
+                "Sure! I can check status, show libraries, recent activity, run health checks, do storage cleanup, or stop listening when you're done.",
+                "I've got a few things I can help with: server status, library info, recent activity, health checks, storage cleanup - just ask!",
+                "Here's what I can do: check the server status, show your libraries, recent activity, run diagnostics, clean up storage, or stop when you're ready."
+            ]
+            self.speak(random.choice(help_responses))
+            
+        else:
+            confused_responses = [
+                "Hmm, not sure I caught that. Try 'help' to see what I can do?",
+                "I didn't quite get that one. Want to try again or say 'help'?",
+                "Sorry, that didn't click for me. Say 'help' and I'll show you what I know!"
+            ]
+            self.speak(random.choice(confused_responses))
+            print(f"💡 You said: '{text_lower}'")
+        
+        return True
+    
+    def start(self):
+        """Start live voice recognition"""
+        greeting_responses = [
+            "Hey there! Voice system's up and running.",
+            "I'm here and ready to chat!",
+            "Voice mode activated - what's up?"
+        ]
+        self.speak(random.choice(greeting_responses))
+        
+        if self.mic:
+            listening_responses = [
+                "Just say 'Hey Hatter' and I'll jump right in!",
+                "I'm listening - start with 'Hey Hatter' or 'Hey PAI'!",
+                "Ready when you are - just say my name and tell me what you need!"
+            ]
+            self.speak(random.choice(listening_responses))
+            self.listen_for_speech()
+        else:
+            fallback_responses = [
+                "Mic's not working, so we'll use keyboard mode instead.",
+                "No microphone found - switching to typing mode.",
+                "Falling back to keyboard since I can't hear you right now."
+            ]
+            self.speak(random.choice(fallback_responses))
+            self.keyboard_fallback()
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h']:
+        print("PAI Live Voice Recognition")
+        print("Uses Google Speech Recognition for real speech-to-text")
+        print("Usage: pai-voice-live")
+        return
+    
+    voice = PAILiveVoice()
+    try:
+        voice.start()
+    except KeyboardInterrupt:
+        voice.speak("Voice recognition stopped")
+
+if __name__ == "__main__":
+    main()

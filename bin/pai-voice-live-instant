@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+
+"""
+PAI Live Voice Recognition - INSTANT RESPONSE VERSION
+Optimized for instant recognition and feedback
+Part of the Personal AI Infrastructure (PAI)
+"""
+
+import speech_recognition as sr
+import subprocess
+import sys
+import time
+import os
+import random
+import json
+from pathlib import Path
+
+# Suppress ALSA warnings for cleaner output
+os.environ['ALSA_PCM_CARD'] = '0'
+os.environ['ALSA_PCM_DEVICE'] = '0'
+
+class PAIInstantVoice:
+    def __init__(self):
+        self.r = sr.Recognizer()
+        self.mic = None
+        self.wake_words = ["hatter", "pai", "hey hatter", "hey pai"]
+        self.listening = False
+        self.config_dir = Path.home() / ".config" / "pai"
+        self.log_file = self.config_dir / "voice-instant.log"
+        
+        # PAI system integration
+        self.pai_root = Path("/home/jbyrd/hatter-pai")
+        self.current_context = None
+        self.context_tools = {}
+        
+        # Create config directory
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Load PAI context and tools
+        self.load_pai_context()
+        
+        # Initialize microphone with instant recognition settings
+        try:
+            self.mic = sr.Microphone()
+            # Optimize for INSTANT recognition
+            self.r.energy_threshold = 200  # Even lower for ultra-fast detection
+            self.r.dynamic_energy_threshold = True
+            self.r.pause_threshold = 0.3  # Ultra-fast pause detection
+            self.r.non_speaking_duration = 0.2  # Faster non-speech detection
+            print("⚡⚡ INSTANT VOICE SYSTEM READY ⚡⚡")
+        except Exception as e:
+            print(f"⚠️  Microphone failed - keyboard mode")
+            self.mic = None
+    
+    def load_pai_context(self):
+        """Load current PAI context and available tools - ultra-fast"""
+        try:
+            # Ultra-fast context loading
+            result = subprocess.run(["pai-context-current"], capture_output=True, text=True, timeout=1)
+            if result.returncode == 0:
+                self.current_context = result.stdout.strip()
+                print(f"⚡ Context: {self.current_context}")
+            else:
+                self.current_context = "general"
+            
+            # Cache tools instantly
+            pai_bin = self.pai_root / "bin"
+            if pai_bin.exists():
+                for tool in pai_bin.glob("pai-*"):
+                    if tool.is_file() and os.access(tool, os.X_OK):
+                        tool_name = tool.name
+                        self.context_tools[tool_name] = str(tool)
+                
+                print(f"⚡ {len(self.context_tools)} tools ready")
+                
+        except Exception:
+            self.current_context = "general"
+    
+    def log(self, message):
+        """Ultra-fast logging"""
+        with open(self.log_file, "a") as f:
+            f.write(f"{time.strftime('%H:%M:%S')}: {message}\n")
+    
+    def speak(self, message):
+        """Instant text-to-speech feedback"""
+        print(f"🗣️  {message}")
+        self.log(f"SPEAK: {message}")
+        
+        try:
+            # Ultra-fast speech - no delays
+            subprocess.Popen(["espeak", "-s", "180", "-v", "en+f4", "-a", "90", message], 
+                           stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        except:
+            pass  # Silent fallback for maximum speed
+    
+    def listen_for_speech(self):
+        """INSTANT speech recognition"""
+        if not self.mic:
+            return self.keyboard_fallback()
+            
+        print("⚡⚡ SAY 'HEY HATTER' FOR INSTANT RESPONSE! ⚡⚡")
+        
+        try:
+            # Ultra-quick calibration
+            with self.mic as source:
+                self.r.adjust_for_ambient_noise(source, duration=0.1)
+            
+            while True:
+                try:
+                    with self.mic as source:
+                        # INSTANT detection settings
+                        audio = self.r.listen(source, timeout=0.3, phrase_time_limit=2)
+                    
+                    # Lightning-fast recognition
+                    text = self.r.recognize_google(audio).lower()
+                    if text:
+                        print(f"⚡ {text}")
+                        
+                        # INSTANT wake word response
+                        if any(wake in text for wake in self.wake_words):
+                            self.log(f"INSTANT: {text}")
+                            
+                            # Ultra-fast confirmation
+                            instant_responses = ["Yes!", "Go!", "Ready!", "⚡"]
+                            self.speak(random.choice(instant_responses))
+                            
+                            # Instant command processing
+                            if not self.process_command(text):
+                                break
+                                
+                except sr.WaitTimeoutError:
+                    continue  # Keep listening silently
+                except sr.UnknownValueError:
+                    continue  # Keep listening silently
+                except sr.RequestError:
+                    print("⚠️  Network issue - keyboard mode")
+                    self.speak("Network issue")
+                    return self.keyboard_fallback()
+                except KeyboardInterrupt:
+                    break
+                    
+        except Exception:
+            return self.keyboard_fallback()
+    
+    def process_command(self, text):
+        """Lightning-fast command processing"""
+        text_lower = text.lower()
+        
+        # Remove wake words instantly
+        for wake in self.wake_words:
+            if wake in text_lower:
+                text_lower = text_lower.replace(wake, "").strip(" ,")
+                break
+        
+        self.log(f"CMD: {text_lower}")
+        
+        # Instant exit
+        if any(word in text_lower for word in ['stop', 'quit', 'exit', 'goodbye']):
+            self.speak("Bye!")
+            return False
+        
+        # Instant status
+        elif any(word in text_lower for word in ['status', 'server status']):
+            self.speak("Checking...")
+            if self.current_context == "plex":
+                subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-plex-remote", "status"])
+            else:
+                subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-status-show"])
+            
+        # Instant context help
+        elif any(word in text_lower for word in ['help', 'commands']):
+            if self.current_context == "meal-planning":
+                help_text = "Meal planning: plan meals, shopping list, recipes, nutrition!"
+            elif self.current_context == "plex":
+                help_text = "Plex: status, libraries, activity, health checks!"
+            else:
+                help_text = f"{self.current_context} context active - try commands or switch context!"
+            
+            self.speak(help_text)
+            
+        # Instant meal planning (if in context)
+        elif self.current_context == "meal-planning":
+            if any(word in text_lower for word in ['meal plan', 'plan meals']):
+                self.speak("Creating meal plan!")
+                subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-meal-planner", "plan"])
+            elif any(word in text_lower for word in ['shopping', 'grocery']):
+                self.speak("Making shopping list!")
+                subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-shopping-list", "generate"])
+            elif any(word in text_lower for word in ['recipe']):
+                self.speak("Finding recipes!")
+                subprocess.Popen(["/home/jbyrd/hatter-pai/bin/pai-recipe-manager", "random"])
+            else:
+                self.speak("Try: plan meals, shopping list, or recipes!")
+                
+        # Instant context switching
+        elif any(word in text_lower for word in ['context', 'switch']):
+            contexts = ["plex", "redhat", "meal-planning", "home-automation"]
+            target = None
+            for ctx in contexts:
+                if ctx in text_lower or ctx.replace("-", " ") in text_lower:
+                    target = ctx
+                    break
+            
+            if target:
+                self.speak(f"Switching to {target}!")
+                subprocess.run(["pai-context-switch", target])
+                self.current_context = target
+                self.speak(f"{target} ready!")
+            else:
+                self.speak("Say: switch to plex, redhat, meal planning, or home automation")
+        
+        else:
+            self.speak("Try 'help' for commands!")
+            print(f"💡 You said: '{text_lower}' in {self.current_context} context")
+        
+        return True
+    
+    def keyboard_fallback(self):
+        """Fast keyboard mode"""
+        print("\n⌨️  INSTANT KEYBOARD MODE")
+        print("Type like you're talking:")
+        print("• 'hey hatter status' or just 'status'")
+        print("• 'stop' when done")
+        
+        while True:
+            try:
+                user_input = input("\n⚡ Chat: ").strip()
+                if not user_input:
+                    continue
+                    
+                if not self.process_command(user_input):
+                    break
+                    
+            except (KeyboardInterrupt, EOFError):
+                break
+    
+    def start(self):
+        """Start INSTANT voice recognition"""
+        greeting_responses = [
+            "⚡ INSTANT VOICE MODE ACTIVATED!",
+            "⚡ Ready for instant commands!",
+            "⚡ Lightning-fast voice system online!"
+        ]
+        self.speak(random.choice(greeting_responses))
+        
+        if self.mic:
+            self.speak(f"Context: {self.current_context} - Say 'Hey Hatter' anytime!")
+            self.listen_for_speech()
+        else:
+            self.speak("Keyboard mode - type your commands!")
+            self.keyboard_fallback()
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h']:
+        print("PAI INSTANT Voice Recognition")
+        print("Optimized for lightning-fast response")
+        print("Usage: pai-voice-live-instant")
+        return
+    
+    voice = PAIInstantVoice()
+    try:
+        voice.start()
+    except KeyboardInterrupt:
+        voice.speak("⚡ Instant voice stopped")
+
+if __name__ == "__main__":
+    main()

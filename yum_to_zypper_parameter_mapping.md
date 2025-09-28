@@ -121,3 +121,4 @@ priority: 99            # Repository priority (lower = higher priority)
 
 ---
 **Bottom Line**: You **CANNOT** just swap module names - parameters need careful migration!
+

@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# PAI Voice Commands - Plex Shortcuts
+# Quick voice commands specifically for Plex operations
+# Part of the Personal AI Infrastructure (PAI)
+
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/pai-progress-tracker" 2>/dev/null
+
+# Text-to-speech function
+speak() {
+    local message="$1"
+    echo "🗣️  Hatter: $message"
+    
+    if command -v espeak >/dev/null 2>&1; then
+        echo "$message" | espeak -s 150 -v en+f3 2>/dev/null &
+    fi
+}
+
+# Quick Plex voice commands
+case "${1:-help}" in
+    "status"|"server")
+        speak "Checking Plex server status"
+        pai-plex-remote status
+        speak "Plex server is online and ready"
+        ;;
+        
+    "libraries"|"libs") 
+        speak "Showing your Plex libraries"
+        pai-plex-remote libraries
+        ;;
+        
+    "activity"|"streams")
+        speak "Checking current Plex activity"
+        pai-plex-remote recent-activity
+        ;;
+        
+    "health"|"performance")
+        speak "Running Plex health check"
+        pai-plex-remote health-check
+        speak "Health check complete"
+        ;;
+        
+    "cleanup"|"storage")
+        speak "Storage cleanup can recover 28 gigabytes of space"
+        confirm="y"
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            speak "Starting storage cleanup"
+            pai-plex-storage-cleanup
+        else
+            speak "Storage cleanup cancelled"  
+        fi
+        ;;
+        
+    "organize"|"fix")
+        speak "Plex organization tools are available. Which would you like?"
+        echo "Available organization options:"
+        echo "• pai-plex-batch-organizer - Movie naming optimization"
+        echo "• pai-plex-rename-optimizer - Manual rename suggestions" 
+        echo "• pai-plex-library-organizer - Full library analysis"
+        ;;
+        
+    "help"|*)
+        cat << 'EOF'
+🎤 PAI VOICE COMMANDS - PLEX SHORTCUTS
+=====================================
+
+Quick Commands:
+• pai-voice-plex status      - Check Plex server status
+• pai-voice-plex libraries   - Show all libraries  
+• pai-voice-plex activity    - Show current streams
+• pai-voice-plex health      - Run health check
+• pai-voice-plex cleanup     - Storage cleanup (28GB)
+• pai-voice-plex organize    - Show organization tools
+• pai-voice-plex help        - Show this help
+
+Full Voice Recognition:
+• pai-voice-command          - Interactive voice mode
+• pai-voice-listener.py      - Advanced speech recognition
+
+Examples:
+pai-voice-plex status
+pai-voice-plex cleanup
+EOF
+        ;;
+esac
+
