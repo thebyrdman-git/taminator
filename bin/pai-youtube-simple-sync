@@ -1,0 +1,71 @@
+#!/bin/bash
+
+# Simple YouTube downloader for Charles's subscriptions
+# Downloads latest videos from his favorite channels
+
+set -euo pipefail
+
+# Configuration
+STORAGE_DIR="/mnt/nfs_share/charles/youtube"
+MAX_VIDEOS=3
+
+# Charles's top channels (from the CSV)
+CHANNELS=(
+    "UCZiQOv0-yNYaehq_yfx1RXw:LEGO"
+    "UCS5Oz6CHmeoF7vSad0qqXfw:Minecraft"
+    "UC4rqhyiTs7XyuODcECvuiiQ:DanTDM"
+    "UCIY8BCLK64Xrc1tYBqqhFSA:Nintendo"
+    "UCR-DXc1voovS8nhAvccRZhg:Jeff Geerling"
+)
+
+echo "🎬 DOWNLOADING CHARLES'S YOUTUBE VIDEOS"
+echo "======================================="
+echo "Storage: $STORAGE_DIR"
+echo "Max videos per channel: $MAX_VIDEOS"
+echo ""
+
+# Create storage directory
+sudo mkdir -p "$STORAGE_DIR"
+sudo chown -R plex:plex "$STORAGE_DIR"
+
+total_downloaded=0
+
+for channel_info in "${CHANNELS[@]}"; do
+    IFS=':' read -r channel_id channel_name <<< "$channel_info"
+    
+    echo "📺 Processing: $channel_name"
+    
+    # Create channel directory
+    channel_dir="$STORAGE_DIR/$channel_name"
+    sudo mkdir -p "$channel_dir"
+    
+    # Download latest videos (last 7 days only)
+    if yt-dlp \
+        --format "best[height<=720]/best" \
+        --output "$channel_dir/%(upload_date)s - %(title)s.%(ext)s" \
+        --dateafter "$(date -d '7 days ago' '+%Y%m%d')" \
+        --playlist-end "$MAX_VIDEOS" \
+        --no-overwrites \
+        --write-info-json \
+        "https://www.youtube.com/channel/$channel_id/videos"; then
+        
+        echo "✅ $channel_name: Success"
+        ((total_downloaded++))
+    else
+        echo "❌ $channel_name: Failed"
+    fi
+    
+    echo ""
+done
+
+# Fix permissions
+sudo chown -R plex:plex "$STORAGE_DIR"
+sudo chmod -R 755 "$STORAGE_DIR"
+
+echo "🎉 DOWNLOAD COMPLETE"
+echo "==================="
+echo "Successfully processed: $total_downloaded channels"
+echo "Storage location: $STORAGE_DIR"
+echo ""
+echo "✅ Ready for Plex to scan!"
+

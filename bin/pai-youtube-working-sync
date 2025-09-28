@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# Working YouTube downloader for Charles's subscriptions
+# Gets recent videos from the last 30 days
+
+set -euo pipefail
+
+STORAGE_DIR="/mnt/nfs_share/charles/youtube"
+
+echo "🎬 DOWNLOADING CHARLES'S RECENT YOUTUBE VIDEOS"
+echo "=============================================="
+echo "Storage: $STORAGE_DIR"
+echo "Getting videos from last 30 days..."
+echo ""
+
+# Create storage with proper permissions
+sudo mkdir -p "$STORAGE_DIR"
+sudo chmod 777 "$STORAGE_DIR"
+
+# Top channels from Charles's CSV (ones that definitely exist)
+CHANNELS=(
+    "UC4rqhyiTs7XyuODcECvuiiQ:DanTDM"
+    "UCsXVk37bltHxD1rDPwtNM8Q:Kurzgesagt"
+    "UCmGSJVG3mCRXVOP4yZrU1Dw:Game_Theory"
+    "UCZiQOv0-yNYaehq_yfx1RXw:LEGO"
+)
+
+total_downloaded=0
+total_videos=0
+
+for channel_info in "${CHANNELS[@]}"; do
+    IFS=':' read -r channel_id channel_name <<< "$channel_info"
+    
+    echo "📺 Processing: $channel_name"
+    echo "   Channel ID: $channel_id"
+    
+    # Create channel directory
+    channel_dir="$STORAGE_DIR/$channel_name"
+    sudo mkdir -p "$channel_dir"
+    sudo chmod 777 "$channel_dir"
+    
+    # Count videos before download
+    before_count=$(find "$channel_dir" -name "*.mp4" 2>/dev/null | wc -l)
+    
+    # Download recent videos (last 30 days, max 5 per channel)
+    echo "   Downloading recent videos..."
+    if yt-dlp \
+        --format "best[height<=720]/best" \
+        --output "$channel_dir/%(upload_date)s - %(title)s.%(ext)s" \
+        --dateafter "$(date -d '30 days ago' '+%Y%m%d')" \
+        --playlist-end 5 \
+        --no-overwrites \
+        --ignore-errors \
+        "https://www.youtube.com/channel/$channel_id/videos" 2>/dev/null; then
+        
+        # Count videos after download
+        after_count=$(find "$channel_dir" -name "*.mp4" 2>/dev/null | wc -l)
+        new_videos=$((after_count - before_count))
+        
+        if [[ $new_videos -gt 0 ]]; then
+            echo "   ✅ Downloaded $new_videos new videos"
+            ((total_downloaded++))
+            ((total_videos += new_videos))
+        else
+            echo "   ℹ️  No new videos (already have recent ones)"
+        fi
+    else
+        echo "   ❌ Failed to download"
+    fi
+    
+    echo ""
+done
+
+# Fix all permissions for Plex
+echo "🔧 Setting permissions for Plex..."
+sudo chown -R plex:plex "$STORAGE_DIR"
+sudo chmod -R 755 "$STORAGE_DIR"
+
+echo "🎉 DOWNLOAD SUMMARY"
+echo "==================="
+echo "Channels processed: ${#CHANNELS[@]}"
+echo "Channels with new content: $total_downloaded"
+echo "Total videos downloaded: $total_videos"
+echo "Storage location: $STORAGE_DIR"
+echo ""
+echo "📁 Directory structure:"
+ls -la "$STORAGE_DIR"
+echo ""
+echo "✅ Ready for Plex to scan!"
+

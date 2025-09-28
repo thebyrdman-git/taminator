@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}📊 Dashboard - Charles's YouTube System{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="text-center">
+        <h1 class="text-4xl font-bold mb-4">📊 YouTube Automation Dashboard</h1>
+        <p class="text-xl opacity-90">Real-time monitoring of Charles's YouTube downloads</p>
+    </div>
+
+    <!-- Status Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="glass rounded-xl p-6 card-hover">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-yellow-300" id="totalChannels">-</div>
+                <div class="text-sm opacity-80 mt-2">Total Channels</div>
+            </div>
+        </div>
+        
+        <div class="glass rounded-xl p-6 card-hover">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-green-300" id="completedChannels">-</div>
+                <div class="text-sm opacity-80 mt-2">Completed</div>
+            </div>
+        </div>
+        
+        <div class="glass rounded-xl p-6 card-hover">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-blue-300" id="downloadedVideos">-</div>
+                <div class="text-sm opacity-80 mt-2">Videos Downloaded</div>
+            </div>
+        </div>
+        
+        <div class="glass rounded-xl p-6 card-hover">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-purple-300" id="totalSize">-</div>
+                <div class="text-sm opacity-80 mt-2">Total Size</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="glass rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-yellow-300">🔄 System Status</h2>
+            <div class="flex space-x-3">
+                <span class="px-3 py-1 rounded-full text-sm font-medium" id="systemStatus">
+                    ⏳ Loading...
+                </span>
+                <button onclick="refreshData()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                    🔄 Refresh
+                </button>
+            </div>
+        </div>
+        
+        <!-- Overall Progress -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-lg font-medium">Overall Progress</span>
+                <span id="progressPercentage" class="text-lg font-medium">0%</span>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-6">
+                <div class="progress-bar h-6 rounded-full transition-all duration-500" id="progressBar" style="width: 0%"></div>
+            </div>
+            <div class="text-sm opacity-80 mt-2" id="progressText">
+                Ready to start downloads
+            </div>
+        </div>
+
+        <!-- Current Activity -->
+        <div id="currentActivity" class="hidden">
+            <h3 class="text-lg font-semibold mb-3">📺 Current Activity</h3>
+            <div class="bg-black/30 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <div class="animate-pulse-custom">⬇️</div>
+                    <span>Downloading from: <span id="currentChannel" class="font-bold text-yellow-300">-</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="glass rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-yellow-300 mb-4">🎮 Quick Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <button onclick="startDownloads()" id="startBtn" 
+                class="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 px-6 py-3 rounded-lg font-medium transition-colors">
+                🚀 Start Downloads
+            </button>
+            
+            <button onclick="stopDownloads()" id="stopBtn" 
+                class="bg-red-500 hover:bg-red-600 disabled:bg-gray-500 px-6 py-3 rounded-lg font-medium transition-colors" disabled>
+                ⏹️ Stop Downloads
+            </button>
+            
+            <button onclick="refreshPlex()" 
+                class="bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-lg font-medium transition-colors">
+                🎬 Refresh Plex
+            </button>
+            
+            <button onclick="runCleanup()" 
+                class="bg-yellow-500 hover:bg-yellow-600 px-6 py-3 rounded-lg font-medium transition-colors">
+                🧹 30-Day Cleanup
+            </button>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="glass rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-yellow-300">📋 Recent Activity</h2>
+            <button onclick="clearErrors()" class="text-sm text-red-300 hover:text-red-100">
+                Clear Errors
+            </button>
+        </div>
+        <div id="recentActivity" class="space-y-2 max-h-64 overflow-y-auto">
+            <div class="text-gray-400 text-center py-8">No recent activity</div>
+        </div>
+    </div>
+
+    <!-- Channel Status Preview -->
+    <div class="glass rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-yellow-300">📺 Channel Status Preview</h2>
+            <a href="/subscriptions" class="text-blue-300 hover:text-blue-100">
+                View All Channels →
+            </a>
+        </div>
+        <div id="channelPreview" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Channel cards will be populated here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let statusData = {
+        active: false,
+        current_channel: null,
+        progress: 0,
+        total_channels: 0,
+        completed_channels: 0,
+        downloaded_videos: 0,
+        errors: []
+    };
+
+    let channelsData = [];
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshData();
+        // Auto-refresh every 3 seconds when downloading
+        setInterval(() => {
+            if (statusData.active) {
+                refreshData();
+            }
+        }, 3000);
+    });
+
+    async function refreshData() {
+        try {
+            // Get status data
+            const statusResponse = await apiCall('/api/status');
+            if (statusResponse) {
+                statusData = statusResponse;
+                updateStatusDisplay();
+            }
+
+            // Get channels data
+            const channelsResponse = await apiCall('/api/channels');
+            if (channelsResponse) {
+                channelsData = channelsResponse;
+                updateChannelPreview();
+            }
+        } catch (error) {
+            console.error('Failed to refresh data:', error);
+        }
+    }
+
+    function updateStatusDisplay() {
+        // Update status cards
+        document.getElementById('totalChannels').textContent = statusData.total_channels || '-';
+        document.getElementById('completedChannels').textContent = statusData.completed_channels || '0';
+        document.getElementById('downloadedVideos').textContent = statusData.downloaded_videos || '0';
+        
+        // Calculate total size (rough estimate)
+        const estimatedSize = (statusData.downloaded_videos || 0) * 75; // Assume 75MB average
+        document.getElementById('totalSize').textContent = formatBytes(estimatedSize * 1024 * 1024);
+
+        // Update system status
+        const systemStatusEl = document.getElementById('systemStatus');
+        const progressEl = document.getElementById('progressBar');
+        const progressTextEl = document.getElementById('progressText');
+        const progressPercentageEl = document.getElementById('progressPercentage');
+        const currentActivityEl = document.getElementById('currentActivity');
+        const currentChannelEl = document.getElementById('currentChannel');
+
+        if (statusData.active) {
+            systemStatusEl.textContent = '🔄 Downloading...';
+            systemStatusEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-green-500 animate-pulse-custom';
+            
+            // Show current activity
+            currentActivityEl.classList.remove('hidden');
+            currentChannelEl.textContent = statusData.current_channel || 'Unknown';
+            
+            // Update progress
+            const progress = statusData.progress || 0;
+            progressEl.style.width = progress + '%';
+            progressPercentageEl.textContent = progress + '%';
+            progressTextEl.textContent = `Processing ${statusData.completed_channels} of ${statusData.total_channels} channels`;
+            
+            // Update button states
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+        } else {
+            systemStatusEl.textContent = '⏹️ Idle';
+            systemStatusEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-500';
+            
+            // Hide current activity
+            currentActivityEl.classList.add('hidden');
+            
+            // Update progress
+            const progress = statusData.total_channels > 0 ? 
+                Math.round((statusData.completed_channels / statusData.total_channels) * 100) : 0;
+            progressEl.style.width = progress + '%';
+            progressPercentageEl.textContent = progress + '%';
+            progressTextEl.textContent = `${statusData.completed_channels} of ${statusData.total_channels} channels completed`;
+            
+            // Update button states
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        // Update recent activity (errors)
+        const recentActivityEl = document.getElementById('recentActivity');
+        if (statusData.errors && statusData.errors.length > 0) {
+            recentActivityEl.innerHTML = statusData.errors.map(error => `
+                <div class="bg-red-900/30 border border-red-500/50 rounded-lg p-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-red-400">❌</span>
+                        <span class="text-sm">${error}</span>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            recentActivityEl.innerHTML = '<div class="text-gray-400 text-center py-8">No recent errors</div>';
+        }
+    }
+
+    function updateChannelPreview() {
+        const previewEl = document.getElementById('channelPreview');
+        
+        // Show first 6 channels as preview
+        const previewChannels = channelsData.slice(0, 6);
+        
+        if (previewChannels.length === 0) {
+            previewEl.innerHTML = '<div class="text-gray-400 text-center py-8 col-span-full">No channels loaded</div>';
+            return;
+        }
+
+        previewEl.innerHTML = previewChannels.map(channel => {
+            const statusColor = {
+                'completed': 'border-green-500 bg-green-900/20',
+                'downloading': 'border-blue-500 bg-blue-900/20 animate-pulse',
+                'pending': 'border-yellow-500 bg-yellow-900/20',
+                'error': 'border-red-500 bg-red-900/20'
+            };
+
+            const statusIcon = {
+                'completed': '✅',
+                'downloading': '⬇️',
+                'pending': '⏳',
+                'error': '❌'
+            };
+
+            return `
+                <div class="border-l-4 p-4 rounded-lg bg-black/20 ${statusColor[channel.status] || 'border-gray-500'}">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-semibold text-sm">${statusIcon[channel.status]} ${channel.name}</span>
+                    </div>
+                    <div class="text-xs opacity-80">
+                        ${channel.video_count} videos • ${formatBytes(channel.total_size || 0)}
+                    </div>
+                    <div class="text-xs opacity-60 mt-1">
+                        ${formatDate(channel.last_download)}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function startDownloads() {
+        const result = await apiCall('/api/start_downloads', 'POST');
+        if (result.success) {
+            showToast('Downloads started successfully!', 'success');
+            refreshData();
+        } else {
+            showToast('Failed to start downloads: ' + result.message, 'error');
+        }
+    }
+
+    async function stopDownloads() {
+        const result = await apiCall('/api/stop_downloads', 'POST');
+        if (result.success) {
+            showToast('Downloads stopped', 'info');
+            refreshData();
+        } else {
+            showToast('Failed to stop downloads: ' + result.message, 'error');
+        }
+    }
+
+    async function refreshPlex() {
+        showToast('Refreshing Plex library...', 'info');
+        const result = await apiCall('/api/refresh_plex', 'POST');
+        if (result.success) {
+            showToast('Plex library refresh triggered!', 'success');
+        } else {
+            showToast('Plex refresh failed: ' + result.message, 'error');
+        }
+    }
+
+    async function runCleanup() {
+        if (confirm('This will delete videos older than 30 days. Continue?')) {
+            showToast('Running 30-day cleanup...', 'info');
+            const result = await apiCall('/api/cleanup', 'POST');
+            if (result.success) {
+                showToast('Cleanup completed successfully!', 'success');
+                refreshData();
+            } else {
+                showToast('Cleanup failed: ' + result.message, 'error');
+            }
+        }
+    }
+
+    function clearErrors() {
+        statusData.errors = [];
+        updateStatusDisplay();
+    }
+</script>
+{% endblock %}

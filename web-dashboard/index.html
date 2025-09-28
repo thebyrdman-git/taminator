@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 Charles's YouTube Download Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: fadeInUp 1s ease-out;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #FFD700;
+        }
+
+        .stat-card p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .progress-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: fadeInUp 1.2s ease-out;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .progress-header h2 {
+            font-size: 1.8rem;
+            color: #FFD700;
+        }
+
+        .status-indicator {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+
+        .status-active {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-idle {
+            background: #FF9800;
+            color: white;
+        }
+
+        .overall-progress {
+            margin-bottom: 30px;
+        }
+
+        .progress-bar-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 25px;
+            padding: 5px;
+            margin: 10px 0;
+        }
+
+        .progress-bar {
+            height: 40px;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A, #CDDC39);
+            border-radius: 20px;
+            transition: width 1s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.4),
+                transparent
+            );
+            animation: shimmer 2s infinite;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 10px;
+            font-size: 1.1rem;
+        }
+
+        .channels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .channel-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid;
+        }
+
+        .channel-completed {
+            border-left-color: #4CAF50;
+        }
+
+        .channel-downloading {
+            border-left-color: #2196F3;
+            animation: pulse 1.5s infinite;
+        }
+
+        .channel-pending {
+            border-left-color: #FF9800;
+        }
+
+        .channel-error {
+            border-left-color: #F44336;
+        }
+
+        .channel-name {
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .channel-progress {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .channel-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(0,0,0,0.4);
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Charles's YouTube Downloads</h1>
+            <p>Real-time progress dashboard for 249 channels</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3 id="totalChannels">249</h3>
+                <p>Total Channels</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="completedChannels">0</h3>
+                <p>Completed</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="downloadedVideos">0</h3>
+                <p>Videos Downloaded</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="totalSize">0 GB</h3>
+                <p>Total Size</p>
+            </div>
+        </div>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <h2>📊 Overall Progress</h2>
+                <div class="status-indicator status-active" id="statusIndicator">
+                    🔄 Downloading...
+                </div>
+            </div>
+            
+            <div class="overall-progress">
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="overallProgressBar" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="overallProgressText">
+                    0% Complete (0 of 249 channels)
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 15px; color: #FFD700;">📺 Channel Status</h3>
+            <div class="channels-grid" id="channelsGrid">
+                <!-- Channels will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="refreshData()">
+        🔄 Refresh
+    </button>
+
+    <script>
+        let progressData = {
+            totalChannels: 249,
+            completedChannels: 0,
+            downloadedVideos: 0,
+            totalSize: 0,
+            channels: []
+        };
+
+        // Sample data for demonstration
+        function initializeSampleData() {
+            const sampleChannels = [
+                'LEGO', 'Minecraft', 'DanTDM', 'Nintendo', 'Jeff Geerling',
+                'Game Theory', 'Kurzgesagt', 'Veritasium', 'Mark Rober',
+                'SciShow', 'Crash Course', 'TED-Ed', 'National Geographic'
+            ];
+            
+            progressData.channels = sampleChannels.map((name, index) => ({
+                name: name,
+                status: index < 3 ? 'completed' : index < 6 ? 'downloading' : 'pending',
+                videosDownloaded: index < 3 ? Math.floor(Math.random() * 10) + 5 : index < 6 ? Math.floor(Math.random() * 3) : 0,
+                totalSize: index < 3 ? (Math.random() * 2 + 0.5).toFixed(1) + ' GB' : index < 6 ? (Math.random() * 0.5).toFixed(1) + ' GB' : '0 MB'
+            }));
+            
+            progressData.completedChannels = 3;
+            progressData.downloadedVideos = progressData.channels
+                .filter(c => c.status === 'completed')
+                .reduce((sum, c) => sum + c.videosDownloaded, 0);
+        }
+
+        function updateDisplay() {
+            document.getElementById('totalChannels').textContent = progressData.totalChannels;
+            document.getElementById('completedChannels').textContent = progressData.completedChannels;
+            document.getElementById('downloadedVideos').textContent = progressData.downloadedVideos;
+            document.getElementById('totalSize').textContent = progressData.totalSize + ' GB';
+
+            const percentage = Math.round((progressData.completedChannels / progressData.totalChannels) * 100);
+            document.getElementById('overallProgressBar').style.width = percentage + '%';
+            document.getElementById('overallProgressText').textContent = 
+                `${percentage}% Complete (${progressData.completedChannels} of ${progressData.totalChannels} channels)`;
+
+            const channelsGrid = document.getElementById('channelsGrid');
+            channelsGrid.innerHTML = '';
+            
+            progressData.channels.forEach(channel => {
+                const channelCard = document.createElement('div');
+                channelCard.className = `channel-card channel-${channel.status}`;
+                
+                const statusEmoji = {
+                    'completed': '✅',
+                    'downloading': '⬇️',
+                    'pending': '⏳',
+                    'error': '❌'
+                };
+                
+                channelCard.innerHTML = `
+                    <div class="channel-name">${statusEmoji[channel.status]} ${channel.name}</div>
+                    <div class="channel-progress">${channel.videosDownloaded} videos • ${channel.totalSize}</div>
+                    <span class="channel-status" style="background: ${getStatusColor(channel.status)}">
+                        ${channel.status.charAt(0).toUpperCase() + channel.status.slice(1)}
+                    </span>
+                `;
+                
+                channelsGrid.appendChild(channelCard);
+            });
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'completed': '#4CAF50',
+                'downloading': '#2196F3',
+                'pending': '#FF9800',
+                'error': '#F44336'
+            };
+            return colors[status] || '#9E9E9E';
+        }
+
+        async function refreshData() {
+            try {
+                const response = await fetch('/api/progress');
+                if (response.ok) {
+                    progressData = await response.json();
+                    updateDisplay();
+                }
+            } catch (error) {
+                console.log('Using sample data - server not available');
+            }
+        }
+
+        // Initialize with sample data
+        initializeSampleData();
+        updateDisplay();
+
+        // Auto-refresh every 5 seconds
+        setInterval(refreshData, 5000);
+    </script>
+</body>
+</html>

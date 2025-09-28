@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Test download from one channel to make sure everything works
+
+set -euo pipefail
+
+STORAGE_DIR="/mnt/nfs_share/charles/youtube"
+
+echo "🧪 TESTING ONE CHANNEL DOWNLOAD"
+echo "==============================="
+echo "Testing DanTDM channel..."
+echo ""
+
+# Create and fix permissions
+sudo mkdir -p "$STORAGE_DIR/DanTDM" 
+sudo chmod 777 "$STORAGE_DIR"
+sudo chmod 777 "$STORAGE_DIR/DanTDM"
+
+echo "📺 Downloading from DanTDM (UC4rqhyiTs7XyuODcECvuiiQ)..."
+
+# Test download with verbose output
+yt-dlp \
+    --format "best[height<=720]/best" \
+    --output "$STORAGE_DIR/DanTDM/%(upload_date)s - %(title)s.%(ext)s" \
+    --dateafter "$(date -d '3 days ago' '+%Y%m%d')" \
+    --playlist-end 2 \
+    --no-overwrites \
+    --verbose \
+    "https://www.youtube.com/channel/UC4rqhyiTs7XyuODcECvuiiQ/videos"
+
+echo ""
+echo "🔍 CHECKING RESULTS:"
+ls -la "$STORAGE_DIR/DanTDM/" 2>/dev/null || echo "No files found"
+
+echo ""
+echo "✅ Test complete!"
+

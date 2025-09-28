@@ -9,7 +9,7 @@ set -euo pipefail
 # Configuration
 PAI_CONFIG_DIR="$HOME/.config/pai"
 YOUTUBE_CONFIG_DIR="$PAI_CONFIG_DIR/youtube"
-PLEX_YOUTUBE_DIR="/home/jbyrd/youtube-plex"
+PLEX_YOUTUBE_DIR="/mnt/nfs_share/charles/youtube"
 YOUTUBE_ACCOUNT="cebyrdlegomaster@gmail.com"
 DATABASE_FILE="$YOUTUBE_CONFIG_DIR/subscriptions.db"
 LOG_FILE="$YOUTUBE_CONFIG_DIR/sync.log"
@@ -150,29 +150,63 @@ check_dependencies() {
     return 0
 }
 
-# Get subscription list using yt-dlp
+# Get subscription list from Charles's CSV file
 get_subscriptions() {
     local account="$1"
-    log_info "Fetching subscription list for $account..."
+    log_info "Loading subscription list for $account from CSV file..."
     
-    # Use yt-dlp to get subscription list
-    # Note: This might require authentication setup
+    local csv_file="$HOME/charles-subscriptions.csv"
     local subscriptions_file="$YOUTUBE_CONFIG_DIR/current_subscriptions.json"
     
-    # For now, create a sample structure - real implementation would use YouTube Data API
-    cat > "$subscriptions_file" << EOF
-{
-    "subscriptions": [
-        {
-            "id": "UCZiQOv0-yNYaehq_yfx1RXw",
-            "name": "LEGO",
-            "url": "https://www.youtube.com/channel/UCZiQOv0-yNYaehq_yfx1RXw"
-        }
-    ]
-}
-EOF
+    # Check if CSV file exists
+    if [[ ! -f "$csv_file" ]]; then
+        log_error "Charles's subscription CSV not found: $csv_file"
+        return 1
+    fi
     
-    echo "$subscriptions_file"
+    log_info "Converting CSV to JSON format..."
+    
+    # Convert CSV to JSON format using awk for better parsing
+    {
+        echo '{"subscriptions": ['
+        
+        # Use awk to properly parse CSV and generate JSON
+        tail -n +2 "$csv_file" | awk -F',' '
+        BEGIN { first = 1 }
+        NF >= 3 && $1 != "" && $3 != "" {
+            # Clean up fields - remove quotes and trim whitespace
+            gsub(/^[ \t]*"?|"?[ \t]*$/, "", $1)  # Channel ID
+            gsub(/^[ \t]*"?|"?[ \t]*$/, "", $2)  # Channel URL  
+            gsub(/^[ \t]*"?|"?[ \t]*$/, "", $3)  # Channel Name
+            
+            # Skip if essential fields are empty after cleaning
+            if ($1 == "" || $3 == "") next
+            
+            # Print comma if not first entry
+            if (!first) print ","
+            first = 0
+            
+            # Print JSON object - escape quotes in channel name
+            gsub(/"/, "\\\"", $3)
+            printf "        {\n            \"id\": \"%s\",\n            \"name\": \"%s\",\n            \"url\": \"%s\"\n        }", $1, $3, $2
+        }'
+        
+        echo ''
+        echo ']}'
+    } > "$subscriptions_file"
+    
+    # Count how many channels we loaded
+    local channel_count
+    channel_count=$(jq -r '.subscriptions | length' "$subscriptions_file" 2>/dev/null || echo "0")
+    
+    if [[ "$channel_count" -gt 0 ]]; then
+        log_info "Successfully loaded $channel_count channels from CSV"
+        echo "$subscriptions_file"
+        return 0
+    else
+        log_error "Failed to parse CSV or no channels found"
+        return 1
+    fi
 }
 
 # Download new videos for a channel

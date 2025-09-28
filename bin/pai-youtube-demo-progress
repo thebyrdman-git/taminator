@@ -1,0 +1,137 @@
+#!/bin/bash
+
+# Demo YouTube automation with beautiful progress bars
+# Shows Charles's automation system working
+
+set -euo pipefail
+
+# Colors and emojis for beautiful output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# Beautiful header
+show_header() {
+    clear
+    echo -e "${PURPLE}${BOLD}"
+    echo "┌──────────────────────────────────────────────────────────────┐"
+    echo "│                                                              │"
+    echo "│    🎬 CHARLES'S YOUTUBE AUTOMATION SYSTEM 🎬              │"
+    echo "│                                                              │"
+    echo "│         ✨ Beautiful Progress Bars Demo ✨                │"
+    echo "│                                                              │"
+    echo "└──────────────────────────────────────────────────────────────┘"
+    echo -e "${NC}"
+    echo ""
+}
+
+# Beautiful progress bar
+show_progress() {
+    local current=$1
+    local total=$2
+    local description=$3
+    local width=50
+    
+    local percentage=$((current * 100 / total))
+    local filled=$((current * width / total))
+    local empty=$((width - filled))
+    
+    printf "\r${CYAN}📊 Progress: ${BOLD}%s${NC}\n" "$description"
+    printf "${BLUE}["
+    
+    # Rainbow progress bar
+    for ((i=0; i<filled; i++)); do
+        if ((i < width/4)); then
+            printf "${RED}█${NC}"
+        elif ((i < width/2)); then
+            printf "${YELLOW}█${NC}"
+        elif ((i < 3*width/4)); then
+            printf "${GREEN}█${NC}"
+        else
+            printf "${CYAN}█${NC}"
+        fi
+    done
+    
+    for ((i=0; i<empty; i++)); do
+        printf "${BLUE}░${NC}"
+    done
+    
+    printf "${BLUE}] ${BOLD}%d%%${NC} (%d/%d)\n" "$percentage" "$current" "$total"
+    echo ""
+}
+
+# Channel processing display
+show_channel() {
+    local name=$1
+    local status=$2
+    local videos=$3
+    
+    case $status in
+        "processing")
+            echo -e "${YELLOW}🔄 Processing: ${BOLD}$name${NC}"
+            echo -e "   ${CYAN}Checking for new videos...${NC}"
+            ;;
+        "downloading")
+            echo -e "${BLUE}📥 Downloading from: ${BOLD}$name${NC}"
+            echo -e "   ${GREEN}Found $videos new videos!${NC}"
+            ;;
+        "complete")
+            echo -e "${GREEN}✅ Complete: ${BOLD}$name${NC}"
+            echo -e "   ${GREEN}Downloaded $videos videos${NC}"
+            ;;
+        "error")
+            echo -e "${RED}❌ Error: ${BOLD}$name${NC}"
+            echo -e "   ${RED}Download failed${NC}"
+            ;;
+    esac
+    echo ""
+    sleep 1
+}
+
+# Demo the automation system
+demo_automation() {
+    show_header
+    
+    echo -e "${BOLD}🚀 Starting Charles's YouTube Automation...${NC}"
+    echo -e "${CYAN}Account: terrysnuckers@gmail.com (authenticated)${NC}"
+    echo -e "${CYAN}Storage: /mnt/nfs_share/charles/youtube/${NC}"
+    echo ""
+    
+    # Simulate channel processing
+    channels=("LEGO" "Minecraft" "DanTDM" "Nintendo" "Kurzgesagt" "Game Theory")
+    total=${#channels[@]}
+    
+    for ((i=0; i<total; i++)); do
+        current=$((i+1))
+        channel=${channels[i]}
+        
+        show_progress $current $total "Processing YouTube channels"
+        
+        show_channel "$channel" "processing" 0
+        sleep 1
+        
+        # Simulate finding videos
+        videos=$((RANDOM % 5 + 1))
+        show_channel "$channel" "downloading" $videos
+        sleep 1
+        
+        show_channel "$channel" "complete" $videos
+    done
+    
+    echo -e "${GREEN}${BOLD}🎉 AUTOMATION COMPLETE!${NC}"
+    echo -e "${GREEN}================================${NC}"
+    echo -e "✅ Channels processed: $total"
+    echo -e "✅ Videos downloaded: $((RANDOM % 20 + 10))"
+    echo -e "✅ Storage ready for Plex scan"
+    echo ""
+    echo -e "${PURPLE}${BOLD}🚀 Charles's YouTube automation is LIVE! 🚀${NC}"
+}
+
+# Run the demo
+demo_automation
+

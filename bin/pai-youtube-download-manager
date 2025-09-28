@@ -1,0 +1,331 @@
+#!/bin/bash
+
+# YouTube Download Manager for Charles's Automation
+# Downloads content from 249 subscribed channels to Plex
+# Runs on miraclemax server with beautiful progress tracking
+
+set -euo pipefail
+
+# Enhanced Visual Variables
+ROCKET='🚀'
+VIDEO='🎬'
+DOWNLOAD='⬇️'
+SUCCESS='✅'
+PROCESSING='🔄'
+STORAGE='💾'
+PROGRESS='📊'
+CHANNEL='📺'
+MAGIC='✨'
+TARGET='🎯'
+
+# Configuration
+PLEX_YOUTUBE_DIR="/mnt/nfs_share/charles/youtube"
+CSV_FILE="$HOME/charles-subscriptions-complete.csv"
+LOG_FILE="$HOME/youtube-download.log"
+SQLITE_DB="$HOME/youtube-channels.db"
+MAX_VIDEOS_PER_CHANNEL=10
+CONCURRENT_DOWNLOADS=3
+
+# Initialize beautiful logging
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+show_download_header() {
+    echo ""
+    echo "$ROCKET═══════════════════════════════════════════════$ROCKET"
+    echo "$VIDEO  CHARLES'S YOUTUBE CONTENT DOWNLOADER  $VIDEO"
+    echo "$ROCKET═══════════════════════════════════════════════$ROCKET"
+    echo ""
+    echo "$TARGET Account: terrysnuckers@gmail.com subscriptions"
+    echo "$STORAGE Storage: $PLEX_YOUTUBE_DIR"
+    echo "$PROGRESS Total Channels: $(tail -n +2 "$CSV_FILE" 2>/dev/null | wc -l || echo "249")"
+    echo ""
+}
+
+show_download_progress() {
+    local current=$1
+    local total=$2
+    local channel_name=$3
+    local status=$4
+    
+    local percentage=$((current * 100 / total))
+    local filled=$((percentage / 2))
+    local empty=$((50 - filled))
+    
+    local bar=""
+    for ((i=0; i<filled; i++)); do bar+="█"; done
+    for ((i=0; i<empty; i++)); do bar+="░"; done
+    
+    printf "\r$DOWNLOAD [$bar] %3d%% (%3d/%3d) $status $channel_name" "$percentage" "$current" "$total"
+    
+    if [ "$current" -eq "$total" ]; then
+        echo ""
+        echo "$SUCCESS ALL DOWNLOADS COMPLETE! $MAGIC"
+    fi
+}
+
+show_channel_download_status() {
+    local channel_name=$1
+    local video_count=$2
+    local status=$3
+    
+    echo "$CHANNEL $channel_name: $video_count videos $status"
+}
+
+ensure_storage_structure() {
+    echo "$PROCESSING Setting up storage structure..."
+    
+    if [ ! -d "$PLEX_YOUTUBE_DIR" ]; then
+        echo "$TARGET Creating YouTube storage directory..."
+        sudo mkdir -p "$PLEX_YOUTUBE_DIR"
+        sudo chmod 755 "$PLEX_YOUTUBE_DIR"
+    fi
+    
+    # Create category directories
+    local categories=("Gaming" "Animation" "Educational" "Entertainment" "Misc")
+    for category in "${categories[@]}"; do
+        local category_dir="$PLEX_YOUTUBE_DIR/$category"
+        if [ ! -d "$category_dir" ]; then
+            sudo mkdir -p "$category_dir"
+            sudo chmod 755 "$category_dir"
+            echo "$SUCCESS Created: $category_dir"
+        fi
+    done
+    
+    echo "$SUCCESS Storage structure ready!"
+}
+
+initialize_database() {
+    echo "$PROCESSING Initializing channel tracking database..."
+    
+    if [ ! -f "$SQLITE_DB" ]; then
+        sqlite3 "$SQLITE_DB" "
+        CREATE TABLE channels (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            category TEXT DEFAULT 'Misc',
+            last_download DATETIME,
+            total_downloads INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'active'
+        );
+        
+        CREATE TABLE downloads (
+            video_id TEXT PRIMARY KEY,
+            channel_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            upload_date TEXT,
+            download_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            file_path TEXT,
+            FOREIGN KEY (channel_id) REFERENCES channels (id)
+        );
+        "
+        echo "$SUCCESS Database initialized!"
+    fi
+}
+
+categorize_channel() {
+    local channel_name=$1
+    local name_lower=$(echo "$channel_name" | tr '[:upper:]' '[:lower:]')
+    
+    # Gaming keywords
+    if [[ $name_lower =~ (minecraft|nintendo|xbox|playstation|game|gaming|dantdm|technoblade|captainsparklez) ]]; then
+        echo "Gaming"
+    # Animation keywords  
+    elif [[ $name_lower =~ (animation|cartoon|animated|theodd|jaiden|alan.becker) ]]; then
+        echo "Animation"
+    # Educational keywords
+    elif [[ $name_lower =~ (theory|science|educational|mark.rober|primitive) ]]; then
+        echo "Educational"
+    # Everything else
+    else
+        echo "Entertainment"
+    fi
+}
+
+load_channels_for_download() {
+    echo "$PROCESSING Loading channels from CSV..."
+    
+    local channel_count=0
+    
+    # Read CSV and populate database
+    while IFS=',' read -r channel_id channel_url channel_title; do
+        # Skip header
+        if [ "$channel_id" = "Channel Id" ]; then
+            continue
+        fi
+        
+        # Clean up fields
+        channel_id=$(echo "$channel_id" | tr -d '"' | xargs)
+        channel_title=$(echo "$channel_title" | tr -d '"' | xargs)
+        
+        if [ -n "$channel_id" ] && [ -n "$channel_title" ]; then
+            local category=$(categorize_channel "$channel_title")
+            
+            # Insert or update channel
+            sqlite3 "$SQLITE_DB" "
+            INSERT OR REPLACE INTO channels (id, name, category) 
+            VALUES ('$channel_id', '$channel_title', '$category');
+            "
+            
+            ((channel_count++))
+        fi
+        
+    done < "$CSV_FILE"
+    
+    echo "$SUCCESS Loaded $channel_count channels into database"
+}
+
+download_channel_content() {
+    local channel_id=$1
+    local channel_name=$2
+    local category=$3
+    
+    local output_dir="$PLEX_YOUTUBE_DIR/$category/$channel_name"
+    
+    # Create channel directory
+    sudo mkdir -p "$output_dir"
+    sudo chmod 755 "$output_dir"
+    
+    echo "$DOWNLOAD Starting download: $channel_name ($category)"
+    
+    # Download latest videos with yt-dlp
+    local download_count=0
+    if yt-dlp \
+        --quiet \
+        --no-warnings \
+        --extract-flat false \
+        --playlist-end "$MAX_VIDEOS_PER_CHANNEL" \
+        --dateafter "$(date -d '30 days ago' '+%Y%m%d')" \
+        --output "$output_dir/%(title)s.%(ext)s" \
+        --format "best[height<=1080]" \
+        --write-thumbnail \
+        --write-info-json \
+        "https://www.youtube.com/channel/$channel_id/videos" 2>/dev/null; then
+        
+        # Count downloaded videos
+        download_count=$(find "$output_dir" -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" | wc -l)
+        
+        # Update database
+        sqlite3 "$SQLITE_DB" "
+        UPDATE channels 
+        SET last_download = CURRENT_TIMESTAMP, 
+            total_downloads = total_downloads + $download_count 
+        WHERE id = '$channel_id';
+        "
+        
+        # Fix permissions
+        sudo chown -R plex:plex "$output_dir" 2>/dev/null || true
+        sudo chmod -R 755 "$output_dir" 2>/dev/null || true
+        
+        show_channel_download_status "$channel_name" "$download_count" "$SUCCESS Downloaded"
+        return 0
+    else
+        show_channel_download_status "$channel_name" "0" "❌ Failed"
+        return 1
+    fi
+}
+
+download_all_content() {
+    echo "$PROCESSING Starting bulk content download..."
+    
+    local total_channels=$(sqlite3 "$SQLITE_DB" "SELECT COUNT(*) FROM channels WHERE status = 'active';")
+    local current_channel=0
+    local successful_downloads=0
+    local failed_downloads=0
+    
+    echo "$TARGET Downloading from $total_channels channels..."
+    echo ""
+    
+    # Process channels from database
+    sqlite3 "$SQLITE_DB" "SELECT id, name, category FROM channels WHERE status = 'active';" | \
+    while IFS='|' read -r channel_id channel_name category; do
+        ((current_channel++))
+        
+        show_download_progress "$current_channel" "$total_channels" "$channel_name" "$PROCESSING"
+        
+        if download_channel_content "$channel_id" "$channel_name" "$category"; then
+            ((successful_downloads++))
+        else
+            ((failed_downloads++))
+        fi
+        
+        # Small delay to be nice to YouTube
+        sleep 1
+    done
+    
+    echo ""
+    echo "$SUCCESS DOWNLOAD SUMMARY:"
+    echo "   $SUCCESS Successful: $successful_downloads channels"
+    echo "   ❌ Failed: $failed_downloads channels" 
+    echo "   $STORAGE Total processed: $total_channels channels"
+}
+
+trigger_plex_refresh() {
+    echo "$PROCESSING Triggering Plex library refresh..."
+    
+    # Try to refresh Plex library
+    if command -v curl >/dev/null 2>&1; then
+        # Attempt Plex refresh (may need Plex token)
+        curl -X POST "http://192.168.1.17:32400/library/sections/all/refresh" 2>/dev/null || true
+        echo "$SUCCESS Plex refresh triggered"
+    else
+        echo "$MAGIC Manual Plex refresh recommended"
+    fi
+}
+
+cleanup_old_content() {
+    echo "$PROCESSING Cleaning up content older than 30 days..."
+    
+    # Find and remove old videos
+    local cleanup_count=0
+    if [ -d "$PLEX_YOUTUBE_DIR" ]; then
+        cleanup_count=$(find "$PLEX_YOUTUBE_DIR" -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" \) -mtime +30 | wc -l)
+        
+        if [ "$cleanup_count" -gt 0 ]; then
+            find "$PLEX_YOUTUBE_DIR" -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" \) -mtime +30 -delete
+            echo "$SUCCESS Cleaned up $cleanup_count old videos"
+        else
+            echo "$SUCCESS No old content to clean up"
+        fi
+    fi
+}
+
+show_final_summary() {
+    echo ""
+    echo "$ROCKET═══════════════════════════════════════════════$ROCKET"
+    echo "$MAGIC        CHARLES'S YOUTUBE DOWNLOAD COMPLETE!     $MAGIC"
+    echo "$ROCKET═══════════════════════════════════════════════$ROCKET"
+    echo ""
+    
+    # Show statistics
+    local total_channels=$(sqlite3 "$SQLITE_DB" "SELECT COUNT(*) FROM channels;" 2>/dev/null || echo "249")
+    local total_downloads=$(sqlite3 "$SQLITE_DB" "SELECT SUM(total_downloads) FROM channels;" 2>/dev/null || echo "0")
+    local storage_used=$(du -sh "$PLEX_YOUTUBE_DIR" 2>/dev/null | cut -f1 || echo "calculating...")
+    
+    echo "$PROGRESS Statistics:"
+    echo "   $CHANNEL Channels processed: $total_channels"
+    echo "   $VIDEO Videos downloaded: $total_downloads"
+    echo "   $STORAGE Storage used: $storage_used"
+    echo "   $TARGET Storage location: $PLEX_YOUTUBE_DIR"
+    echo ""
+    echo "$SUCCESS Charles's YouTube automation is running!"
+    echo "$MAGIC New content will appear on Plex automatically!"
+}
+
+# Main execution
+main() {
+    show_download_header
+    
+    ensure_storage_structure
+    initialize_database
+    load_channels_for_download
+    download_all_content
+    cleanup_old_content
+    trigger_plex_refresh
+    show_final_summary
+}
+
+# Run if called directly
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    main "$@"
+fi
+

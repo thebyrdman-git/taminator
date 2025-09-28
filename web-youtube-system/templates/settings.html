@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}⚙️ Settings - Charles's YouTube System{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="text-center">
+        <h1 class="text-4xl font-bold mb-4">⚙️ System Settings</h1>
+        <p class="text-xl opacity-90">Configure YouTube automation system</p>
+    </div>
+
+    <!-- System Configuration -->
+    <div class="glass rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-yellow-300 mb-4">🖥️ System Configuration</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-sm font-medium mb-2">📁 YouTube Storage Directory</label>
+                <input type="text" id="storageDir" value="/mnt/nfs_share/charles/youtube" 
+                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">🎬 Plex Server Address</label>
+                <input type="text" id="plexServer" value="http://192.168.1.17:32400" 
+                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">🗄️ Database Path</label>
+                <input type="text" id="databasePath" value="/home/jbyrd/hatter-pai/youtube_automation.db" 
+                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">📊 Log Level</label>
+                <select id="logLevel" class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="INFO">INFO</option>
+                    <option value="DEBUG">DEBUG</option>
+                    <option value="WARNING">WARNING</option>
+                    <option value="ERROR">ERROR</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Preferences -->
+    <div class="glass rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-yellow-300 mb-4">⬇️ Download Preferences</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <label class="block text-sm font-medium mb-2">📅 Default Retention (Days)</label>
+                <input type="number" id="retentionDays" value="30" min="1" max="365" 
+                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">📹 Videos per Channel</label>
+                <input type="number" id="videosPerChannel" value="5" min="1" max="50" 
+                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">🌐 Auto-refresh Interval (minutes)</label>
+                <input type="number" id="refreshInterval" value="60" min="5" max="1440" 
+                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+    </div>
+
+    <!-- Automation Schedule -->
+    <div class="glass rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-yellow-300 mb-4">⏰ Automation Schedule</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-sm font-medium mb-2">🚀 Auto-download New Content</label>
+                <select id="autoDownload" class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="disabled">Disabled</option>
+                    <option value="hourly">Every Hour</option>
+                    <option value="daily" selected>Daily</option>
+                    <option value="weekly">Weekly</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">🧹 Auto-cleanup Schedule</label>
+                <select id="autoCleanup" class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="disabled">Disabled</option>
+                    <option value="daily" selected>Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Actions -->
+    <div class="glass rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-yellow-300 mb-4">🛠️ System Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button onclick="saveAllSettings()" class="bg-green-500 hover:bg-green-600 px-6 py-3 rounded-lg font-medium transition-colors">
+                💾 Save All Settings
+            </button>
+            <button onclick="resetToDefaults()" class="bg-yellow-500 hover:bg-yellow-600 px-6 py-3 rounded-lg font-medium transition-colors">
+                🔄 Reset to Defaults
+            </button>
+            <button onclick="exportSettings()" class="bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-lg font-medium transition-colors">
+                📤 Export Settings
+            </button>
+        </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="glass rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-yellow-300 mb-4">ℹ️ System Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-black/20 rounded-lg p-4">
+                <div class="font-semibold mb-2">📊 System Version</div>
+                <div class="text-2xl font-bold text-blue-300">v2.0.0</div>
+            </div>
+            <div class="bg-black/20 rounded-lg p-4">
+                <div class="font-semibold mb-2">💾 Storage Used</div>
+                <div class="text-2xl font-bold text-green-300" id="storageUsed">-</div>
+            </div>
+            <div class="bg-black/20 rounded-lg p-4">
+                <div class="font-semibold mb-2">📈 Uptime</div>
+                <div class="text-2xl font-bold text-purple-300" id="systemUptime">-</div>
+            </div>
+            <div class="bg-black/20 rounded-lg p-4">
+                <div class="font-semibold mb-2">🔄 Last Update</div>
+                <div class="text-2xl font-bold text-yellow-300" id="lastUpdate">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Settings -->
+    <div class="glass rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-yellow-300 mb-4">🔧 Advanced Settings</h2>
+        <div class="space-y-4">
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" id="enableDebugMode" class="rounded">
+                <label for="enableDebugMode" class="text-sm font-medium">Enable Debug Mode</label>
+            </div>
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" id="enableTelemetry" class="rounded" checked>
+                <label for="enableTelemetry" class="text-sm font-medium">Enable Usage Telemetry</label>
+            </div>
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" id="autoBackup" class="rounded" checked>
+                <label for="autoBackup" class="text-sm font-medium">Auto-backup Database</label>
+            </div>
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" id="plexAutoRefresh" class="rounded" checked>
+                <label for="plexAutoRefresh" class="text-sm font-medium">Auto-refresh Plex Library</label>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        loadSettings();
+        updateSystemInfo();
+    });
+
+    function loadSettings() {
+        // Load settings from localStorage or API
+        const settings = localStorage.getItem('youtube_system_settings');
+        if (settings) {
+            const parsed = JSON.parse(settings);
+            // Apply settings to form elements
+            Object.keys(parsed).forEach(key => {
+                const element = document.getElementById(key);
+                if (element) {
+                    if (element.type === 'checkbox') {
+                        element.checked = parsed[key];
+                    } else {
+                        element.value = parsed[key];
+                    }
+                }
+            });
+        }
+    }
+
+    function saveAllSettings() {
+        const settings = {
+            storageDir: document.getElementById('storageDir').value,
+            plexServer: document.getElementById('plexServer').value,
+            databasePath: document.getElementById('databasePath').value,
+            logLevel: document.getElementById('logLevel').value,
+            retentionDays: parseInt(document.getElementById('retentionDays').value),
+            videosPerChannel: parseInt(document.getElementById('videosPerChannel').value),
+            refreshInterval: parseInt(document.getElementById('refreshInterval').value),
+            autoDownload: document.getElementById('autoDownload').value,
+            autoCleanup: document.getElementById('autoCleanup').value,
+            enableDebugMode: document.getElementById('enableDebugMode').checked,
+            enableTelemetry: document.getElementById('enableTelemetry').checked,
+            autoBackup: document.getElementById('autoBackup').checked,
+            plexAutoRefresh: document.getElementById('plexAutoRefresh').checked
+        };
+
+        localStorage.setItem('youtube_system_settings', JSON.stringify(settings));
+        showToast('Settings saved successfully!', 'success');
+
+        // TODO: Send to API to persist server-side
+        // await apiCall('/api/settings', 'POST', settings);
+    }
+
+    function resetToDefaults() {
+        if (confirm('This will reset all settings to their default values. Continue?')) {
+            localStorage.removeItem('youtube_system_settings');
+            
+            // Reset form to defaults
+            document.getElementById('storageDir').value = '/mnt/nfs_share/charles/youtube';
+            document.getElementById('plexServer').value = 'http://192.168.1.17:32400';
+            document.getElementById('databasePath').value = '/home/jbyrd/hatter-pai/youtube_automation.db';
+            document.getElementById('logLevel').value = 'INFO';
+            document.getElementById('retentionDays').value = 30;
+            document.getElementById('videosPerChannel').value = 5;
+            document.getElementById('refreshInterval').value = 60;
+            document.getElementById('autoDownload').value = 'daily';
+            document.getElementById('autoCleanup').value = 'daily';
+            document.getElementById('enableDebugMode').checked = false;
+            document.getElementById('enableTelemetry').checked = true;
+            document.getElementById('autoBackup').checked = true;
+            document.getElementById('plexAutoRefresh').checked = true;
+
+            showToast('Settings reset to defaults', 'info');
+        }
+    }
+
+    function exportSettings() {
+        const settings = localStorage.getItem('youtube_system_settings') || '{}';
+        const blob = new Blob([settings], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'youtube_system_settings.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showToast('Settings exported!', 'success');
+    }
+
+    function updateSystemInfo() {
+        // Mock system info - in real implementation, these would come from API
+        document.getElementById('storageUsed').textContent = '15.2 GB';
+        document.getElementById('systemUptime').textContent = '2d 4h';
+        document.getElementById('lastUpdate').textContent = 'Just now';
+    }
+</script>
+{% endblock %}

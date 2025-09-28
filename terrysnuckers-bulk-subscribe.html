@@ -1,0 +1,2044 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charles's YouTube Subscriptions - Bulk Subscribe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .stats {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 800px;
+            color: white;
+        }
+        
+        .category {
+            background: white;
+            border-radius: 15px;
+            margin: 20px auto;
+            max-width: 1200px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .category-header {
+            padding: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            color: white;
+        }
+        
+        .gaming { background: linear-gradient(135deg, #ff6b6b, #ffa500); }
+        .animation { background: linear-gradient(135deg, #4ecdc4, #44a08d); }
+        .educational { background: linear-gradient(135deg, #a8edea, #fed6e3); color: #333 !important; }
+        .entertainment { background: linear-gradient(135deg, #667eea, #764ba2); }
+        
+        .channels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            padding: 20px;
+        }
+        
+        .channel-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .channel-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border-color: #007bff;
+        }
+        
+        .channel-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .subscribe-btn {
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .subscribe-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(255,0,0,0.3);
+        }
+        
+        .progress-container {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 800px;
+            color: white;
+            position: sticky;
+            top: 20px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .bulk-actions {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .bulk-btn {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .bulk-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎬 Charles's YouTube Universe</h1>
+        <p>Subscribe terrysnuckers@gmail.com to 249 amazing channels!</p>
+    </div>
+    
+    <div class="stats">
+        <h2>📊 Channel Statistics</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 15px;">
+            <div style="text-align: center;">
+                <div style="font-size: 2em;">🎮</div>
+                <div style="font-size: 1.5em; font-weight: bold;">10</div>
+                <div>Gaming</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2em;">🎨</div>
+                <div style="font-size: 1.5em; font-weight: bold;">7</div>
+                <div>Animation</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2em;">🧠</div>
+                <div style="font-size: 1.5em; font-weight: bold;">4</div>
+                <div>Educational</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2em;">🎭</div>
+                <div style="font-size: 1.5em; font-weight: bold;">228</div>
+                <div>Entertainment</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="progress-container" id="progressContainer">
+        <h3>🚀 Subscription Progress</h3>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div id="progressText">0 / 249 channels subscribed</div>
+        <div class="bulk-actions">
+            <button class="bulk-btn" onclick="subscribeToCategory('gaming')">🎮 Subscribe All Gaming (10)</button>
+            <button class="bulk-btn" onclick="subscribeToCategory('animation')">🎨 Subscribe All Animation (7)</button>
+            <button class="bulk-btn" onclick="subscribeToCategory('educational')">🧠 Subscribe All Educational (4)</button>
+            <button class="bulk-btn" onclick="subscribeToCategory('entertainment')">🎭 Subscribe All Entertainment (228)</button>
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header gaming">
+            🎮 Gaming Channels (10)
+        </div>
+        <div class="channels-grid">
+
+            <div class="channel-card" data-category="gaming">
+                <div class="channel-title">PlayStation</div>
+                <a href="https://www.youtube.com/channel/UC-2Y8dQb0S6DtpxNgAKoJKA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to PlayStation
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="gaming">
+                <div class="channel-title">Minecraft</div>
+                <a href="https://www.youtube.com/channel/UC1sELGmy5jp5fQUugmuYlXQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Minecraft
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="gaming">
+                <div class="channel-title">Epic Games</div>
+                <a href="https://www.youtube.com/channel/UC5Qk8mWBwtMyEj7iQQYRk1A?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Epic Games
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="gaming">
+                <div class="channel-title">Rockstar Games</div>
+                <a href="https://www.youtube.com/channel/UC6VcWc1rAoWdBCM0JxrRQ3A?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Rockstar Games
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="gaming">
+                <div class="channel-title">Jordan Fringe Gaming</div>
+                <a href="https://www.youtube.com/channel/UCG9YpYTksEuE6k2_-N6cYZA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Jordan Fringe Gaming
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="gaming">
+                <div class="channel-title">Nintendo of America</div>
+                <a href="https://www.youtube.com/channel/UCGIY_O-8vW4rfX98KlMkvRg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Nintendo of America
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="gaming">
+                <div class="channel-title">NintendoBlackCrisis</div>
+                <a href="https://www.youtube.com/channel/UCftyIWbjCPJs4KSrFciMqkA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to NintendoBlackCrisis
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="gaming">
+                <div class="channel-title">Xbox</div>
+                <a href="https://www.youtube.com/channel/UCjBp_7RuDBUYbd1LegWEJ8g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Xbox
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="gaming">
+                <div class="channel-title">The Game Theorists</div>
+                <a href="https://www.youtube.com/channel/UCo_IB5145EVNcf8hw1Kku7w?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to The Game Theorists
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="gaming">
+                <div class="channel-title">Frosty Forest Games</div>
+                <a href="https://www.youtube.com/channel/UCv2rB0bzeWEGO5aZQAWHMWA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Frosty Forest Games
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header animation">
+            🎨 Animation Channels (7)
+        </div>
+        <div class="channels-grid">
+
+            <div class="channel-card" data-category="animation">
+                <div class="channel-title">Element Animation</div>
+                <a href="https://www.youtube.com/channel/UC0AE_22J0kAo30yjasaeFqw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Element Animation
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="animation">
+                <div class="channel-title">JaidenAnimations</div>
+                <a href="https://www.youtube.com/channel/UCGwu0nbY2wSkW8N-cghnLpA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to JaidenAnimations
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="animation">
+                <div class="channel-title">Cartoon Network</div>
+                <a href="https://www.youtube.com/channel/UCMsgXPD3wzzt8RxHJmXH7hQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Cartoon Network
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="animation">
+                <div class="channel-title">Cartoon Universe</div>
+                <a href="https://www.youtube.com/channel/UCPDExPQ09Vc6_Gj_Ga6MwKw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Cartoon Universe
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="animation">
+                <div class="channel-title">Walt Disney Animation Studios</div>
+                <a href="https://www.youtube.com/channel/UC_976xMxPgzIa290Hqtk-9g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Walt Disney Animatio...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="animation">
+                <div class="channel-title">Sony Pictures Animation</div>
+                <a href="https://www.youtube.com/channel/UCnLuLSV-Oi0ctqjxGgxFlmg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Sony Pictures Animat...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="animation">
+                <div class="channel-title">Disney Channel Animation</div>
+                <a href="https://www.youtube.com/channel/UCw7SNYrYei7F5ttQO3o-rpA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Disney Channel Anima...
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header educational">
+            🧠 Educational Channels (4)
+        </div>
+        <div class="channels-grid">
+
+            <div class="channel-card" data-category="educational">
+                <div class="channel-title">Star Wars Theory</div>
+                <a href="https://www.youtube.com/channel/UC8CbFnDTYkiVweaz8y9wd_Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Star Wars Theory
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="educational">
+                <div class="channel-title">JaDropping Science</div>
+                <a href="https://www.youtube.com/channel/UCK70H_67YRgeA513ZHA2TIg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to JaDropping Science
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="educational">
+                <div class="channel-title">Harry Potter Theory</div>
+                <a href="https://www.youtube.com/channel/UCVqoigIqNacy9xMnEDZzN_Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Harry Potter Theory
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="educational">
+                <div class="channel-title">Harry Potter Theory EXTRA</div>
+                <a href="https://www.youtube.com/channel/UCr4oWINCOyax0_-VS4FIGaQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Harry Potter Theory ...
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header entertainment">
+            🎭 Entertainment Channels (228)
+        </div>
+        <div class="channels-grid">
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Arlo</div>
+                <a href="https://www.youtube.com/channel/UC-9QiiVaViuqMhLp1XEwdxA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Arlo
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Nin10doland</div>
+                <a href="https://www.youtube.com/channel/UC-YzOyNh3lucFu_mfLyNwFg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Nin10doland
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Steven He Shorts</div>
+                <a href="https://www.youtube.com/channel/UC-omXuxKA9yEygiG85yI4JQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Steven He Shorts
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">AyItsGreyJ</div>
+                <a href="https://www.youtube.com/channel/UC-pNG-RbPL28CiK-JnBFEyw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to AyItsGreyJ
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Laugh Over Life</div>
+                <a href="https://www.youtube.com/channel/UC-pnSdXRsSi44apSO5RXjlw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Laugh Over Life
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TheOdd2sOut</div>
+                <a href="https://www.youtube.com/channel/UC0GLNhtTu7yI8rl6ZZGeezw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TheOdd2sOut
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Ubisoft</div>
+                <a href="https://www.youtube.com/channel/UC0KU8F9jJqSLS11LRXvFWmg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Ubisoft
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">HamaSamaKun</div>
+                <a href="https://www.youtube.com/channel/UC0dFM1iWAh8QqArhtIdSCcA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to HamaSamaKun
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Don Shnack</div>
+                <a href="https://www.youtube.com/channel/UC0fdDmoOESMp9zuMMmRSmZw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Don Shnack
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">SystemZee</div>
+                <a href="https://www.youtube.com/channel/UC14fB9eWBu579yRWLUhbFdQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to SystemZee
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Grazzy</div>
+                <a href="https://www.youtube.com/channel/UC19Tqf8QXE0--j8kFfcbKCg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Grazzy
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">ShortPocketMonster</div>
+                <a href="https://www.youtube.com/channel/UC274PEnFIQktbCbxDzzS-7Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to ShortPocketMonster
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">gsmVoiD</div>
+                <a href="https://www.youtube.com/channel/UC27yibXdpRSBtKRs_09CZ5Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to gsmVoiD
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Haminations</div>
+                <a href="https://www.youtube.com/channel/UC2hm5rD_IrfYRMfq5YQudgA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Haminations
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">MorePainful</div>
+                <a href="https://www.youtube.com/channel/UC3F-xSompU7BXr0bz8YqljA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to MorePainful
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">instructor_bensei</div>
+                <a href="https://www.youtube.com/channel/UC3ou2_G8GIrTEnXf81yN4dQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to instructor_bensei
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">The Film Theorists</div>
+                <a href="https://www.youtube.com/channel/UC3sznuotAs2ohg_U__Jzj_Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to The Film Theorists
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Knarfy</div>
+                <a href="https://www.youtube.com/channel/UC3wXNek0WLlrsirz2oz-UEQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Knarfy
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">KnightPohtaytoe</div>
+                <a href="https://www.youtube.com/channel/UC4HY8WkC48ZZkHqJFaDeABg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to KnightPohtaytoe
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">EvenMorePegasus</div>
+                <a href="https://www.youtube.com/channel/UC4OyYvp1BSM5i5IZ0YIHEwg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to EvenMorePegasus
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">DuckBricks</div>
+                <a href="https://www.youtube.com/channel/UC4Sozt-4bZC6jdeA3ZlnuGA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to DuckBricks
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TrixyBlox</div>
+                <a href="https://www.youtube.com/channel/UC4UNqGYuB2q49GzGD_CBIVQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TrixyBlox
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">HMK</div>
+                <a href="https://www.youtube.com/channel/UC4WRMZHYCvNRlaFe50px5Iw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to HMK
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Alpharad LIVE</div>
+                <a href="https://www.youtube.com/channel/UC5RpbFDGW-pgOaRMDUYpBFw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Alpharad LIVE
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Ryan HD</div>
+                <a href="https://www.youtube.com/channel/UC68zG933W7D9V9H9TLXBPZQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Ryan HD
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Ice Cream SHORT</div>
+                <a href="https://www.youtube.com/channel/UC6KVHFHpCwujbw2TfKnQ3uQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Ice Cream SHORT
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Light of the World</div>
+                <a href="https://www.youtube.com/channel/UC6OhL8TMM3t3R0d-_t_h_tA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Light of the World
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Vivilly</div>
+                <a href="https://www.youtube.com/channel/UC6Wl77tvLJCAZDlzq2CWJhg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Vivilly
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Yrrah</div>
+                <a href="https://www.youtube.com/channel/UC7RRwDsXjtX5SS9n-kcmWaA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Yrrah
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Austin Sweatt</div>
+                <a href="https://www.youtube.com/channel/UC8Ou-n2uymgWzggSrlrRXzA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Austin Sweatt
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Pokémon TV</div>
+                <a href="https://www.youtube.com/channel/UC8wrbl5viYtQmRUgdFdf4ew?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Pokémon TV
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Ashnflash</div>
+                <a href="https://www.youtube.com/channel/UC9o13aexcHFSok7VYZ24EaQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Ashnflash
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Square Enix</div>
+                <a href="https://www.youtube.com/channel/UCA5SLTAVA6unn1M-6lbo1NA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Square Enix
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Primitive Technology</div>
+                <a href="https://www.youtube.com/channel/UCAL3JXZSzSm8AlZyD3nQdBA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Primitive Technology
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Captain Kidd</div>
+                <a href="https://www.youtube.com/channel/UCBC9V-25cmvAzniaPZYMSrw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Captain Kidd
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Alpharad</div>
+                <a href="https://www.youtube.com/channel/UCBODyKF0JMbUd6D9Bklyzbw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Alpharad
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">YouTube</div>
+                <a href="https://www.youtube.com/channel/UCBR8-60-B28hp2BmDPdntcQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to YouTube
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Chikn Nuggit</div>
+                <a href="https://www.youtube.com/channel/UCC0aCrsMnk074Tg5JhDj8Qg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Chikn Nuggit
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">LegendaryPokeman</div>
+                <a href="https://www.youtube.com/channel/UCC5S64zDgcmMlNbEaquX9Ww?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to LegendaryPokeman
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Fundy</div>
+                <a href="https://www.youtube.com/channel/UCCE5NVlm0FhbunMMBT48WAw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Fundy
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Garett</div>
+                <a href="https://www.youtube.com/channel/UCCQi3X-PJGmd6DrPN9Rb6iw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Garett
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Memenade</div>
+                <a href="https://www.youtube.com/channel/UCCWp4CCmI2JmIaoAuv0ocEA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Memenade
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Danno Cal Drawings</div>
+                <a href="https://www.youtube.com/channel/UCCuZ0r9pDMI8DwhtRV1fNhg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Danno Cal Drawings
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Poster Conservation</div>
+                <a href="https://www.youtube.com/channel/UCCz7vf5fxihSuHcXDm2odFw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Poster Conservation
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Clash of Clans</div>
+                <a href="https://www.youtube.com/channel/UCD1Em4q90ZUK2R5HKesszJg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Clash of Clans
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">alyankovic</div>
+                <a href="https://www.youtube.com/channel/UCDBrVr0ttWpoRY-_yZajp2Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to alyankovic
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Bricks 'O' Brian</div>
+                <a href="https://www.youtube.com/channel/UCDVQnSSve4nszxRCoUuTH3A?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Bricks 'O' Brian
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">More RageTrain</div>
+                <a href="https://www.youtube.com/channel/UCDzT6B7X086wXoSbxlQsuCw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to More RageTrain
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Hulu</div>
+                <a href="https://www.youtube.com/channel/UCE5mQnNl8Q4H2qcv4ikaXeA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Hulu
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Cheesey Studios</div>
+                <a href="https://www.youtube.com/channel/UCEHb6IYRK8AWeSc2cJM2CZg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Cheesey Studios
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">The Fold</div>
+                <a href="https://www.youtube.com/channel/UCEc_FC1g5Gg-qWQdP2SHRrQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to The Fold
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">swaggmasta</div>
+                <a href="https://www.youtube.com/channel/UCEhcgbb4VsRflaeHZS4rM-Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to swaggmasta
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Tom MacDonald</div>
+                <a href="https://www.youtube.com/channel/UCElGBUWDCa05jRzc2PfmGqQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Tom MacDonald
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Paramount Pictures</div>
+                <a href="https://www.youtube.com/channel/UCF9imwPMSGz4Vq1NiTWCC7g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Paramount Pictures
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Technoblade</div>
+                <a href="https://www.youtube.com/channel/UCFAiFyGs6oDiF1Nf-rRJpZA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Technoblade
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Coffeezilla</div>
+                <a href="https://www.youtube.com/channel/UCFQMnBA3CS502aghlcr0_aw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Coffeezilla
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">DogPack404</div>
+                <a href="https://www.youtube.com/channel/UCFYvl99CsNq3-d96pgSRIwg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to DogPack404
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">The Official Pokémon YouTube channel</div>
+                <a href="https://www.youtube.com/channel/UCFctpiB_Hnlk3ejWfHqSm6Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to The Official Pokémon...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Microsoft</div>
+                <a href="https://www.youtube.com/channel/UCFtEEv80fQVKkD4h1PF-Xqw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Microsoft
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Bacon Guy</div>
+                <a href="https://www.youtube.com/channel/UCGUNuEzeEabRWQ0GUH2KQZA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Bacon Guy
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Wunba</div>
+                <a href="https://www.youtube.com/channel/UCGW5zIEencf7p6IncKLFtuA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Wunba
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Universal Orlando Resort</div>
+                <a href="https://www.youtube.com/channel/UCGl3kbSLHfKb3QeOYG7pAuA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Universal Orlando Re...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">MoreTrixyBlox</div>
+                <a href="https://www.youtube.com/channel/UCH-57FuYsBqqBpypdPvXLjg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to MoreTrixyBlox
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Dan Povenmire</div>
+                <a href="https://www.youtube.com/channel/UCH6Xtt4GpcQXjOq0_PTDhAw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Dan Povenmire
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">The Food Theorists</div>
+                <a href="https://www.youtube.com/channel/UCHYoe8kQ-7Gn9ASOlmI0k6Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to The Food Theorists
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">FitMC</div>
+                <a href="https://www.youtube.com/channel/UCHZ986wm_sJT6wntdDTIIcw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to FitMC
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Jazza</div>
+                <a href="https://www.youtube.com/channel/UCHu2KNu6TtJ0p4hpSW7Yv7Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Jazza
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Alan Becker Clips</div>
+                <a href="https://www.youtube.com/channel/UCHwkANWWNMsg5hvK_UmYzCg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Alan Becker Clips
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Lionfield</div>
+                <a href="https://www.youtube.com/channel/UCHwpDpLoyJgtFXoAaaSut4Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Lionfield
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Universal Pictures All-Access</div>
+                <a href="https://www.youtube.com/channel/UCIHg3K4EaY-ziWc5CyzWAzQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Universal Pictures A...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">SuperMetalDave64</div>
+                <a href="https://www.youtube.com/channel/UCIHnKs0NTAWa7ojUgihQH8A?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to SuperMetalDave64
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">FlowchartKen</div>
+                <a href="https://www.youtube.com/channel/UCILHNxSc8RjmggJcL4hUlDg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to FlowchartKen
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TerminalMontage Clips</div>
+                <a href="https://www.youtube.com/channel/UCIY_SL2BHmdKkzT90oTekVg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TerminalMontage Clip...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Disney Plus</div>
+                <a href="https://www.youtube.com/channel/UCIrgJInjLS2BhlHOMDW7v0g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Disney Plus
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Jordan Fringe</div>
+                <a href="https://www.youtube.com/channel/UCJKE87wqkVvbP2hUJcAKJNw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Jordan Fringe
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Lunar Dragon Entertainment</div>
+                <a href="https://www.youtube.com/channel/UCJ_VRvYw5qhts-nuyEpRu_Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Lunar Dragon Enterta...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Electo</div>
+                <a href="https://www.youtube.com/channel/UCJcjk44Wjpxf6yX5_XtCqAA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Electo
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">I am MoBo</div>
+                <a href="https://www.youtube.com/channel/UCJswRv22oiUgmT1FuFeUekw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to I am MoBo
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Ayy Lmao</div>
+                <a href="https://www.youtube.com/channel/UCKUAVy2Kd0vAsu1D89y7ujg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Ayy Lmao
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">SuperCarlinBrothers</div>
+                <a href="https://www.youtube.com/channel/UCKZo4N0lVPccBkSiuyVh4yg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to SuperCarlinBrothers
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Jegcopo</div>
+                <a href="https://www.youtube.com/channel/UCKbkMYrQBwFdoOc3Mrv5Vcg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Jegcopo
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Law By Mike</div>
+                <a href="https://www.youtube.com/channel/UCKmmERguliWTynG9OIoDhDw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Law By Mike
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TylerRegan</div>
+                <a href="https://www.youtube.com/channel/UCKzfXjZ9R74SURNjYhG5Log?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TylerRegan
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TerminalMontage</div>
+                <a href="https://www.youtube.com/channel/UCLFXk9J3O-hhOk0msOjKYdQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TerminalMontage
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Helynt</div>
+                <a href="https://www.youtube.com/channel/UCLMVehWkOvFlGMeIetyFIxg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Helynt
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Sellsword Arts</div>
+                <a href="https://www.youtube.com/channel/UCMEMbA38r9CKCuukra2Mr3Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Sellsword Arts
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Mrwhosetheboss</div>
+                <a href="https://www.youtube.com/channel/UCMiJRAwDNSNzuYeN2uWa0pA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Mrwhosetheboss
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Jaiden</div>
+                <a href="https://www.youtube.com/channel/UCN-qGJtXJCiG0mMXR2fga6A?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Jaiden
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Meme Neon</div>
+                <a href="https://www.youtube.com/channel/UCNITBWEYFs_Hnf6Jaa9xXmg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Meme Neon
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">OverSimplified</div>
+                <a href="https://www.youtube.com/channel/UCNIuvl7V8zACPpTmmNIqP2A?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to OverSimplified
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TheWisdomOfWords</div>
+                <a href="https://www.youtube.com/channel/UCNKlKmsQL9QdtC_XU_jhx_g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TheWisdomOfWords
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Hardware Maker</div>
+                <a href="https://www.youtube.com/channel/UCNvgx7Na6dUil3FfMUEOTSQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Hardware Maker
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">GetMadz</div>
+                <a href="https://www.youtube.com/channel/UCOAUz4d1NUNxSHh_SOJtdGQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to GetMadz
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">MovieFlame</div>
+                <a href="https://www.youtube.com/channel/UCOajpsI8t3Eg-u-s2j_c-cQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to MovieFlame
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Ice Cream Sandwich</div>
+                <a href="https://www.youtube.com/channel/UCOsATJw-IZgqGT8MFrHjKGg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Ice Cream Sandwich
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Arlentric</div>
+                <a href="https://www.youtube.com/channel/UCOxJdKibCTx3xe-66HDA8fg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Arlentric
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">LEGO</div>
+                <a href="https://www.youtube.com/channel/UCP-Ng5SXUEt0VE-TXqRdL6g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to LEGO
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Steven He</div>
+                <a href="https://www.youtube.com/channel/UCP0_k4INXrwPS6HhIyYqsTg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Steven He
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Spider-Man</div>
+                <a href="https://www.youtube.com/channel/UCP8AC-LXl5Jmp64IRIsdacg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Spider-Man
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TheAvatarist</div>
+                <a href="https://www.youtube.com/channel/UCP8lPMdnsqGTOHrMv8273WA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TheAvatarist
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">MrCube6</div>
+                <a href="https://www.youtube.com/channel/UCPHsA2eQaYq_GN_vvs-NsAw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to MrCube6
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Tater the Bard</div>
+                <a href="https://www.youtube.com/channel/UCPdZ6_ItE8v7RVYSXjtQYhw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Tater the Bard
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">The Dragon Prince</div>
+                <a href="https://www.youtube.com/channel/UCPn8cnHhLHMQrGCmS0K5aBQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to The Dragon Prince
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">minbitt</div>
+                <a href="https://www.youtube.com/channel/UCPxiWAMi2sM4TRpqmNvueNg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to minbitt
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">GarrettTheCarrot</div>
+                <a href="https://www.youtube.com/channel/UCQ4AvkoyUTweQqMsMno24zA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to GarrettTheCarrot
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TheAMaazing</div>
+                <a href="https://www.youtube.com/channel/UCQ9HvHH-KRYHI5ynj2kbLwQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TheAMaazing
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Prime Video</div>
+                <a href="https://www.youtube.com/channel/UCQJWtTnAHhEG5w4uN0udnUQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Prime Video
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Robert Schultz</div>
+                <a href="https://www.youtube.com/channel/UCQM8a6dHLiZ3kAQcyWQaCSA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Robert Schultz
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Void Darc</div>
+                <a href="https://www.youtube.com/channel/UCQv6kiVjFbeCCUXciZWJAfg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Void Darc
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Jónsi</div>
+                <a href="https://www.youtube.com/channel/UCR-UUkOFdrC0JATVRJ3O2Cw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Jónsi
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Mogswamp</div>
+                <a href="https://www.youtube.com/channel/UCRJBLIR5E1bfDmq3kAzRpeg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Mogswamp
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Dude Perfect</div>
+                <a href="https://www.youtube.com/channel/UCRijo3ddMTht_IHyNSNXpNQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Dude Perfect
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">ZacSpeaksGiant</div>
+                <a href="https://www.youtube.com/channel/UCS8fdPNO8SmYO3GoUmEuOag?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to ZacSpeaksGiant
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">That's Amazing</div>
+                <a href="https://www.youtube.com/channel/UCSlyP9TyhaqjucGL5sdpQGg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to That's Amazing
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Forrestbono</div>
+                <a href="https://www.youtube.com/channel/UCT4oXolSaPqL5T5TXqmPQ2A?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Forrestbono
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Drew Talbert</div>
+                <a href="https://www.youtube.com/channel/UCT_QEGH0myu6lgbE_biQPuw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Drew Talbert
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TheBestCubeHD</div>
+                <a href="https://www.youtube.com/channel/UCTiCPFd6qqBIWTN4xTVPsyw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TheBestCubeHD
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Quantum Crab</div>
+                <a href="https://www.youtube.com/channel/UCUTIBXVyNGJIxNhkD1e0Qfw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Quantum Crab
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">magnify</div>
+                <a href="https://www.youtube.com/channel/UCUi2SFPyyDNcsH2ZGpHyQIQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to magnify
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Scott Buckley</div>
+                <a href="https://www.youtube.com/channel/UCUuUqWLLsUjheuYkP9AWxTA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Scott Buckley
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Technothepig</div>
+                <a href="https://www.youtube.com/channel/UCV--8wtuyGo3vMtIdeq4j3w?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Technothepig
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">CircleToonsHD</div>
+                <a href="https://www.youtube.com/channel/UCV6g95OBbVtFmN9uiJzkFqQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to CircleToonsHD
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TannerFishies</div>
+                <a href="https://www.youtube.com/channel/UCV9yZMAU-IMQJI66Xn5FfWQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TannerFishies
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Windows</div>
+                <a href="https://www.youtube.com/channel/UCVGOyzms_XJNk_DHqrffXCw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Windows
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Vailskibum</div>
+                <a href="https://www.youtube.com/channel/UCVJ2GFJzJgwyN7eWWWSpcHA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Vailskibum
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">HBO</div>
+                <a href="https://www.youtube.com/channel/UCVTQuK2CaWaTgSsoNkn5AiQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to HBO
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">In Deep Geek</div>
+                <a href="https://www.youtube.com/channel/UCVg2AVe6eTCTVoWQ9AwrIHg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to In Deep Geek
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Uncle Al Plus</div>
+                <a href="https://www.youtube.com/channel/UCVjENL9S739HfE4Y3PvokcQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Uncle Al Plus
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Andy Jiang</div>
+                <a href="https://www.youtube.com/channel/UCVrEHNmwOcTM85daIG6PSVg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Andy Jiang
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Capcom USA</div>
+                <a href="https://www.youtube.com/channel/UCW7h-1mymnJ96akzjrmiIgA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Capcom USA
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Chessed Gamon</div>
+                <a href="https://www.youtube.com/channel/UCWAKxzKNvdbbGGwBVkZR31Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Chessed Gamon
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Netflix</div>
+                <a href="https://www.youtube.com/channel/UCWOA1ZGywLbqmigxE4Qlvuw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Netflix
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">SEGA</div>
+                <a href="https://www.youtube.com/channel/UCWfXR0-F7MI-TbqikgEdJcQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to SEGA
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">ElecTwo</div>
+                <a href="https://www.youtube.com/channel/UCWqaLMyus0Tjve-rGaPVbaw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to ElecTwo
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TheRussianBadger</div>
+                <a href="https://www.youtube.com/channel/UCWzLmNWhgeh3h1j-M-Isy0g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TheRussianBadger
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Don't Mind Joe</div>
+                <a href="https://www.youtube.com/channel/UCX8Jlq8WLYOTLlDVlHUOHhA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Don't Mind Joe
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Supercell</div>
+                <a href="https://www.youtube.com/channel/UCXO2ZE-H4ZVjJDjTuQzv-Bw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Supercell
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Massoyan Jewelers</div>
+                <a href="https://www.youtube.com/channel/UCX_kOlX9HLzihXlCkrZnmvA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Massoyan Jewelers
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">David O. Lundell</div>
+                <a href="https://www.youtube.com/channel/UCXwSr00tKwa4AUA3Vr6jBpg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to David O. Lundell
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Mark Rober</div>
+                <a href="https://www.youtube.com/channel/UCY1kMZp36IQSyNx_9h4mpCg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Mark Rober
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Tai Rebuilds</div>
+                <a href="https://www.youtube.com/channel/UCYLRZEuxWBa0tmOkCZQMbtg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Tai Rebuilds
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Toby Stubbs</div>
+                <a href="https://www.youtube.com/channel/UCYsltmLzINnQX2nZyiRRpoQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Toby Stubbs
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Star Wars</div>
+                <a href="https://www.youtube.com/channel/UCZGYJFUizSax-yElQaFDp5Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Star Wars
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">A2Z</div>
+                <a href="https://www.youtube.com/channel/UCZSvcx5livf9FGEcibVLSHw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to A2Z
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">ZachTheBold</div>
+                <a href="https://www.youtube.com/channel/UCZXeRF4LiG4edJ72M1EKquw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to ZachTheBold
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Fire Department Chronicles</div>
+                <a href="https://www.youtube.com/channel/UCZbWCodPFwH2QQn772QnUxQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Fire Department Chro...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">BrodyAnimates</div>
+                <a href="https://www.youtube.com/channel/UCZft8Ol-dMtguwam7bWItnw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to BrodyAnimates
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">munchiweeb</div>
+                <a href="https://www.youtube.com/channel/UCZtahmVxUazzanXrOjNglsg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to munchiweeb
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">RageTrain</div>
+                <a href="https://www.youtube.com/channel/UC_3rZIKC-FvhYwM76LGDp7Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to RageTrain
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Disney</div>
+                <a href="https://www.youtube.com/channel/UC_5niPa-d35gg88HaS7RrIw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Disney
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">ibxtoycat</div>
+                <a href="https://www.youtube.com/channel/UC_GQ4mac4oN3wl1UdbFuTEA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to ibxtoycat
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Pixar</div>
+                <a href="https://www.youtube.com/channel/UC_IRYSp4auq7hKLvziWVH6w?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Pixar
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Bandai Namco Entertainment America</div>
+                <a href="https://www.youtube.com/channel/UC_ntXHv-XdKCD7CPynVvnQw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Bandai Namco Enterta...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Mossy Jake</div>
+                <a href="https://www.youtube.com/channel/UCaA9MrklxFwJD0IdQfKXVFg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Mossy Jake
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">GetMadz Lite</div>
+                <a href="https://www.youtube.com/channel/UCaE8wcoknscuxnmYzhP3TYg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to GetMadz Lite
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Alan Becker</div>
+                <a href="https://www.youtube.com/channel/UCbKWv2x9t6u8yZoB3KcPtnw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Alan Becker
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Jay Foreman</div>
+                <a href="https://www.youtube.com/channel/UCbbQalJ4OaC0oQ0AqRaOJ9g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Jay Foreman
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Viva La Dirt League</div>
+                <a href="https://www.youtube.com/channel/UCchBatdUMZoMfJ3rIzgV84g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Viva La Dirt League
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">The Style Theorists</div>
+                <a href="https://www.youtube.com/channel/UCd4t3EEUy0LUOM4MTdjpNHA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to The Style Theorists
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">The Stupendous Wave</div>
+                <a href="https://www.youtube.com/channel/UCdIt7cmllmxBK1-rQdu87Gg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to The Stupendous Wave
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">hChatNation</div>
+                <a href="https://www.youtube.com/channel/UCdghqkfbwVTexUetxD4leNA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to hChatNation
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Vaseline Noodles</div>
+                <a href="https://www.youtube.com/channel/UCdzWUj73tVt8kzQi8KSrLYg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Vaseline Noodles
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Red Five</div>
+                <a href="https://www.youtube.com/channel/UCeEBqe56GnEy2e6CRZe8hWw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Red Five
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Geek Music</div>
+                <a href="https://www.youtube.com/channel/UCebCiZVmcaB8WDxcvIMVNlQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Geek Music
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Business Basics</div>
+                <a href="https://www.youtube.com/channel/UCfWNZIJkm268rLO_yeRlcww?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Business Basics
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Goombanna</div>
+                <a href="https://www.youtube.com/channel/UCfsvdC4UyhOfgGc1oISg-3g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Goombanna
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">ProfessorBiggy</div>
+                <a href="https://www.youtube.com/channel/UCgGyN4DSZ6mrcw0ARHikzYw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to ProfessorBiggy
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Goji Center</div>
+                <a href="https://www.youtube.com/channel/UCghPFyXBc8ObPyoJ9ifeN0Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Goji Center
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">DisneyMusicVEVO</div>
+                <a href="https://www.youtube.com/channel/UCgwv23FVv3lqh567yagXfNg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to DisneyMusicVEVO
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Mumbo Jumbo</div>
+                <a href="https://www.youtube.com/channel/UChFur_NwVSbUozOcF_F2kMg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Mumbo Jumbo
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Harry Potter</div>
+                <a href="https://www.youtube.com/channel/UChPRO1CB_Hvd0TvKRU62iSQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Harry Potter
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Master Builder Alec</div>
+                <a href="https://www.youtube.com/channel/UCiZKQvmrtQzecByWmMg7fnw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Master Builder Alec
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Max Klymenko</div>
+                <a href="https://www.youtube.com/channel/UCisy6taOAeLfyaCqcMQDfig?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Max Klymenko
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Phoenix SC</div>
+                <a href="https://www.youtube.com/channel/UCj4zC1Hfj-uc90FUXzRamNw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Phoenix SC
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Warner Bros.</div>
+                <a href="https://www.youtube.com/channel/UCjmJDM5pRKbUlVIzDYYWb6g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Warner Bros.
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">MorePegasus</div>
+                <a href="https://www.youtube.com/channel/UCjuKQCmKlCtrPL2wl1uIphQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to MorePegasus
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Jonny RaZeR</div>
+                <a href="https://www.youtube.com/channel/UCjztW-DlDg05_YM6-oTJTPA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Jonny RaZeR
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Beyond the Brick</div>
+                <a href="https://www.youtube.com/channel/UCkapkfGuO2LnDpIp8f_p7gA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Beyond the Brick
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">RelaxAlax</div>
+                <a href="https://www.youtube.com/channel/UCkmP59n7648ESU0PJsJMiRw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to RelaxAlax
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Korean Comic</div>
+                <a href="https://www.youtube.com/channel/UClHbjVXWB1rCNfB-MQDw-Nw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Korean Comic
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Randy Feltface</div>
+                <a href="https://www.youtube.com/channel/UClUVQJQL-yGKYiceiJpNg2Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Randy Feltface
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Josiah Schneider</div>
+                <a href="https://www.youtube.com/channel/UCmXQs4aZSk4eL5MIimvwMVQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Josiah Schneider
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Swrve</div>
+                <a href="https://www.youtube.com/channel/UCmbP8tvKwBWeK9pf5dT8Onw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Swrve
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Dude Perfect Plus</div>
+                <a href="https://www.youtube.com/channel/UCmo9ZEJ3ipgaZdkiRRYtLAg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Dude Perfect Plus
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Ben Shapiro</div>
+                <a href="https://www.youtube.com/channel/UCnQC_G5Xsjhp9fEJKuIcrSw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Ben Shapiro
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">GLITCH</div>
+                <a href="https://www.youtube.com/channel/UCn_FAXem2-e3HQvmK-mOH4g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to GLITCH
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Nikhil Clayton</div>
+                <a href="https://www.youtube.com/channel/UCncRhgNXj6-oROkXXUSYELw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Nikhil Clayton
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">cdotkom</div>
+                <a href="https://www.youtube.com/channel/UCnfWi7eVPFm8xGWfBT1zjeQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to cdotkom
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">MonkeyDM</div>
+                <a href="https://www.youtube.com/channel/UCnm7ieFPDv6pUov_Opgll9w?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to MonkeyDM
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">TheOdd1sOut</div>
+                <a href="https://www.youtube.com/channel/UCo8bcnLyZH8tBIH9V1mLgqQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to TheOdd1sOut
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">EA SPORTS FC</div>
+                <a href="https://www.youtube.com/channel/UCoyaxd5LQSuP4ChkxK0pnZQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to EA SPORTS FC
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">AntDude</div>
+                <a href="https://www.youtube.com/channel/UCp-XZhyQLcJ8X65eT1T3XyQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to AntDude
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">National Geographic</div>
+                <a href="https://www.youtube.com/channel/UCpVm7bg6pXKo1Pr6k5kxG9A?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to National Geographic
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">scrawls</div>
+                <a href="https://www.youtube.com/channel/UCpgpXt5BhKxPfHXN-oxpeEQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to scrawls
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Universal Pictures</div>
+                <a href="https://www.youtube.com/channel/UCq0OueAsdxH6b8nyAspwViw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Universal Pictures
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Stickman Anakin</div>
+                <a href="https://www.youtube.com/channel/UCq2aadSAXNuhHzaDDidqfFQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Stickman Anakin
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Illumination</div>
+                <a href="https://www.youtube.com/channel/UCq7OHvWO6Z3u-LztFdrcU-g?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Illumination
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Lando Kalriz</div>
+                <a href="https://www.youtube.com/channel/UCqQkpiZwMDNUGEgHzR-EDPw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Lando Kalriz
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Activision</div>
+                <a href="https://www.youtube.com/channel/UCqXXBpycrF0q8Q2NHIu5Y3A?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Activision
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Gooseworx</div>
+                <a href="https://www.youtube.com/channel/UCqvpFAiRcY96CjKwiGHgwpg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Gooseworx
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Theatre of the Unaligned</div>
+                <a href="https://www.youtube.com/channel/UCr69YQf6M8yeiYEeGjZ711Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Theatre of the Unali...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">More Parz</div>
+                <a href="https://www.youtube.com/channel/UCrhCgfKbpW-mhJVGFYGov-Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to More Parz
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Sam Builds</div>
+                <a href="https://www.youtube.com/channel/UCrqDcwLssaU6YyzzQioxxdQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Sam Builds
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">DazzReviews</div>
+                <a href="https://www.youtube.com/channel/UCs0AqQc_0sxwqJROHuJeEpg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to DazzReviews
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Ninjago Music</div>
+                <a href="https://www.youtube.com/channel/UCs5gqfon8D-7oIvFm4D_8JA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Ninjago Music
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">The Marvelous Wave</div>
+                <a href="https://www.youtube.com/channel/UCsNvSjDLEyP35oCnP55ifeg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to The Marvelous Wave
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">CaptainSparklez</div>
+                <a href="https://www.youtube.com/channel/UCshoKvlZGZ20rVgazZp5vnQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to CaptainSparklez
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">wattles</div>
+                <a href="https://www.youtube.com/channel/UCsuKgiVb2KJ2sZdrrwoAqsA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to wattles
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Newsteevie</div>
+                <a href="https://www.youtube.com/channel/UCtfh3NUmwHcih6DY-TcdSYg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Newsteevie
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">The 2nd Dimension</div>
+                <a href="https://www.youtube.com/channel/UCthUzKb0HRLx7TUFJ7kIzew?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to The 2nd Dimension
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">BendersMC</div>
+                <a href="https://www.youtube.com/channel/UCtzLaMqhH56oxqL_baFDQEQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to BendersMC
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Purple Thunder</div>
+                <a href="https://www.youtube.com/channel/UCu3wT_8cBekXfMv70nkvUiA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Purple Thunder
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Steven He Live</div>
+                <a href="https://www.youtube.com/channel/UCuDz-AQO2KuXzjtxoycrnJg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Steven He Live
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Jurassic World</div>
+                <a href="https://www.youtube.com/channel/UCuTNKMG8HCxb2kYbLXjXTTg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Jurassic World
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Zeltik</div>
+                <a href="https://www.youtube.com/channel/UCudx6plmpbs5WtWvsvu-EdQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Zeltik
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Infamous Swoosh</div>
+                <a href="https://www.youtube.com/channel/UCupWnlhB3PMW1w0CLfLCfug?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Infamous Swoosh
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Marvel Entertainment</div>
+                <a href="https://www.youtube.com/channel/UCvC4D8onUfXzvjTOM-dBfEA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Marvel Entertainment
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Myles</div>
+                <a href="https://www.youtube.com/channel/UCvoVZ1oABDjO7RtV8LTp0bw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Myles
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Ph1LzA</div>
+                <a href="https://www.youtube.com/channel/UCvsdQrg8SkOvS2WiVXA5S4A?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Ph1LzA
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Dax</div>
+                <a href="https://www.youtube.com/channel/UCvvVOIyaYu2l4jiH9L8_eRw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Dax
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">K-LOVE</div>
+                <a href="https://www.youtube.com/channel/UCwGTY5sOiTeN29iOXrfA92w?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to K-LOVE
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">StephBlox</div>
+                <a href="https://www.youtube.com/channel/UCxKMHcCUiuXlpwQTXNueiqA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to StephBlox
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Frank James</div>
+                <a href="https://www.youtube.com/channel/UCxc0c4cOfFmSUnzX9uY7Jww?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Frank James
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">RoyalPear</div>
+                <a href="https://www.youtube.com/channel/UCyoW_EfdNy0Z3FudNgeEqdA?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to RoyalPear
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Sony Pictures Entertainment</div>
+                <a href="https://www.youtube.com/channel/UCz97F7dMxBNOfGYu3rx8aCw?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Sony Pictures Entert...
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Pegasus</div>
+                <a href="https://www.youtube.com/channel/UCzYag131RdrnZhtAmUBxU1Q?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Pegasus
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Foil Arms and Hog</div>
+                <a href="https://www.youtube.com/channel/UCzb-6smlTg5UPirLdsdQ_cQ?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Foil Arms and Hog
+                </a>
+            </div>
+
+            <div class="channel-card" data-category="entertainment">
+                <div class="channel-title">Knarfy Too</div>
+                <a href="https://www.youtube.com/channel/UCzzrvFOtOicsWjawWE95DRg?sub_confirmation=1" target="_blank" class="subscribe-btn" onclick="markSubscribed(this)">
+                    📺 Subscribe to Knarfy Too
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let subscribedCount = 0;
+        const totalChannels = 249;
+        
+        function markSubscribed(button) {
+            if (!button.classList.contains('subscribed')) {
+                button.classList.add('subscribed');
+                button.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+                button.innerHTML = '✅ Subscribed!';
+                subscribedCount++;
+                updateProgress();
+            }
+        }
+        
+        function updateProgress() {
+            const percentage = (subscribedCount / totalChannels) * 100;
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressText').innerHTML = 
+                subscribedCount + ' / ' + totalChannels + ' channels subscribed (' + percentage.toFixed(1) + '%)';
+                
+            if (subscribedCount === totalChannels) {
+                document.getElementById('progressText').innerHTML += ' 🎉 ALL COMPLETE!';
+            }
+        }
+        
+        function subscribeToCategory(category) {
+            const cards = document.querySelectorAll(`[data-category="${category}"] .subscribe-btn`);
+            let delay = 0;
+            
+            cards.forEach(button => {
+                setTimeout(() => {
+                    if (!button.classList.contains('subscribed')) {
+                        window.open(button.href, '_blank');
+                        markSubscribed(button);
+                    }
+                }, delay);
+                delay += 500; // 500ms delay between opens to avoid browser popup blocking
+            });
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case '1': subscribeToCategory('gaming'); break;
+                    case '2': subscribeToCategory('animation'); break;
+                    case '3': subscribeToCategory('educational'); break;
+                    case '4': subscribeToCategory('entertainment'); break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
