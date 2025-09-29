@@ -342,16 +342,40 @@ def api_stop_downloads():
 def api_refresh_plex():
     """Trigger Plex library refresh"""
     try:
-        # Run Plex refresh script
-        result = subprocess.run([
-            '/home/jbyrd/hatter-pai/bin/pai-youtube-plex-library-refresh'
-        ], capture_output=True, text=True)
+        import requests
         
-        if result.returncode == 0:
-            return jsonify({'success': True, 'message': 'Plex refresh triggered'})
+        # Use the working Plex token and server
+        PLEX_SERVER = "http://192.168.1.17:32400"
+        PLEX_TOKEN = "***REMOVED***"
+        
+        headers = {"X-Plex-Token": PLEX_TOKEN}
+        
+        # Get library sections first
+        response = requests.get(f"{PLEX_SERVER}/library/sections", headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            # Trigger deep refresh for all sections
+            refresh_response = requests.get(
+                f"{PLEX_SERVER}/library/sections/all/refresh",
+                headers=headers,
+                params={'force': '1', 'deep': '1'},
+                timeout=10
+            )
+            
+            if refresh_response.status_code == 200:
+                logger.info("Plex deep refresh triggered successfully")
+                return jsonify({'success': True, 'message': 'Plex deep refresh triggered! Check library in 5-10 minutes.'})
+            else:
+                return jsonify({'success': False, 'message': f'Plex refresh failed with status: {refresh_response.status_code}'})
         else:
-            return jsonify({'success': False, 'message': f'Plex refresh failed: {result.stderr}'})
+            return jsonify({'success': False, 'message': f'Cannot connect to Plex server: {response.status_code}'})
+            
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'message': 'Plex server timeout - server may be busy'})
+    except requests.exceptions.ConnectionError:
+        return jsonify({'success': False, 'message': 'Cannot connect to Plex server at 192.168.1.17:32400'})
     except Exception as e:
+        logger.error(f"Plex refresh error: {str(e)}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
 
 @app.route('/api/cleanup', methods=['POST'])

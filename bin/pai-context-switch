@@ -34,6 +34,7 @@ CONTEXTS:
     learning       Personal development and skill building
     entertainment  Media management and hobby projects
     plex           Plex media server management and optimization
+    gmail          Gmail organization and email management
     general        General development (no specific business context)
 
 OPTIONS:
@@ -55,7 +56,7 @@ EOF
 validate_context() {
     local context="$1"
     case "$context" in
-        redhat|mga|rec|warehouse|personal|content|health|academic|home-automation|finance|meal-planning|family|maintenance|learning|entertainment|plex|general)
+        redhat|mga|rec|warehouse|personal|content|health|academic|home-automation|finance|meal-planning|family|maintenance|learning|entertainment|plex|gmail|general)
             return 0
             ;;
         *)
@@ -104,7 +105,7 @@ fi
 # Validate context
 if ! validate_context "$CONTEXT"; then
     echo "Error: Invalid context '$CONTEXT'" >&2
-    echo "Valid contexts: redhat, mga, rec, warehouse, personal, content, health, academic, home-automation, finance, meal-planning, family, maintenance, learning, entertainment, plex, general" >&2
+    echo "Valid contexts: redhat, mga, rec, warehouse, personal, content, health, academic, home-automation, finance, meal-planning, family, maintenance, learning, entertainment, plex, gmail, general" >&2
     exit 1
 fi
 
@@ -214,6 +215,10 @@ case "$CONTEXT" in
     plex)
         echo "🎬 Plex media server context active"
         echo "   Focus: Media server management, streaming optimization, library organization"
+        ;;
+    gmail)
+        echo "📧 Gmail organization context active"
+        echo "   Focus: Email management, organization, automation"
         ;;
     general)
         echo "⚙️ General development context active"

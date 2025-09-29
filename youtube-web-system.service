@@ -1,0 +1,27 @@
+[Unit]
+Description=Charles's YouTube Web System
+After=network.target
+Requires=network.target
+
+[Service]
+Type=simple
+User=jbyrd
+Group=jbyrd
+WorkingDirectory=/home/jbyrd/web-youtube-system
+Environment=PATH=/home/jbyrd/web-youtube-system/venv/bin
+ExecStart=/home/jbyrd/web-youtube-system/venv/bin/python app_ssl.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=youtube-web-system
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/home/jbyrd/web-youtube-system /mnt/nfs_share/charles/youtube /tmp
+
+[Install]
+WantedBy=multi-user.target
