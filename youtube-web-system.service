@@ -7,9 +7,9 @@ Requires=network.target
 Type=simple
 User=jbyrd
 Group=jbyrd
-WorkingDirectory=/home/jbyrd/web-youtube-system
-Environment=PATH=/home/jbyrd/web-youtube-system/venv/bin
-ExecStart=/home/jbyrd/web-youtube-system/venv/bin/python app_ssl.py
+WorkingDirectory=/home/jbyrd/hatter-pai-youtube
+Environment=PATH=/home/jbyrd/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/python3 app.py
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -21,7 +21,7 @@ NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/home/jbyrd/web-youtube-system /mnt/nfs_share/charles/youtube /tmp
+ReadWritePaths=/home/jbyrd/hatter-pai-youtube /mnt/nfs_share/charles/youtube /tmp
 
 [Install]
 WantedBy=multi-user.target
