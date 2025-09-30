@@ -9,9 +9,9 @@
         System Settings
     </h1>
     <p class="page-subtitle">Configure and manage your YouTube automation system</p>
-</div>
+    </div>
 
-<!-- System Configuration -->
+    <!-- System Configuration -->
 <div class="card mb-24">
     <div class="card-header">
         <h2 class="card-title">
@@ -43,7 +43,7 @@
                         <input type="radio" name="quality" value="720p" style="margin-right: 8px;">
                         720p HD
                     </label>
-                </div>
+            </div>
             </div>
             
             <div style="padding: 16px; border: 1px solid var(--google-gray-200); border-radius: 8px;">
@@ -56,7 +56,7 @@
                         <input type="checkbox" checked style="margin-right: 8px;">
                         Automatic downloads enabled
                     </label>
-                </div>
+            </div>
                 <div style="margin-bottom: 12px;">
                     <label style="display: block; color: var(--google-gray-700); font-size: 14px; margin-bottom: 4px;">
                         Check for new videos every:
@@ -66,7 +66,7 @@
                         <option value="6" selected>6 hours</option>
                         <option value="12">12 hours</option>
                         <option value="24">24 hours</option>
-                    </select>
+                </select>
                 </div>
             </div>
         </div>
@@ -76,8 +76,8 @@
             <span class="material-icons">save</span>
             Save Settings
         </button>
+        </div>
     </div>
-</div>
 
 <!-- Storage Management -->
 <div class="card mb-24">
@@ -141,16 +141,16 @@
         <button onclick="runCleanupNow()" class="google-btn google-btn-warning">
             <span class="material-icons">cleaning_services</span>
             Run Cleanup Now
-        </button>
+            </button>
         
         <button onclick="analyzeStorage()" class="google-btn">
             <span class="material-icons">analytics</span>
             Analyze Storage
-        </button>
+            </button>
+        </div>
     </div>
-</div>
 
-<!-- System Information -->
+    <!-- System Information -->
 <div class="grid grid-cols-2">
     <!-- System Status -->
     <div class="card">
@@ -175,17 +175,17 @@
                 <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--google-gray-100);">
                     <span>Total Subscriptions:</span>
                     <span style="font-weight: 500;">{{ stats.get('total_channels', 0) }}</span>
-                </div>
+            </div>
                 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--google-gray-100);">
                     <span>System Status:</span>
                     <span class="status-indicator status-ready">Operational</span>
-                </div>
+            </div>
                 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 8px 0;">
                     <span>Last System Update:</span>
                     <span style="font-weight: 500;">{{ stats.get('last_update', 'Never') }}</span>
-                </div>
+            </div>
             </div>
         </div>
         <div class="card-actions">
@@ -225,14 +225,14 @@
                         <input type="checkbox" style="margin-right: 8px;">
                         Download video thumbnails
                     </label>
-                </div>
+            </div>
                 
                 <div style="margin-bottom: 16px;">
                     <label style="display: flex; align-items: center; font-size: 14px;">
                         <input type="checkbox" style="margin-right: 8px;">
                         Download video descriptions
                     </label>
-                </div>
+            </div>
                 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; font-size: 14px; margin-bottom: 4px;">
@@ -243,7 +243,7 @@
                         <option value="2">2</option>
                         <option value="3">3</option>
                     </select>
-                </div>
+            </div>
             </div>
         </div>
         <div class="card-actions">
@@ -387,7 +387,7 @@
         .then(data => {
             if (data.success) {
                 showNotification('Advanced settings saved!', 'success');
-            } else {
+                    } else {
                 showNotification(data.message || 'Failed to save settings', 'error');
             }
         })
@@ -421,7 +421,7 @@
             });
         }
     }
-    
+
     function analyzeStorage() {
         showNotification('Analyzing storage usage...', 'info');
         
@@ -457,7 +457,7 @@
             showNotification('Error testing system health', 'error');
         });
     }
-    
+
     function resetToDefaults() {
         if (confirm('Reset all settings to defaults? This cannot be undone.')) {
             showNotification('Resetting to default settings...', 'warning');
