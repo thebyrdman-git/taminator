@@ -432,6 +432,24 @@ HOME_HTML = """
                         </div>
                     </div>
                 </a>
+                
+                <a href="http://192.168.1.34:9091" target="_blank" class="service-link">
+                    <div class="card">
+                        <div class="card-content">
+                            <div class="card-header">
+                                <span class="material-icons card-icon">settings_applications</span>
+                                <span class="card-title">Cockpit Management</span>
+                            </div>
+                            <p class="card-description">Red Hat web-based server administration interface</p>
+                            <div style="margin-top: 12px;">
+                                <span class="google-btn">
+                                    <span class="material-icons" style="font-size: 16px; margin-right: 8px;">admin_panel_settings</span>
+                                    Manage Server
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
             </div>
         </section>
 
