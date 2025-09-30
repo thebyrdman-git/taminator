@@ -11,7 +11,7 @@ HOME_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PAI Infrastructure</title>
+    <title>Jimmy Byrd's PAI Infrastructure</title>
     
     <!-- Google Fonts - Roboto (Google's standard) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -263,7 +263,7 @@ HOME_HTML = """
 <body>
     <div class="container">
         <header class="header">
-            <h1>PAI Infrastructure</h1>
+            <h1>Jimmy Byrd's PAI Infrastructure</h1>
             <p class="subtitle">Your centralized portal for monitoring and managing your Personal AI Infrastructure</p>
         </header>
 
@@ -436,7 +436,7 @@ HOME_HTML = """
         </section>
 
         <footer class="footer">
-            <p>PAI Infrastructure • Built with Google Material Design 3</p>
+            <p>Jimmy Byrd's PAI Infrastructure • Built with Google Material Design 3</p>
         </footer>
     </div>
 
