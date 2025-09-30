@@ -1,0 +1,64 @@
+---
+# Node Exporter Installation and Configuration
+
+- name: Create node_exporter system user
+  user:
+    name: "{{ node_exporter.user }}"
+    group: "{{ node_exporter.group }}"
+    system: true
+    shell: /sbin/nologin
+    home: /
+    create_home: false
+  become: true
+
+- name: Download and install Node Exporter
+  get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter.version }}/node_exporter-{{ node_exporter.version }}.linux-amd64.tar.gz"
+    dest: /tmp/node_exporter.tar.gz
+    mode: '0644'
+  become: true
+
+- name: Extract Node Exporter
+  unarchive:
+    src: /tmp/node_exporter.tar.gz
+    dest: /tmp
+    remote_src: true
+  become: true
+
+- name: Copy Node Exporter binary
+  copy:
+    src: "/tmp/node_exporter-{{ node_exporter.version }}.linux-amd64/node_exporter"
+    dest: "{{ node_exporter.bin_dir }}/node_exporter"
+    mode: '0755'
+    owner: "{{ node_exporter.user }}"
+    group: "{{ node_exporter.group }}"
+    remote_src: true
+  become: true
+  notify: restart node_exporter
+
+- name: Create Node Exporter systemd service
+  template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/{{ node_exporter.service.name }}.service
+  become: true
+  notify:
+    - reload systemd
+    - restart node_exporter
+
+- name: Start and enable Node Exporter service
+  systemd:
+    name: "{{ node_exporter.service.name }}"
+    state: "{{ node_exporter.service.state }}"
+    enabled: "{{ node_exporter.service.enabled }}"
+    daemon_reload: true
+  become: true
+
+- name: Configure firewall for Node Exporter
+  firewalld:
+    port: "{{ node_exporter.port }}/tcp"
+    permanent: true
+    state: enabled
+    source: "{{ system.firewall_source }}"
+  become: true
+  when: system.firewall_enabled
+  notify: reload firewalld

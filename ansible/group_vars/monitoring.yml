@@ -1,0 +1,55 @@
+---
+# Monitoring Group Variables
+# PAI Environment Monitoring Configuration
+
+# Prometheus configuration
+prometheus_global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'pai-homelab'
+    environment: 'production'
+    region: 'home-lab'
+    
+# Grafana configuration
+grafana_security:
+  admin_user: admin
+  admin_password: "{{ vault_grafana_admin_password | default('ChangeMeInVault') }}"
+  secret_key: "{{ vault_grafana_secret_key | default('ChangeMeSecretInVault') }}"
+  
+# Node Exporter configuration
+node_exporter_collectors:
+  enabled:
+    - cpu
+    - diskstats
+    - filesystem
+    - loadavg
+    - meminfo
+    - netdev
+    - netstat
+    - stat
+    - time
+    - systemd
+    - processes
+  disabled:
+    - arp
+    - bcache
+    - bonding
+    
+# PAI-specific monitoring
+pai_monitoring:
+  jimmy_youtube:
+    enabled: true
+    port: 5001
+    metrics_endpoint: /metrics
+    health_endpoint: /api/status
+    
+  red_hat_compliance:
+    enabled: true
+    check_interval: 3600  # 1 hour
+    metrics_port: 8080
+    
+  system_health:
+    cpu_threshold: 80
+    memory_threshold: 85
+    disk_threshold: 90

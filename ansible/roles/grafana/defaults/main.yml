@@ -1,0 +1,80 @@
+---
+# Grafana Configuration - Red Hat Best Practices
+# PAI Environment Monitoring
+
+grafana:
+  version: "10.2.0"
+  port: 3000
+  admin_user: admin
+  admin_password: "{{ vault_grafana_admin_password | default('admin') }}"
+  
+  # Installation
+  install_method: package  # package, docker, or binary
+  package_state: present
+  
+  # Configuration
+  config:
+    server:
+      http_port: 3000
+      domain: "{{ ansible_default_ipv4.address }}"
+      root_url: "http://{{ ansible_default_ipv4.address }}:3000"
+      serve_from_sub_path: false
+      
+    security:
+      admin_user: "{{ grafana.admin_user }}"
+      admin_password: "{{ grafana.admin_password }}"
+      secret_key: "{{ vault_grafana_secret_key | default('***REMOVED***') }}"
+      
+    database:
+      type: sqlite3
+      path: grafana.db
+      
+    auth:
+      disable_login_form: false
+      disable_signout_menu: false
+      
+    dashboards:
+      default_home_dashboard_path: /var/lib/grafana/dashboards/pai-overview.json
+      
+    plugins:
+      allow_loading_unsigned_plugins: ""
+      
+  # Data sources
+  datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://localhost:9090
+      is_default: true
+      
+  # Dashboard provisioning
+  dashboards:
+    - name: PAI Environment
+      folder: PAI Monitoring
+      path: /var/lib/grafana/dashboards
+      
+  # Plugins to install
+  plugins:
+    - grafana-piechart-panel
+    - grafana-worldmap-panel
+    - grafana-clock-panel
+    - redis-datasource
+    
+# System configuration
+system:
+  user: grafana
+  group: grafana
+  data_dir: /var/lib/grafana
+  logs_dir: /var/log/grafana
+  plugins_dir: /var/lib/grafana/plugins
+  provisioning_dir: /etc/grafana/provisioning
+  
+  # Service
+  service:
+    name: grafana-server
+    enabled: true
+    state: started
+    
+  # Firewall
+  firewall_enabled: true
+  firewall_port: 3000

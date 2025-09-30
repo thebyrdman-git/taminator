@@ -1,0 +1,40 @@
+---
+# Red Hat Certified Collections and Community Collections
+# Configuration as Code Requirements
+
+collections:
+  # Red Hat Certified Collections
+  - name: redhat.rhel_system_roles
+    version: ">=1.21.1"
+  
+  - name: ansible.posix
+    version: ">=1.5.4"
+  
+  - name: community.general
+    version: ">=7.5.0"
+  
+  - name: community.crypto
+    version: ">=2.15.1"
+  
+  - name: containers.podman
+    version: ">=1.10.3"
+  
+  # Web and application deployment
+  - name: community.docker
+    version: ">=3.4.8"
+  
+  # System management
+  - name: community.systemd
+    version: ">=1.2.1"
+  
+  # File and configuration management  
+  - name: ansible.utils
+    version: ">=2.11.0"
+  
+  # Security and vault management
+  - name: community.hashi_vault
+    version: ">=5.0.0"
+    
+  # Network and infrastructure
+  - name: community.network
+    version: ">=5.0.0"

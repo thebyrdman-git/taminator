@@ -1,0 +1,30 @@
+---
+galaxy_info:
+  role_name: jimmy-youtube
+  author: JByrd (Ansible TAM)
+  description: Red Hat Ansible role for Jimmy's YouTube download automation system
+  company: Personal Infrastructure
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "20.04"
+        - "22.04"
+    - name: Fedora
+      versions:
+        - "38"
+        - "39"
+  galaxy_tags:
+    - media
+    - youtube
+    - automation
+    - systemd
+    - flask
+
+dependencies: []
+
+collections:
+  - ansible.posix
+  - community.general
+  - community.systemd

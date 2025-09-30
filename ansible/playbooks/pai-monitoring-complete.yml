@@ -1,0 +1,453 @@
+---
+#
+# PAI Complete Monitoring Stack Deployment
+# Enterprise-grade deployment with service management and firewall configuration
+#
+# Usage: ansible-playbook -i inventories/production/hosts.yml playbooks/pai-monitoring-complete.yml
+#
+- name: "🎭 PAI Complete Monitoring Stack Deployment"
+  hosts: hp-server
+  become: yes
+  vars:
+    # Service configuration
+    prometheus_version: "latest"
+    grafana_version: "latest" 
+    node_exporter_version: "latest"
+    
+    # Network configuration
+    prometheus_port: 9090
+    grafana_port: 3000
+    node_exporter_port: 9100
+    pai_portal_port: 8000
+    jimmy_youtube_port: 5001
+    
+    # File paths
+    prometheus_config_dir: "/etc/prometheus"
+    prometheus_data_dir: "/var/lib/prometheus"
+    grafana_config_dir: "/etc/grafana"
+    grafana_data_dir: "/var/lib/grafana"
+    
+    # Service users
+    prometheus_user: "prometheus"
+    grafana_user: "grafana"
+    
+  pre_tasks:
+    - name: "📋 Display deployment information"
+      debug:
+        msg:
+          - "🎭 Starting PAI Complete Monitoring Stack Deployment"
+          - "🎯 Target: {{ inventory_hostname }} ({{ ansible_host }})"
+          - "📊 Services: Prometheus, Grafana, Node Exporter, PAI Portal"
+          - "🔥 Firewall: Opening ports {{ prometheus_port }}, {{ grafana_port }}, {{ node_exporter_port }}, {{ pai_portal_port }}"
+
+  tasks:
+    # =====================================================
+    # SYSTEM PREPARATION
+    # =====================================================
+    - name: "🔧 Update system packages"
+      package:
+        name: '*'
+        state: latest
+      tags: [system]
+
+    - name: "📦 Install base packages"
+      package:
+        name:
+          - curl
+          - wget
+          - tar
+          - systemd
+          - python3
+          - python3-pip
+          - git
+        state: present
+      tags: [system, packages]
+
+    # =====================================================
+    # FIREWALL CONFIGURATION (FIRST)
+    # =====================================================
+    - name: "🔥 Ensure firewalld is installed and running"
+      block:
+        - name: Install firewalld
+          package:
+            name: firewalld
+            state: present
+            
+        - name: Enable and start firewalld
+          systemd:
+            name: firewalld
+            enabled: yes
+            state: started
+      tags: [firewall]
+
+    - name: "🔥 Configure firewall rules for monitoring stack"
+      firewalld:
+        port: "{{ item }}/tcp"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      loop:
+        - "{{ prometheus_port }}"
+        - "{{ grafana_port }}"
+        - "{{ node_exporter_port }}"
+        - "{{ pai_portal_port }}"
+        - "{{ jimmy_youtube_port }}"
+      notify:
+        - reload firewall
+      tags: [firewall]
+
+    # =====================================================
+    # USER CREATION
+    # =====================================================
+    - name: "👤 Create service users"
+      user:
+        name: "{{ item.user }}"
+        system: yes
+        shell: /bin/false
+        home: "{{ item.home }}"
+        create_home: yes
+      loop:
+        - { user: "{{ prometheus_user }}", home: "{{ prometheus_data_dir }}" }
+        - { user: "{{ grafana_user }}", home: "{{ grafana_data_dir }}" }
+      tags: [users]
+
+    # =====================================================
+    # PROMETHEUS INSTALLATION & CONFIGURATION
+    # =====================================================
+    - name: "📊 Install and configure Prometheus"
+      block:
+        - name: Check if Prometheus is already installed
+          command: prometheus --version
+          register: prometheus_installed
+          ignore_errors: yes
+          changed_when: false
+
+        - name: Install Prometheus via package manager
+          package:
+            name: prometheus
+            state: present
+          when: prometheus_installed.rc != 0
+
+        - name: Create Prometheus directories
+          file:
+            path: "{{ item }}"
+            state: directory
+            owner: "{{ prometheus_user }}"
+            group: "{{ prometheus_user }}"
+            mode: '0755'
+          loop:
+            - "{{ prometheus_config_dir }}"
+            - "{{ prometheus_data_dir }}"
+            - "{{ prometheus_config_dir }}/rules"
+
+        - name: Deploy Prometheus configuration
+          template:
+            src: "../templates/prometheus.yml.j2"
+            dest: "{{ prometheus_config_dir }}/prometheus.yml"
+            owner: "{{ prometheus_user }}"
+            group: "{{ prometheus_user }}"
+            mode: '0644'
+            backup: yes
+          notify:
+            - restart prometheus
+            - validate prometheus config
+
+        - name: Deploy Prometheus alerting rules
+          template:
+            src: "../templates/pai_alerting_rules.yml.j2"
+            dest: "{{ prometheus_config_dir }}/pai_alerting_rules.yml"
+            owner: "{{ prometheus_user }}"
+            group: "{{ prometheus_user }}"
+            mode: '0644'
+            backup: yes
+          notify:
+            - restart prometheus
+            - validate prometheus config
+
+        - name: Deploy Prometheus systemd service
+          template:
+            src: "../templates/prometheus.service.j2"
+            dest: "/etc/systemd/system/prometheus.service"
+            mode: '0644'
+            backup: yes
+          notify:
+            - reload systemd
+            - restart prometheus
+
+        - name: Enable and start Prometheus service
+          systemd:
+            name: prometheus
+            enabled: yes
+            state: started
+            daemon_reload: yes
+
+      tags: [prometheus]
+
+    # =====================================================
+    # GRAFANA INSTALLATION & CONFIGURATION
+    # =====================================================
+    - name: "📈 Install and configure Grafana"
+      block:
+        - name: Check if Grafana is already installed
+          command: grafana-server --version
+          register: grafana_installed
+          ignore_errors: yes
+          changed_when: false
+
+        - name: Install Grafana via package manager (Fedora)
+          dnf:
+            name: grafana
+            state: present
+          when: 
+            - grafana_installed.rc != 0
+            - ansible_os_family == "RedHat"
+
+        - name: Create Grafana directories
+          file:
+            path: "{{ item }}"
+            state: directory
+            owner: "{{ grafana_user }}"
+            group: "{{ grafana_user }}"
+            mode: '0755'
+          loop:
+            - "{{ grafana_config_dir }}"
+            - "{{ grafana_data_dir }}"
+            - "{{ grafana_data_dir }}/dashboards"
+            - "{{ grafana_data_dir }}/plugins"
+
+        - name: Deploy Grafana configuration
+          template:
+            src: "../templates/grafana.ini.j2"
+            dest: "{{ grafana_config_dir }}/grafana.ini"
+            owner: "{{ grafana_user }}"
+            group: "{{ grafana_user }}"
+            mode: '0644'
+            backup: yes
+          notify:
+            - restart grafana
+
+        - name: Deploy Grafana systemd service
+          template:
+            src: "../templates/grafana-server.service.j2"
+            dest: "/etc/systemd/system/grafana-server.service"
+            mode: '0644'
+            backup: yes
+          notify:
+            - reload systemd
+            - restart grafana
+
+        - name: Enable and start Grafana service
+          systemd:
+            name: grafana-server
+            enabled: yes
+            state: started
+            daemon_reload: yes
+
+      tags: [grafana]
+
+    # =====================================================
+    # NODE EXPORTER INSTALLATION & CONFIGURATION
+    # =====================================================
+    - name: "🖥️ Install and configure Node Exporter"
+      block:
+        - name: Check if Node Exporter is already running
+          command: systemctl is-active node_exporter
+          register: node_exporter_running
+          ignore_errors: yes
+          changed_when: false
+
+        - name: Download Node Exporter (if not installed)
+          get_url:
+            url: "https://github.com/prometheus/node_exporter/releases/latest/download/node_exporter-{{ node_exporter_version | default('1.7.0') }}.linux-amd64.tar.gz"
+            dest: "/tmp/node_exporter.tar.gz"
+            mode: '0644'
+          when: node_exporter_running.rc != 0
+
+        - name: Extract Node Exporter (if not installed)
+          unarchive:
+            src: "/tmp/node_exporter.tar.gz"
+            dest: "/tmp"
+            remote_src: yes
+          when: node_exporter_running.rc != 0
+
+        - name: Install Node Exporter binary (if not installed)
+          copy:
+            src: "/tmp/node_exporter-{{ node_exporter_version | default('1.7.0') }}.linux-amd64/node_exporter"
+            dest: "/usr/local/bin/node_exporter"
+            mode: '0755'
+            owner: root
+            group: root
+            remote_src: yes
+          when: node_exporter_running.rc != 0
+
+        - name: Create Node Exporter user
+          user:
+            name: node_exporter
+            system: yes
+            shell: /bin/false
+            home: /var/lib/node_exporter
+            create_home: no
+
+        - name: Deploy Node Exporter systemd service
+          template:
+            src: "../templates/node_exporter.service.j2"
+            dest: "/etc/systemd/system/node_exporter.service"
+            mode: '0644'
+            backup: yes
+          notify:
+            - reload systemd
+            - restart node_exporter
+
+        - name: Enable and start Node Exporter service
+          systemd:
+            name: node_exporter
+            enabled: yes
+            state: started
+            daemon_reload: yes
+
+      tags: [node_exporter]
+
+    # =====================================================
+    # PAI PORTAL DEPLOYMENT
+    # =====================================================
+    - name: "🏠 Deploy PAI Portal"
+      block:
+        - name: Install Python Flask dependencies
+          pip:
+            name:
+              - flask
+              - requests
+            executable: pip3
+
+        - name: Copy PAI Portal application
+          copy:
+            src: "../../pai-portal.py"
+            dest: "/home/jbyrd/pai-portal.py"
+            owner: jbyrd
+            group: jbyrd
+            mode: '0755'
+            backup: yes
+
+        - name: Deploy PAI Portal systemd service
+          template:
+            src: "../templates/pai-portal.service.j2"
+            dest: "/etc/systemd/system/pai-portal.service"
+            mode: '0644'
+            backup: yes
+          notify:
+            - reload systemd
+            - restart pai-portal
+
+        - name: Enable and start PAI Portal service
+          systemd:
+            name: pai-portal
+            enabled: yes
+            state: started
+            daemon_reload: yes
+
+      tags: [pai_portal]
+
+    # =====================================================
+    # SERVICE HEALTH CHECKS
+    # =====================================================
+    - name: "🔍 Perform service health checks"
+      block:
+        - name: Wait for services to be ready
+          wait_for:
+            port: "{{ item.port }}"
+            host: "{{ ansible_host }}"
+            delay: 10
+            timeout: 60
+          loop:
+            - { service: "prometheus", port: "{{ prometheus_port }}" }
+            - { service: "grafana", port: "{{ grafana_port }}" }
+            - { service: "node_exporter", port: "{{ node_exporter_port }}" }
+            - { service: "pai-portal", port: "{{ pai_portal_port }}" }
+
+        - name: Test service endpoints
+          uri:
+            url: "{{ item.url }}"
+            method: GET
+            status_code: 200
+          loop:
+            - { service: "prometheus", url: "http://{{ ansible_host }}:{{ prometheus_port }}/-/healthy" }
+            - { service: "grafana", url: "http://{{ ansible_host }}:{{ grafana_port }}/api/health" }
+            - { service: "node_exporter", url: "http://{{ ansible_host }}:{{ node_exporter_port }}/metrics" }
+            - { service: "pai-portal", url: "http://{{ ansible_host }}:{{ pai_portal_port }}/" }
+          ignore_errors: yes
+          register: health_checks
+
+        - name: Display service status
+          debug:
+            msg:
+              - "🎊 Service Health Check Results:"
+              - "{{ health_checks.results | map(attribute='item.service') | zip(health_checks.results | map(attribute='status')) | list }}"
+
+      tags: [health_check]
+
+  # =====================================================
+  # POST-DEPLOYMENT TASKS
+  # =====================================================
+  post_tasks:
+    - name: "🎊 Display access information"
+      debug:
+        msg:
+          - "🎭 PAI Complete Monitoring Stack Deployment COMPLETE!"
+          - "========================================================="
+          - ""
+          - "🏠 PAI HOME PORTAL:"
+          - "   http://{{ ansible_host }}:{{ pai_portal_port }}"
+          - ""
+          - "📊 MONITORING ACCESS:"
+          - "   • Grafana: http://{{ ansible_host }}:{{ grafana_port }} (admin/admin)"
+          - "   • Prometheus: http://{{ ansible_host }}:{{ prometheus_port }}"
+          - "   • Node Exporter: http://{{ ansible_host }}:{{ node_exporter_port }}/metrics"
+          - ""
+          - "🔥 FIREWALL STATUS: All required ports opened"
+          - "⚙️  SERVICES: All services enabled and started"
+          - "🔍 HEALTH CHECKS: Completed"
+
+  # =====================================================
+  # ANSIBLE HANDLERS
+  # =====================================================
+  handlers:
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: restart prometheus
+      systemd:
+        name: prometheus
+        state: restarted
+
+    - name: restart grafana
+      systemd:
+        name: grafana-server
+        state: restarted
+
+    - name: restart node_exporter
+      systemd:
+        name: node_exporter
+        state: restarted
+
+    - name: restart pai-portal
+      systemd:
+        name: pai-portal
+        state: restarted
+
+    - name: reload firewall
+      systemd:
+        name: firewalld
+        state: reloaded
+
+    - name: validate prometheus config
+      command: promtool check config {{ prometheus_config_dir }}/prometheus.yml
+      register: prometheus_config_check
+      failed_when: prometheus_config_check.rc != 0
+      notify:
+        - restart prometheus
+
+  tags:
+    - monitoring
+    - pai_infrastructure
+    - production_deployment

@@ -1,0 +1,279 @@
+---
+#
+# PAI Service Orchestration Playbook
+# Handles service restarts, health checks, and firewall management
+#
+# Usage: ansible-playbook -i inventories/production/hosts.yml playbooks/pai-service-orchestration.yml
+#
+- name: "🎭 PAI Service Orchestration & Management"
+  hosts: hp-server
+  become: yes
+  vars:
+    # Service configuration
+    pai_services:
+      - { name: "prometheus", port: 9090, health_endpoint: "/-/healthy" }
+      - { name: "grafana-server", port: 3000, health_endpoint: "/api/health" }
+      - { name: "node_exporter", port: 9100, health_endpoint: "/metrics" }
+      - { name: "pai-portal", port: 8000, health_endpoint: "/" }
+    
+    # Firewall ports
+    pai_ports:
+      - 9090  # Prometheus
+      - 3000  # Grafana
+      - 9100  # Node Exporter
+      - 8000  # PAI Portal
+      - 5001  # Jimmy YouTube
+    
+    # Health check settings
+    health_check_timeout: 60
+    restart_delay: 5
+
+  pre_tasks:
+    - name: "📋 Display orchestration information"
+      debug:
+        msg:
+          - "🎭 Starting PAI Service Orchestration"
+          - "🎯 Target: {{ inventory_hostname }} ({{ ansible_host }})"
+          - "⚙️  Services: {{ pai_services | map(attribute='name') | join(', ') }}"
+          - "🔥 Firewall: Managing {{ pai_ports | length }} ports"
+
+  tasks:
+    # =====================================================
+    # FIREWALL MANAGEMENT
+    # =====================================================
+    - name: "🔥 Ensure firewalld is running"
+      systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+      tags: [firewall]
+
+    - name: "🔥 Configure PAI firewall rules"
+      firewalld:
+        port: "{{ item }}/tcp"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      loop: "{{ pai_ports }}"
+      notify:
+        - reload firewall
+      tags: [firewall]
+
+    - name: "🔥 Verify firewall rules"
+      command: firewall-cmd --list-ports
+      register: firewall_ports
+      changed_when: false
+      tags: [firewall]
+
+    - name: "🔥 Display active firewall rules"
+      debug:
+        msg: "Active ports: {{ firewall_ports.stdout }}"
+      tags: [firewall]
+
+    # =====================================================
+    # SERVICE MANAGEMENT
+    # =====================================================
+    - name: "⚙️ Check current service status"
+      systemd:
+        name: "{{ item.name }}"
+      register: service_status
+      loop: "{{ pai_services }}"
+      ignore_errors: yes
+      tags: [services, status]
+
+    - name: "⚙️ Display current service status"
+      debug:
+        msg: "{{ item.item.name }}: {{ 'Active' if item.status.ActiveState == 'active' else 'Inactive (' + item.status.ActiveState + ')' }}"
+      loop: "{{ service_status.results }}"
+      tags: [services, status]
+
+    - name: "🔄 Restart PAI services in proper order"
+      block:
+        - name: "Stop all PAI services"
+          systemd:
+            name: "{{ item.name }}"
+            state: stopped
+          loop: "{{ pai_services | reverse | list }}"
+          ignore_errors: yes
+
+        - name: "Wait for services to stop"
+          pause:
+            seconds: "{{ restart_delay }}"
+
+        - name: "Start services in dependency order"
+          systemd:
+            name: "{{ item.name }}"
+            state: started
+            enabled: yes
+            daemon_reload: yes
+          loop: "{{ pai_services }}"
+
+        - name: "Wait for services to initialize"
+          pause:
+            seconds: "{{ restart_delay }}"
+
+      when: service_restart | default(true)
+      tags: [services, restart]
+
+    # =====================================================
+    # SERVICE HEALTH CHECKS
+    # =====================================================
+    - name: "🔍 Wait for services to be ready"
+      wait_for:
+        port: "{{ item.port }}"
+        host: "{{ ansible_host }}"
+        delay: 10
+        timeout: "{{ health_check_timeout }}"
+      loop: "{{ pai_services }}"
+      tags: [services, health]
+
+    - name: "🔍 Perform service health checks"
+      uri:
+        url: "http://{{ ansible_host }}:{{ item.port }}{{ item.health_endpoint }}"
+        method: GET
+        status_code: 200
+        timeout: 10
+      loop: "{{ pai_services }}"
+      register: health_results
+      ignore_errors: yes
+      tags: [services, health]
+
+    - name: "🔍 Display service health results"
+      debug:
+        msg: 
+          - "Service: {{ item.item.name }}"
+          - "Status: {{ 'Healthy' if item.status == 200 else 'Unhealthy (' + (item.status | string) + ')' }}"
+          - "Endpoint: http://{{ ansible_host }}:{{ item.item.port }}{{ item.item.health_endpoint }}"
+      loop: "{{ health_results.results }}"
+      tags: [services, health]
+
+    # =====================================================
+    # PERFORMANCE OPTIMIZATION
+    # =====================================================
+    - name: "⚡ Optimize service performance"
+      block:
+        - name: "Check system resources"
+          command: "{{ item }}"
+          loop:
+            - "free -h"
+            - "df -h /"
+            - "systemctl --failed"
+          register: system_info
+          changed_when: false
+
+        - name: "Display system resource status"
+          debug:
+            msg: "{{ item.stdout_lines }}"
+          loop: "{{ system_info.results }}"
+          loop_control:
+            label: "{{ item.cmd[0] }}"
+
+        - name: "Check service resource usage"
+          shell: "systemctl show {{ item.name }} --property=MemoryCurrent,CPUUsageNSec || echo 'Service not found'"
+          loop: "{{ pai_services }}"
+          register: resource_usage
+          changed_when: false
+
+        - name: "Display service resource usage"
+          debug:
+            msg: 
+              - "Service: {{ item.item.name }}"
+              - "Resources: {{ item.stdout }}"
+          loop: "{{ resource_usage.results }}"
+
+      tags: [performance, monitoring]
+
+  # =====================================================
+  # POST-ORCHESTRATION VERIFICATION
+  # =====================================================
+  post_tasks:
+    - name: "✅ Verify complete PAI stack"
+      uri:
+        url: "http://{{ ansible_host }}:{{ item.port }}{{ item.health_endpoint }}"
+        method: GET
+        status_code: 200
+        timeout: 5
+      loop: "{{ pai_services }}"
+      register: final_verification
+      ignore_errors: yes
+
+    - name: "🎊 Display final PAI status"
+      debug:
+        msg:
+          - "🎭 PAI Service Orchestration COMPLETE!"
+          - "========================================="
+          - ""
+          - "✅ **SERVICE STATUS:**"
+          - "{% for result in final_verification.results %}"
+          - "   {{ '✅' if result.status == 200 else '❌' }} {{ result.item.name | title }}: {{ 'Healthy' if result.status == 200 else 'Failed' }}"
+          - "{% endfor %}"
+          - ""
+          - "🔥 **FIREWALL:**"
+          - "   All {{ pai_ports | length }} required ports configured"
+          - ""
+          - "🏠 **PAI ACCESS:**"
+          - "   Home Portal: http://{{ ansible_host }}:8000"
+          - "   All services accessible via Google Material Design UI"
+
+    - name: "📊 Generate service status summary"
+      copy:
+        content: |
+          PAI Service Orchestration Report
+          Generated: {{ ansible_date_time.iso8601 }}
+          Target: {{ inventory_hostname }} ({{ ansible_host }})
+          
+          Service Status:
+          {% for result in final_verification.results %}
+          - {{ result.item.name }}: {{ 'Healthy' if result.status == 200 else 'Failed' }} (Port {{ result.item.port }})
+          {% endfor %}
+          
+          Firewall Configuration:
+          {% for port in pai_ports %}
+          - Port {{ port }}/tcp: Open
+          {% endfor %}
+          
+          Access URLs:
+          - PAI Home Portal: http://{{ ansible_host }}:8000
+          - Grafana Dashboard: http://{{ ansible_host }}:3000
+          - Prometheus Metrics: http://{{ ansible_host }}:9090
+          - Node Exporter: http://{{ ansible_host }}:9100/metrics
+          
+          All interfaces now use Google Material Design 3 principles
+        dest: "/home/jbyrd/pai-orchestration-report.txt"
+        owner: jbyrd
+        group: jbyrd
+        mode: '0644'
+
+  # =====================================================
+  # ANSIBLE HANDLERS
+  # =====================================================
+  handlers:
+    - name: reload firewall
+      systemd:
+        name: firewalld
+        state: reloaded
+
+    - name: restart prometheus
+      systemd:
+        name: prometheus
+        state: restarted
+
+    - name: restart grafana
+      systemd:
+        name: grafana-server
+        state: restarted
+
+    - name: restart node_exporter
+      systemd:
+        name: node_exporter
+        state: restarted
+
+    - name: restart pai-portal
+      systemd:
+        name: pai-portal
+        state: restarted
+
+  tags:
+    - pai_orchestration
+    - service_management
+    - production_ready

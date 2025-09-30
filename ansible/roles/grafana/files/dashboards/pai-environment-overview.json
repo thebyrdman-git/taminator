@@ -1,0 +1,172 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "PAI Environment - Complete Infrastructure Overview",
+    "tags": ["pai", "overview", "infrastructure", "red-hat"],
+    "style": "dark",
+    "timezone": "browser", 
+    "refresh": "1m",
+    "schemaVersion": 39,
+    "version": 1,
+    "time": {
+      "from": "now-3h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "PAI Infrastructure Health",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "up",
+            "legendFormat": "{{ job }} - {{ instance }}",
+            "instant": true
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "value": "1", "text": "✅ Online"},
+              {"type": "value", "value": "0", "text": "❌ Offline"}
+            ]
+          }
+        },
+        "gridPos": {"h": 6, "w": 24, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "HP Server Resources",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\",instance=\"192.168.1.34:9100\"}[5m])) * 100)",
+            "legendFormat": "CPU %"
+          },
+          {
+            "expr": "(node_memory_MemTotal_bytes{instance=\"192.168.1.34:9100\"} - node_memory_MemAvailable_bytes{instance=\"192.168.1.34:9100\"}) / node_memory_MemTotal_bytes{instance=\"192.168.1.34:9100\"} * 100",
+            "legendFormat": "Memory %"
+          },
+          {
+            "expr": "(node_filesystem_size_bytes{instance=\"192.168.1.34:9100\",mountpoint=\"/\"} - node_filesystem_free_bytes{instance=\"192.168.1.34:9100\",mountpoint=\"/\"}) / node_filesystem_size_bytes{instance=\"192.168.1.34:9100\",mountpoint=\"/\"} * 100",
+            "legendFormat": "Disk %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "red", "value": 90}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6}
+      },
+      {
+        "id": 3,
+        "title": "Plex Server Resources", 
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\",instance=\"192.168.1.17:9100\"}[5m])) * 100)",
+            "legendFormat": "CPU %"
+          },
+          {
+            "expr": "(node_memory_MemTotal_bytes{instance=\"192.168.1.17:9100\"} - node_memory_MemAvailable_bytes{instance=\"192.168.1.17:9100\"}) / node_memory_MemTotal_bytes{instance=\"192.168.1.17:9100\"} * 100",
+            "legendFormat": "Memory %"
+          },
+          {
+            "expr": "(node_filesystem_size_bytes{instance=\"192.168.1.17:9100\",mountpoint=\"/\"} - node_filesystem_free_bytes{instance=\"192.168.1.17:9100\",mountpoint=\"/\"}) / node_filesystem_size_bytes{instance=\"192.168.1.17:9100\",mountpoint=\"/\"} * 100",
+            "legendFormat": "Disk %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "red", "value": 90}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6}
+      },
+      {
+        "id": 4,
+        "title": "Jimmy YouTube System Metrics",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "up{job=\"jimmy-youtube\"}",
+            "legendFormat": "Service Uptime"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1
+          }
+        },
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 14}
+      },
+      {
+        "id": 5,
+        "title": "Red Hat PAI Compliance Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"pai-system\"}",
+            "legendFormat": "PAI System"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"type": "value", "value": "1", "text": "✅ Compliant"},
+              {"type": "value", "value": "0", "text": "❌ Non-Compliant"}
+            ]
+          }
+        },
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 14}
+      },
+      {
+        "id": 6,
+        "title": "Network Traffic Overview",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(node_network_receive_bytes_total{device!=\"lo\"}[5m])) by (instance)",
+            "legendFormat": "{{ instance }} - Inbound"
+          },
+          {
+            "expr": "sum(rate(node_network_transmit_bytes_total{device!=\"lo\"}[5m])) by (instance)",
+            "legendFormat": "{{ instance }} - Outbound"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "Bps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 20}
+      }
+    ]
+  }
+}

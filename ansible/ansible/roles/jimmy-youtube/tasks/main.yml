@@ -1,0 +1,71 @@
+---
+# Jimmy YouTube System - Main Tasks
+# Red Hat Ansible Configuration as Code Implementation
+
+- name: Include OS-specific variables
+  include_vars: "{{ ansible_os_family }}.yml"
+  tags:
+    - always
+
+- name: Create system user and groups
+  include_tasks: user_setup.yml
+  tags:
+    - setup
+    - users
+
+- name: Install system packages and dependencies
+  include_tasks: packages.yml
+  tags:
+    - setup
+    - packages
+
+- name: Configure directories and permissions
+  include_tasks: directories.yml
+  tags:
+    - setup
+    - directories
+
+- name: Deploy application files
+  include_tasks: application.yml
+  tags:
+    - deploy
+    - application
+
+- name: Configure systemd service
+  include_tasks: service.yml
+  tags:
+    - service
+    - systemd
+
+- name: Configure firewall rules
+  include_tasks: firewall.yml
+  tags:
+    - security
+    - firewall
+  when: system.security.firewall_enabled
+
+- name: Set up monitoring and health checks
+  include_tasks: monitoring.yml
+  tags:
+    - monitoring
+    - health
+
+- name: Configure log rotation
+  include_tasks: logging.yml
+  tags:
+    - logging
+    - maintenance
+
+# Multi-server coordination tasks
+- name: Configure SSH connectivity between servers
+  include_tasks: ssh_setup.yml
+  tags:
+    - setup
+    - ssh
+    - multi-server
+
+- name: Verify service health and connectivity
+  include_tasks: validation.yml
+  tags:
+    - validation
+    - health-check

@@ -1,0 +1,161 @@
+---
+# PAI Environment Monitoring Stack Deployment
+# Red Hat Ansible Configuration as Code
+# Author: JByrd (Ansible TAM)
+
+- name: Deploy Complete Monitoring Stack for PAI Environment
+  hosts: all
+  become: false
+  gather_facts: true
+  
+  vars:
+    deployment_timestamp: "{{ ansible_date_time.iso8601 }}"
+    monitoring_stack_version: "1.0.0"
+    
+  pre_tasks:
+    - name: Display monitoring deployment information
+      debug:
+        msg:
+          - "🚀 Deploying PAI Monitoring Stack v{{ monitoring_stack_version }}"
+          - "📊 Components: Grafana + Prometheus + Node Exporter"
+          - "🎯 Target: Complete PAI environment observability"
+          - "⏰ Timestamp: {{ deployment_timestamp }}"
+          - "🖥️ Hosts: {{ ansible_play_hosts }}"
+      tags: always
+
+    - name: Verify connectivity and gather system info
+      setup:
+        gather_subset:
+          - 'all'
+      tags: always
+
+  tasks:
+    # Deploy Node Exporter on all systems
+    - name: Deploy Node Exporter for system metrics
+      include_role:
+        name: node-exporter
+      tags:
+        - node-exporter
+        - metrics
+        - system-monitoring
+
+    # Deploy Prometheus on HP Server (main monitoring hub)
+    - name: Deploy Prometheus metrics collection
+      include_role:
+        name: prometheus
+      when: "'web_servers' in group_names"
+      tags:
+        - prometheus
+        - metrics-collection
+        - alerting
+
+    # Deploy Grafana on HP Server
+    - name: Deploy Grafana visualization
+      include_role:
+        name: grafana
+      when: "'web_servers' in group_names"
+      tags:
+        - grafana
+        - visualization
+        - dashboards
+
+  post_tasks:
+    - name: Verify monitoring services are running
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      register: service_status
+      loop:
+        - node_exporter
+      tags:
+        - validation
+        - health-check
+
+    - name: Verify Prometheus service (HP Server only)
+      systemd:
+        name: prometheus
+        state: started
+        enabled: true
+      register: prometheus_status
+      when: "'web_servers' in group_names"
+      tags:
+        - validation
+        - health-check
+
+    - name: Verify Grafana service (HP Server only)
+      systemd:
+        name: grafana-server
+        state: started
+        enabled: true
+      register: grafana_status
+      when: "'web_servers' in group_names"
+      tags:
+        - validation
+        - health-check
+
+    - name: Test Grafana web interface
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:3000/api/health"
+        method: GET
+        timeout: 10
+      register: grafana_health
+      failed_when: false
+      when: "'web_servers' in group_names"
+      tags:
+        - validation
+        - health-check
+
+    - name: Test Prometheus web interface  
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:9090/-/healthy"
+        method: GET
+        timeout: 10
+      register: prometheus_health
+      failed_when: false
+      when: "'web_servers' in group_names"
+      tags:
+        - validation
+        - health-check
+
+    - name: Display monitoring stack status
+      debug:
+        msg:
+          - "📊 MONITORING STACK DEPLOYMENT COMPLETE"
+          - "✅ Node Exporter: {{ 'Running' if service_status.results[0].status.ActiveState == 'active' else 'Failed' }}"
+          - "✅ Prometheus: {{ 'Running' if prometheus_status.status.ActiveState == 'active' else 'Failed' if prometheus_status is defined else 'Not deployed on this host' }}"
+          - "✅ Grafana: {{ 'Running' if grafana_status.status.ActiveState == 'active' else 'Failed' if grafana_status is defined else 'Not deployed on this host' }}"
+          - "🌐 Grafana URL: http://{{ ansible_default_ipv4.address }}:3000 (admin/admin)"
+          - "📈 Prometheus URL: http://{{ ansible_default_ipv4.address }}:9090"
+      when: "'web_servers' in group_names"
+      tags: always
+
+  handlers:
+    - name: restart prometheus
+      systemd:
+        name: prometheus
+        state: restarted
+      become: true
+
+    - name: restart grafana
+      systemd:
+        name: grafana-server
+        state: restarted
+      become: true
+
+    - name: restart node_exporter
+      systemd:
+        name: node_exporter
+        state: restarted
+      become: true
+
+    - name: reload systemd
+      systemd:
+        daemon_reload: true
+      become: true
+
+    - name: reload firewalld
+      systemd:
+        name: firewalld
+        state: reloaded
+      become: true

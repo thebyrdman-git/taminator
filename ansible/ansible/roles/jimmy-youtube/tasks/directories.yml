@@ -1,0 +1,43 @@
+---
+- name: Create application directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ jimmy_youtube.user }}"
+    group: "{{ jimmy_youtube.group }}"
+    mode: '0755'
+  loop:
+    - "{{ jimmy_youtube.base_dir }}"
+    - "{{ jimmy_youtube.video_dir }}"
+    - "{{ jimmy_youtube.config_dir }}"
+  become: true
+
+- name: Create video category directories
+  file:
+    path: "{{ jimmy_youtube.video_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ jimmy_youtube.user }}"
+    group: "{{ jimmy_youtube.group }}"
+    mode: '0755'
+  loop: "{{ jimmy_youtube.categories }}"
+  become: true
+
+- name: Create log directory
+  file:
+    path: "{{ jimmy_youtube.log_dir }}"
+    state: directory
+    owner: "{{ jimmy_youtube.user }}"
+    group: "{{ jimmy_youtube.group }}"
+    mode: '0755'
+  become: true
+
+- name: Set SELinux context for directories (RedHat/Fedora)
+  sefcontext:
+    target: "{{ item }}"
+    setype: admin_home_t
+    state: present
+  loop:
+    - "{{ jimmy_youtube.video_dir }}"
+    - "{{ jimmy_youtube.config_dir }}"
+  become: true
+  when: ansible_os_family == "RedHat" and ansible_selinux.status == "enabled"

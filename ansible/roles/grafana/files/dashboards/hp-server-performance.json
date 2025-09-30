@@ -1,0 +1,206 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "HP Server - PAI Infrastructure Performance",
+    "tags": ["pai", "hp-server", "infrastructure"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "schemaVersion": 39,
+    "version": 1,
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "System Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{instance=\"192.168.1.34:9100\"}",
+            "legendFormat": "System Status"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"type": "value", "value": "1", "text": "Online"},
+              {"type": "value", "value": "0", "text": "Offline"}
+            ]
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "CPU Usage",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\",instance=\"192.168.1.34:9100\"}[5m])) * 100)",
+            "legendFormat": "CPU %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "red", "value": 90}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Memory Usage",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(node_memory_MemTotal_bytes{instance=\"192.168.1.34:9100\"} - node_memory_MemAvailable_bytes{instance=\"192.168.1.34:9100\"}) / node_memory_MemTotal_bytes{instance=\"192.168.1.34:9100\"} * 100",
+            "legendFormat": "Memory %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 75},
+                {"color": "red", "value": 90}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Disk Usage",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(node_filesystem_size_bytes{instance=\"192.168.1.34:9100\",mountpoint=\"/\"} - node_filesystem_free_bytes{instance=\"192.168.1.34:9100\",mountpoint=\"/\"}) / node_filesystem_size_bytes{instance=\"192.168.1.34:9100\",mountpoint=\"/\"} * 100",
+            "legendFormat": "Root Disk %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 80},
+                {"color": "red", "value": 95}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "CPU Usage Over Time",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\",instance=\"192.168.1.34:9100\"}[5m])) * 100)",
+            "legendFormat": "CPU Usage %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4}
+      },
+      {
+        "id": 6,
+        "title": "Memory Usage Over Time",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "(node_memory_MemTotal_bytes{instance=\"192.168.1.34:9100\"} - node_memory_MemAvailable_bytes{instance=\"192.168.1.34:9100\"}) / 1024 / 1024 / 1024",
+            "legendFormat": "Used Memory (GB)"
+          },
+          {
+            "expr": "node_memory_MemTotal_bytes{instance=\"192.168.1.34:9100\"} / 1024 / 1024 / 1024",
+            "legendFormat": "Total Memory (GB)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4}
+      },
+      {
+        "id": 7,
+        "title": "Network Traffic",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(node_network_receive_bytes_total{instance=\"192.168.1.34:9100\",device!=\"lo\"}[5m]) * 8",
+            "legendFormat": "{{ device }} - Inbound"
+          },
+          {
+            "expr": "rate(node_network_transmit_bytes_total{instance=\"192.168.1.34:9100\",device!=\"lo\"}[5m]) * 8",
+            "legendFormat": "{{ device }} - Outbound"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
+      },
+      {
+        "id": 8,
+        "title": "Jimmy YouTube System Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"jimmy-youtube\"}",
+            "legendFormat": "Service Status"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"type": "value", "value": "1", "text": "Running"},
+              {"type": "value", "value": "0", "text": "Down"}
+            ]
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12}
+      }
+    ]
+  }
+}

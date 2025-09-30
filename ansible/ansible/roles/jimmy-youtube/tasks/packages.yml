@@ -1,0 +1,37 @@
+---
+- name: Update package cache (Debian/Ubuntu)
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Update package cache (RedHat/Fedora)
+  dnf:
+    update_cache: true
+  become: true
+  when: ansible_os_family == "RedHat"
+
+- name: Install system packages
+  package:
+    name: "{{ system.packages }}"
+    state: present
+  become: true
+
+- name: Install Python packages
+  pip:
+    name: "{{ system.python_packages }}"
+    state: present
+    extra_args: --user
+  become_user: "{{ jimmy_youtube.user }}"
+
+- name: Verify yt-dlp installation
+  command: yt-dlp --version
+  register: ytdlp_version
+  changed_when: false
+  failed_when: false
+
+- name: Display yt-dlp version
+  debug:
+    msg: "yt-dlp version: {{ ytdlp_version.stdout }}"
+  when: ytdlp_version.rc == 0

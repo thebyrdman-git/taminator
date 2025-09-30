@@ -1,0 +1,31 @@
+---
+galaxy_info:
+  role_name: grafana
+  author: JByrd (Ansible TAM)
+  description: Red Hat Ansible role for Grafana deployment with PAI monitoring
+  company: Personal Infrastructure
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "20.04"
+        - "22.04"
+    - name: Fedora
+      versions:
+        - "38"
+        - "39"
+  galaxy_tags:
+    - monitoring
+    - grafana
+    - observability
+    - dashboards
+    - metrics
+
+dependencies:
+  - role: monitoring-common
+
+collections:
+  - ansible.posix
+  - community.general
+  - community.grafana

@@ -1,0 +1,94 @@
+---
+# Jimmy YouTube System - Default Configuration Variables
+# Red Hat Ansible Configuration as Code
+
+# Application configuration
+jimmy_youtube:
+  app_name: jimmy-youtube-system
+  version: "2.0.0"
+  user: jbyrd
+  group: jbyrd
+  
+  # Directories
+  base_dir: /home/jbyrd
+  video_dir: /home/jbyrd/jimmy-youtube
+  config_dir: /home/jbyrd/.config/jimmy-youtube
+  log_dir: /var/log/jimmy-youtube
+  
+  # Service configuration
+  service:
+    name: jimmy-youtube
+    enabled: true
+    state: started
+    restart_policy: always
+    restart_delay: 10
+    
+  # Web interface
+  web:
+    host: "0.0.0.0"
+    port: 5001
+    debug: false
+    
+  # Download configuration
+  downloads:
+    max_concurrent: 3
+    quality: "best[height<=720]"
+    timeout: 300
+    retry_attempts: 3
+    
+  # Categories for video organization
+  categories:
+    - Animation
+    - Comedy-Entertainment
+    - Education
+    - Gaming
+    - Legal-Educational
+    - Music
+    - Personal-Interest
+    - Tech-Reviews
+    - Faith
+    - General-Interest
+    - Science-Space
+    - Personal-Family
+    - Sports
+    - Tech-Professional
+
+# System configuration
+system:
+  packages:
+    - python3
+    - python3-pip
+    - python3-venv
+    - yt-dlp
+    - sqlite3
+    - curl
+    - git
+    
+  python_packages:
+    - flask>=2.3.0
+    - requests>=2.31.0
+    - pyyaml>=6.0
+    
+  # Security and hardening
+  security:
+    firewall_enabled: true
+    firewall_ports:
+      - "5001/tcp"
+    fail2ban_enabled: true
+    
+  # Monitoring
+  monitoring:
+    health_check_enabled: true
+    health_check_interval: 300
+    log_retention_days: 7
+    
+  # Resource limits
+  resources:
+    memory_limit: 512M
+    cpu_quota: 50%
+    
+# Multi-server configuration
+servers:
+  web_server: hp-server
+  media_server: plex-server
+  ssh_user: jbyrd

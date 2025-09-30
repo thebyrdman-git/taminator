@@ -179,3 +179,46 @@
 **Created:** $(date)
 **Context:** Red Hat PAI Project - Personal AI Infrastructure
 **Purpose:** Optimal collaboration and system effectiveness
+
+## 🔥 CRITICAL CONTEXT UPDATE (Post-Initial Creation)
+
+### **JBYRD'S PROFESSIONAL EXPERTISE & PREFERENCES:**
+- **Ansible TAM (Technical Account Manager)** - Deep infrastructure automation expertise
+- **Priority: Stability** - Best practices and latest technologies required
+- **Technical Proficiency Standard** - Most sophisticated solutions preferred, not "good enough"
+
+### **ARCHITECTURAL IMPLICATIONS:**
+- Leverage Ansible for all automation (user has professional expertise)
+- Prioritize stability over speed-to-deployment
+- Use Infrastructure as Code approaches
+- Implement proper configuration management
+- Focus on latest technologies and best practices
+
+### **SOLUTION APPROACH CHANGES:**
+- **Ansible-First Everything:** All infrastructure operations via playbooks
+  - Service management (start/stop/restart) through Ansible service module
+  - Firewall rule management via firewalld Ansible module
+  - Package installation and configuration management
+  - File deployments and template rendering
+  - User and group management
+- Replace ad-hoc scripts with Ansible playbooks
+- Implement proper testing and rollback capabilities
+- Use modern packaging and deployment methods
+- Add comprehensive monitoring and alerting
+- Apply enterprise-grade security and hardening
+
+### **ANSIBLE OPERATIONAL STANDARDS:**
+- **No Manual Server Changes:** Everything documented in playbooks
+- **Idempotent Operations:** Safe to run multiple times
+- **Service Orchestration:** Proper restart sequences and health checks
+- **Configuration as Code:** All settings version controlled
+- **Inventory Management:** Proper host grouping and variables
+
+### **ANSIBLE INTEGRATION OPPORTUNITIES:**
+- Multi-server deployment automation
+- Configuration management across fleet
+- Service lifecycle management (install, update, rollback)
+- Monitoring and health check automation
+- Secrets management and security hardening
+
+This context fundamentally changes the approach from "working scripts" to "production-grade infrastructure automation."

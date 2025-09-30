@@ -1,0 +1,65 @@
+---
+# Node Exporter Configuration - Red Hat Best Practices
+# System Metrics Collection for PAI Environment
+
+node_exporter:
+  version: "1.6.1"
+  port: 9100
+  
+  # Installation
+  install_method: binary
+  user: node_exporter
+  group: node_exporter
+  
+  # Directories
+  bin_dir: /usr/local/bin
+  config_dir: /etc/node_exporter
+  
+  # Configuration options
+  options:
+    web:
+      listen_address: "0.0.0.0:{{ node_exporter.port }}"
+    log:
+      level: info
+    collector:
+      # Enable additional collectors for PAI monitoring
+      systemd: true
+      processes: true
+      tcpstat: true
+      interrupts: true
+      
+    # Disable collectors we don't need
+    disabled_collectors:
+      - arp
+      - bcache
+      - bonding
+      - btrfs
+      - conntrack
+      - drm
+      - hwmon
+      - infiniband
+      - ipvs
+      - mdadm
+      - nfs
+      - nfsd
+      - nvme
+      - powersupplyclass
+      - rapl
+      - thermal_zone
+      - udp_queues
+      - xfs
+      - zfs
+      
+  # Service configuration
+  service:
+    name: node_exporter
+    enabled: true
+    state: started
+    
+# System configuration
+system:
+  firewall_enabled: true
+  firewall_port: 9100
+  
+  # Security - restrict access to monitoring subnet
+  firewall_source: "192.168.1.0/24"

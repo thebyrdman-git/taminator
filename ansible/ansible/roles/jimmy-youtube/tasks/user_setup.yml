@@ -1,0 +1,16 @@
+---
+- name: Ensure jimmy-youtube user exists
+  user:
+    name: "{{ jimmy_youtube.user }}"
+    group: "{{ jimmy_youtube.group }}"
+    shell: /bin/bash
+    create_home: true
+    state: present
+  become: true
+
+- name: Add user to systemd-journal group for log access
+  user:
+    name: "{{ jimmy_youtube.user }}"
+    groups: systemd-journal
+    append: true
+  become: true

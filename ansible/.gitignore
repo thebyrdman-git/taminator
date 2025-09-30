@@ -1,0 +1,9 @@
+
+# Ansible secrets and sensitive files
+ansible/.vault_pass
+ansible/vault/group_vars/all.yml
+ansible/vault/host_vars/
+ansible/ansible.log
+ansible/collections/ansible_collections/
+/tmp/ansible_facts_cache/
+*.retry

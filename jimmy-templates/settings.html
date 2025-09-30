@@ -1,152 +1,294 @@
 {% extends "base.html" %}
 
-{% block title %}⚙️ Settings - Jimmy's YouTube System{% endblock %}
+{% block title %}Settings - Jimmy's YouTube System{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="text-center">
-        <h1 class="text-4xl font-bold mb-4">⚙️ System Settings</h1>
-        <p class="text-xl opacity-90">Configure YouTube automation system</p>
-    </div>
+<div class="page-header">
+    <h1 class="page-title">
+        <span class="material-icons">settings</span>
+        System Settings
+    </h1>
+    <p class="page-subtitle">Configure and manage your YouTube automation system</p>
+</div>
 
-    <!-- System Configuration -->
-    <div class="glass rounded-xl p-6">
-        <h2 class="text-2xl font-bold text-yellow-300 mb-4">🖥️ System Configuration</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label class="block text-sm font-medium mb-2">📁 YouTube Storage Directory</label>
-                <input type="text" id="storageDir" value="/mnt/nfs_share/charles/youtube" 
-                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+<!-- System Configuration -->
+<div class="card mb-24">
+    <div class="card-header">
+        <h2 class="card-title">
+            <span class="material-icons">tune</span>
+            Download Configuration
+        </h2>
+    </div>
+    <div class="card-content">
+        <div class="grid grid-cols-2">
+            <div style="padding: 16px; border: 1px solid var(--google-gray-200); border-radius: 8px;">
+                <h3 style="font-size: 16px; font-weight: 500; color: var(--google-gray-800); margin-bottom: 16px; display: flex; align-items: center;">
+                    <span class="material-icons" style="font-size: 18px; margin-right: 8px; color: var(--google-blue);">video_settings</span>
+                    Video Quality
+                </h3>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: flex; align-items: center; color: var(--google-gray-700); font-size: 14px;">
+                        <input type="radio" name="quality" value="best" checked style="margin-right: 8px;">
+                        Best Available Quality
+                    </label>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: flex; align-items: center; color: var(--google-gray-700); font-size: 14px;">
+                        <input type="radio" name="quality" value="1080p" style="margin-right: 8px;">
+                        1080p HD
+                    </label>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: flex; align-items: center; color: var(--google-gray-700); font-size: 14px;">
+                        <input type="radio" name="quality" value="720p" style="margin-right: 8px;">
+                        720p HD
+                    </label>
+                </div>
             </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">🎬 Plex Server Address</label>
-                <input type="text" id="plexServer" value="http://192.168.1.17:32400" 
-                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">🗄️ Database Path</label>
-                <input type="text" id="databasePath" value="/home/jbyrd/hatter-pai/youtube_automation.db" 
-                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">📊 Log Level</label>
-                <select id="logLevel" class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    <option value="INFO">INFO</option>
-                    <option value="DEBUG">DEBUG</option>
-                    <option value="WARNING">WARNING</option>
-                    <option value="ERROR">ERROR</option>
-                </select>
+            
+            <div style="padding: 16px; border: 1px solid var(--google-gray-200); border-radius: 8px;">
+                <h3 style="font-size: 16px; font-weight: 500; color: var(--google-gray-800); margin-bottom: 16px; display: flex; align-items: center;">
+                    <span class="material-icons" style="font-size: 18px; margin-right: 8px; color: var(--google-blue);">schedule</span>
+                    Download Schedule
+                </h3>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: flex; align-items: center; color: var(--google-gray-700); font-size: 14px;">
+                        <input type="checkbox" checked style="margin-right: 8px;">
+                        Automatic downloads enabled
+                    </label>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; color: var(--google-gray-700); font-size: 14px; margin-bottom: 4px;">
+                        Check for new videos every:
+                    </label>
+                    <select style="padding: 8px; border: 1px solid var(--google-gray-300); border-radius: 4px; font-size: 14px;">
+                        <option value="1">1 hour</option>
+                        <option value="6" selected>6 hours</option>
+                        <option value="12">12 hours</option>
+                        <option value="24">24 hours</option>
+                    </select>
+                </div>
             </div>
         </div>
     </div>
+    <div class="card-actions">
+        <button onclick="saveDownloadSettings()" class="google-btn google-btn-primary">
+            <span class="material-icons">save</span>
+            Save Settings
+        </button>
+    </div>
+</div>
 
-    <!-- Download Preferences -->
-    <div class="glass rounded-xl p-6">
-        <h2 class="text-2xl font-bold text-yellow-300 mb-4">⬇️ Download Preferences</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-                <label class="block text-sm font-medium mb-2">📅 Default Retention (Days)</label>
-                <input type="number" id="retentionDays" value="30" min="1" max="365" 
-                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+<!-- Storage Management -->
+<div class="card mb-24">
+    <div class="card-header">
+        <h2 class="card-title">
+            <span class="material-icons">storage</span>
+            Storage Management
+        </h2>
+    </div>
+    <div class="card-content">
+        <div class="grid grid-cols-3">
+            <div class="text-center">
+                <div style="font-size: 24px; font-weight: 500; color: var(--google-blue); margin-bottom: 8px;">{{ stats.get('storage_used', '0 GB') }}</div>
+                <div style="font-size: 14px; color: var(--google-gray-600);">Storage Used</div>
             </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">📹 Videos per Channel</label>
-                <input type="number" id="videosPerChannel" value="5" min="1" max="50" 
-                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+            
+            <div class="text-center">
+                <div style="font-size: 24px; font-weight: 500; color: var(--google-green); margin-bottom: 8px;">{{ stats.get('storage_available', '0 GB') }}</div>
+                <div style="font-size: 14px; color: var(--google-gray-600);">Available</div>
             </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">🌐 Auto-refresh Interval (minutes)</label>
-                <input type="number" id="refreshInterval" value="60" min="5" max="1440" 
-                    class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
+            
+            <div class="text-center">
+                <div style="font-size: 24px; font-weight: 500; color: var(--google-yellow); margin-bottom: 8px;">90 days</div>
+                <div style="font-size: 14px; color: var(--google-gray-600);">Retention Policy</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 24px; padding: 16px; background: var(--google-gray-50); border-radius: 8px;">
+            <h4 style="font-size: 14px; font-weight: 500; color: var(--google-gray-800); margin-bottom: 8px;">
+                Retention Policy Settings
+            </h4>
+            <p style="font-size: 13px; color: var(--google-gray-600); margin-bottom: 16px;">
+                Videos older than 90 days are automatically removed to optimize storage usage. 
+                Recently watched and favorited videos are protected from cleanup.
+            </p>
+            
+            <div class="flex gap-16">
+                <label style="display: flex; align-items: center; color: var(--google-gray-700); font-size: 14px;">
+                    <input type="number" value="90" min="7" max="365" style="width: 80px; padding: 6px; border: 1px solid var(--google-gray-300); border-radius: 4px; margin-right: 8px;">
+                    days retention
+                </label>
+                
+                <label style="display: flex; align-items: center; color: var(--google-gray-700); font-size: 14px;">
+                    <input type="checkbox" checked style="margin-right: 8px;">
+                    Protect recently watched
+                </label>
+                
+                <label style="display: flex; align-items: center; color: var(--google-gray-700); font-size: 14px;">
+                    <input type="checkbox" checked style="margin-right: 8px;">
+                    Protect favorites
+                </label>
             </div>
         </div>
     </div>
+    <div class="card-actions">
+        <button onclick="saveStorageSettings()" class="google-btn google-btn-primary">
+            <span class="material-icons">save</span>
+            Save Storage Settings
+        </button>
+        
+        <button onclick="runCleanupNow()" class="google-btn google-btn-warning">
+            <span class="material-icons">cleaning_services</span>
+            Run Cleanup Now
+        </button>
+        
+        <button onclick="analyzeStorage()" class="google-btn">
+            <span class="material-icons">analytics</span>
+            Analyze Storage
+        </button>
+    </div>
+</div>
 
-    <!-- Automation Schedule -->
-    <div class="glass rounded-xl p-6">
-        <h2 class="text-2xl font-bold text-yellow-300 mb-4">⏰ Automation Schedule</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label class="block text-sm font-medium mb-2">🚀 Auto-download New Content</label>
-                <select id="autoDownload" class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    <option value="disabled">Disabled</option>
-                    <option value="hourly">Every Hour</option>
-                    <option value="daily" selected>Daily</option>
-                    <option value="weekly">Weekly</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">🧹 Auto-cleanup Schedule</label>
-                <select id="autoCleanup" class="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    <option value="disabled">Disabled</option>
-                    <option value="daily" selected>Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                </select>
+<!-- System Information -->
+<div class="grid grid-cols-2">
+    <!-- System Status -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <span class="material-icons">info</span>
+                System Information
+            </h3>
+        </div>
+        <div class="card-content">
+            <div style="color: var(--google-gray-700); font-size: 14px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--google-gray-100);">
+                    <span>Download Location:</span>
+                    <span style="font-weight: 500;">/media/jimmy/youtube</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--google-gray-100);">
+                    <span>Plex Server:</span>
+                    <span style="font-weight: 500;">192.168.1.17:32400</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--google-gray-100);">
+                    <span>Total Subscriptions:</span>
+                    <span style="font-weight: 500;">{{ stats.get('total_channels', 0) }}</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--google-gray-100);">
+                    <span>System Status:</span>
+                    <span class="status-indicator status-ready">Operational</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 8px 0;">
+                    <span>Last System Update:</span>
+                    <span style="font-weight: 500;">{{ stats.get('last_update', 'Never') }}</span>
+                </div>
             </div>
         </div>
-    </div>
-
-    <!-- System Actions -->
-    <div class="glass rounded-xl p-6">
-        <h2 class="text-2xl font-bold text-yellow-300 mb-4">🛠️ System Actions</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button onclick="saveAllSettings()" class="bg-green-500 hover:bg-green-600 px-6 py-3 rounded-lg font-medium transition-colors">
-                💾 Save All Settings
+        <div class="card-actions">
+            <button onclick="testSystemHealth()" class="google-btn">
+                <span class="material-icons">health_and_safety</span>
+                Test Health
             </button>
-            <button onclick="resetToDefaults()" class="bg-yellow-500 hover:bg-yellow-600 px-6 py-3 rounded-lg font-medium transition-colors">
-                🔄 Reset to Defaults
-            </button>
-            <button onclick="exportSettings()" class="bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-lg font-medium transition-colors">
-                📤 Export Settings
-            </button>
-        </div>
-    </div>
-
-    <!-- System Information -->
-    <div class="glass rounded-xl p-6">
-        <h2 class="text-2xl font-bold text-yellow-300 mb-4">ℹ️ System Information</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-black/20 rounded-lg p-4">
-                <div class="font-semibold mb-2">📊 System Version</div>
-                <div class="text-2xl font-bold text-blue-300">v2.0.0</div>
-            </div>
-            <div class="bg-black/20 rounded-lg p-4">
-                <div class="font-semibold mb-2">💾 Storage Used</div>
-                <div class="text-2xl font-bold text-green-300" id="storageUsed">-</div>
-            </div>
-            <div class="bg-black/20 rounded-lg p-4">
-                <div class="font-semibold mb-2">📈 Uptime</div>
-                <div class="text-2xl font-bold text-purple-300" id="systemUptime">-</div>
-            </div>
-            <div class="bg-black/20 rounded-lg p-4">
-                <div class="font-semibold mb-2">🔄 Last Update</div>
-                <div class="text-2xl font-bold text-yellow-300" id="lastUpdate">-</div>
-            </div>
         </div>
     </div>
 
     <!-- Advanced Settings -->
-    <div class="glass rounded-xl p-6">
-        <h2 class="text-2xl font-bold text-yellow-300 mb-4">🔧 Advanced Settings</h2>
-        <div class="space-y-4">
-            <div class="flex items-center space-x-3">
-                <input type="checkbox" id="enableDebugMode" class="rounded">
-                <label for="enableDebugMode" class="text-sm font-medium">Enable Debug Mode</label>
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <span class="material-icons">build</span>
+                Advanced Options
+            </h3>
+        </div>
+        <div class="card-content">
+            <div style="color: var(--google-gray-700); font-size: 14px;">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; font-size: 14px;">
+                        <input type="checkbox" checked style="margin-right: 8px;">
+                        Enable debug logging
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; font-size: 14px;">
+                        <input type="checkbox" checked style="margin-right: 8px;">
+                        Auto-refresh Plex libraries
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; font-size: 14px;">
+                        <input type="checkbox" style="margin-right: 8px;">
+                        Download video thumbnails
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; font-size: 14px;">
+                        <input type="checkbox" style="margin-right: 8px;">
+                        Download video descriptions
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-size: 14px; margin-bottom: 4px;">
+                        Max concurrent downloads:
+                    </label>
+                    <select style="width: 100%; padding: 8px; border: 1px solid var(--google-gray-300); border-radius: 4px; font-size: 14px;">
+                        <option value="1" selected>1 (Recommended)</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
             </div>
-            <div class="flex items-center space-x-3">
-                <input type="checkbox" id="enableTelemetry" class="rounded" checked>
-                <label for="enableTelemetry" class="text-sm font-medium">Enable Usage Telemetry</label>
-            </div>
-            <div class="flex items-center space-x-3">
-                <input type="checkbox" id="autoBackup" class="rounded" checked>
-                <label for="autoBackup" class="text-sm font-medium">Auto-backup Database</label>
-            </div>
-            <div class="flex items-center space-x-3">
-                <input type="checkbox" id="plexAutoRefresh" class="rounded" checked>
-                <label for="plexAutoRefresh" class="text-sm font-medium">Auto-refresh Plex Library</label>
-            </div>
+        </div>
+        <div class="card-actions">
+            <button onclick="saveAdvancedSettings()" class="google-btn google-btn-primary">
+                <span class="material-icons">save</span>
+                Save Advanced
+            </button>
+            
+            <button onclick="resetToDefaults()" class="google-btn google-btn-danger">
+                <span class="material-icons">restore</span>
+                Reset Defaults
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- System Actions -->
+<div class="card mt-24">
+    <div class="card-header">
+        <h2 class="card-title">
+            <span class="material-icons">build_circle</span>
+            System Actions
+        </h2>
+    </div>
+    <div class="card-content">
+        <div class="grid grid-cols-4">
+            <button onclick="exportData()" class="google-btn">
+                <span class="material-icons">download</span>
+                Export Data
+            </button>
+            
+            <button onclick="importSubscriptions()" class="google-btn">
+                <span class="material-icons">upload</span>
+                Import Subscriptions
+            </button>
+            
+            <button onclick="clearLogs()" class="google-btn google-btn-warning">
+                <span class="material-icons">clear_all</span>
+                Clear Logs
+            </button>
+            
+            <button onclick="restartSystem()" class="google-btn google-btn-danger">
+                <span class="material-icons">restart_alt</span>
+                Restart System
+            </button>
         </div>
     </div>
 </div>
@@ -154,98 +296,326 @@
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        loadSettings();
-        updateSystemInfo();
-    });
-
-    function loadSettings() {
-        // Load settings from localStorage or API
-        const settings = localStorage.getItem('youtube_system_settings');
-        if (settings) {
-            const parsed = JSON.parse(settings);
-            // Apply settings to form elements
-            Object.keys(parsed).forEach(key => {
-                const element = document.getElementById(key);
-                if (element) {
-                    if (element.type === 'checkbox') {
-                        element.checked = parsed[key];
-                    } else {
-                        element.value = parsed[key];
-                    }
+    function saveDownloadSettings() {
+        const quality = document.querySelector('input[name="quality"]:checked').value;
+        const schedule = document.querySelector('select').value;
+        
+        showNotification('Saving download settings...', 'info');
+        
+        fetch('/api/save_settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                type: 'download',
+                quality: quality,
+                schedule: schedule
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Download settings saved!', 'success');
+            } else {
+                showNotification(data.message || 'Failed to save settings', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error saving settings', 'error');
+        });
+    }
+    
+    function saveStorageSettings() {
+        showNotification('Saving storage settings...', 'info');
+        
+        const retentionDays = document.querySelector('input[type="number"]').value;
+        const protectWatched = document.querySelector('input[type="checkbox"]:nth-of-type(1)').checked;
+        const protectFavorites = document.querySelector('input[type="checkbox"]:nth-of-type(2)').checked;
+        
+        fetch('/api/save_settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                type: 'storage',
+                retention_days: retentionDays,
+                protect_watched: protectWatched,
+                protect_favorites: protectFavorites
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Storage settings saved!', 'success');
+            } else {
+                showNotification(data.message || 'Failed to save settings', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error saving settings', 'error');
+        });
+    }
+    
+    function saveAdvancedSettings() {
+        showNotification('Saving advanced settings...', 'info');
+        
+        // Get all advanced settings checkboxes
+        const checkboxes = document.querySelectorAll('.card:last-of-type input[type="checkbox"]');
+        const settings = {
+            debug_logging: checkboxes[0].checked,
+            auto_refresh_plex: checkboxes[1].checked,
+            download_thumbnails: checkboxes[2].checked,
+            download_descriptions: checkboxes[3].checked,
+            max_concurrent: document.querySelector('.card:last-of-type select').value
+        };
+        
+        fetch('/api/save_settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                type: 'advanced',
+                ...settings
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Advanced settings saved!', 'success');
+            } else {
+                showNotification(data.message || 'Failed to save settings', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error saving settings', 'error');
+        });
+    }
+    
+    function runCleanupNow() {
+        if (confirm('Run storage cleanup now? This will remove videos older than the retention period.')) {
+            showNotification('Running storage cleanup...', 'info');
+            
+            fetch('/api/retention_cleanup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Storage cleanup completed!', 'success');
+                } else {
+                    showNotification(data.error || 'Cleanup failed', 'error');
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error running cleanup', 'error');
             });
         }
     }
-
-    function saveAllSettings() {
-        const settings = {
-            storageDir: document.getElementById('storageDir').value,
-            plexServer: document.getElementById('plexServer').value,
-            databasePath: document.getElementById('databasePath').value,
-            logLevel: document.getElementById('logLevel').value,
-            retentionDays: parseInt(document.getElementById('retentionDays').value),
-            videosPerChannel: parseInt(document.getElementById('videosPerChannel').value),
-            refreshInterval: parseInt(document.getElementById('refreshInterval').value),
-            autoDownload: document.getElementById('autoDownload').value,
-            autoCleanup: document.getElementById('autoCleanup').value,
-            enableDebugMode: document.getElementById('enableDebugMode').checked,
-            enableTelemetry: document.getElementById('enableTelemetry').checked,
-            autoBackup: document.getElementById('autoBackup').checked,
-            plexAutoRefresh: document.getElementById('plexAutoRefresh').checked
-        };
-
-        localStorage.setItem('youtube_system_settings', JSON.stringify(settings));
-        showToast('Settings saved successfully!', 'success');
-
-        // TODO: Send to API to persist server-side
-        // await apiCall('/api/settings', 'POST', settings);
+    
+    function analyzeStorage() {
+        showNotification('Analyzing storage usage...', 'info');
+        
+        fetch('/api/retention_analyze')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Storage Analysis:\n\n' + data.output);
+            } else {
+                showNotification(data.error || 'Analysis failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error analyzing storage', 'error');
+        });
     }
-
+    
+    function testSystemHealth() {
+        showNotification('Testing system health...', 'info');
+        
+        fetch('/api/health_check')
+        .then(response => response.json())
+        .then(data => {
+            if (data.healthy) {
+                showNotification('System health check passed!', 'success');
+            } else {
+                showNotification('System health issues detected', 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error testing system health', 'error');
+        });
+    }
+    
     function resetToDefaults() {
-        if (confirm('This will reset all settings to their default values. Continue?')) {
-            localStorage.removeItem('youtube_system_settings');
+        if (confirm('Reset all settings to defaults? This cannot be undone.')) {
+            showNotification('Resetting to default settings...', 'warning');
             
-            // Reset form to defaults
-            document.getElementById('storageDir').value = '/mnt/nfs_share/charles/youtube';
-            document.getElementById('plexServer').value = 'http://192.168.1.17:32400';
-            document.getElementById('databasePath').value = '/home/jbyrd/hatter-pai/youtube_automation.db';
-            document.getElementById('logLevel').value = 'INFO';
-            document.getElementById('retentionDays').value = 30;
-            document.getElementById('videosPerChannel').value = 5;
-            document.getElementById('refreshInterval').value = 60;
-            document.getElementById('autoDownload').value = 'daily';
-            document.getElementById('autoCleanup').value = 'daily';
-            document.getElementById('enableDebugMode').checked = false;
-            document.getElementById('enableTelemetry').checked = true;
-            document.getElementById('autoBackup').checked = true;
-            document.getElementById('plexAutoRefresh').checked = true;
-
-            showToast('Settings reset to defaults', 'info');
+            fetch('/api/reset_settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Settings reset to defaults!', 'success');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showNotification(data.message || 'Reset failed', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error resetting settings', 'error');
+            });
         }
     }
-
-    function exportSettings() {
-        const settings = localStorage.getItem('youtube_system_settings') || '{}';
-        const blob = new Blob([settings], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'youtube_system_settings.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        showToast('Settings exported!', 'success');
+    
+    function exportData() {
+        showNotification('Exporting system data...', 'info');
+        window.open('/api/export_data', '_blank');
     }
-
-    function updateSystemInfo() {
-        // Mock system info - in real implementation, these would come from API
-        document.getElementById('storageUsed').textContent = '15.2 GB';
-        document.getElementById('systemUptime').textContent = '2d 4h';
-        document.getElementById('lastUpdate').textContent = 'Just now';
+    
+    function importSubscriptions() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.csv,.json';
+        input.onchange = function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                showNotification('Importing subscriptions...', 'info');
+                
+                fetch('/api/import_subscriptions', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('Subscriptions imported successfully!', 'success');
+                        setTimeout(() => location.reload(), 2000);
+                    } else {
+                        showNotification(data.message || 'Import failed', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Error importing subscriptions', 'error');
+                });
+            }
+        };
+        input.click();
+    }
+    
+    function clearLogs() {
+        if (confirm('Clear all system logs? This cannot be undone.')) {
+            showNotification('Clearing system logs...', 'warning');
+            
+            fetch('/api/clear_logs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('System logs cleared!', 'success');
+                } else {
+                    showNotification(data.message || 'Failed to clear logs', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error clearing logs', 'error');
+            });
+        }
+    }
+    
+    function restartSystem() {
+        if (confirm('Restart the YouTube automation system? This will stop all active downloads.')) {
+            showNotification('Restarting system...', 'warning');
+            
+            fetch('/api/restart_system', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('System restart initiated!', 'success');
+                    setTimeout(() => location.reload(), 3000);
+                } else {
+                    showNotification(data.message || 'Restart failed', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error restarting system', 'error');
+            });
+        }
+    }
+    
+    function showNotification(message, type = 'info') {
+        // Create notification element (same as other pages)
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: var(--elevation-3);
+            max-width: 320px;
+            font-size: 14px;
+        `;
+        
+        // Set color based on type
+        switch(type) {
+            case 'success':
+                notification.style.background = 'var(--google-green)';
+                break;
+            case 'error':
+                notification.style.background = 'var(--google-red)';
+                break;
+            case 'warning':
+                notification.style.background = 'var(--google-yellow)';
+                notification.style.color = 'var(--google-gray-800)';
+                break;
+            default:
+                notification.style.background = 'var(--google-blue)';
+        }
+        
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        // Remove after 4 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
+        }, 4000);
     }
 </script>
 {% endblock %}
