@@ -1,64 +1,61 @@
-# PAI Personal Configuration - Sensitive Data Protection
 
-# Secrets and tokens (already GPG encrypted, but extra protection)
-.config/pai/secrets/
-*.token
-*.key
-*-token.gpg
-*-key.gpg
-
-# Personal energy data and utility bills
-green_button_data_*.zip
-green_button_data_*.xml
-utility_bills/
-energy_data/
-*.gbxml
-
-# Personal attachments and case data
+*~
 attachments/
-extracts/
 case_*.md
-job_*.txt
+.config/pai/secrets/
+.cursor/
+# Cursor and IDE files
+customer_*.md
+.DS_Store
+energy_data/
+extracts/
+*.gbxml
+green_button_data_*.xml
+green_button_data_*.zip
+ha_backups/
+home_assistant_snapshots/
+# Home Assistant specific configs with personal data
+jimmy-charles-style.py
+jimmy-full-system.py
+jimmy-system-deploy.tar.gz
+jimmy-takeout-subscriptions.csv
+jimmy-web-manager-old.py
+jimmy-web-manager-v2.py
+jimmy_youtube_automation.db
 job_*.md
+job_*.txt
+*.key
+*-key.gpg
+# Local configuration and temporary files
+# Local PAI runtime data
+*.log
+logs/
+media_analysis/
+my_*.md
+# OS and editor files
+pai_cache/
+# PAI Personal Configuration - Sensitive Data Protection
+.pai_runtime/
+# Personal attachments and case data
+# Personal documents and analysis
+# Personal energy data and utility bills
+*_personal.md
+plex_data/
+# Plex personal data
+*_private.md
+# Secrets and tokens (already GPG encrypted, but extra protection)
 sosreport-*/
-*.tar.xz
-
 # SUSE/Customer specific files with personal data
 suse_*.md
 suse_*.yml
-customer_*.md
-
-# Cursor and IDE files
-.cursor/
-.vscode/
-
-# Local configuration and temporary files
-*.log
-*.tmp
-temp/
-logs/
-
-# Plex personal data
-plex_data/
-media_analysis/
-
-# Home Assistant specific configs with personal data
-home_assistant_snapshots/
-ha_backups/
-
-# Personal documents and analysis
-*_personal.md
-*_private.md
-customer_*.md
-my_*.md
-
-# OS and editor files
-.DS_Store
-Thumbs.db
-*~
-*.swp
 *.swo
-
-# Local PAI runtime data
-.pai_runtime/
-pai_cache/
+*.swp
+*.tar.xz
+temp/
+Thumbs.db
+*.tmp
+*.token
+*-token.gpg
+utility_bills/
+.vscode/
+youtube_token.json
