@@ -118,3 +118,4 @@ if __name__ == "__main__":
     
     print(f"\n✅ Ready to create directories and set up automation!")
     print(f"Total: {total_channels} channels categorized")
+

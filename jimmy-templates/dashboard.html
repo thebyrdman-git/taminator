@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}📊 Dashboard - Jimmy's YouTube System{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="text-center">
+        <h1 class="text-4xl font-bold mb-4">📊 YouTube Automation Dashboard</h1>
+        <p class="text-xl opacity-90">Real-time monitoring of Jimmy's YouTube downloads</p>
+    </div>
+
+    <!-- Status Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="glass rounded-xl p-6 card-hover">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-yellow-300" id="totalChannels">{{ stats.total_channels or 0 }}</div>
+                <div class="text-sm opacity-80 mt-2">📺 Subscribed Channels</div>
+            </div>
+        </div>
+        
+        <div class="glass rounded-xl p-6 card-hover">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-green-300" id="completedChannels">-</div>
+                <div class="text-sm opacity-80 mt-2">✅ Completed</div>
+            </div>
+        </div>
+        
+        <div class="glass rounded-xl p-6 card-hover">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-blue-300" id="downloadedVideos">{{ stats.actual_files or stats.total_downloads or 0 }}</div>
+                <div class="text-sm opacity-80 mt-2">⬇️ Downloaded Videos</div>
+            </div>
+        </div>
+        
+        <div class="glass rounded-xl p-6 card-hover">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-purple-300" id="plexLibraries">6</div>
+                <div class="text-sm opacity-80 mt-2">📚 Plex Libraries</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jimmy's Categories -->
+    <div class="glass rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-yellow-300 mb-4">📊 Jimmy's YouTube Categories</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% if stats.categories %}
+                {% for category, count in stats.categories %}
+                <div class="bg-black/30 rounded-lg p-4">
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold">🎬 Jimmy Youtube {{ category }}</span>
+                        <span class="bg-blue-500 px-2 py-1 rounded-full text-sm">{{ count }} channels</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-span-full text-center text-gray-400 py-8">Loading categories...</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="glass rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-yellow-300">🔄 System Status</h2>
+            <div class="flex space-x-3">
+                <span class="px-3 py-1 rounded-full text-sm font-medium" id="systemStatus">
+                    {{ 'Active' if status.active else 'Ready' }}
+                </span>
+                <button onclick="refreshData()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                    🔄 Refresh
+                </button>
+            </div>
+        </div>
+        
+        <!-- Overall Progress -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-lg font-medium">Overall Progress</span>
+                <span id="progressPercentage" class="text-lg font-medium">{{ status.progress or 0 }}%</span>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-6">
+                <div class="progress-bar h-6 rounded-full transition-all duration-500" id="progressBar" style="width: {{ status.progress or 0 }}%"></div>
+            </div>
+            <div class="text-sm opacity-80 mt-2" id="progressText">
+                Ready to download from your {{ stats.total_channels or 0 }} YouTube subscriptions!
+            </div>
+        </div>
+
+        <!-- Current Activity -->
+        <div id="currentActivity" class="{{ 'block' if status.active else 'hidden' }}">
+            <h3 class="text-lg font-semibold mb-3">📺 Current Activity</h3>
+            <div class="bg-black/30 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <div class="animate-pulse-custom">⬇️</div>
+                    <span>Downloading from: <span id="currentChannel" class="font-bold text-yellow-300">{{ status.current_channel or '-' }}</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="glass rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-yellow-300 mb-4">🎮 Quick Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <button onclick="startDownloads()" id="startBtn" 
+                class="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 px-6 py-3 rounded-lg font-medium transition-colors"
+                {{ 'disabled' if status.active else '' }}>
+                🚀 Start Downloads
+            </button>
+            
+            <button onclick="stopDownloads()" id="stopBtn" 
+                class="bg-red-500 hover:bg-red-600 disabled:bg-gray-500 px-6 py-3 rounded-lg font-medium transition-colors" 
+                {{ '' if status.active else 'disabled' }}>
+                ⏹️ Stop Downloads
+            </button>
+            
+            <button onclick="refreshPlex()" 
+                class="bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-lg font-medium transition-colors">
+                🎬 Refresh Plex
+            </button>
+            
+            <button onclick="runRetentionCleanup()" 
+                class="bg-yellow-500 hover:bg-yellow-600 px-6 py-3 rounded-lg font-medium transition-colors">
+                🧹 90-Day Cleanup
+            </button>
+        </div>
+    </div>
+
+    <!-- Status Display -->
+    <div class="glass rounded-xl p-6">
+            <div id="statusDisplay" class="text-center">
+                <strong>💡 Ready to download from your {{ stats.total_channels or 0 }} YouTube subscriptions!</strong><br>
+                You have {{ stats.actual_files or 0 }} videos organized into 8 categorized Plex libraries.<br>
+                <span class="text-sm opacity-75">🧹 90-day retention policy keeps storage optimized</span>
+            </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let statusData = {
+        active: {{ 'true' if status.active else 'false' }},
+        current_channel: {{ '"' + (status.current_channel or '') + '"' }},
+        progress: {{ status.progress or 0 }},
+        total_channels: {{ stats.total_channels or 0 }},
+        completed_channels: {{ status.completed_channels or 0 }},
+        downloaded_videos: {{ stats.actual_files or stats.total_downloads or 0 }},
+        errors: {{ status.errors | tojson if status.errors else '[]' }}
+    };
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        updateStatusDisplay();
+        // Auto-refresh every 5 seconds when downloading
+        setInterval(() => {
+            if (statusData.active) {
+                refreshData();
+            }
+        }, 5000);
+    });
+
+    async function refreshData() {
+        try {
+            const response = await fetch('/api/status');
+            const data = await response.json();
+            statusData = data;
+            updateStatusDisplay();
+            
+            // Update page elements
+            document.getElementById('totalChannels').textContent = statusData.total_channels || 0;
+            document.getElementById('completedChannels').textContent = statusData.completed_channels || 0;
+            document.getElementById('downloadedVideos').textContent = statusData.downloaded_videos || 0;
+            
+        } catch (error) {
+            console.error('Failed to refresh data:', error);
+        }
+    }
+
+    function updateStatusDisplay() {
+        const systemStatusEl = document.getElementById('systemStatus');
+        const progressEl = document.getElementById('progressBar');
+        const progressTextEl = document.getElementById('progressText');
+        const progressPercentageEl = document.getElementById('progressPercentage');
+        const currentActivityEl = document.getElementById('currentActivity');
+        const currentChannelEl = document.getElementById('currentChannel');
+
+        if (statusData.active) {
+            systemStatusEl.textContent = '🔄 Downloading...';
+            systemStatusEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-green-500 animate-pulse-custom';
+            
+            // Show current activity
+            currentActivityEl.classList.remove('hidden');
+            if (currentChannelEl) currentChannelEl.textContent = statusData.current_channel || 'Unknown';
+            
+            // Update progress
+            const progress = statusData.progress || 0;
+            progressEl.style.width = progress + '%';
+            progressPercentageEl.textContent = progress + '%';
+            progressTextEl.textContent = `Processing ${statusData.completed_channels} of ${statusData.total_channels} channels`;
+            
+            // Update button states
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+        } else {
+            systemStatusEl.textContent = '⏹️ Ready';
+            systemStatusEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-500';
+            
+            // Hide current activity
+            currentActivityEl.classList.add('hidden');
+            
+            // Update progress
+            const progress = statusData.total_channels > 0 ? 
+                Math.round((statusData.completed_channels / statusData.total_channels) * 100) : 0;
+            progressEl.style.width = progress + '%';
+            progressPercentageEl.textContent = progress + '%';
+            progressTextEl.textContent = `Ready to download from your ${statusData.total_channels} YouTube subscriptions!`;
+            
+            // Update button states
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+    }
+
+    async function startDownloads() {
+        const result = await apiCall('/api/start_downloads', 'POST');
+        if (result.success) {
+            showToast('Downloads started successfully!', 'success');
+            statusData.active = true;
+            updateStatusDisplay();
+            refreshData();
+        } else {
+            showToast('Failed to start downloads: ' + result.message, 'error');
+        }
+    }
+
+    async function stopDownloads() {
+        const result = await apiCall('/api/stop_downloads', 'POST');
+        if (result.success) {
+            showToast('Downloads stopped', 'info');
+            statusData.active = false;
+            updateStatusDisplay();
+        } else {
+            showToast('Failed to stop downloads: ' + result.message, 'error');
+        }
+    }
+
+    async function refreshPlex() {
+        showToast('Refreshing Jimmy\'s Plex libraries...', 'info');
+        const result = await apiCall('/api/refresh_plex', 'POST');
+        if (result.success) {
+            showToast('Plex library refresh triggered!', 'success');
+        } else {
+            showToast('Plex refresh failed: ' + result.message, 'error');
+        }
+    }
+
+    async function runRetentionCleanup() {
+        if (confirm('Run 90-day retention cleanup? This will remove videos older than 90 days.')) {
+            showToast('Running 90-day cleanup...', 'info');
+            const result = await apiCall('/api/retention_cleanup', 'POST');
+            if (result.success) {
+                showToast('90-day cleanup completed!', 'success');
+            } else {
+                showToast('Cleanup failed: ' + result.error, 'error');
+            }
+        }
+    }
+</script>
+{% endblock %}

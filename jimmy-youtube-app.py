@@ -15,7 +15,7 @@ import logging
 # Configuration for Jimmy's system
 JIMMY_YOUTUBE_DIR = "/mnt/nfs_share/jimmy/youtube"
 JIMMY_DATABASE_PATH = "/home/jbyrd/hatter-pai/jimmy_youtube_automation.db"
-JIMMY_SUBSCRIPTIONS_CSV = "/home/jbyrd/hatter-pai-youtube/jimmy-subscriptions.csv"
+JIMMY_SUBSCRIPTIONS_CSV = "/home/jbyrd/hatter-pai/jimmy-subscriptions.csv"
 
 # Jimmy's channel categories (from our analysis)
 JIMMY_CATEGORIES = {
@@ -139,13 +139,20 @@ def download_jimmy_channel_videos(channel_name, channel_url, max_videos=1):
             # Download from channel
             ydl.download([channel_url])
         
-        # Update database
+        # Update database and record download
         conn = sqlite3.connect(JIMMY_DATABASE_PATH)
         cursor = conn.cursor()
         cursor.execute('''
             UPDATE jimmy_channels SET last_download = ?, status = 'downloaded'
             WHERE name = ?
         ''', (datetime.now().isoformat(), channel_name))
+        
+        # Record the download in jimmy_downloads table
+        cursor.execute('''
+            INSERT INTO jimmy_downloads (channel_name, video_title, video_id, file_path, category)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (channel_name, "Latest Video", "unknown", category_path, category))
+        
         conn.commit()
         conn.close()
         
