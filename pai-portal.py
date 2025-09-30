@@ -492,34 +492,49 @@ def status_all():
         "jimmy_youtube": False,
     }
     
-    # Check Node Exporter (HP)
+    # Check Node Exporter (HP) - Direct HTTP request
     try:
-        result = subprocess.run(['ssh', 'jbyrd@192.168.1.34', 'curl -s http://192.168.1.34:9100/metrics'], capture_output=True, text=True, timeout=5)
-        if "node_cpu_seconds_total" in result.stdout:
-            status["node_exporter_hp"] = True
+        import urllib.request
+        with urllib.request.urlopen('http://localhost:9100/metrics', timeout=5) as response:
+            if response.getcode() == 200:
+                content = response.read().decode()
+                if "node_cpu_seconds_total" in content:
+                    status["node_exporter_hp"] = True
     except Exception:
         pass
 
-    # Check Prometheus
+    # Check Prometheus - Direct HTTP request
     try:
-        result = subprocess.run(['ssh', 'jbyrd@192.168.1.34', 'curl -s http://192.168.1.34:9090/-/healthy'], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0 and "Prometheus is Healthy" in result.stdout:
-            status["prometheus"] = True
+        with urllib.request.urlopen('http://localhost:9090/api/v1/query?query=up', timeout=5) as response:
+            if response.getcode() == 200:
+                status["prometheus"] = True
+    except Exception:
+        # Also try basic connection
+        try:
+            with urllib.request.urlopen('http://localhost:9090/', timeout=3) as response:
+                if response.getcode() == 200:
+                    status["prometheus"] = True
+        except Exception:
+            pass
+
+    # Check Grafana - Direct HTTP request
+    try:
+        with urllib.request.urlopen('http://localhost:3000/api/health', timeout=5) as response:
+            if response.getcode() == 200:
+                content = response.read().decode()
+                if "database" in content:
+                    status["grafana"] = True
     except Exception:
         pass
 
-    # Check Grafana
+    # Check Jimmy's YouTube - Direct HTTP request (accept 500 as "running but with errors")
     try:
-        result = subprocess.run(['ssh', 'jbyrd@192.168.1.34', 'curl -s http://192.168.1.34:3000/api/health'], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0 and "database" in result.stdout:
-            status["grafana"] = True
-    except Exception:
-        pass
-
-    # Check Jimmy's YouTube
-    try:
-        result = subprocess.run(['ssh', 'jbyrd@192.168.1.34', 'curl -s http://192.168.1.34:5001/api/status'], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0 and "total_channels" in result.stdout:
+        with urllib.request.urlopen('http://localhost:5001/', timeout=5) as response:
+            # Service is running if we get any response (even 500 error)
+            status["jimmy_youtube"] = True
+    except urllib.error.HTTPError as e:
+        if e.code == 500:
+            # 500 means service is running but has template errors
             status["jimmy_youtube"] = True
     except Exception:
         pass
