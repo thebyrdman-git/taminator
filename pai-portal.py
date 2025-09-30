@@ -433,7 +433,7 @@ HOME_HTML = """
                     </div>
                 </a>
                 
-                <a href="http://192.168.1.34:9091" target="_blank" class="service-link">
+                <a href="https://miraclemax.duckdns.org" target="_blank" class="service-link">
                     <div class="card">
                         <div class="card-content">
                             <div class="card-header">
@@ -445,6 +445,24 @@ HOME_HTML = """
                                 <span class="google-btn">
                                     <span class="material-icons" style="font-size: 16px; margin-right: 8px;">admin_panel_settings</span>
                                     Manage Server
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+                
+                <a href="https://byrdhome.duckdns.org" target="_blank" class="service-link">
+                    <div class="card">
+                        <div class="card-content">
+                            <div class="card-header">
+                                <span class="material-icons card-icon">home_iot_device</span>
+                                <span class="card-title">Home Assistant</span>
+                            </div>
+                            <p class="card-description">Smart home automation and device management</p>
+                            <div style="margin-top: 12px;">
+                                <span class="google-btn google-btn-primary">
+                                    <span class="material-icons" style="font-size: 16px; margin-right: 8px;">launch</span>
+                                    Open Dashboard
                                 </span>
                             </div>
                         </div>
