@@ -115,9 +115,9 @@ graph TD
 ```
 
 **Fabric AI knows about ALL models**:
-- OpenAI models: `gpt-4o`, `gpt-5`, `o1-preview`
+- OpenAI models: `gpt-5`, `o3`
 - Google models: `gemini-pro`, `gemini-flash`
-- Anthropic models: `claude-3-5-sonnet`, `claude-3-haiku`
+- Anthropic models: `claude-4-5-sonnet`, `claude-4-1-Opus`
 - **Red Hat models (via LiteLLM)**: `granite-34b-instruct`, `granite-7b-instruct`
 
 ### Smart PAI Script Wrappers
