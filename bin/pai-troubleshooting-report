@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+
+"""
+PAI Troubleshooting Report Command
+Purpose: Generate active troubleshooting case reports for customer portal updates
+Usage: pai-troubleshooting-report [customer] [months]
+"""
+
+import sys
+import os
+
+# Add the RFE automation source directory to Python path
+sys.path.insert(0, '/home/jbyrd/Documents/rh/projects/automation/rfe-bug-tracker-automation/src')
+
+from troubleshooting_portal_updater import TroubleshootingPortalUpdater
+
+def main():
+    """Run the troubleshooting case report system"""
+    
+    # Parse arguments
+    customer = sys.argv[1] if len(sys.argv) > 1 else "wellsfargo"
+    months = int(sys.argv[2]) if len(sys.argv) > 2 else 6
+    
+    if customer in ['-h', '--help', 'help']:
+        print("""
+PAI Troubleshooting Report - Generate Active Case Reports
+
+USAGE:
+    pai-troubleshooting-report [customer] [months]
+
+ARGUMENTS:
+    customer    Customer key (default: wellsfargo)
+    months      Months of case history (default: 6)
+
+EXAMPLES:
+    pai-troubleshooting-report                    # Wells Fargo, 6 months
+    pai-troubleshooting-report wellsfargo 3       # Wells Fargo, 3 months  
+    pai-troubleshooting-report wellsfargo 12      # Wells Fargo, 1 year
+
+PURPOSE:
+    Generates reports for active troubleshooting cases that need support
+    resolution but haven't been escalated to RFE or Bug status yet.
+    
+    Excludes RFE and Bug cases (tracked separately).
+    Shows case status as requested (not detailed explanations).
+
+OUTPUT:
+    - Report content ready for portal posting
+    - Manual update instructions with edit URL
+    - Summary statistics
+    """)
+        return
+    
+    print(f"🎯 PAI TROUBLESHOOTING REPORT")
+    print(f"   Customer: {customer.upper()}")
+    print(f"   History: {months} months")
+    print(f"   Focus: Active troubleshooting cases needing resolution")
+    print("")
+    
+    try:
+        # Initialize and run
+        updater = TroubleshootingPortalUpdater()
+        result = updater.update_troubleshooting_report(customer, months)
+        
+        if result.get("success"):
+            print(f"✅ SUCCESS: Troubleshooting report generated!")
+            print(f"   🏢 Customer: {result['customer']}")
+            print(f"   🔍 Cases found: {result['troubleshooting_cases']}")
+            
+            if result.get("portal_posted"):
+                print(f"   🌐 Portal: Updated automatically")
+                print(f"   🔗 URL: {result.get('portal_url')}")
+            else:
+                print(f"   📝 Manual update required")
+                print(f"   📁 Check: /tmp/{customer}_manual_portal_content.md")
+                print(f"   📍 Edit URL provided in instructions")
+                
+        else:
+            print(f"❌ FAILED: {result.get('error', 'Unknown error')}")
+            sys.exit(1)
+            
+    except Exception as e:
+        print(f"❌ ERROR: {e}")
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

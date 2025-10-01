@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+
+"""
+PAI TAM Call Notes Command
+Purpose: Post TAM call notes as discussion posts with professional formatting
+Usage: pai-tam-call-notes [customer] [options] [notes-file]
+"""
+
+import sys
+import os
+from datetime import datetime
+
+# Add the RFE automation source directory to Python path
+sys.path.insert(0, '/home/jbyrd/Documents/rh/projects/automation/rfe-bug-tracker-automation/src')
+
+from tam_call_notes_poster import TAMCallNotesPoster
+
+def main():
+    """Run the TAM call notes poster"""
+    
+    if len(sys.argv) < 2 or sys.argv[1] in ['-h', '--help', 'help']:
+        print("""
+PAI TAM Call Notes - Professional Discussion Posts for Call Notes
+
+USAGE:
+    pai-tam-call-notes [customer] [options] [notes-file]
+
+OPTIONS:
+    --template              Generate template file for note-taking
+    --interactive          Interactive mode for entering notes
+    --test                 Test mode (won't create actual post)
+
+ARGUMENTS:
+    customer               Customer key (wellsfargo, jpmc, tdbank, fanniemae)
+    notes-file             Markdown file with call notes
+
+EXAMPLES:
+    pai-tam-call-notes wellsfargo my-call-notes.md     # Post notes from file
+    pai-tam-call-notes wellsfargo --template           # Generate template
+    pai-tam-call-notes wellsfargo --interactive        # Enter notes interactively
+    pai-tam-call-notes wellsfargo --test notes.md      # Test formatting only
+
+FORMATTING FEATURES:
+    ✅ Date/time stamped titles
+    ✅ Automatic case number linking (04123456 → clickable)
+    ✅ Automatic JIRA linking (AAP-12345 → clickable)  
+    ✅ Professional headers and footers
+    ✅ Structured sections (agenda, action items, etc.)
+    ✅ Call metadata (attendees, duration)
+    ✅ Quick reference links
+    ✅ No email notifications to customers
+
+WORKFLOW:
+    1. Take notes during/after TAM call
+    2. Save notes as markdown file
+    3. Run: pai-tam-call-notes [customer] notes.md
+    4. Notes automatically posted as discussion
+
+CRON SCHEDULING:
+    Not recommended for cron - this is triggered manually after calls
+    """)
+        return
+    
+    # Parse arguments
+    customer = sys.argv[1] if len(sys.argv) > 1 else None
+    
+    if not customer:
+        print("❌ ERROR: Customer required")
+        sys.exit(1)
+    
+    # Check for options
+    template_mode = '--template' in sys.argv
+    interactive_mode = '--interactive' in sys.argv  
+    test_mode = '--test' in sys.argv
+    
+    # Find notes file
+    notes_file = None
+    for arg in sys.argv[2:]:
+        if not arg.startswith('--') and os.path.exists(arg):
+            notes_file = arg
+            break
+    
+    print(f"📞 PAI TAM CALL NOTES")
+    print(f"   Customer: {customer.upper()}")
+    print(f"   Mode: {'TEMPLATE' if template_mode else 'INTERACTIVE' if interactive_mode else 'TEST' if test_mode else 'LIVE'}")
+    print(f"   Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S EST')}")
+    print("")
+    
+    try:
+        # Set environment variables if not already set
+        if not os.getenv('REDHAT_USERNAME'):
+            os.environ['REDHAT_USERNAME'] = 'rhn-support-jbyrd'
+        if not os.getenv('REDHAT_PASSWORD'):
+            os.environ['REDHAT_PASSWORD'] = 'Epifone123f3@rhn'
+        
+        poster = TAMCallNotesPoster()
+        
+        # Handle template mode
+        if template_mode:
+            print("📋 Generating call notes template...")
+            template = poster.create_example_notes_template(customer)
+            template_file = f"{customer}_call_notes_template.md"
+            
+            with open(template_file, 'w') as f:
+                f.write(template)
+            
+            print(f"   ✅ Template saved: {template_file}")
+            print(f"   📝 Edit the template with your call notes")
+            print(f"   🚀 Then run: pai-tam-call-notes {customer} {template_file}")
+            return
+        
+        # Handle interactive mode
+        if interactive_mode:
+            print("💬 Interactive mode not yet implemented")
+            print("   📋 Use --template to generate a template file")
+            print("   📝 Edit the template with your notes")
+            print(f"   🚀 Then run: pai-tam-call-notes {customer} your-notes.md")
+            return
+        
+        # Handle file-based notes
+        if not notes_file:
+            print("❌ ERROR: Notes file required")
+            print("   💡 Try: pai-tam-call-notes --template to get started")
+            sys.exit(1)
+        
+        # Call metadata (could be enhanced later)
+        call_metadata = {
+            'customer': customer,
+            'type': 'Weekly TAM Call',
+            'duration': '60 minutes'
+        }
+        
+        if test_mode:
+            print("🧪 TEST MODE: Will not create actual discussion post")
+            print(f"📁 Reading notes from: {notes_file}")
+            
+            with open(notes_file, 'r') as f:
+                content = f.read()
+            
+            print(f"   ✅ Read {len(content)} characters")
+            print("   📝 Would format and post these notes")
+            formatted = poster.format_structured_notes(content, call_metadata)
+            
+            print("\n📄 FORMATTED CONTENT PREVIEW:")
+            print("=" * 50)
+            print(formatted[:500] + "...")
+            print("=" * 50)
+            print("   (In live mode, this would be posted to customer portal)")
+        else:
+            print("🚀 LIVE MODE: Creating actual discussion post...")
+            result = poster.post_notes_from_file(customer, notes_file, call_metadata)
+            
+            if result.get("success"):
+                print(f"✅ SUCCESS: TAM call notes posted!")
+                print(f"   🏢 Customer: {result['customer']}")
+                print(f"   📝 Title: {result['discussion_title']}")
+                print(f"   🆔 Discussion ID: {result.get('discussion_id', 'N/A')}")
+                print(f"   🌐 Environment: {result.get('api_environment', 'Unknown')}")
+                print(f"   📅 Created: {result.get('created_at', 'Unknown')}")
+            else:
+                print(f"❌ FAILED: {result.get('error', 'Unknown error')}")
+                sys.exit(1)
+            
+    except Exception as e:
+        print(f"❌ ERROR: {e}")
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

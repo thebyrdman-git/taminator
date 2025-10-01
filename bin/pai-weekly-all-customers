@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+
+"""
+PAI Weekly Troubleshooting Reports - All Customers
+Purpose: Generate weekly troubleshooting case reports for all customers
+Features: Flexible scheduling, TAM Details column, customer-specific formatting
+Usage: pai-weekly-all-customers [customer] [options]
+"""
+
+import sys
+import os
+from datetime import datetime
+
+# Add the RFE automation source directory to Python path
+sys.path.insert(0, '/home/jbyrd/Documents/rh/projects/automation/rfe-bug-tracker-automation/src')
+
+from multi_customer_weekly_poster import MultiCustomerWeeklyPoster
+
+def main():
+    """Run weekly troubleshooting reports for all customers"""
+    
+    if len(sys.argv) > 1 and sys.argv[1] in ['-h', '--help', 'help']:
+        print("""
+PAI Weekly Troubleshooting Reports - All Customer Support
+
+USAGE:
+    pai-weekly-all-customers [customer] [options]
+
+OPTIONS:
+    --all                   Generate reports for all customers
+    --schedule             Show customer schedules
+    --test                 Test mode (generate but don't post)
+
+CUSTOMER KEYS:
+    wellsfargo             Wells Fargo (Wednesdays 9am EST)
+    jpmc                   JP Morgan Chase (Tuesdays 8am EST)
+    tdbank                 TD Bank (Thursdays 10am EST)  
+    fanniemae              Fannie Mae (Fridays 2pm EST)
+
+EXAMPLES:
+    pai-weekly-all-customers --all                    # All customers
+    pai-weekly-all-customers wellsfargo              # Wells Fargo only
+    pai-weekly-all-customers --schedule              # Show schedules
+    pai-weekly-all-customers jpmc --test             # Test JPMC report
+
+FEATURES:
+    ✅ Flexible scheduling per customer (based on TAM call timing)
+    ✅ TAM Details column for manual completion
+    ✅ Customer-specific formatting and templates
+    ✅ Executive summaries and case metrics
+    ✅ Automatic case filtering (excludes RFE/Bug cases)
+    ✅ Clickable case numbers and reference links
+    ✅ Weekly summary with next report dates
+    ✅ No email notifications (manual posting workflow)
+
+SCHEDULING:
+    Each customer has their own schedule based on TAM call timing.
+    Use cron jobs to automate:
+    
+    # Wells Fargo: Wednesday 9am EST  
+    0 9 * * 3 /home/jbyrd/hatter-pai/bin/pai-weekly-all-customers wellsfargo
+    
+    # JPMC: Tuesday 8am EST
+    0 8 * * 2 /home/jbyrd/hatter-pai/bin/pai-weekly-all-customers jpmc
+    
+    # TD Bank: Thursday 10am EST
+    0 10 * * 4 /home/jbyrd/hatter-pai/bin/pai-weekly-all-customers tdbank
+    
+    # Fannie Mae: Friday 2pm EST
+    0 14 * * 5 /home/jbyrd/hatter-pai/bin/pai-weekly-all-customers fanniemae
+
+DETAILS COLUMN:
+    Each report includes a "Details" column for TAM to manually fill with:
+    - Current troubleshooting status
+    - Next steps or actions needed  
+    - Relevant context from communications
+    - Priority or escalation notes
+    """)
+        return
+    
+    # Parse arguments
+    customer = None
+    show_all = '--all' in sys.argv
+    show_schedule = '--schedule' in sys.argv
+    test_mode = '--test' in sys.argv
+    
+    for arg in sys.argv[1:]:
+        if not arg.startswith('--') and arg not in ['test']:
+            customer = arg
+            break
+    
+    print(f"📅 PAI WEEKLY TROUBLESHOOTING REPORTS - ALL CUSTOMERS")
+    print(f"   Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S EST')}")
+    print(f"   Mode: {'TEST' if test_mode else 'LIVE'}")
+    print("")
+    
+    try:
+        # Set environment variables if not already set
+        if not os.getenv('REDHAT_USERNAME'):
+            os.environ['REDHAT_USERNAME'] = 'rhn-support-jbyrd'
+        if not os.getenv('REDHAT_PASSWORD'):
+            os.environ['REDHAT_PASSWORD'] = 'Epifone123f3@rhn'
+        
+        poster = MultiCustomerWeeklyPoster()
+        
+        # Show schedules if requested
+        if show_schedule:
+            print("📅 CUSTOMER WEEKLY REPORT SCHEDULES:")
+            print("=" * 50)
+            for customer_key, config in poster.config['customers'].items():
+                schedule = config.get('schedule', {})
+                cron_template = poster.config.get('cron_templates', {}).get(customer_key, 'Not configured')
+                
+                print(f"🏢 {config['name']} ({customer_key})")
+                print(f"   📅 Day: {schedule.get('day_of_week', 'Unknown').title()}")
+                print(f"   ⏰ Time: {schedule.get('time', 'Unknown')} {schedule.get('timezone', 'EST')}")
+                print(f"   📝 Description: {schedule.get('description', 'No description')}")
+                print(f"   🔄 Cron: {cron_template}")
+                print("")
+            return
+        
+        # Process all customers
+        if show_all:
+            print("🚀 GENERATING REPORTS FOR ALL CUSTOMERS...")
+            result = poster.create_all_customer_reports()
+            
+            if result.get("success"):
+                print(f"✅ SUCCESS: All customer reports generated!")
+                print(f"   🏢 Customers: {result['summary']['successful']}")
+                print(f"   🔍 Total cases: {result['summary']['total_cases']}")
+                
+                for customer_key, customer_result in result['results'].items():
+                    if customer_result.get('success'):
+                        print(f"   ✅ {customer_result['customer']}: {customer_result['troubleshooting_cases']} cases")
+                    else:
+                        print(f"   ❌ {customer_key}: {customer_result.get('error', 'Unknown error')}")
+            else:
+                print(f"❌ SOME FAILURES OCCURRED")
+                sys.exit(1)
+        
+        # Process single customer
+        elif customer:
+            print(f"🏢 GENERATING REPORT FOR: {customer.upper()}")
+            result = poster.create_weekly_report(customer)
+            
+            if result.get("success"):
+                print(f"✅ SUCCESS: Weekly troubleshooting report generated!")
+                print(f"   🏢 Customer: {result['customer']}")
+                print(f"   🔍 Cases: {result['troubleshooting_cases']}")
+                print(f"   📝 Title: {result['discussion_title']}")
+                print(f"   📁 File: {result['content_file']}")
+                print(f"   📅 Next Report: {result['next_report']}")
+                
+                schedule_info = result.get('schedule', {})
+                print(f"   ⏰ Schedule: {schedule_info.get('day_of_week', 'Unknown').title()} at {schedule_info.get('time', 'Unknown')}")
+                
+                if test_mode:
+                    print("   🧪 TEST MODE: Content generated but not posted")
+                else:
+                    print("   📋 Ready for manual posting to customer portal")
+                    
+            else:
+                print(f"❌ FAILED: {result.get('error', 'Unknown error')}")
+                sys.exit(1)
+        
+        else:
+            print("❌ ERROR: Please specify a customer or use --all")
+            print("   💡 Try: pai-weekly-all-customers --help")
+            sys.exit(1)
+            
+    except Exception as e:
+        print(f"❌ ERROR: {e}")
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

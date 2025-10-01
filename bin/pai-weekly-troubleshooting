@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+
+"""
+PAI Weekly Troubleshooting Report Command
+Purpose: Create weekly discussion posts for active troubleshooting cases
+Schedule: Wednesdays at 9am EST
+Usage: pai-weekly-troubleshooting [customer] [test]
+"""
+
+import sys
+import os
+
+# Add the RFE automation source directory to Python path
+sys.path.insert(0, '/home/jbyrd/Documents/rh/projects/automation/rfe-bug-tracker-automation/src')
+
+from weekly_discussion_poster import WeeklyDiscussionPoster
+
+def main():
+    """Run the weekly troubleshooting discussion poster"""
+    
+    # Parse arguments
+    customer = sys.argv[1] if len(sys.argv) > 1 else "wellsfargo"
+    test_mode = len(sys.argv) > 2 and sys.argv[2] == "test"
+    
+    if customer in ['-h', '--help', 'help']:
+        print("""
+PAI Weekly Troubleshooting Report - Automated Discussion Posts
+
+USAGE:
+    pai-weekly-troubleshooting [customer] [test]
+
+ARGUMENTS:
+    customer    Customer key (default: wellsfargo)
+    test        Add 'test' for test mode (won't create actual post)
+
+EXAMPLES:
+    pai-weekly-troubleshooting                    # Create Wells Fargo weekly post
+    pai-weekly-troubleshooting wellsfargo test    # Test mode only
+    pai-weekly-troubleshooting jpmc              # JPMC weekly post
+
+SCHEDULE:
+    This command is designed to run automatically every Wednesday at 9am EST
+    via cron job. Manual execution is also supported.
+
+CRON SETUP:
+    # Add this line to crontab (crontab -e):
+    0 9 * * 3 /home/jbyrd/hatter-pai/bin/pai-weekly-troubleshooting wellsfargo
+
+PURPOSE:
+    Creates new discussion posts weekly with current active troubleshooting
+    cases. Each post has date-stamped title and focuses on cases needing
+    support resolution (not RFE/Bug cases).
+
+FEATURES:
+    ✅ Zero browser automation required
+    ✅ Uses Red Hat CPPG API
+    ✅ No email notifications to customers
+    ✅ Date-stamped titles
+    ✅ Professional formatting
+    ✅ Automatic case filtering
+    """)
+        return
+    
+    print(f"📅 PAI WEEKLY TROUBLESHOOTING REPORT")
+    print(f"   Customer: {customer.upper()}")
+    print(f"   Mode: {'TEST' if test_mode else 'LIVE'}")
+    print(f"   Date: {os.popen('date').read().strip()}")
+    print("")
+    
+    try:
+        # Set environment variables if not already set
+        if not os.getenv('REDHAT_USERNAME'):
+            os.environ['REDHAT_USERNAME'] = 'rhn-support-jbyrd'
+        if not os.getenv('REDHAT_PASSWORD'):
+            os.environ['REDHAT_PASSWORD'] = 'Epifone123f3@rhn'
+        
+        # Initialize and run
+        poster = WeeklyDiscussionPoster()
+        
+        if test_mode:
+            print("🧪 TEST MODE: Will not create actual discussion post")
+            result = poster.test_weekly_creation(customer)
+            print("   (In live mode, this would create the discussion post)")
+        else:
+            print("🚀 LIVE MODE: Creating actual discussion post...")
+            result = poster.create_weekly_discussion(customer)
+        
+        if result.get("success"):
+            print(f"✅ SUCCESS: Weekly troubleshooting report completed!")
+            print(f"   🏢 Customer: {result['customer']}")
+            print(f"   🔍 Cases: {result['troubleshooting_cases']}")
+            print(f"   📝 Title: {result['discussion_title']}")
+            
+            if not test_mode:
+                print(f"   🆔 Discussion ID: {result.get('discussion_id', 'N/A')}")
+                print(f"   🌐 Environment: {result.get('api_environment', 'Unknown')}")
+                print(f"   📅 Created: {result.get('created_at', 'Unknown')}")
+                
+        else:
+            print(f"❌ FAILED: {result.get('error', 'Unknown error')}")
+            sys.exit(1)
+            
+    except Exception as e:
+        print(f"❌ ERROR: {e}")
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
