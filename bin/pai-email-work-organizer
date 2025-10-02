@@ -1,0 +1,334 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Work Email Organizer - Automated email organization for jbyrd@redhat.com
+# Provides intelligent labeling, filtering, and organization of Red Hat work emails
+
+# Configuration
+PAI_DIR="$HOME/.claude/context"
+EMAIL_DIR="$PAI_DIR/capture/email/gmail-jbyrd-redhat"
+OUTPUT_DIR="$PAI_DIR/create/outputs/email/work"
+NOTMUCH_CONFIG="$HOME/.config/notmuch/work-config"
+
+# Red Hat specific email patterns
+declare -A RH_PATTERNS=(
+    ["cases"]="subject:case OR subject:Case OR body:supportshell OR from:case-notifications@redhat.com"
+    ["customers"]="from:*@redhat.com OR to:*@redhat.com OR cc:*@redhat.com"
+    ["tam_team"]="subject:TAM OR subject:tam OR from:tam-team@redhat.com OR list:tam-discuss"
+    ["security"]="subject:security OR subject:CVE OR subject:RHSA OR from:security@redhat.com"
+    ["announcements"]="from:announce@redhat.com OR subject:announcement OR list:all-hands"
+    ["training"]="subject:training OR subject:certification OR from:learning@redhat.com"
+    ["urgent"]="subject:urgent OR subject:URGENT OR subject:escalation OR subject:P1 OR subject:SEV1"
+    ["internal"]="to:internal-list@redhat.com OR subject:internal-only"
+)
+
+# Function to setup notmuch for work email
+setup_notmuch_work() {
+    echo "🔧 Setting up Notmuch for Red Hat work email"
+    
+    # Create notmuch config directory
+    mkdir -p "$(dirname "$NOTMUCH_CONFIG")"
+    
+    # Create work-specific notmuch config
+    cat > "$NOTMUCH_CONFIG" << EOF
+# Notmuch configuration for Red Hat work email (jbyrd@redhat.com)
+
+[database]
+path=$EMAIL_DIR
+
+[user]
+name=Jimmy Byrd
+primary_email=jbyrd@redhat.com
+
+[new]
+tags=unread;inbox;work;
+ignore=
+
+[search]
+exclude_tags=deleted;spam;
+
+[maildir]
+synchronize_flags=true
+EOF
+
+    echo "✅ Notmuch work config created: $NOTMUCH_CONFIG"
+}
+
+# Function to initialize notmuch database
+init_notmuch_work() {
+    echo "📊 Initializing Notmuch database for work email"
+    
+    # Set config for this session
+    export NOTMUCH_CONFIG="$NOTMUCH_CONFIG"
+    
+    # Initialize database if it doesn't exist
+    if [[ ! -d "$EMAIL_DIR/.notmuch" ]]; then
+        echo "Creating new notmuch database..."
+        notmuch new
+    else
+        echo "Updating existing notmuch database..."
+        notmuch new
+    fi
+    
+    echo "✅ Notmuch database ready"
+    echo "📬 Total messages: $(notmuch count '*')"
+}
+
+# Function to apply Red Hat specific tags
+apply_rh_tags() {
+    echo "🏷️  Applying Red Hat specific tags to work emails"
+    
+    export NOTMUCH_CONFIG="$NOTMUCH_CONFIG"
+    
+    # Apply tags based on Red Hat patterns
+    for tag in "${!RH_PATTERNS[@]}"; do
+        local pattern="${RH_PATTERNS[$tag]}"
+        echo "  Applying tag: $tag"
+        
+        # Remove tag first to avoid duplicates
+        notmuch tag -"$tag" -- "*"
+        
+        # Apply tag based on pattern
+        if notmuch tag +"$tag" -- "$pattern" 2>/dev/null; then
+            local count=$(notmuch count "tag:$tag")
+            echo "    Tagged $count messages with '$tag'"
+        else
+            echo "    Warning: Pattern failed for '$tag': $pattern"
+        fi
+    done
+    
+    # Special handling for customer emails (external domains)
+    echo "  Applying customer tags..."
+    notmuch tag +customer -work -- "not from:*@redhat.com and not to:*-internal@redhat.com"
+    
+    # Mark old emails as archived
+    notmuch tag -inbox +archived -- "date:..1month"
+    
+    echo "✅ Red Hat email tagging completed"
+}
+
+# Function to create email reports
+create_email_reports() {
+    echo "📊 Creating Red Hat work email reports"
+    
+    export NOTMUCH_CONFIG="$NOTMUCH_CONFIG"
+    local today=$(date +%Y-%m-%d)
+    local report_file="$OUTPUT_DIR/daily/email-organization-report-$today.md"
+    
+    mkdir -p "$OUTPUT_DIR/daily"
+    
+    cat > "$report_file" << EOF
+---
+title: "Red Hat Work Email Organization Report - $today"
+type: "email_organization"
+generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+tags: [email, organization, redhat, work, tags]
+---
+
+# Red Hat Work Email Organization Report - $today
+
+**Account**: jbyrd@redhat.com  
+**Generated**: $(date -u +%Y-%m-%d %H:%M:%S)  
+**Total Messages**: $(notmuch count '*')
+
+## Email Distribution by Category
+
+EOF
+
+    # Add tag statistics
+    for tag in "${!RH_PATTERNS[@]}"; do
+        local count=$(notmuch count "tag:$tag" 2>/dev/null || echo "0")
+        echo "- **$tag**: $count messages" >> "$report_file"
+    done
+    
+    cat >> "$report_file" << EOF
+
+## Recent High Priority Items
+
+### Urgent Messages (Last 7 days)
+EOF
+
+    # List urgent messages
+    notmuch search --format=text --output=summary "tag:urgent and date:7d.." 2>/dev/null | head -10 >> "$report_file" || echo "No urgent messages found" >> "$report_file"
+    
+    cat >> "$report_file" << EOF
+
+### New Cases (Last 7 days)
+EOF
+
+    # List new cases
+    notmuch search --format=text --output=summary "tag:cases and date:7d.." 2>/dev/null | head -10 >> "$report_file" || echo "No new cases found" >> "$report_file"
+    
+    cat >> "$report_file" << EOF
+
+### Customer Communications (Last 3 days)
+EOF
+
+    # List customer emails
+    notmuch search --format=text --output=summary "tag:customer and date:3d.." 2>/dev/null | head -10 >> "$report_file" || echo "No customer emails found" >> "$report_file"
+    
+    cat >> "$report_file" << EOF
+
+## Organization Statistics
+
+- **Inbox Messages**: $(notmuch count 'tag:inbox' 2>/dev/null || echo "0")
+- **Unread Messages**: $(notmuch count 'tag:unread' 2>/dev/null || echo "0")  
+- **Archived Messages**: $(notmuch count 'tag:archived' 2>/dev/null || echo "0")
+- **Customer Messages**: $(notmuch count 'tag:customer' 2>/dev/null || echo "0")
+
+## Next Steps
+
+1. Review urgent and high-priority messages
+2. Update case tracking systems
+3. Respond to customer communications
+4. Archive processed items
+
+---
+*Report generated by pai-email-work-organizer*
+EOF
+
+    echo "✅ Email organization report saved: $report_file"
+}
+
+# Function to setup email search aliases
+setup_search_aliases() {
+    echo "🔍 Setting up Red Hat work email search aliases"
+    
+    local aliases_file="$HOME/.config/pai/work-email-aliases.sh"
+    mkdir -p "$(dirname "$aliases_file")"
+    
+    cat > "$aliases_file" << EOF
+#!/bin/bash
+# Red Hat Work Email Search Aliases
+# Source this file to enable work email search shortcuts
+
+export NOTMUCH_CONFIG="$NOTMUCH_CONFIG"
+
+# Search aliases for Red Hat work email
+alias work-email-urgent='notmuch search tag:urgent'
+alias work-email-cases='notmuch search tag:cases'
+alias work-email-customers='notmuch search tag:customer'
+alias work-email-team='notmuch search tag:tam_team'
+alias work-email-unread='notmuch search tag:unread'
+alias work-email-today='notmuch search date:today'
+alias work-email-week='notmuch search date:7d..'
+
+# Show email functions  
+work-email-show() {
+    notmuch show "\$1" | less
+}
+
+work-email-count() {
+    local tag="\${1:-*}"
+    echo "Messages with tag '\$tag': \$(notmuch count "tag:\$tag")"
+}
+
+work-email-summary() {
+    echo "Red Hat Work Email Summary"
+    echo "=========================="
+    echo "Total: \$(notmuch count '*')"
+    echo "Unread: \$(notmuch count 'tag:unread')"
+    echo "Urgent: \$(notmuch count 'tag:urgent')"
+    echo "Cases: \$(notmuch count 'tag:cases')"
+    echo "Customers: \$(notmuch count 'tag:customer')"
+    echo "Today: \$(notmuch count 'date:today')"
+}
+
+echo "✅ Red Hat work email aliases loaded"
+echo "Run 'work-email-summary' for overview"
+EOF
+
+    chmod +x "$aliases_file"
+    echo "✅ Work email search aliases created: $aliases_file"
+    echo "   Source with: source $aliases_file"
+}
+
+# Function to run full organization cycle
+run_organization_cycle() {
+    echo "🔄 Running full Red Hat work email organization cycle"
+    
+    # Sync emails first
+    if pai-gmail-work-sync; then
+        echo "✅ Email sync completed"
+    else
+        echo "❌ Email sync failed"
+        return 1
+    fi
+    
+    # Update notmuch database
+    init_notmuch_work
+    
+    # Apply Red Hat specific tags
+    apply_rh_tags
+    
+    # Create reports
+    create_email_reports
+    
+    # Log completion
+    pai-audit log "WORK_EMAIL_ORGANIZATION" "cycle_completed tags_applied reports_generated"
+    
+    echo "🎉 Work email organization cycle completed"
+}
+
+# Main function
+main() {
+    case "${1:-}" in
+        "setup")
+            echo "🚀 Setting up Red Hat work email organization"
+            setup_notmuch_work
+            init_notmuch_work
+            setup_search_aliases
+            echo "✅ Setup completed"
+            echo ""
+            echo "📋 Next steps:"
+            echo "1. Run: pai-gmail-work-auth (if not done)"
+            echo "2. Run: pai-email-work-organizer sync"
+            echo "3. Source aliases: source ~/.config/pai/work-email-aliases.sh"
+            ;;
+        "sync"|"organize")
+            run_organization_cycle
+            ;;
+        "tag")
+            apply_rh_tags
+            ;;
+        "report")
+            create_email_reports
+            ;;
+        "search")
+            export NOTMUCH_CONFIG="$NOTMUCH_CONFIG"
+            shift
+            notmuch search "$@"
+            ;;
+        "show")
+            export NOTMUCH_CONFIG="$NOTMUCH_CONFIG"
+            shift
+            notmuch show "$@"
+            ;;
+        "count")
+            export NOTMUCH_CONFIG="$NOTMUCH_CONFIG"
+            local query="${2:-*}"
+            notmuch count "$query"
+            ;;
+        *)
+            echo "Usage: pai-email-work-organizer [setup|sync|tag|report|search|show|count]"
+            echo ""
+            echo "Commands:"
+            echo "  setup    - Initial setup of work email organization"
+            echo "  sync     - Run full organization cycle (sync + tag + report)"  
+            echo "  tag      - Apply Red Hat specific tags"
+            echo "  report   - Generate organization reports"
+            echo "  search   - Search work emails (pass notmuch query)"
+            echo "  show     - Show email content (pass message ID)"
+            echo "  count    - Count messages (optional: tag or query)"
+            echo ""
+            echo "Examples:"
+            echo "  pai-email-work-organizer setup"
+            echo "  pai-email-work-organizer sync"
+            echo "  pai-email-work-organizer search 'tag:urgent'"
+            echo "  pai-email-work-organizer count 'tag:cases'"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

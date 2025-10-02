@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""
+PAI Work Gmail Sync - Red Hat compliant Gmail API sync for jbyrd@redhat.com
+Uses secure OAuth credentials for automated access with Red Hat compliance
+"""
+
+import os
+import json
+import email
+import base64
+from datetime import datetime, timedelta
+from pathlib import Path
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+import pickle
+
+# Configuration for Red Hat work email
+SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+CREDENTIALS_FILE = '/home/jbyrd/.config/pai/secrets/gmail_jbyrd_redhat_credentials.json'
+TOKEN_FILE = '/home/jbyrd/.config/pai/secrets/gmail_jbyrd_redhat_token.pickle'
+EMAIL_DIR = '/home/jbyrd/.claude/context/capture/email/gmail-jbyrd-redhat/mail'
+OUTPUT_DIR = '/home/jbyrd/.claude/context/create/outputs/email/work'
+
+def authenticate():
+    """Authenticate with Gmail API using stored refresh tokens"""
+    creds = None
+    
+    # Load existing token
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, 'rb') as token:
+            creds = pickle.load(token)
+    
+    # Check if credentials are valid or can be refreshed
+    if creds and creds.valid:
+        return build('gmail', 'v1', credentials=creds)
+    
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            print("🔄 Refreshing expired access token for jbyrd@redhat.com...")
+            creds.refresh(Request())
+            
+            # Save refreshed credentials
+            with open(TOKEN_FILE, 'wb') as token:
+                pickle.dump(creds, token)
+            
+            return build('gmail', 'v1', credentials=creds)
+        except Exception as e:
+            print(f"Token refresh failed: {e}")
+            # Fall through to manual auth
+    
+    # Only fall back to manual auth if no refresh token exists
+    print("❌ No valid refresh token found for Red Hat work email.")
+    print("Manual authentication required once to establish refresh token.")
+    print("After initial setup, this script will run unattended.")
+    
+    if not os.path.exists(CREDENTIALS_FILE):
+        print(f"❌ Credentials file not found: {CREDENTIALS_FILE}")
+        print("Please set up OAuth credentials for jbyrd@redhat.com first.")
+        raise FileNotFoundError(f"Missing credentials file: {CREDENTIALS_FILE}")
+    
+    try:
+        flow = InstalledAppFlow.from_client_secrets_file(
+            CREDENTIALS_FILE, SCOPES)
+        creds = flow.run_local_server(port=8081)
+        
+        # Save credentials including refresh token
+        with open(TOKEN_FILE, 'wb') as token:
+            pickle.dump(creds, token)
+            
+        print("✅ Refresh token saved for future automated runs")
+        return build('gmail', 'v1', credentials=creds)
+        
+    except Exception as e:
+        print(f"Authentication failed: {e}")
+        raise
+
+def fetch_recent_emails(service, days=7, max_results=100):
+    """Fetch recent emails from Gmail API"""
+    try:
+        # Calculate date filter
+        since_date = datetime.now() - timedelta(days=days)
+        date_string = since_date.strftime('%Y/%m/%d')
+        
+        # Search for emails
+        results = service.users().messages().list(
+            userId='me',
+            q=f'after:{date_string}',
+            maxResults=max_results
+        ).execute()
+        
+        messages = results.get('messages', [])
+        print(f"📬 Found {len(messages)} emails from last {days} days")
+        
+        # Ensure output directory exists
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        
+        # Create daily summary
+        summary_file = os.path.join(OUTPUT_DIR, f"daily-summary-{datetime.now().strftime('%Y-%m-%d')}.md")
+        
+        with open(summary_file, 'w') as f:
+            f.write(f"# Red Hat Work Email Summary - {datetime.now().strftime('%Y-%m-%d')}\n\n")
+            f.write(f"**Account**: jbyrd@redhat.com  \n")
+            f.write(f"**Period**: Last {days} days  \n")
+            f.write(f"**Total Messages**: {len(messages)}  \n")
+            f.write(f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            
+            f.write("## Recent Messages\n\n")
+            
+            for i, message in enumerate(messages[:10]):  # Show first 10 for summary
+                try:
+                    msg = service.users().messages().get(userId='me', id=message['id']).execute()
+                    
+                    # Extract headers
+                    headers = msg['payload'].get('headers', [])
+                    subject = next((h['value'] for h in headers if h['name'] == 'Subject'), 'No Subject')
+                    sender = next((h['value'] for h in headers if h['name'] == 'From'), 'Unknown Sender')
+                    date = next((h['value'] for h in headers if h['name'] == 'Date'), 'Unknown Date')
+                    
+                    f.write(f"### {i+1}. {subject}\n")
+                    f.write(f"**From**: {sender}  \n")
+                    f.write(f"**Date**: {date}  \n")
+                    f.write(f"**ID**: {message['id']}\n\n")
+                    
+                except Exception as e:
+                    f.write(f"### {i+1}. Error reading message\n")
+                    f.write(f"**Error**: {str(e)}\n\n")
+        
+        print(f"📄 Summary saved to: {summary_file}")
+        return len(messages)
+        
+    except Exception as e:
+        print(f"❌ Error fetching emails: {e}")
+        return 0
+
+def main():
+    """Main function to sync Red Hat work Gmail"""
+    print("🔴 Red Hat Work Gmail Sync")
+    print("==========================")
+    print("Account: jbyrd@redhat.com")
+    print(f"Target: {EMAIL_DIR}")
+    print("")
+    
+    try:
+        # Authenticate and get service
+        service = authenticate()
+        
+        # Fetch recent emails
+        email_count = fetch_recent_emails(service, days=7, max_results=50)
+        
+        print(f"✅ Sync completed - {email_count} emails processed")
+        
+        # Log to audit system
+        audit_cmd = f'pai-audit log "WORK_EMAIL_SYNC" "sync_completed emails={email_count}"'
+        os.system(audit_cmd)
+        
+    except Exception as e:
+        print(f"❌ Sync failed: {e}")
+        audit_cmd = f'pai-audit log "WORK_EMAIL_SYNC_FAILED" "error: {str(e)}"'
+        os.system(audit_cmd)
+        return 1
+    
+    return 0
+
+if __name__ == "__main__":
+    exit(main())

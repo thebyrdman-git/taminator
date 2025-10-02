@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""
+PAI Work Gmail Authentication Setup
+Sets up secure OAuth2 authentication for jbyrd@redhat.com with Red Hat compliance
+"""
+
+import os
+import json
+import webbrowser
+from pathlib import Path
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+import pickle
+
+# Configuration for Red Hat work email
+SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.labels',
+    'https://www.googleapis.com/auth/gmail.modify'
+]
+
+CREDENTIALS_FILE = '/home/jbyrd/.config/pai/secrets/gmail_jbyrd_redhat_credentials.json'
+TOKEN_FILE = '/home/jbyrd/.config/pai/secrets/gmail_jbyrd_redhat_token.pickle'
+
+def setup_credentials():
+    """Interactive setup for Red Hat work Gmail OAuth credentials"""
+    print("🔴 Red Hat Work Gmail Authentication Setup")
+    print("==========================================")
+    print("Account: jbyrd@redhat.com")
+    print("")
+    
+    # Check if credentials file exists
+    if not os.path.exists(CREDENTIALS_FILE):
+        print("❌ OAuth credentials file not found!")
+        print(f"Expected location: {CREDENTIALS_FILE}")
+        print("")
+        print("📋 To set up OAuth credentials:")
+        print("1. Go to Google Cloud Console: https://console.cloud.google.com/")
+        print("2. Create a new project or select existing")
+        print("3. Enable Gmail API")
+        print("4. Create OAuth 2.0 credentials (Desktop Application)")
+        print("5. Download the JSON file")
+        print(f"6. Save it as: {CREDENTIALS_FILE}")
+        print("")
+        
+        # Offer to create from local oauth_credentials.json
+        local_creds = "/home/jbyrd/hatter-pai/oauth_credentials.json"
+        if os.path.exists(local_creds):
+            print("🔍 Found local OAuth credentials file")
+            use_local = input("Use local oauth_credentials.json for work email? (y/n): ").lower().strip()
+            if use_local == 'y':
+                # Ensure secrets directory exists
+                os.makedirs(os.path.dirname(CREDENTIALS_FILE), exist_ok=True)
+                
+                # Copy credentials
+                import shutil
+                shutil.copy2(local_creds, CREDENTIALS_FILE)
+                print(f"✅ Copied credentials to: {CREDENTIALS_FILE}")
+            else:
+                return False
+        else:
+            return False
+    
+    # Authenticate with Google
+    try:
+        print("🔐 Starting OAuth authentication flow...")
+        print("⚠️  IMPORTANT: Sign in as jbyrd@redhat.com (NOT personal account)")
+        print("")
+        
+        flow = InstalledAppFlow.from_client_secrets_file(
+            CREDENTIALS_FILE, SCOPES)
+        
+        # Run local server for OAuth callback
+        creds = flow.run_local_server(port=8081, open_browser=True)
+        
+        # Save the credentials
+        with open(TOKEN_FILE, 'wb') as token:
+            pickle.dump(creds, token)
+        
+        print("✅ Authentication successful!")
+        print(f"✅ Refresh token saved: {TOKEN_FILE}")
+        
+        # Test the connection
+        service = build('gmail', 'v1', credentials=creds)
+        profile = service.users().getProfile(userId='me').execute()
+        
+        print(f"✅ Connected to Gmail account: {profile.get('emailAddress')}")
+        print(f"✅ Total messages: {profile.get('messagesTotal', 'Unknown')}")
+        
+        # Verify it's the Red Hat account
+        email_address = profile.get('emailAddress', '')
+        if '@redhat.com' not in email_address:
+            print(f"⚠️  WARNING: Connected to {email_address} (not Red Hat account)")
+            print("Please ensure you're authenticated with jbyrd@redhat.com")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Authentication failed: {e}")
+        return False
+
+def test_connection():
+    """Test the Gmail connection"""
+    if not os.path.exists(TOKEN_FILE):
+        print("❌ No authentication token found. Run setup first.")
+        return False
+    
+    try:
+        with open(TOKEN_FILE, 'rb') as token:
+            creds = pickle.load(token)
+        
+        if not creds.valid:
+            if creds.expired and creds.refresh_token:
+                print("🔄 Refreshing expired token...")
+                creds.refresh(Request())
+                
+                # Save refreshed token
+                with open(TOKEN_FILE, 'wb') as token:
+                    pickle.dump(creds, token)
+        
+        service = build('gmail', 'v1', credentials=creds)
+        profile = service.users().getProfile(userId='me').execute()
+        
+        print(f"✅ Connection test successful")
+        print(f"📧 Email: {profile.get('emailAddress')}")
+        print(f"📬 Messages: {profile.get('messagesTotal')}")
+        print(f"🏷️  Threads: {profile.get('threadsTotal')}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Connection test failed: {e}")
+        return False
+
+def main():
+    """Main authentication setup"""
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == 'test':
+        return 0 if test_connection() else 1
+    
+    print("Setting up Red Hat work Gmail authentication...")
+    
+    if setup_credentials():
+        print("")
+        print("🎉 Setup completed successfully!")
+        print("")
+        print("📋 Next steps:")
+        print("1. Run: pai-gmail-work-sync (to test sync)")
+        print("2. Run: pai-email-work-processor (to process emails)")
+        print("3. Set up automation with systemd timer")
+        print("")
+        return 0
+    else:
+        print("❌ Setup failed")
+        return 1
+
+if __name__ == "__main__":
+    exit(main())

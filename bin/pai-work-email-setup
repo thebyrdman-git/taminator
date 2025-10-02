@@ -1,0 +1,334 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Work Email Complete Setup
+# One-command setup for Red Hat work email organization (jbyrd@redhat.com)
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+print_header() {
+    echo -e "${BLUE}================================${NC}"
+    echo -e "${BLUE}🔴 Red Hat Work Email Setup${NC}"
+    echo -e "${BLUE}================================${NC}"
+    echo "Account: jbyrd@redhat.com"
+    echo "Context: Red Hat PAI Tools"
+    echo ""
+}
+
+print_step() {
+    echo -e "${YELLOW}📋 Step $1: $2${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+# Check prerequisites
+check_prerequisites() {
+    print_step 1 "Checking prerequisites"
+    
+    local missing_deps=()
+    
+    # Check for Python and Google API libraries
+    if ! python3 -c "import google.auth" 2>/dev/null; then
+        missing_deps+=("google-auth-oauthlib")
+    fi
+    
+    # Check for notmuch
+    if ! command -v notmuch >/dev/null 2>&1; then
+        missing_deps+=("notmuch")
+    fi
+    
+    # Check for systemd (for automation)
+    if ! systemctl --user status >/dev/null 2>&1; then
+        print_info "systemd user services not available - automation will be limited"
+    fi
+    
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        print_error "Missing dependencies: ${missing_deps[*]}"
+        echo ""
+        echo "Install with:"
+        echo "  sudo dnf install notmuch"
+        echo "  pip3 install google-auth-oauthlib google-api-python-client"
+        return 1
+    fi
+    
+    print_success "All prerequisites satisfied"
+}
+
+# Setup directory structure
+setup_directories() {
+    print_step 2 "Creating directory structure"
+    
+    local dirs=(
+        "$HOME/.claude/context/capture/email/gmail-jbyrd-redhat/mail"
+        "$HOME/.claude/context/create/outputs/email/work/daily"
+        "$HOME/.claude/context/create/outputs/email/work/cases"
+        "$HOME/.claude/context/create/outputs/email/work/contacts"
+        "$HOME/.config/notmuch"
+        "$HOME/.config/pai"
+        "$HOME/.config/systemd/user"
+    )
+    
+    for dir in "${dirs[@]}"; do
+        if mkdir -p "$dir"; then
+            print_info "Created: $dir"
+        else
+            print_error "Failed to create: $dir"
+            return 1
+        fi
+    done
+    
+    print_success "Directory structure created"
+}
+
+# Setup authentication
+setup_authentication() {
+    print_step 3 "Setting up Gmail authentication"
+    
+    # Check if we already have credentials
+    local creds_file="/home/jbyrd/.config/pai/secrets/gmail_jbyrd_redhat_credentials.json"
+    local token_file="/home/jbyrd/.config/pai/secrets/gmail_jbyrd_redhat_token.pickle"
+    
+    if [[ -f "$token_file" ]]; then
+        print_info "Existing authentication found, testing connection..."
+        if pai-gmail-work-auth test; then
+            print_success "Authentication verified"
+            return 0
+        else
+            print_info "Authentication invalid, re-authenticating..."
+        fi
+    fi
+    
+    # Check for OAuth credentials
+    if [[ ! -f "$creds_file" ]]; then
+        local local_creds="/home/jbyrd/hatter-pai/oauth_credentials.json"
+        if [[ -f "$local_creds" ]]; then
+            print_info "Using local OAuth credentials"
+            cp "$local_creds" "$creds_file"
+        else
+            print_error "OAuth credentials not found"
+            echo ""
+            echo "Please set up OAuth credentials first:"
+            echo "1. Go to Google Cloud Console"
+            echo "2. Enable Gmail API"
+            echo "3. Create OAuth 2.0 credentials"
+            echo "4. Download as oauth_credentials.json"
+            return 1
+        fi
+    fi
+    
+    # Run authentication
+    if pai-gmail-work-auth; then
+        print_success "Authentication setup completed"
+    else
+        print_error "Authentication setup failed"
+        return 1
+    fi
+}
+
+# Setup email organization
+setup_organization() {
+    print_step 4 "Setting up email organization"
+    
+    if pai-email-work-organizer setup; then
+        print_success "Email organization setup completed"
+    else
+        print_error "Email organization setup failed"
+        return 1
+    fi
+}
+
+# Initial sync and organization
+run_initial_sync() {
+    print_step 5 "Running initial email sync and organization"
+    
+    print_info "This may take a few minutes for initial sync..."
+    
+    if pai-email-work-organizer sync; then
+        print_success "Initial sync and organization completed"
+    else
+        print_error "Initial sync failed"
+        return 1
+    fi
+}
+
+# Setup automation
+setup_automation() {
+    print_step 6 "Setting up email automation"
+    
+    print_info "Setting up automated processing every 30 minutes..."
+    
+    if pai-email-work-processor setup 30min; then
+        print_success "Email processing automation enabled"
+    else
+        print_error "Automation setup failed"
+        return 1
+    fi
+}
+
+# Create quick reference
+create_quick_reference() {
+    print_step 7 "Creating quick reference guide"
+    
+    local ref_file="$HOME/.config/pai/work-email-quickref.md"
+    
+    cat > "$ref_file" << 'EOF'
+# Red Hat Work Email Quick Reference
+
+## Daily Commands
+
+```bash
+# Get email summary
+work-email-summary
+
+# Sync and organize emails
+pai-email-work-organizer sync
+
+# Search urgent emails
+pai-email-work-organizer search 'tag:urgent'
+
+# Search cases
+pai-email-work-organizer search 'tag:cases'
+
+# Process all work emails
+pai-email-work-processor process
+```
+
+## Search Patterns
+
+- `tag:urgent` - Urgent/escalated emails
+- `tag:cases` - Support case related emails  
+- `tag:customer` - External customer emails
+- `tag:tam_team` - TAM team communications
+- `tag:security` - Security notifications
+- `date:today` - Today's emails
+- `date:7d..` - Last 7 days
+
+## File Locations
+
+- **Work Email Data**: `~/.claude/context/capture/email/gmail-jbyrd-redhat/`
+- **Reports**: `~/.claude/context/create/outputs/email/work/`
+- **Config**: `~/.config/notmuch/work-config`
+- **Aliases**: `~/.config/pai/work-email-aliases.sh`
+
+## Automation
+
+- **Service**: `systemctl --user status pai-email-work-processor.service`
+- **Timer**: `systemctl --user status pai-email-work-processor.timer`
+- **Logs**: `journalctl --user -u pai-email-work-processor.service`
+
+## Troubleshooting
+
+- Authentication: `pai-gmail-work-auth test`
+- Manual sync: `pai-gmail-work-sync`
+- Rebuild tags: `pai-email-work-organizer tag`
+- View reports: `ls ~/.claude/context/create/outputs/email/work/daily/`
+EOF
+
+    print_success "Quick reference created: $ref_file"
+}
+
+# Show completion summary
+show_completion() {
+    echo ""
+    echo -e "${GREEN}🎉 Red Hat Work Email Setup Completed Successfully!${NC}"
+    echo ""
+    echo -e "${BLUE}📧 Account Configured:${NC} jbyrd@redhat.com"
+    echo -e "${BLUE}🔧 Tools Available:${NC}"
+    echo "  - pai-gmail-work-sync         (Sync emails)"
+    echo "  - pai-email-work-processor    (Process emails)"  
+    echo "  - pai-email-work-organizer    (Organize & search)"
+    echo ""
+    echo -e "${BLUE}🚀 Quick Start:${NC}"
+    echo "  1. Load aliases: source ~/.config/pai/work-email-aliases.sh"
+    echo "  2. Check status: work-email-summary"
+    echo "  3. View reports: ls ~/.claude/context/create/outputs/email/work/daily/"
+    echo ""
+    echo -e "${BLUE}📚 Documentation:${NC}"
+    echo "  - Quick reference: ~/.config/pai/work-email-quickref.md"
+    echo "  - View with: cat ~/.config/pai/work-email-quickref.md"
+    echo ""
+    echo -e "${BLUE}🔄 Automation:${NC} Enabled (30-minute intervals)"
+    echo "  - Check: systemctl --user status pai-email-work-processor.timer"
+    echo ""
+    echo -e "${YELLOW}⚠️  Remember: This system follows Red Hat AI policy compliance${NC}"
+    echo -e "${YELLOW}   All processing uses Red Hat approved models only${NC}"
+}
+
+# Main execution
+main() {
+    print_header
+    
+    # Run setup steps
+    if check_prerequisites && \
+       setup_directories && \
+       setup_authentication && \
+       setup_organization && \
+       run_initial_sync && \
+       setup_automation && \
+       create_quick_reference; then
+        
+        show_completion
+        return 0
+    else
+        print_error "Setup failed at one or more steps"
+        return 1
+    fi
+}
+
+# Handle command line options
+case "${1:-setup}" in
+    "setup"|"")
+        main
+        ;;
+    "test")
+        print_header
+        echo "🧪 Testing Red Hat work email setup..."
+        echo ""
+        
+        # Test each component
+        echo "Testing authentication..."
+        pai-gmail-work-auth test || exit 1
+        
+        echo "Testing sync..."
+        pai-gmail-work-sync || exit 1
+        
+        echo "Testing organization..."
+        pai-email-work-organizer count || exit 1
+        
+        print_success "All tests passed"
+        ;;
+    "reset")
+        echo "🔄 Resetting Red Hat work email configuration..."
+        rm -rf ~/.claude/context/capture/email/gmail-jbyrd-redhat
+        rm -rf ~/.claude/context/create/outputs/email/work
+        rm -f ~/.config/pai/secrets/gmail_jbyrd_redhat_*
+        rm -f ~/.config/notmuch/work-config
+        systemctl --user stop pai-email-work-processor.timer 2>/dev/null || true
+        systemctl --user disable pai-email-work-processor.timer 2>/dev/null || true
+        print_success "Configuration reset - run setup to reconfigure"
+        ;;
+    *)
+        echo "Usage: pai-work-email-setup [setup|test|reset]"
+        echo ""
+        echo "Commands:"
+        echo "  setup  - Complete setup of Red Hat work email (default)"
+        echo "  test   - Test all components"
+        echo "  reset  - Reset configuration and start over"
+        exit 1
+        ;;
+esac

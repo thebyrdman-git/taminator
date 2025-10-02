@@ -64,7 +64,7 @@ HOME_HTML = """
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 24px;
         }
@@ -175,9 +175,16 @@ HOME_HTML = """
         .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
         .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-cols-5 { grid-template-columns: repeat(5, 1fr); }
+        
+        @media (max-width: 1200px) and (min-width: 769px) {
+            .grid-cols-5 { 
+                grid-template-columns: repeat(3, 1fr); 
+            }
+        }
         
         @media (max-width: 768px) {
-            .grid-cols-2, .grid-cols-3, .grid-cols-4 { 
+            .grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5 { 
                 grid-template-columns: 1fr; 
             }
             
@@ -264,7 +271,6 @@ HOME_HTML = """
     <div class="container">
         <header class="header">
             <h1>Jimmy Byrd's PAI Infrastructure</h1>
-            <p class="subtitle">Your centralized portal for monitoring and managing your Personal AI Infrastructure</p>
         </header>
 
         <section class="section">
@@ -272,7 +278,7 @@ HOME_HTML = """
                 <span class="material-icons">dashboard</span>
                 System Status
             </h2>
-            <div class="grid grid-cols-4">
+            <div class="grid grid-cols-5">
                 <div class="card">
                     <div class="card-content">
                         <div class="card-header">
@@ -314,6 +320,17 @@ HOME_HTML = """
                             <span id="jimmy-youtube-status" class="status-indicator status-checking">Checking</span>
                         </div>
                         <p class="card-description">Media automation</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-content">
+                        <div class="card-header">
+                            <span class="material-icons card-icon">home_iot_device</span>
+                            <span class="card-title">Home Assistant</span>
+                            <span id="home-assistant-status" class="status-indicator status-checking">Checking</span>
+                        </div>
+                        <p class="card-description">Smart home automation</p>
                     </div>
                 </div>
             </div>
@@ -496,10 +513,11 @@ HOME_HTML = """
                 updateStatus('prometheus-status', data.prometheus);
                 updateStatus('grafana-status', data.grafana);
                 updateStatus('jimmy-youtube-status', data.jimmy_youtube);
+                updateStatus('home-assistant-status', data.home_assistant);
             } catch (error) {
                 console.error('Error fetching status:', error);
                 // Set all to offline on error
-                ['node-exporter-status', 'prometheus-status', 'grafana-status', 'jimmy-youtube-status'].forEach(id => {
+                ['node-exporter-status', 'prometheus-status', 'grafana-status', 'jimmy-youtube-status', 'home-assistant-status'].forEach(id => {
                     updateStatus(id, false);
                 });
             }
@@ -526,6 +544,7 @@ def status_all():
         "prometheus": False,
         "grafana": False,
         "jimmy_youtube": False,
+        "home_assistant": False,
     }
     
     # Check Node Exporter (HP) - Direct HTTP request
@@ -572,6 +591,14 @@ def status_all():
         if e.code == 500:
             # 500 means service is running but has template errors
             status["jimmy_youtube"] = True
+    except Exception:
+        pass
+
+    # Check Home Assistant - Direct HTTP request
+    try:
+        with urllib.request.urlopen('http://192.168.1.39:8123/', timeout=5) as response:
+            if response.getcode() == 200:
+                status["home_assistant"] = True
     except Exception:
         pass
 
