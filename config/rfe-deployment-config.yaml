@@ -1,0 +1,103 @@
+# RFE Automation System - Production Deployment Configuration
+# Auto-generated deployment configuration for pai-rfe-deploy command
+
+deployment:
+  name: "RFE Bug Tracker Automation System"
+  version: "1.0.0"
+  environment: "production"
+  
+# System Requirements
+requirements:
+  python_version: "3.8+"
+  required_commands:
+    - "rhcase"
+    - "python3"
+    - "git"
+  required_directories:
+    - "/home/jbyrd/Documents/rh/projects/automation/rfe-bug-tracker-automation"
+    - "/home/jbyrd/hatter-pai"
+  required_files:
+    - "~/.config/tamscripts/tamscripts.config"
+
+# Customer Configuration (50% Coverage - Wells Fargo + TD Bank)
+customers:
+  wellsfargo:
+    name: "Wells Fargo"
+    account_number: "838043"
+    group_id: "4357341"
+    portal_edit_url: "https://access.redhat.com/groups/node/7047245/edit"
+    enabled: true
+    confidence: "confirmed"
+    
+  tdbank:
+    name: "TD Bank"
+    account_number: "1912101" 
+    group_id: "7028358"
+    portal_edit_url: "https://access.redhat.com/groups/node/7073164/edit"
+    enabled: true
+    confidence: "extracted"
+    note: "Sandbox environment - production group ID TBD"
+    
+  jpmc:
+    name: "JP Morgan Chase"
+    account_number: "334224"
+    group_id: null
+    portal_edit_url: null
+    enabled: false
+    confidence: "manual_discovery_required"
+    
+  fanniemae:
+    name: "Fannie Mae"
+    account_number: "1460290"
+    group_id: null
+    portal_edit_url: null
+    enabled: false
+    confidence: "manual_discovery_required"
+
+# Automation Components
+components:
+  case_discovery:
+    tool: "rhcase"
+    method: "SBR Group filtering (Ansible)"
+    authentication: "existing rhcase config"
+    
+  content_generation:
+    template_system: "CustomerTemplateRenderer"
+    format: "3-table structure (Active RFE, Active Bug, Closed History)"
+    customization: "customer-specific styling"
+    
+  portal_posting:
+    method: "hybrid (API-first with browser fallback)"
+    api_client: "RedHatCPPGAPIClient"
+    browser_fallback: "SafePortalUpdater with notification handling"
+    safety_features: "automatic notification unchecking"
+
+# Deployment Validation
+validation:
+  rhcase_connectivity: true
+  api_authentication: true
+  template_rendering: true
+  customer_data_access: true
+  portal_access: true
+  
+# Operational Settings
+operations:
+  schedule: "manual (daily automation pending Phase 2)"
+  monitoring: "pending Phase 1 completion"
+  error_handling: "basic (enhanced in Phase 2)"
+  cleanup: "manual (automated in Phase 3)"
+  
+# Security & Compliance
+security:
+  customer_notifications: "disabled (silent portal updates)"
+  admin_notifications: "jbyrd@redhat.com"
+  data_protection: "Red Hat compliant (no external APIs for customer data)"
+  audit_logging: "rhcase built-in + manual logs"
+
+# Deployment Status
+status:
+  wells_fargo: "ready_for_production"
+  td_bank: "ready_for_testing" 
+  jpmc: "awaiting_group_id_discovery"
+  fannie_mae: "awaiting_group_id_discovery"
+  overall_readiness: "50% production ready"

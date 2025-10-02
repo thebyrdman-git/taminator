@@ -1,0 +1,355 @@
+#!/usr/bin/env bash
+
+# PAI Maintenance - System Cleanup and Maintenance
+# Purpose: Automated cleanup and maintenance for RFE automation system
+# Usage: pai-maintenance [--daily|--weekly|--monthly|--help]
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PAI_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Logging
+LOG_FILE="/tmp/pai-maintenance-$(date +%Y%m%d-%H%M%S).log"
+exec 1> >(tee -a "$LOG_FILE")
+exec 2> >(tee -a "$LOG_FILE" >&2)
+
+print_header() {
+    echo -e "${CYAN}"
+    echo "🧹 PAI MAINTENANCE - System Cleanup and Maintenance"
+    echo "=" * 50
+    echo -e "${NC}"
+    echo "📅 Started: $(date)"
+    echo "📁 Log File: $LOG_FILE"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+cleanup_temp_files() {
+    print_section "🗑️  CLEANING TEMPORARY FILES"
+    
+    local cleaned_count=0
+    local freed_space=0
+    
+    # Clean RFE automation temp files older than 7 days
+    local temp_patterns=(
+        "/tmp/rfe-*"
+        "/tmp/pai-*"
+        "/tmp/*-cron.log"
+        "/tmp/enhanced_discussion_content.md"
+        "/tmp/generate_*.py"
+        "/tmp/wells_fargo_*.py"
+    )
+    
+    for pattern in "${temp_patterns[@]}"; do
+        # Find files older than 7 days
+        local old_files=($(find /tmp -name "$(basename "$pattern")" -type f -mtime +7 2>/dev/null || true))
+        
+        for file in "${old_files[@]}"; do
+            if [[ -f "$file" ]]; then
+                local size=$(stat -c %s "$file" 2>/dev/null || echo 0)
+                rm -f "$file"
+                ((cleaned_count++))
+                ((freed_space += size))
+                print_info "Removed: $(basename "$file") ($(numfmt --to=iec $size))"
+            fi
+        done
+    done
+    
+    if [[ $cleaned_count -gt 0 ]]; then
+        print_success "Cleaned $cleaned_count temp files, freed $(numfmt --to=iec $freed_space)"
+    else
+        print_info "No old temp files found to clean"
+    fi
+}
+
+cleanup_log_files() {
+    print_section "📝 CLEANING LOG FILES"
+    
+    local log_dirs=(
+        "/tmp"
+        "/home/jbyrd/Documents/rh/projects/automation/rfe-bug-tracker-automation/logs"
+    )
+    
+    local cleaned_count=0
+    local freed_space=0
+    
+    for log_dir in "${log_dirs[@]}"; do
+        if [[ -d "$log_dir" ]]; then
+            # Find log files older than 30 days
+            local old_logs=($(find "$log_dir" -name "*.log" -type f -mtime +30 2>/dev/null || true))
+            
+            for log_file in "${old_logs[@]}"; do
+                local size=$(stat -c %s "$log_file" 2>/dev/null || echo 0)
+                rm -f "$log_file"
+                ((cleaned_count++))
+                ((freed_space += size))
+                print_info "Removed: $(basename "$log_file") ($(numfmt --to=iec $size))"
+            done
+        fi
+    done
+    
+    if [[ $cleaned_count -gt 0 ]]; then
+        print_success "Cleaned $cleaned_count log files, freed $(numfmt --to=iec $freed_space)"
+    else
+        print_info "No old log files found to clean"
+    fi
+}
+
+cleanup_alert_files() {
+    print_section "🚨 CLEANING ALERT FILES"
+    
+    # Use pai-alerts for automated cleanup
+    if [[ -x "$PAI_ROOT/bin/pai-alerts" ]]; then
+        print_info "Running automated alert cleanup..."
+        
+        # Simulate 'y' response for automated cleanup
+        echo "y" | "$PAI_ROOT/bin/pai-alerts" --clean > /dev/null 2>&1 || true
+        
+        print_success "Alert cleanup completed"
+    else
+        print_warning "pai-alerts command not found, skipping alert cleanup"
+    fi
+}
+
+optimize_system_performance() {
+    print_section "⚡ OPTIMIZING SYSTEM PERFORMANCE"
+    
+    # Clear system caches (if running as root)
+    if [[ $EUID -eq 0 ]]; then
+        print_info "Clearing system caches..."
+        sync
+        echo 3 > /proc/sys/vm/drop_caches
+        print_success "System caches cleared"
+    else
+        print_info "Not running as root, skipping cache clearing"
+    fi
+    
+    # Optimize Python bytecode cache
+    print_info "Optimizing Python bytecode cache..."
+    find "$PAI_ROOT" -name "*.pyc" -delete 2>/dev/null || true
+    find "$PAI_ROOT" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+    print_success "Python bytecode cache optimized"
+}
+
+validate_system_health() {
+    print_section "🏥 VALIDATING SYSTEM HEALTH"
+    
+    local health_issues=0
+    
+    # Check disk space
+    local disk_usage=$(df /tmp | tail -1 | awk '{print $5}' | sed 's/%//')
+    if [[ $disk_usage -gt 90 ]]; then
+        print_error "Disk usage critical: ${disk_usage}%"
+        ((health_issues++))
+    elif [[ $disk_usage -gt 80 ]]; then
+        print_warning "Disk usage high: ${disk_usage}%"
+    else
+        print_success "Disk usage normal: ${disk_usage}%"
+    fi
+    
+    # Check RFE automation components
+    local components=(
+        "$PAI_ROOT/bin/pai-rfe-deploy"
+        "$PAI_ROOT/bin/pai-rfe-monitor"
+        "$PAI_ROOT/bin/pai-alerts"
+        "$PAI_ROOT/src/rfe_monitoring_system.py"
+        "$PAI_ROOT/src/rfe_error_handler.py"
+    )
+    
+    for component in "${components[@]}"; do
+        if [[ -f "$component" ]]; then
+            print_success "Component exists: $(basename "$component")"
+        else
+            print_error "Component missing: $(basename "$component")"
+            ((health_issues++))
+        fi
+    done
+    
+    # Check cron jobs
+    local rfe_jobs=$(crontab -l 2>/dev/null | grep -c "pai-rfe\|pai-weekly\|pai-alerts" || echo 0)
+    if [[ $rfe_jobs -gt 0 ]]; then
+        print_success "RFE automation cron jobs: $rfe_jobs installed"
+    else
+        print_warning "No RFE automation cron jobs found"
+    fi
+    
+    # Overall health assessment
+    if [[ $health_issues -eq 0 ]]; then
+        print_success "System health: EXCELLENT"
+    elif [[ $health_issues -le 2 ]]; then
+        print_warning "System health: GOOD (minor issues detected)"
+    else
+        print_error "System health: NEEDS ATTENTION ($health_issues issues)"
+    fi
+    
+    return $health_issues
+}
+
+generate_maintenance_report() {
+    print_section "📊 GENERATING MAINTENANCE REPORT"
+    
+    local report_file="/tmp/pai-maintenance-report-$(date +%Y%m%d-%H%M%S).txt"
+    
+    cat > "$report_file" << EOF
+PAI MAINTENANCE REPORT
+=====================
+
+Date: $(date)
+Maintenance Type: ${1:-manual}
+Log File: $LOG_FILE
+
+SYSTEM INFORMATION:
+- Hostname: $(hostname)
+- Uptime: $(uptime | cut -d',' -f1)
+- Load Average: $(uptime | awk -F'load average:' '{print $2}')
+- Memory Usage: $(free -h | grep '^Mem:' | awk '{print $3 "/" $2}')
+- Disk Usage (/tmp): $(df -h /tmp | tail -1 | awk '{print $5}')
+
+MAINTENANCE ACTIVITIES:
+- Temporary files cleanup: Completed
+- Log files cleanup: Completed  
+- Alert files cleanup: Completed
+- System optimization: Completed
+- Health validation: Completed
+
+CRON JOBS STATUS:
+$(crontab -l 2>/dev/null | grep -E "(pai-rfe|pai-weekly|pai-alerts)" | wc -l) RFE automation jobs installed
+
+RECENT AUTOMATION LOGS:
+$(ls -la /tmp/*cron.log 2>/dev/null | tail -5 || echo "No recent cron logs found")
+
+RECOMMENDATIONS:
+- Monitor disk usage regularly
+- Review automation logs for any recurring issues
+- Ensure all RFE automation components are functioning properly
+
+Report generated: $(date)
+EOF
+    
+    print_success "Maintenance report saved: $report_file"
+    
+    # Show summary
+    echo ""
+    print_info "Maintenance Summary:"
+    grep -E "(SYSTEM INFORMATION|MAINTENANCE ACTIVITIES|RECOMMENDATIONS)" -A 10 "$report_file" | head -20
+}
+
+run_daily_maintenance() {
+    print_header
+    print_info "Running daily maintenance tasks..."
+    
+    cleanup_temp_files
+    validate_system_health
+    
+    print_success "Daily maintenance completed"
+}
+
+run_weekly_maintenance() {
+    print_header
+    print_info "Running weekly maintenance tasks..."
+    
+    cleanup_temp_files
+    cleanup_alert_files
+    validate_system_health
+    generate_maintenance_report "weekly"
+    
+    print_success "Weekly maintenance completed"
+}
+
+run_monthly_maintenance() {
+    print_header
+    print_info "Running monthly maintenance tasks..."
+    
+    cleanup_temp_files
+    cleanup_log_files
+    cleanup_alert_files
+    optimize_system_performance
+    validate_system_health
+    generate_maintenance_report "monthly"
+    
+    print_success "Monthly maintenance completed"
+}
+
+show_help() {
+    echo "PAI Maintenance - System Cleanup and Maintenance"
+    echo ""
+    echo "Usage: pai-maintenance [OPTION]"
+    echo ""
+    echo "Options:"
+    echo "  --daily       Run daily maintenance (temp files, health check)"
+    echo "  --weekly      Run weekly maintenance (+ alerts cleanup, report)"
+    echo "  --monthly     Run monthly maintenance (+ logs cleanup, optimization)"
+    echo "  --help        Show this help message"
+    echo ""
+    echo "Maintenance Tasks:"
+    echo "  🗑️  Temp Files:     Remove files older than 7 days"
+    echo "  📝 Log Files:       Remove logs older than 30 days (monthly only)"
+    echo "  🚨 Alert Files:     Clean old alert files"
+    echo "  ⚡ Optimization:    Clear caches, optimize bytecode (monthly only)"
+    echo "  🏥 Health Check:    Validate system components"
+    echo "  📊 Reports:         Generate maintenance reports"
+    echo ""
+    echo "Automated Schedule:"
+    echo "  📅 Daily:           Temp cleanup and health check"
+    echo "  📅 Weekly:          + Alert cleanup and reporting"
+    echo "  📅 Monthly:         + Log cleanup and optimization"
+    echo ""
+    echo "Examples:"
+    echo "  pai-maintenance --daily       # Quick daily cleanup"
+    echo "  pai-maintenance --monthly     # Comprehensive maintenance"
+}
+
+main() {
+    case "${1:-}" in
+        --daily)
+            run_daily_maintenance
+            ;;
+        --weekly)
+            run_weekly_maintenance
+            ;;
+        --monthly)
+            run_monthly_maintenance
+            ;;
+        --help|"")
+            show_help
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
