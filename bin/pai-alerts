@@ -1,0 +1,300 @@
+#!/usr/bin/env bash
+
+# PAI Alerts - View RFE Automation System Alerts
+# Purpose: Display and manage RFE automation system alerts
+# Usage: pai-alerts [--latest|--summary|--all|--clean|--help]
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+ALERTS_DIR="/tmp/rfe-alerts"
+
+print_header() {
+    echo -e "${CYAN}"
+    echo "🚨 PAI ALERTS - RFE Automation System Alerts"
+    echo "=" * 45
+    echo -e "${NC}"
+    echo "📅 Current Time: $(date)"
+    echo "📁 Alerts Directory: $ALERTS_DIR"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+show_latest_alerts() {
+    print_section "📋 LATEST ALERTS"
+    
+    if [[ ! -d "$ALERTS_DIR" ]]; then
+        print_info "No alerts directory found - monitoring system not yet used"
+        return 0
+    fi
+    
+    # Show latest alerts by type
+    for alert_type in failure warning success info; do
+        local latest_file="$ALERTS_DIR/latest-$alert_type-alert.txt"
+        
+        if [[ -L "$latest_file" && -f "$latest_file" ]]; then
+            local timestamp=$(stat -c %y "$latest_file" | cut -d' ' -f1-2)
+            
+            case "$alert_type" in
+                failure) echo -e "${RED}❌ Latest Failure Alert: $timestamp${NC}" ;;
+                warning) echo -e "${YELLOW}⚠️  Latest Warning Alert: $timestamp${NC}" ;;
+                success) echo -e "${GREEN}✅ Latest Success Alert: $timestamp${NC}" ;;
+                info) echo -e "${BLUE}💡 Latest Info Alert: $timestamp${NC}" ;;
+            esac
+            
+            echo "   📁 File: $(readlink "$latest_file")"
+        fi
+    done
+    
+    echo ""
+    print_info "Use 'pai-alerts --summary' for detailed statistics"
+}
+
+show_alert_summary() {
+    print_section "📊 ALERT SUMMARY DASHBOARD"
+    
+    local summary_file="$ALERTS_DIR/alert-summary.json"
+    
+    if [[ ! -f "$summary_file" ]]; then
+        print_info "No alert summary found - monitoring system not yet used"
+        return 0
+    fi
+    
+    # Parse and display summary using Python
+    python3 -c "
+import json
+import sys
+from datetime import datetime
+
+try:
+    with open('$summary_file', 'r') as f:
+        summary = json.load(f)
+    
+    stats = summary.get('stats', {})
+    alerts = summary.get('alerts', [])
+    
+    print('📈 ALERT STATISTICS:')
+    print(f'   Total Alerts: {stats.get(\"total\", 0)}')
+    print(f'   ❌ Failures: {stats.get(\"failure\", 0)}')
+    print(f'   ⚠️  Warnings: {stats.get(\"warning\", 0)}')
+    print(f'   ✅ Success: {stats.get(\"success\", 0)}')
+    print(f'   💡 Info: {stats.get(\"info\", 0)}')
+    print()
+    
+    if alerts:
+        print('🕒 RECENT ALERTS (Last 10):')
+        for i, alert in enumerate(alerts[:10]):
+            timestamp = alert['timestamp'][:19].replace('T', ' ')
+            alert_type = alert['type']
+            subject = alert['subject'][:50] + '...' if len(alert['subject']) > 50 else alert['subject']
+            
+            type_icon = {'failure': '❌', 'warning': '⚠️ ', 'success': '✅', 'info': '💡'}.get(alert_type, '📋')
+            print(f'   {i+1:2d}. {type_icon} {timestamp} - {subject}')
+    
+    last_updated = summary.get('last_updated', '')
+    if last_updated:
+        print(f'\\n📅 Last Updated: {last_updated[:19].replace(\"T\", \" \")}')
+
+except Exception as e:
+    print(f'❌ Error reading alert summary: {e}')
+    sys.exit(1)
+"
+}
+
+show_all_alerts() {
+    print_section "📋 ALL ALERT FILES"
+    
+    if [[ ! -d "$ALERTS_DIR" ]]; then
+        print_info "No alerts directory found"
+        return 0
+    fi
+    
+    local alert_files=($(find "$ALERTS_DIR" -name "rfe-alert-*.txt" -type f | sort -r))
+    
+    if [[ ${#alert_files[@]} -eq 0 ]]; then
+        print_info "No alert files found"
+        return 0
+    fi
+    
+    echo "Found ${#alert_files[@]} alert files:"
+    echo ""
+    
+    for file in "${alert_files[@]}"; do
+        local basename=$(basename "$file")
+        local timestamp=$(stat -c %y "$file" | cut -d' ' -f1-2)
+        local size=$(stat -c %s "$file")
+        
+        # Extract alert type from filename
+        local alert_type=$(echo "$basename" | sed 's/rfe-alert-\(.*\)-[0-9]*.txt/\1/')
+        
+        case "$alert_type" in
+            failure) echo -e "${RED}❌${NC} $basename ($size bytes) - $timestamp" ;;
+            warning) echo -e "${YELLOW}⚠️${NC}  $basename ($size bytes) - $timestamp" ;;
+            success) echo -e "${GREEN}✅${NC} $basename ($size bytes) - $timestamp" ;;
+            info) echo -e "${BLUE}💡${NC} $basename ($size bytes) - $timestamp" ;;
+            *) echo -e "${PURPLE}📋${NC} $basename ($size bytes) - $timestamp" ;;
+        esac
+    done
+    
+    echo ""
+    print_info "Use 'cat $ALERTS_DIR/filename.txt' to view specific alerts"
+}
+
+clean_old_alerts() {
+    print_section "🧹 CLEANING OLD ALERTS"
+    
+    if [[ ! -d "$ALERTS_DIR" ]]; then
+        print_info "No alerts directory found"
+        return 0
+    fi
+    
+    # Find alerts older than 7 days
+    local old_alerts=($(find "$ALERTS_DIR" -name "rfe-alert-*.txt" -type f -mtime +7))
+    
+    if [[ ${#old_alerts[@]} -eq 0 ]]; then
+        print_success "No old alerts to clean (keeping alerts < 7 days)"
+        return 0
+    fi
+    
+    echo "Found ${#old_alerts[@]} alerts older than 7 days:"
+    
+    for file in "${old_alerts[@]}"; do
+        local basename=$(basename "$file")
+        local timestamp=$(stat -c %y "$file" | cut -d' ' -f1)
+        echo "  📁 $basename ($timestamp)"
+    done
+    
+    echo ""
+    read -p "Delete these old alerts? (y/N): " -n 1 -r
+    echo ""
+    
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        for file in "${old_alerts[@]}"; do
+            rm -f "$file"
+            print_success "Deleted: $(basename "$file")"
+        done
+        
+        # Update summary to remove deleted alerts
+        python3 -c "
+import json
+import os
+from datetime import datetime, timedelta
+
+summary_file = '$ALERTS_DIR/alert-summary.json'
+if os.path.exists(summary_file):
+    with open(summary_file, 'r') as f:
+        summary = json.load(f)
+    
+    # Remove alerts for deleted files
+    deleted_files = [$(printf '"%s", ' "${old_alerts[@]}" | sed 's/, $//'))]
+    
+    if 'alerts' in summary:
+        original_count = len(summary['alerts'])
+        summary['alerts'] = [alert for alert in summary['alerts'] 
+                           if alert.get('file') not in deleted_files]
+        removed_count = original_count - len(summary['alerts'])
+        
+        # Update stats
+        if 'stats' in summary:
+            summary['stats']['total'] = max(0, summary['stats']['total'] - removed_count)
+        
+        summary['last_updated'] = datetime.now().isoformat()
+        
+        with open(summary_file, 'w') as f:
+            json.dump(summary, f, indent=2)
+        
+        print(f'Updated summary: removed {removed_count} alert entries')
+"
+        
+        print_success "Cleanup completed"
+    else
+        print_info "Cleanup cancelled"
+    fi
+}
+
+show_help() {
+    echo "PAI Alerts - View RFE Automation System Alerts"
+    echo ""
+    echo "Usage: pai-alerts [OPTION]"
+    echo ""
+    echo "Options:"
+    echo "  --latest      Show latest alerts by type (default)"
+    echo "  --summary     Show detailed alert statistics and recent alerts"
+    echo "  --all         List all alert files with timestamps"
+    echo "  --clean       Clean up alerts older than 7 days"
+    echo "  --help        Show this help message"
+    echo ""
+    echo "Alert Types:"
+    echo "  ❌ failure    RFE automation failures requiring attention"
+    echo "  ⚠️  warning    Timeouts or non-critical issues"
+    echo "  ✅ success    Successful automation completions"
+    echo "  💡 info       System tests and informational messages"
+    echo ""
+    echo "Files:"
+    echo "  📁 Alert Directory: $ALERTS_DIR"
+    echo "  📊 Summary File: $ALERTS_DIR/alert-summary.json"
+    echo "  🔗 Latest Links: $ALERTS_DIR/latest-TYPE-alert.txt"
+    echo ""
+    echo "Examples:"
+    echo "  pai-alerts                    # Show latest alerts"
+    echo "  pai-alerts --summary          # Detailed dashboard"
+    echo "  pai-alerts --all              # List all files"
+    echo "  pai-alerts --clean            # Clean old alerts"
+}
+
+main() {
+    print_header
+    
+    case "${1:-}" in
+        --latest|"")
+            show_latest_alerts
+            ;;
+        --summary)
+            show_alert_summary
+            ;;
+        --all)
+            show_all_alerts
+            ;;
+        --clean)
+            clean_old_alerts
+            ;;
+        --help)
+            show_help
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

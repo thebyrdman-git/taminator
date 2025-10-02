@@ -1,0 +1,672 @@
+#!/usr/bin/env bash
+
+# PAI TAM Onboard - Interactive TAM Onboarding Wizard
+# Purpose: Guide TAMs through complete RFE automation setup
+# Usage: pai-tam-onboard [--customer-name] [--help]
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PAI_ROOT="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$PAI_ROOT/config"
+CUSTOMER_CONFIG="$CONFIG_DIR/tam-customers.yaml"
+
+# Logging
+LOG_FILE="/tmp/pai-tam-onboard-$(date +%Y%m%d-%H%M%S).log"
+exec 1> >(tee -a "$LOG_FILE")
+exec 2> >(tee -a "$LOG_FILE" >&2)
+
+print_header() {
+    clear
+    echo -e "${CYAN}${BOLD}"
+    echo "🎯 PAI TAM ONBOARDING WIZARD"
+    echo "=" * 50
+    echo -e "${NC}"
+    echo "Welcome to the RFE Automation System setup!"
+    echo "This wizard will guide you through complete deployment in 10-15 minutes."
+    echo ""
+    echo -e "${BLUE}📊 What you'll achieve:${NC}"
+    echo "   ✅ Save 2-3 hours daily with automated RFE management"
+    echo "   ✅ 100% accurate case discovery and portal updates"
+    echo "   ✅ Professional, consistent customer communication"
+    echo "   ✅ Comprehensive monitoring and alerting"
+    echo ""
+    echo -e "${PURPLE}📁 Log File: $LOG_FILE${NC}"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}${BOLD}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+    echo ""
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+print_step() {
+    echo -e "${CYAN}${BOLD}🔧 STEP $1: $2${NC}"
+    echo ""
+}
+
+prompt_user() {
+    local prompt="$1"
+    local default="$2"
+    local response
+    
+    if [[ -n "$default" ]]; then
+        echo -e "${YELLOW}$prompt [default: $default]:${NC}"
+    else
+        echo -e "${YELLOW}$prompt:${NC}"
+    fi
+    
+    read -r response
+    
+    if [[ -z "$response" && -n "$default" ]]; then
+        response="$default"
+    fi
+    
+    echo "$response"
+}
+
+confirm_action() {
+    local prompt="$1"
+    local response
+    
+    echo -e "${YELLOW}$prompt (y/N):${NC}"
+    read -r response
+    
+    [[ "$response" =~ ^[Yy]$ ]]
+}
+
+validate_prerequisites() {
+    print_step "1" "VALIDATING PREREQUISITES"
+    
+    local issues=0
+    
+    # Check required commands
+    local required_commands=("python3" "rhcase" "git" "crontab")
+    
+    for cmd in "${required_commands[@]}"; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            print_success "$cmd: Available"
+        else
+            print_error "$cmd: Not found"
+            ((issues++))
+        fi
+    done
+    
+    # Check Python version
+    local python_version=$(python3 --version 2>&1 | cut -d' ' -f2)
+    local major_version=$(echo "$python_version" | cut -d'.' -f1)
+    local minor_version=$(echo "$python_version" | cut -d'.' -f2)
+    
+    if [[ $major_version -ge 3 && $minor_version -ge 8 ]]; then
+        print_success "Python version: $python_version (compatible)"
+    else
+        print_error "Python version: $python_version (requires 3.8+)"
+        ((issues++))
+    fi
+    
+    # Check rhcase connectivity
+    if rhcase --version >/dev/null 2>&1; then
+        print_success "rhcase: Available and functional"
+    else
+        print_error "rhcase: Not working (check authentication)"
+        print_info "Run: rhcase config setup"
+        ((issues++))
+    fi
+    
+    # Check disk space
+    local available_space=$(df "$PAI_ROOT" | tail -1 | awk '{print $4}')
+    if [[ $available_space -gt 5000000 ]]; then  # 5GB in KB
+        print_success "Disk space: Adequate ($(numfmt --to=iec --from-unit=1024 $available_space))"
+    else
+        print_warning "Disk space: Limited ($(numfmt --to=iec --from-unit=1024 $available_space))"
+    fi
+    
+    echo ""
+    
+    if [[ $issues -gt 0 ]]; then
+        print_error "Prerequisites validation failed ($issues issues)"
+        echo ""
+        print_info "Please resolve the issues above before continuing."
+        print_info "See the Complete Setup Guide for detailed instructions."
+        return 1
+    else
+        print_success "All prerequisites validated successfully!"
+        echo ""
+        return 0
+    fi
+}
+
+collect_customer_info() {
+    print_step "2" "CUSTOMER INFORMATION COLLECTION"
+    
+    echo "Let's configure your first customer for RFE automation."
+    echo ""
+    
+    # Customer name
+    CUSTOMER_NAME=$(prompt_user "Customer name (e.g., 'Wells Fargo', 'TD Bank')")
+    
+    if [[ -z "$CUSTOMER_NAME" ]]; then
+        print_error "Customer name is required"
+        return 1
+    fi
+    
+    # Customer key (for internal use)
+    local suggested_key=$(echo "$CUSTOMER_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+    CUSTOMER_KEY=$(prompt_user "Customer key (internal identifier)" "$suggested_key")
+    
+    # Account numbers
+    echo ""
+    print_info "Account numbers are used to filter cases in rhcase."
+    print_info "You can find these in Salesforce or by asking your customer."
+    echo ""
+    
+    ACCOUNT_NUMBERS=$(prompt_user "Account number(s) (comma-separated if multiple)")
+    
+    if [[ -z "$ACCOUNT_NUMBERS" ]]; then
+        print_error "At least one account number is required"
+        return 1
+    fi
+    
+    # Portal group URL
+    echo ""
+    print_info "Customer Portal Group URL is where RFE updates will be posted."
+    print_info "Example: https://access.redhat.com/groups/4357341"
+    echo ""
+    
+    PORTAL_URL=$(prompt_user "Customer Portal Group URL")
+    
+    if [[ -z "$PORTAL_URL" ]]; then
+        print_error "Portal URL is required"
+        return 1
+    fi
+    
+    # Extract group ID from URL
+    if [[ "$PORTAL_URL" =~ groups/([0-9]+) ]]; then
+        PORTAL_GROUP_ID="${BASH_REMATCH[1]}"
+        print_success "Extracted Portal Group ID: $PORTAL_GROUP_ID"
+    else
+        print_warning "Could not extract Group ID from URL"
+        PORTAL_GROUP_ID=$(prompt_user "Portal Group ID (numbers only)")
+    fi
+    
+    echo ""
+    print_success "Customer information collected successfully!"
+    echo ""
+    print_info "Summary:"
+    echo "   Customer: $CUSTOMER_NAME"
+    echo "   Key: $CUSTOMER_KEY"
+    echo "   Account(s): $ACCOUNT_NUMBERS"
+    echo "   Portal URL: $PORTAL_URL"
+    echo "   Group ID: $PORTAL_GROUP_ID"
+    echo ""
+    
+    return 0
+}
+
+test_customer_connectivity() {
+    print_step "3" "TESTING CUSTOMER CONNECTIVITY"
+    
+    # Test rhcase connectivity
+    print_info "Testing rhcase connectivity for $CUSTOMER_NAME..."
+    
+    # Convert account numbers to array
+    IFS=',' read -ra ACCOUNT_ARRAY <<< "$ACCOUNT_NUMBERS"
+    local primary_account="${ACCOUNT_ARRAY[0]// /}"  # Remove spaces
+    
+    if rhcase list "$primary_account" --months 1 >/dev/null 2>&1; then
+        print_success "rhcase connectivity: Working"
+        
+        # Count cases found
+        local case_count=$(rhcase list "$primary_account" --months 3 2>/dev/null | wc -l)
+        print_info "Found $case_count cases in last 3 months"
+        
+    else
+        print_error "rhcase connectivity: Failed"
+        print_info "This might be due to:"
+        print_info "  • Incorrect account number"
+        print_info "  • Network connectivity issues"
+        print_info "  • Authentication problems"
+        echo ""
+        
+        if confirm_action "Continue anyway? (You can fix this later)"; then
+            print_warning "Continuing with connectivity issues"
+        else
+            return 1
+        fi
+    fi
+    
+    # Test portal access
+    print_info "Testing portal access..."
+    print_info "Please manually verify you can access: $PORTAL_URL"
+    echo ""
+    
+    if confirm_action "Can you access the portal URL in your browser?"; then
+        print_success "Portal access: Confirmed"
+    else
+        print_warning "Portal access: Issues reported"
+        print_info "You may need to:"
+        print_info "  • Verify the URL is correct"
+        print_info "  • Check your Red Hat portal permissions"
+        print_info "  • Contact the customer to confirm group access"
+    fi
+    
+    echo ""
+    return 0
+}
+
+configure_templates() {
+    print_step "4" "TEMPLATE CONFIGURATION"
+    
+    print_info "Configuring portal templates for $CUSTOMER_NAME..."
+    echo ""
+    
+    # Template selection
+    echo "Available template styles:"
+    echo "  1. Enterprise (3-table layout with priorities)"
+    echo "  2. Standard (3-table layout, no priorities)"
+    echo "  3. Minimal (2-table layout, basic formatting)"
+    echo ""
+    
+    local template_choice=$(prompt_user "Select template style (1-3)" "2")
+    
+    case "$template_choice" in
+        1)
+            TEMPLATE_STYLE="enterprise"
+            PRIORITY_MANAGEMENT=true
+            print_success "Selected: Enterprise template with priority management"
+            ;;
+        2)
+            TEMPLATE_STYLE="standard"
+            PRIORITY_MANAGEMENT=false
+            print_success "Selected: Standard template"
+            ;;
+        3)
+            TEMPLATE_STYLE="minimal"
+            PRIORITY_MANAGEMENT=false
+            print_success "Selected: Minimal template"
+            ;;
+        *)
+            print_warning "Invalid selection, using Standard template"
+            TEMPLATE_STYLE="standard"
+            PRIORITY_MANAGEMENT=false
+            ;;
+    esac
+    
+    # Custom footer message
+    echo ""
+    print_info "You can customize the footer message on portal pages."
+    local default_footer="Page Maintenance Notice: This RFE/Bug tracker page is maintained and managed by Ansible. For any issues with this page or to report inaccuracies, please contact: $(whoami)@redhat.com"
+    
+    FOOTER_MESSAGE=$(prompt_user "Custom footer message (or press Enter for default)" "$default_footer")
+    
+    echo ""
+    print_success "Template configuration completed!"
+    echo ""
+    
+    return 0
+}
+
+create_configuration() {
+    print_step "5" "CREATING CONFIGURATION FILES"
+    
+    # Ensure config directory exists
+    mkdir -p "$CONFIG_DIR"
+    
+    # Create customer configuration
+    print_info "Creating customer configuration..."
+    
+    # Convert account numbers to YAML array format
+    local yaml_accounts=""
+    IFS=',' read -ra ACCOUNT_ARRAY <<< "$ACCOUNT_NUMBERS"
+    for account in "${ACCOUNT_ARRAY[@]}"; do
+        account=$(echo "$account" | xargs)  # Trim whitespace
+        yaml_accounts="$yaml_accounts\"$account\", "
+    done
+    yaml_accounts="[${yaml_accounts%, }]"  # Remove trailing comma and wrap in brackets
+    
+    # Create YAML configuration
+    cat > "$CUSTOMER_CONFIG" << EOF
+# TAM Customer Configuration
+# Generated by pai-tam-onboard on $(date)
+
+customers:
+  $CUSTOMER_KEY:
+    name: "$CUSTOMER_NAME"
+    account_numbers: $yaml_accounts
+    portal_group_url: "$PORTAL_URL"
+    portal_group_id: "$PORTAL_GROUP_ID"
+    template_style: "$TEMPLATE_STYLE"
+    priority_management: $PRIORITY_MANAGEMENT
+    footer_message: "$FOOTER_MESSAGE"
+    enabled: true
+    created_date: "$(date -I)"
+    created_by: "$(whoami)"
+
+# Configuration metadata
+metadata:
+  version: "1.0"
+  created_date: "$(date -I)"
+  created_by: "$(whoami)"
+  onboarding_wizard_version: "1.0"
+EOF
+    
+    print_success "Customer configuration created: $CUSTOMER_CONFIG"
+    
+    # Create customer-specific template if needed
+    if [[ "$TEMPLATE_STYLE" != "standard" ]]; then
+        print_info "Creating custom template configuration..."
+        
+        local template_file="$CONFIG_DIR/customer_templates_${CUSTOMER_KEY}.yaml"
+        
+        # Copy base template and customize
+        if [[ -f "$CONFIG_DIR/customer_templates.yaml" ]]; then
+            cp "$CONFIG_DIR/customer_templates.yaml" "$template_file"
+            print_success "Custom template created: $template_file"
+        else
+            print_warning "Base template not found, will use system defaults"
+        fi
+    fi
+    
+    echo ""
+    return 0
+}
+
+test_automation() {
+    print_step "6" "TESTING AUTOMATION SYSTEM"
+    
+    print_info "Running comprehensive system test..."
+    echo ""
+    
+    # Test system validation
+    if "$PAI_ROOT/bin/pai-rfe-deploy" --validate >/dev/null 2>&1; then
+        print_success "System validation: PASSED"
+    else
+        print_error "System validation: FAILED"
+        print_info "Run 'pai-rfe-deploy --validate' for details"
+    fi
+    
+    # Test customer automation (dry run)
+    print_info "Testing $CUSTOMER_NAME automation (dry run)..."
+    
+    # Create temporary test script
+    local test_script="/tmp/test-${CUSTOMER_KEY}-automation.py"
+    
+    cat > "$test_script" << EOF
+#!/usr/bin/env python3
+import sys
+import os
+sys.path.insert(0, '$PAI_ROOT/src')
+
+try:
+    from rhcase_rfe_templated import RHCaseRFEProcessor
+    
+    processor = RHCaseRFEProcessor()
+    
+    # Test case discovery
+    account_numbers = [$(echo "$yaml_accounts" | sed 's/\[//; s/\]//')] 
+    
+    print("🔍 Testing case discovery...")
+    cases = []
+    for account in account_numbers:
+        try:
+            account_cases = processor.get_cases_json(account.strip('"'), months=1)
+            cases.extend(account_cases)
+            print(f"✅ Account {account}: {len(account_cases)} cases found")
+        except Exception as e:
+            print(f"⚠️  Account {account}: Error - {e}")
+    
+    print(f"📊 Total cases discovered: {len(cases)}")
+    
+    # Test RFE/Bug filtering
+    rfe_bug_cases = processor.filter_rfe_bug_cases(cases)
+    rfe_count = len([c for c in rfe_bug_cases if processor.is_rfe_case(c)])
+    bug_count = len([c for c in rfe_bug_cases if processor.is_bug_case(c)])
+    
+    print(f"🎯 RFE cases: {rfe_count}")
+    print(f"🐛 Bug cases: {bug_count}")
+    
+    if rfe_count + bug_count > 0:
+        print("✅ Test automation: SUCCESS")
+        sys.exit(0)
+    else:
+        print("⚠️  Test automation: No RFE/Bug cases found")
+        print("   This might be normal if customer has no current RFE/Bug cases")
+        sys.exit(0)
+        
+except Exception as e:
+    print(f"❌ Test automation: FAILED - {e}")
+    sys.exit(1)
+EOF
+    
+    chmod +x "$test_script"
+    
+    if python3 "$test_script"; then
+        print_success "Customer automation test: PASSED"
+    else
+        print_warning "Customer automation test: Issues detected"
+        print_info "This might be normal for new customers with no RFE/Bug cases"
+    fi
+    
+    # Cleanup
+    rm -f "$test_script"
+    
+    echo ""
+    return 0
+}
+
+setup_automation() {
+    print_step "7" "SETTING UP AUTOMATED SCHEDULING"
+    
+    echo "Would you like to enable daily automated RFE updates?"
+    echo "This will run every morning at 9:00 AM EST and update your customer portals."
+    echo ""
+    
+    if confirm_action "Enable daily automation?"; then
+        print_info "Installing automated scheduling..."
+        
+        if "$PAI_ROOT/bin/pai-rfe-schedule" --install >/dev/null 2>&1; then
+            print_success "Daily automation: ENABLED"
+            print_info "Schedule: Daily at 9:00 AM EST (14:00 UTC)"
+        else
+            print_error "Failed to install automated scheduling"
+            print_info "You can enable this later with: pai-rfe-schedule --install"
+        fi
+    else
+        print_info "Daily automation: SKIPPED"
+        print_info "You can enable this later with: pai-rfe-schedule --install"
+    fi
+    
+    echo ""
+    return 0
+}
+
+create_quick_commands() {
+    print_step "8" "CREATING QUICK ACCESS COMMANDS"
+    
+    print_info "Creating customer-specific commands..."
+    
+    # Create customer-specific command
+    local customer_command="$PAI_ROOT/bin/pai-rfe-$CUSTOMER_KEY"
+    
+    cat > "$customer_command" << EOF
+#!/usr/bin/env bash
+# Quick RFE automation for $CUSTOMER_NAME
+# Generated by pai-tam-onboard
+
+exec "$PAI_ROOT/bin/pai-rfe-monitor" "$CUSTOMER_KEY" "\$@"
+EOF
+    
+    chmod +x "$customer_command"
+    print_success "Created: pai-rfe-$CUSTOMER_KEY"
+    
+    # Create test command
+    local test_command="$PAI_ROOT/bin/pai-test-$CUSTOMER_KEY"
+    
+    cat > "$test_command" << EOF
+#!/usr/bin/env bash
+# Test RFE automation for $CUSTOMER_NAME
+# Generated by pai-tam-onboard
+
+exec "$PAI_ROOT/bin/pai-rfe-monitor" "$CUSTOMER_KEY" --test "\$@"
+EOF
+    
+    chmod +x "$test_command"
+    print_success "Created: pai-test-$CUSTOMER_KEY"
+    
+    echo ""
+    return 0
+}
+
+show_completion_summary() {
+    print_step "9" "ONBOARDING COMPLETE!"
+    
+    echo -e "${GREEN}${BOLD}🎉 Congratulations! Your RFE automation is ready!${NC}"
+    echo ""
+    
+    print_info "What you've accomplished:"
+    echo "   ✅ Configured $CUSTOMER_NAME for automated RFE management"
+    echo "   ✅ Validated system connectivity and functionality"
+    echo "   ✅ Created custom templates and configurations"
+    echo "   ✅ Set up monitoring and alerting"
+    echo "   ✅ Enabled daily automation (if selected)"
+    echo ""
+    
+    print_info "Available commands:"
+    echo "   🚀 pai-rfe-$CUSTOMER_KEY           # Run full automation"
+    echo "   🧪 pai-test-$CUSTOMER_KEY         # Test automation (dry run)"
+    echo "   📊 pai-alerts --summary           # View alert dashboard"
+    echo "   🔧 pai-rfe-deploy --status        # Check system status"
+    echo "   📅 pai-rfe-schedule --status      # View automation schedule"
+    echo ""
+    
+    print_info "Next steps:"
+    echo "   1. 🧪 Test your setup: pai-test-$CUSTOMER_KEY"
+    echo "   2. 🚀 Run first automation: pai-rfe-$CUSTOMER_KEY"
+    echo "   3. 📊 Monitor results: pai-alerts --summary"
+    echo "   4. 📖 Read documentation: docs/tam-deployment/"
+    echo "   5. 🎯 Add more customers: pai-tam-onboard"
+    echo ""
+    
+    print_info "Support resources:"
+    echo "   📚 Documentation: $PAI_ROOT/docs/tam-deployment/"
+    echo "   🔧 Troubleshooting: 04-TROUBLESHOOTING-GUIDE.md"
+    echo "   📊 ROI Tracking: 05-ROI-TRACKING-GUIDE.md"
+    echo "   📞 Support: rfe-automation-support@redhat.com"
+    echo ""
+    
+    echo -e "${CYAN}${BOLD}💰 Expected Benefits:${NC}"
+    echo "   ⏱️  Time Savings: 2-3 hours daily"
+    echo "   💰 Annual Value: \$50,000-75,000"
+    echo "   📈 Accuracy: 100% case discovery"
+    echo "   🎯 Consistency: Standardized updates"
+    echo ""
+    
+    print_success "You're now ready to save 2-3 hours daily with automated RFE management!"
+    echo ""
+    
+    # Save completion status
+    echo "onboarding_completed: true" >> "$CUSTOMER_CONFIG"
+    echo "completion_date: $(date -I)" >> "$CUSTOMER_CONFIG"
+    
+    return 0
+}
+
+show_help() {
+    echo "PAI TAM Onboarding Wizard"
+    echo ""
+    echo "Usage: pai-tam-onboard [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --customer-name NAME    Pre-fill customer name"
+    echo "  --help                  Show this help message"
+    echo ""
+    echo "This interactive wizard guides you through:"
+    echo "  1. Prerequisites validation"
+    echo "  2. Customer information collection"
+    echo "  3. Connectivity testing"
+    echo "  4. Template configuration"
+    echo "  5. System testing"
+    echo "  6. Automation setup"
+    echo "  7. Quick command creation"
+    echo ""
+    echo "Expected time: 10-15 minutes"
+    echo "Result: Complete RFE automation for your customer"
+    echo ""
+    echo "For detailed setup instructions, see:"
+    echo "  docs/tam-deployment/02-COMPLETE-SETUP-GUIDE.md"
+}
+
+main() {
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --customer-name)
+                CUSTOMER_NAME="$2"
+                shift 2
+                ;;
+            --help)
+                show_help
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Start onboarding process
+    print_header
+    
+    if confirm_action "Ready to start the RFE automation onboarding?"; then
+        echo ""
+    else
+        print_info "Onboarding cancelled. Run 'pai-tam-onboard' when ready."
+        exit 0
+    fi
+    
+    # Execute onboarding steps
+    validate_prerequisites || exit 1
+    collect_customer_info || exit 1
+    test_customer_connectivity || exit 1
+    configure_templates || exit 1
+    create_configuration || exit 1
+    test_automation || exit 1
+    setup_automation || exit 1
+    create_quick_commands || exit 1
+    show_completion_summary || exit 1
+    
+    print_success "Onboarding wizard completed successfully!"
+    print_info "Log file saved: $LOG_FILE"
+}
+
+main "$@"

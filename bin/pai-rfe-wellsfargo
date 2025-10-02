@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Quick command for Wells Fargo RFE automation
+echo "🚀 Running Wells Fargo RFE Automation..."
+cd /home/jbyrd/Documents/rh/projects/automation/rfe-bug-tracker-automation/src
+python3 ultimate_rfe_portal_system.py wellsfargo

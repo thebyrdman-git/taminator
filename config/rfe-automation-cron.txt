@@ -1,0 +1,28 @@
+# RFE Automation System - Cron Job Configuration
+# Purpose: Automated daily RFE updates for Wells Fargo and TD Bank
+# Schedule: Daily at 9:00 AM EST with monitoring and alerting
+
+# Set environment variables for cron jobs
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/home/jbyrd/hatter-pai/bin
+MAILTO=""
+
+# RFE Automation - Daily at 9:00 AM EST (14:00 UTC)
+# Runs monitored RFE automation for all ready customers
+0 14 * * * /home/jbyrd/hatter-pai/bin/pai-rfe-monitor --all-daily >> /tmp/rfe-automation-cron.log 2>&1
+
+# Weekly troubleshooting reports (already configured separately)
+# Wells Fargo: Wednesday 9:00 AM EST
+0 14 * * 3 /home/jbyrd/hatter-pai/bin/pai-weekly-troubleshooting wellsfargo >> /tmp/weekly-troubleshooting-cron.log 2>&1
+
+# Alert cleanup - Weekly on Sunday at 2:00 AM EST (7:00 UTC)
+# Clean up alerts older than 7 days
+0 7 * * 0 /home/jbyrd/hatter-pai/bin/pai-alerts --clean --auto >> /tmp/alert-cleanup-cron.log 2>&1
+
+# System health check - Daily at 8:30 AM EST (13:30 UTC)
+# Validate system readiness before daily automation
+30 13 * * * /home/jbyrd/hatter-pai/bin/pai-rfe-deploy --validate >> /tmp/system-health-cron.log 2>&1
+
+# Monthly system maintenance - First Sunday of month at 3:00 AM EST (8:00 UTC)
+# Comprehensive system cleanup and maintenance
+0 8 1-7 * 0 /home/jbyrd/hatter-pai/bin/pai-maintenance --monthly >> /tmp/monthly-maintenance-cron.log 2>&1

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Quick command for TD Bank RFE automation (sandbox)
+echo "🧪 Running TD Bank RFE Automation (Sandbox)..."
+cd /home/jbyrd/Documents/rh/projects/automation/rfe-bug-tracker-automation/src
+python3 ultimate_rfe_portal_system.py tdbank
