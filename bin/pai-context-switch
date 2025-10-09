@@ -36,6 +36,7 @@ CONTEXTS:
     plex           Plex media server management and optimization
     gmail          Gmail organization and email management
     general        General development (no specific business context)
+    gandalf        Gandalf persona - Ancient wizard for infrastructure mastery
 
 OPTIONS:
     --help, -h  Show this help message
@@ -56,7 +57,7 @@ EOF
 validate_context() {
     local context="$1"
     case "$context" in
-        redhat|mga|rec|warehouse|personal|content|health|academic|home-automation|finance|meal-planning|family|maintenance|learning|entertainment|plex|gmail|general)
+        redhat|mga|rec|warehouse|personal|content|health|academic|home-automation|finance|meal-planning|family|maintenance|learning|entertainment|plex|gmail|general|gandalf)
             return 0
             ;;
         *)
@@ -105,7 +106,7 @@ fi
 # Validate context
 if ! validate_context "$CONTEXT"; then
     echo "Error: Invalid context '$CONTEXT'" >&2
-    echo "Valid contexts: redhat, mga, rec, warehouse, personal, content, health, academic, home-automation, finance, meal-planning, family, maintenance, learning, entertainment, plex, gmail, general" >&2
+    echo "Valid contexts: redhat, mga, rec, warehouse, personal, content, health, academic, home-automation, finance, meal-planning, family, maintenance, learning, entertainment, plex, gmail, general, gandalf" >&2
     exit 1
 fi
 
