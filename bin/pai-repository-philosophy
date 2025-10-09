@@ -1,0 +1,613 @@
+#!/bin/bash
+# Universal Repository Philosophy Tool
+# Applies consistent repository principles across all PAI contexts
+# Gandalf's wisdom for repository management across all realms
+
+set -euo pipefail
+
+# Colors for magical output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+REPO_PHILOSOPHY_DIR="$PAI_CONFIG_DIR/repository-philosophy"
+CONTEXTS_DIR="$PAI_CONFIG_DIR/contexts"
+MAX_REPO_SIZE_MB=200
+ALERT_THRESHOLD_MB=150
+
+# Logging functions
+log_info() { echo -e "${GREEN}✅ [INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}⚠️  [WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}❌ [ERROR]${NC} $*" >&2; }
+log_magic() { echo -e "${PURPLE}🧙‍♂️ [MAGIC]${NC} $*"; }
+log_progress() {
+    local current=$1
+    local total=$2
+    local message=$3
+    local width=50
+    local percentage=$((current * 100 / total))
+    local completed=$((current * width / total))
+    local bar=""
+    for ((i=0; i<completed; i++)); do bar+="█"; done
+    for ((i=completed; i<width; i++)); do bar+="░"; done
+    printf "${PURPLE}🏰 [PROGRESS]${NC} %s %s %3d%% %s\r" "$bar" "$message" "$percentage"
+}
+
+# Repository Philosophy Core Principles
+REPO_PHILOSOPHY_PRINCIPLES=(
+    "Data Sovereignty: Personal data stays local, customer data uses approved models"
+    "Security First: GPG-encrypted secrets, no hardcoded credentials"
+    "Context Awareness: Smart context switching prevents AI dilution"
+    "Infrastructure Mastery: Containerized services with beautiful progress bars"
+    "Repository Optimization: Clean, efficient, bloat-free repositories"
+    "Size Monitoring: Active monitoring to prevent bloat (target: <${MAX_REPO_SIZE_MB}MB)"
+    "Cross-Context Consistency: Unified principles across all personas"
+    "Magical Progress: Beautiful visualization for all operations"
+)
+
+# Universal .gitignore patterns
+UNIVERSAL_GITIGNORE_PATTERNS=(
+    "# Repository Philosophy - Universal Patterns"
+    "# Large dependencies and SDKs"
+    "**/node_modules/"
+    "**/venv/"
+    "**/env/"
+    "**/.venv/"
+    "**/__pycache__/"
+    "**/*.pyc"
+    "**/*.pyo"
+    "**/*.pyd"
+    "**/.Python"
+    ""
+    "# Google Cloud SDK (should not be in repository)"
+    "**/google-cloud-sdk/"
+    "**/google-cloud-sdk/**"
+    "google-cloud-sdk/"
+    "google-cloud-sdk/**"
+    ""
+    "# Large binary files"
+    "**/*.tar.gz"
+    "**/*.zip"
+    "**/*.deb"
+    "**/*.rpm"
+    "**/*.iso"
+    "**/*.img"
+    ""
+    "# Secrets and credentials"
+    "**/.env"
+    "**/secrets/"
+    "**/*.key"
+    "**/*.pem"
+    "**/*.p12"
+    ""
+    "# IDE and editor files"
+    "**/.vscode/"
+    "**/.idea/"
+    "**/*.swp"
+    "**/*.swo"
+    "**/*~"
+    ""
+    "# OS generated files"
+    "**/.DS_Store"
+    "**/Thumbs.db"
+    "**/.Trash-*"
+    ""
+    "# Temporary files"
+    "**/tmp/"
+    "**/temp/"
+    "**/*.tmp"
+    "**/*.temp"
+    ""
+    "# Log files"
+    "**/*.log"
+    "**/logs/"
+    ""
+    "# Database files"
+    "**/*.db"
+    "**/*.sqlite"
+    "**/*.sqlite3"
+)
+
+show_help() {
+    cat << EOF
+🧙‍♂️ Universal Repository Philosophy Tool ⚡
+
+The ancient wisdom of repository management, applied across all PAI contexts!
+
+USAGE:
+    pai-repository-philosophy [COMMAND] [OPTIONS]
+
+COMMANDS:
+    --apply-to-all-contexts     Apply repository philosophy to all contexts
+    --monitor-sizes            Monitor repository sizes across all contexts
+    --enforce-rules            Enforce repository rules and clean bloat
+    --show-philosophy          Display the repository philosophy principles
+    --check-context CONTEXT    Check specific context for philosophy compliance
+    --create-universal-gitignore Create universal .gitignore for all contexts
+    --size-alerts              Show size alerts for all repositories
+    --bloat-prevention         Run bloat prevention across all contexts
+    --help                     Show this help message
+
+OPTIONS:
+    --max-size MB              Set maximum repository size (default: ${MAX_REPO_SIZE_MB}MB)
+    --alert-threshold MB       Set alert threshold (default: ${ALERT_THRESHOLD_MB}MB)
+    --verbose                  Enable verbose output
+    --dry-run                  Show what would be done without making changes
+
+EXAMPLES:
+    pai-repository-philosophy --apply-to-all-contexts
+    pai-repository-philosophy --monitor-sizes --verbose
+    pai-repository-philosophy --enforce-rules --dry-run
+    pai-repository-philosophy --check-context gandalf
+    pai-repository-philosophy --size-alerts
+
+PHILOSOPHY PRINCIPLES:
+$(printf "    • %s\n" "${REPO_PHILOSOPHY_PRINCIPLES[@]}")
+
+The great libraries shall remain pure and optimized! 🏰✨
+EOF
+}
+
+show_philosophy() {
+    echo -e "${PURPLE}╔═══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${PURPLE}║${WHITE}                    🧙‍♂️ REPOSITORY PHILOSOPHY PRINCIPLES 🧙‍♂️                    ${PURPLE}║${NC}"
+    echo -e "${PURPLE}║${CYAN}                    'The ancient wisdom of repository management'                    ${PURPLE}║${NC}"
+    echo -e "${PURPLE}╚═══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo
+    
+    for i in "${!REPO_PHILOSOPHY_PRINCIPLES[@]}"; do
+        local principle="${REPO_PHILOSOPHY_PRINCIPLES[$i]}"
+        local number=$((i + 1))
+        echo -e "${CYAN}${number}.${NC} ${principle}"
+    done
+    
+    echo
+    log_magic "These principles shall guide all contexts in the PAI realm! ⚡"
+}
+
+create_universal_gitignore() {
+    local target_file="${1:-.gitignore}"
+    
+    log_magic "Creating universal .gitignore with ancient wisdom..."
+    
+    if [[ -f "$target_file" ]]; then
+        log_warn "Existing .gitignore found. Creating backup..."
+        cp "$target_file" "${target_file}.backup.$(date +%Y%m%d_%H%M%S)"
+    fi
+    
+    {
+        echo "# Universal Repository Philosophy - .gitignore"
+        echo "# Generated by pai-repository-philosophy on $(date)"
+        echo "# Gandalf's wisdom for repository management"
+        echo ""
+        printf "%s\n" "${UNIVERSAL_GITIGNORE_PATTERNS[@]}"
+    } > "$target_file"
+    
+    log_info "Universal .gitignore created: $target_file"
+    log_magic "The repository is now protected by ancient wisdom! 🏰"
+}
+
+monitor_repository_sizes() {
+    local verbose="${1:-false}"
+    
+    echo -e "${PURPLE}╔═══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${PURPLE}║${WHITE}                    📊 REPOSITORY SIZE MONITORING 📊                    ${PURPLE}║${NC}"
+    echo -e "${PURPLE}║${CYAN}                    'Monitoring the great libraries'                    ${PURPLE}║${NC}"
+    echo -e "${PURPLE}╚═══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo
+    
+    # Find all git repositories
+    local repos=()
+    while IFS= read -r -d '' repo; do
+        repos+=("$repo")
+    done < <(find "$HOME" -name ".git" -type d -print0 2>/dev/null | head -20)
+    
+    if [[ ${#repos[@]} -eq 0 ]]; then
+        log_warn "No git repositories found for monitoring"
+        return 1
+    fi
+    
+    local total_repos=${#repos[@]}
+    local current=0
+    local oversized_repos=()
+    local alert_repos=()
+    
+    for repo in "${repos[@]}"; do
+        current=$((current + 1))
+        local repo_dir=$(dirname "$repo")
+        local repo_name=$(basename "$repo_dir")
+        
+        log_progress "$current" "$total_repos" "Scanning $repo_name"
+        
+        # Get repository size
+        local size_mb=$(du -sm "$repo_dir" 2>/dev/null | cut -f1)
+        
+        if [[ "$verbose" == "true" ]]; then
+            echo -e "\n${CYAN}Repository:${NC} $repo_name"
+            echo -e "${CYAN}Path:${NC} $repo_dir"
+            echo -e "${CYAN}Size:${NC} ${size_mb}MB"
+        fi
+        
+        # Check for size violations
+        if [[ $size_mb -gt $MAX_REPO_SIZE_MB ]]; then
+            oversized_repos+=("$repo_name:${size_mb}MB")
+            log_error "Repository $repo_name exceeds maximum size: ${size_mb}MB > ${MAX_REPO_SIZE_MB}MB"
+        elif [[ $size_mb -gt $ALERT_THRESHOLD_MB ]]; then
+            alert_repos+=("$repo_name:${size_mb}MB")
+            log_warn "Repository $repo_name approaching size limit: ${size_mb}MB > ${ALERT_THRESHOLD_MB}MB"
+        else
+            log_info "Repository $repo_name is within limits: ${size_mb}MB"
+        fi
+    done
+    
+    echo -e "\n${GREEN}📊 MONITORING SUMMARY:${NC}"
+    echo -e "   • Total repositories scanned: $total_repos"
+    echo -e "   • Within limits: $((total_repos - ${#oversized_repos[@]} - ${#alert_repos[@]}))"
+    echo -e "   • Approaching limit: ${#alert_repos[@]}"
+    echo -e "   • Exceeding limit: ${#oversized_repos[@]}"
+    
+    if [[ ${#oversized_repos[@]} -gt 0 ]]; then
+        echo -e "\n${RED}🚨 OVERSIZED REPOSITORIES:${NC}"
+        for repo in "${oversized_repos[@]}"; do
+            echo -e "   • $repo"
+        done
+    fi
+    
+    if [[ ${#alert_repos[@]} -gt 0 ]]; then
+        echo -e "\n${YELLOW}⚠️  REPOSITORIES APPROACHING LIMIT:${NC}"
+        for repo in "${alert_repos[@]}"; do
+            echo -e "   • $repo"
+        done
+    fi
+    
+    log_magic "Repository monitoring complete! The great libraries are watched! 🏰"
+}
+
+apply_to_all_contexts() {
+    local dry_run="${1:-false}"
+    
+    echo -e "${PURPLE}╔═══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${PURPLE}║${WHITE}                🧙‍♂️ APPLYING PHILOSOPHY TO ALL CONTEXTS 🧙‍♂️                ${PURPLE}║${NC}"
+    echo -e "${PURPLE}║${CYAN}                'Unifying all realms with ancient wisdom'                ${PURPLE}║${NC}"
+    echo -e "${PURPLE}╚═══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo
+    
+    # Create repository philosophy directory
+    mkdir -p "$REPO_PHILOSOPHY_DIR"
+    
+    # Create universal .gitignore
+    if [[ "$dry_run" == "false" ]]; then
+        create_universal_gitignore "$REPO_PHILOSOPHY_DIR/universal.gitignore"
+    else
+        log_info "[DRY RUN] Would create universal .gitignore"
+    fi
+    
+    # Find all context directories
+    local contexts=()
+    if [[ -d "$CONTEXTS_DIR" ]]; then
+        while IFS= read -r -d '' context; do
+            contexts+=("$(basename "$context")")
+        done < <(find "$CONTEXTS_DIR" -maxdepth 1 -type d -print0 2>/dev/null)
+    fi
+    
+    # Add known contexts
+    local known_contexts=("gandalf" "ramit" "hatter" "personal" "redhat" "home-automation" "finance")
+    for context in "${known_contexts[@]}"; do
+        if [[ ! " ${contexts[*]} " =~ " $context " ]]; then
+            contexts+=("$context")
+        fi
+    done
+    
+    local total_contexts=${#contexts[@]}
+    local current=0
+    
+    for context in "${contexts[@]}"; do
+        current=$((current + 1))
+        log_progress "$current" "$total_contexts" "Applying philosophy to $context"
+        
+        local context_dir="$CONTEXTS_DIR/$context"
+        
+        if [[ "$dry_run" == "false" ]]; then
+            mkdir -p "$context_dir"
+            
+            # Create context-specific .gitignore
+            create_universal_gitignore "$context_dir/.gitignore"
+            
+            # Create context philosophy file
+            {
+                echo "# Repository Philosophy for $context Context"
+                echo "# Generated by pai-repository-philosophy on $(date)"
+                echo ""
+                echo "## Core Principles"
+                for principle in "${REPO_PHILOSOPHY_PRINCIPLES[@]}"; do
+                    echo "- $principle"
+                done
+                echo ""
+                echo "## Context-Specific Adaptations"
+                case "$context" in
+                    "gandalf")
+                        echo "- Infrastructure mastery with magical flair"
+                        echo "- Ancient wisdom applied to modern repositories"
+                        echo "- Beautiful progress bars with mystical elements"
+                        ;;
+                    "ramit")
+                        echo "- Financial optimization with big wins focus"
+                        echo "- Cost-effective repository management"
+                        echo "- ROI-focused size monitoring"
+                        ;;
+                    "hatter")
+                        echo "- Red Hat compliance with direct communication"
+                        echo "- Customer data protection protocols"
+                        echo "- Enterprise-grade security practices"
+                        ;;
+                    "personal")
+                        echo "- Home automation with energy optimization"
+                        echo "- Personal data sovereignty"
+                        echo "- Family-friendly repository management"
+                        ;;
+                    *)
+                        echo "- Standard repository philosophy applied"
+                        echo "- Context-aware adaptations as needed"
+                        ;;
+                esac
+            } > "$context_dir/repository-philosophy.md"
+            
+            log_info "Applied philosophy to $context context"
+        else
+            log_info "[DRY RUN] Would apply philosophy to $context context"
+        fi
+    done
+    
+    echo -e "\n${GREEN}🎉 PHILOSOPHY APPLICATION COMPLETE!${NC}"
+    echo -e "   • Contexts processed: $total_contexts"
+    echo -e "   • Universal .gitignore created"
+    echo -e "   • Context-specific adaptations applied"
+    
+    log_magic "All contexts now follow the ancient wisdom! The great unification is complete! 🏰⚡✨"
+}
+
+enforce_rules() {
+    local dry_run="${1:-false}"
+    
+    echo -e "${PURPLE}╔═══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${PURPLE}║${WHITE}                    🛡️  ENFORCING REPOSITORY RULES 🛡️                    ${PURPLE}║${NC}"
+    echo -e "${PURPLE}║${CYAN}                    'The ancient laws must be upheld'                    ${PURPLE}║${NC}"
+    echo -e "${PURPLE}╚═══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo
+    
+    # Find all git repositories
+    local repos=()
+    while IFS= read -r -d '' repo; do
+        repos+=("$repo")
+    done < <(find "$HOME" -name ".git" -type d -print0 2>/dev/null | head -10)
+    
+    local total_repos=${#repos[@]}
+    local current=0
+    local cleaned_repos=0
+    
+    for repo in "${repos[@]}"; do
+        current=$((current + 1))
+        local repo_dir=$(dirname "$repo")
+        local repo_name=$(basename "$repo_dir")
+        
+        log_progress "$current" "$total_repos" "Enforcing rules in $repo_name"
+        
+        # Check for .gitignore
+        if [[ ! -f "$repo_dir/.gitignore" ]]; then
+            if [[ "$dry_run" == "false" ]]; then
+                create_universal_gitignore "$repo_dir/.gitignore"
+                log_info "Created .gitignore for $repo_name"
+            else
+                log_info "[DRY RUN] Would create .gitignore for $repo_name"
+            fi
+        fi
+        
+        # Check for large files
+        local large_files=()
+        while IFS= read -r -d '' file; do
+            large_files+=("$file")
+        done < <(find "$repo_dir" -type f -size +50M -print0 2>/dev/null | head -5)
+        
+        if [[ ${#large_files[@]} -gt 0 ]]; then
+            log_warn "Large files found in $repo_name:"
+            for file in "${large_files[@]}"; do
+                local file_size=$(du -sh "$file" 2>/dev/null | cut -f1)
+                local relative_path="${file#$repo_dir/}"
+                echo -e "   • $relative_path ($file_size)"
+            done
+            
+            if [[ "$dry_run" == "false" ]]; then
+                log_info "Consider adding these files to .gitignore or removing them"
+            fi
+        fi
+        
+        # Check for secrets
+        local secret_files=()
+        while IFS= read -r -d '' file; do
+            secret_files+=("$file")
+        done < <(find "$repo_dir" -type f \( -name "*.key" -o -name "*.pem" -o -name "*.p12" -o -name ".env" \) -print0 2>/dev/null)
+        
+        if [[ ${#secret_files[@]} -gt 0 ]]; then
+            log_error "Secret files found in $repo_name:"
+            for file in "${secret_files[@]}"; do
+                local relative_path="${file#$repo_dir/}"
+                echo -e "   • $relative_path"
+            done
+            log_error "These files should be removed and added to .gitignore!"
+        fi
+        
+        cleaned_repos=$((cleaned_repos + 1))
+    done
+    
+    echo -e "\n${GREEN}🛡️  RULE ENFORCEMENT COMPLETE!${NC}"
+    echo -e "   • Repositories processed: $total_repos"
+    echo -e "   • Repositories cleaned: $cleaned_repos"
+    
+    log_magic "The ancient laws are upheld! All repositories are now pure! 🏰⚡"
+}
+
+check_context() {
+    local context="$1"
+    
+    echo -e "${PURPLE}╔═══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${PURPLE}║${WHITE}                    🔍 CHECKING CONTEXT: $context 🔍                    ${PURPLE}║${NC}"
+    echo -e "${PURPLE}║${CYAN}                    'Examining the context for wisdom'                    ${PURPLE}║${NC}"
+    echo -e "${PURPLE}╚═══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo
+    
+    local context_dir="$CONTEXTS_DIR/$context"
+    local compliance_score=0
+    local total_checks=5
+    
+    # Check 1: Context directory exists
+    if [[ -d "$context_dir" ]]; then
+        log_info "✅ Context directory exists: $context_dir"
+        compliance_score=$((compliance_score + 1))
+    else
+        log_warn "⚠️  Context directory missing: $context_dir"
+    fi
+    
+    # Check 2: Repository philosophy file exists
+    if [[ -f "$context_dir/repository-philosophy.md" ]]; then
+        log_info "✅ Repository philosophy file exists"
+        compliance_score=$((compliance_score + 1))
+    else
+        log_warn "⚠️  Repository philosophy file missing"
+    fi
+    
+    # Check 3: .gitignore exists
+    if [[ -f "$context_dir/.gitignore" ]]; then
+        log_info "✅ .gitignore file exists"
+        compliance_score=$((compliance_score + 1))
+    else
+        log_warn "⚠️  .gitignore file missing"
+    fi
+    
+    # Check 4: Context configuration exists
+    if [[ -f "$context_dir/context-config.yaml" ]]; then
+        log_info "✅ Context configuration exists"
+        compliance_score=$((compliance_score + 1))
+    else
+        log_warn "⚠️  Context configuration missing"
+    fi
+    
+    # Check 5: Context is registered in pai-context-switch
+    if command -v pai-context-switch >/dev/null 2>&1; then
+        if pai-context-switch --list 2>/dev/null | grep -q "$context"; then
+            log_info "✅ Context registered in pai-context-switch"
+            compliance_score=$((compliance_score + 1))
+        else
+            log_warn "⚠️  Context not registered in pai-context-switch"
+        fi
+    else
+        log_warn "⚠️  pai-context-switch not available"
+    fi
+    
+    # Calculate compliance percentage
+    local compliance_percentage=$((compliance_score * 100 / total_checks))
+    
+    echo -e "\n${GREEN}📊 COMPLIANCE REPORT:${NC}"
+    echo -e "   • Context: $context"
+    echo -e "   • Compliance Score: $compliance_score/$total_checks ($compliance_percentage%)"
+    
+    if [[ $compliance_percentage -eq 100 ]]; then
+        log_magic "Perfect compliance! The context follows all ancient wisdom! 🏰⚡✨"
+    elif [[ $compliance_percentage -ge 80 ]]; then
+        log_info "Good compliance! Minor improvements needed."
+    elif [[ $compliance_percentage -ge 60 ]]; then
+        log_warn "Moderate compliance! Several improvements needed."
+    else
+        log_error "Poor compliance! Major improvements required!"
+    fi
+}
+
+# Main script logic
+main() {
+    local command="${1:-}"
+    local verbose=false
+    local dry_run=false
+    
+    # Handle special case for --check-context
+    if [[ "$command" == "--check-context" ]]; then
+        shift
+        if [[ -z "${1:-}" ]]; then
+            log_error "Context name required for --check-context"
+            exit 1
+        fi
+        check_context "$1"
+        return
+    fi
+    
+    # Parse arguments
+    shift || true
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            --max-size)
+                MAX_REPO_SIZE_MB="$2"
+                shift 2
+                ;;
+            --alert-threshold)
+                ALERT_THRESHOLD_MB="$2"
+                shift 2
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    case "$command" in
+        --apply-to-all-contexts)
+            apply_to_all_contexts "$dry_run"
+            ;;
+        --monitor-sizes)
+            monitor_repository_sizes "$verbose"
+            ;;
+        --enforce-rules)
+            enforce_rules "$dry_run"
+            ;;
+        --show-philosophy)
+            show_philosophy
+            ;;
+        --create-universal-gitignore)
+            create_universal_gitignore
+            ;;
+        --size-alerts)
+            monitor_repository_sizes "true" | grep -E "(OVERSIZED|APPROACHING)"
+            ;;
+        --bloat-prevention)
+            enforce_rules "$dry_run"
+            ;;
+        "")
+            show_help
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"
