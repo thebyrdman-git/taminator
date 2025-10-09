@@ -2,11 +2,19 @@
 # Auto-generated from Automated Group ID Extraction
 
 CUSTOMER_GROUP_IDS = {
-    "wellsfargo": "4357341",  # Wells Fargo (confirmed)\n    "tdbank": "7028358",  # TD Bank (extracted)\n}
+    "wellsfargo": "4357341",  # Wells Fargo (confirmed)
+    "tdbank": "7028358",  # TD Bank (extracted)
+    "jpmc": "6956770",  # JP Morgan Chase (confirmed)
+    "fanniemae": "7095107",  # Fannie Mae (confirmed)
+}
 
 # Confidence levels for validation
 CUSTOMER_CONFIDENCE = {
-    "wellsfargo": "confirmed",\n    "tdbank": "extracted",\n}
+    "wellsfargo": "confirmed",
+    "tdbank": "extracted",
+    "jpmc": "confirmed",
+    "fanniemae": "confirmed",
+}
 
 def get_group_id(customer_key: str) -> str:
     """Get group ID for customer with validation"""

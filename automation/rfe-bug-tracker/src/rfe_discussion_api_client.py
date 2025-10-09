@@ -10,7 +10,7 @@ import os
 import json
 from typing import Dict, List, Optional, Any
 from datetime import datetime
-from redhat_cppg_api_client import RedHatCPPGAPIClient
+from redhat_portal_api_client import RedHatPortalAPIClient
 from customer_template_renderer import CustomerTemplateRenderer
 
 class RFEDiscussionAPIClient:
@@ -24,7 +24,7 @@ class RFEDiscussionAPIClient:
             environment: 'qa', 'stage', or 'production'
         """
         self.environment = environment
-        self.cppg_client = RedHatCPPGAPIClient(environment)
+        self.portal_client = RedHatPortalAPIClient(environment)
         self.template_renderer = CustomerTemplateRenderer()
         
         # Customer portal group mappings (auto-discovered)
@@ -37,8 +37,8 @@ class RFEDiscussionAPIClient:
             },
             "jpmc": {
                 "name": "JPMC",
-                "group_id": None,  # Manual discovery needed - account #334224
-                "portal_url": "https://access.redhat.com/groups/TBD",
+                "group_id": "6956770",  # Confirmed - JP Morgan Chase
+                "portal_url": "https://access.redhat.com/groups/6956770",
                 "template_key": "jpmc"
             },
             "tdbank": {
@@ -49,8 +49,8 @@ class RFEDiscussionAPIClient:
             },
             "fanniemae": {
                 "name": "Fannie Mae", 
-                "group_id": None,  # Manual discovery needed - account #1460290
-                "portal_url": "https://access.redhat.com/groups/TBD",
+                "group_id": "7095107",  # Confirmed - Fannie Mae
+                "portal_url": "https://access.redhat.com/groups/7095107",
                 "template_key": "fanniemae"
             }
         }
@@ -193,25 +193,25 @@ class RFEDiscussionAPIClient:
         
         # Post to customer portal group
         try:
-            result = self.cppg_client.create_discussion(
+            result = self.portal_client.create_group_discussion(
                 group_id=group_id,
                 title=discussion_title,
                 body=discussion_body,
-                status=True  # Published
+                status="published"
             )
             
-            if result:
+            if result and result.get('success'):
                 print(f"✅ RFE discussion posted successfully for {customer_name}!")
-                print(f"   🔗 Node ID: {result.get('nid')}")
-                print(f"   📍 Path: {result.get('path')}")
+                print(f"   🔗 Discussion ID: {result.get('discussion_id')}")
+                print(f"   📍 URL: {result.get('url')}")
                 
                 # Store posting record
                 posting_record = {
                     "customer": customer_name,
                     "customer_key": customer_key,
                     "group_id": group_id,
-                    "discussion_id": result.get('nid'),
-                    "discussion_path": result.get('path'),
+                    "discussion_id": result.get('discussion_id'),
+                    "discussion_url": result.get('url'),
                     "title": discussion_title,
                     "posted_at": datetime.now().isoformat(),
                     "case_counts": {
@@ -220,13 +220,21 @@ class RFEDiscussionAPIClient:
                         "closed": len(closed_cases),
                         "total": len(cases)
                     },
-                    "content_length": len(discussion_body)
+                    "content_length": len(discussion_body),
+                    "success": True
                 }
                 
                 return posting_record
             else:
+                error_msg = result.get('error', 'Unknown error') if result else 'No result returned'
                 print(f"❌ Failed to post RFE discussion for {customer_name}")
-                return None
+                print(f"   Error: {error_msg}")
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "customer": customer_name,
+                    "group_id": group_id
+                }
                 
         except Exception as e:
             print(f"❌ Error posting RFE discussion for {customer_name}: {e}")

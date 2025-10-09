@@ -42,6 +42,7 @@ customers:
     name: "TD Bank"
     group_id: "7028358"  # Extracted - Sandbox/Testing
     account_name: "tdbank"
+    account_numbers: ["5477163", "9691154"]  # TD Bank account numbers
     
     schedule:
       day_of_week: "thursday"  # Adjust based on TD Bank TAM call schedule

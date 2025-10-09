@@ -11,8 +11,21 @@
       "group_id": "7028358",
       "account_number": "1912101",
       "confidence": "extracted"
+    },
+    "jpmc": {
+      "name": "JP Morgan Chase",
+      "group_id": "6956770",
+      "account_number": "334224",
+      "confidence": "confirmed"
+    },
+    "fanniemae": {
+      "name": "Fannie Mae",
+      "group_id": "7095107",
+      "account_number": "1460290",
+      "confidence": "confirmed"
     }
   },
-  "discovery_method": "automated_extraction",
-  "confidence_levels": {}
+  "discovery_method": "manual_discovery",
+  "confidence_levels": {},
+  "last_updated": "2024-12-19"
 }
