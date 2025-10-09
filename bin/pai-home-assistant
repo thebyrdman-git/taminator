@@ -7,8 +7,8 @@ set -euo pipefail
 # Configuration
 PAI_CONFIG_DIR="$HOME/.config/pai"
 HA_CONFIG_FILE="$PAI_CONFIG_DIR/home-assistant.conf"
-HA_INTERNAL_URL="http://192.168.1.39:8123"
-HA_EXTERNAL_URL="https://byrdhome.duckdns.org"
+HA_INTERNAL_URL="https://home.jbyrd.org"
+HA_EXTERNAL_URL="https://home.jbyrd.org"
 HA_TOKEN_FILE="$PAI_CONFIG_DIR/secrets/ha-token.gpg"
 
 # Colors for output
@@ -39,8 +39,8 @@ COMMANDS:
     setup               Initial setup (configure token)
 
 OPTIONS:
-    --internal          Force use of internal IP (192.168.1.39)
-    --external          Force use of external URL (byrdhome.duckdns.org)
+    --internal          Force use of internal URL (https://home.jbyrd.org)
+    --external          Force use of external URL (https://home.jbyrd.org)
     --json              Output in JSON format
     --help, -h          Show this help message
 
