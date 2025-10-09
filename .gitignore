@@ -59,3 +59,28 @@ Thumbs.db
 utility_bills/
 .vscode/
 youtube_token.json
+
+# Google Cloud SDK (should not be in repository)
+**/google-cloud-sdk/
+**/google-cloud-sdk/**
+google-cloud-sdk/
+google-cloud-sdk/**
+
+# Large dependencies and SDKs
+**/node_modules/
+**/venv/
+**/env/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.Python
+
+# Large binary files
+**/*.tar.gz
+**/*.zip
+**/*.deb
+**/*.rpm
+**/*.iso
+**/*.img
