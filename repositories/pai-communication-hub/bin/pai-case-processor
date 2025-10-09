@@ -1,0 +1,404 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Case Processor - Comprehensive case analysis automation
+# Implements workflow.md methodology across all TAM accounts and specialties
+
+# Configuration
+PAI_DIR="$HOME/.claude/context"
+TAM_BASE="$HOME/Documents/rh/projects"
+FABRIC_MODEL="${CASE_PROCESSOR_MODEL:-gpt-4o}"
+ANALYSIS_MODEL="${CASE_ANALYSIS_MODEL:-remote-local-granite-3-2-8b-instruct}"
+
+# TAM account mappings
+declare -A ACCOUNTS=(
+    ["tam-ocp"]="bny cibc citi discover"
+    ["tam-ai"]=""
+    ["tam-sec"]=""
+)
+
+# Function to ensure case directory structure exists
+ensure_case_structure() {
+    local specialty="$1"
+    local account="$2" 
+    local case_number="$3"
+    
+    local case_dir="$TAM_BASE/$specialty/$account/casework/active/$case_number"
+    
+    if [[ ! -d "$case_dir" ]]; then
+        echo "Creating case structure for $case_number..." >&2
+        pai-workspace create "$specialty" "$account" "$case_number"
+    fi
+    
+    echo "$case_dir"
+}
+
+# Function to check if case has been analyzed
+case_needs_analysis() {
+    local case_dir="$1"
+    
+    # Check for key analysis files
+    local required_files=(
+        "pieces/initial_screen.md"
+        "pieces/incident_timeline.md" 
+        "pieces/detailed_problem_statement.md"
+        "pieces/root_cause_hypotheses.md"
+    )
+    
+    for file in "${required_files[@]}"; do
+        if [[ ! -f "$case_dir/$file" ]]; then
+            return 0  # Needs analysis
+        fi
+    done
+    
+    return 1  # Already analyzed
+}
+
+# Function to perform comprehensive case analysis
+analyze_case_comprehensive() {
+    local specialty="$1"
+    local account="$2"
+    local case_number="$3"
+    
+    echo "Performing comprehensive analysis for case $case_number ($specialty/$account)..." >&2
+    
+    # Ensure case structure exists
+    local case_dir=$(ensure_case_structure "$specialty" "$account" "$case_number")
+    
+    # Check if analysis already done
+    if ! case_needs_analysis "$case_dir"; then
+        echo "Case $case_number already analyzed, skipping..." >&2
+        return 0
+    fi
+    
+    # Step 1: Export case data
+    echo "  1. Exporting case data..." >&2
+    if command -v rhcase >/dev/null 2>&1; then
+        rhcase analyze "$case_number" > "$case_dir/extracts/case.json" 2>/dev/null || {
+            echo "    Failed to export case $case_number" >&2
+            return 1
+        }
+    else
+        echo "    rhcase not available, skipping case export" >&2
+        return 1
+    fi
+    
+    # Step 2: Generate initial analysis using pai-case-initial-screen-v2
+    echo "  2. Generating initial analysis..." >&2
+    if pai-case-initial-screen-v2 -a -c "$case_number" >/dev/null 2>&1; then
+        # Move analysis to case pieces directory
+        local latest_analysis=$(ls -t "$PAI_DIR/create/outputs/plans/case-${case_number}-initial-screen-"*.md 2>/dev/null | head -1)
+        if [[ -n "$latest_analysis" ]]; then
+            cp "$latest_analysis" "$case_dir/pieces/initial_screen.md"
+        fi
+    else
+        echo "    Failed to generate initial analysis for case $case_number" >&2
+    fi
+    
+    # Step 3: Research KCS articles
+    echo "  3. Researching KCS articles..." >&2
+    if [[ -f "$case_dir/extracts/case.json" ]]; then
+        # Extract keywords from case for KCS search
+        local case_keywords=$(cat "$case_dir/extracts/case.json" | fabric -p extract_wisdom -m "$FABRIC_MODEL" 2>/dev/null | head -3 | tr '\n' ' ')
+        
+        if [[ -n "$case_keywords" ]] && command -v rhcase >/dev/null 2>&1; then
+            rhcase kcs search "$case_keywords" > "$case_dir/kcs/search_results.md" 2>/dev/null || true
+        fi
+    fi
+    
+    # Step 4: Research JIRA issues
+    echo "  4. Researching JIRA issues..." >&2
+    if [[ -f "$case_dir/extracts/case.json" ]] && [[ -n "$case_keywords" ]] && command -v rhcase >/dev/null 2>&1; then
+        rhcase jira search "$case_keywords" > "$case_dir/jira/search_results.md" 2>/dev/null || true
+    fi
+    
+    # Step 5: Generate comprehensive analysis artifacts
+    echo "  5. Generating analysis artifacts..." >&2
+    if [[ -f "$case_dir/extracts/case.json" ]]; then
+        local case_data=$(cat "$case_dir/extracts/case.json")
+        
+        # Generate timeline
+        echo "$case_data" | fabric -p tam_case_screen -m "$ANALYSIS_MODEL" 2>/dev/null | \
+            sed -n '/## Incident Timeline/,/## /p' | head -n -1 > "$case_dir/pieces/incident_timeline.md" 2>/dev/null || true
+            
+        # Generate problem statement  
+        echo "$case_data" | fabric -p tam_case_screen -m "$ANALYSIS_MODEL" 2>/dev/null | \
+            sed -n '/## Detailed Problem Statement/,/## /p' | head -n -1 > "$case_dir/pieces/detailed_problem_statement.md" 2>/dev/null || true
+            
+        # Generate hypotheses
+        echo "$case_data" | fabric -p tam_case_screen -m "$ANALYSIS_MODEL" 2>/dev/null | \
+            sed -n '/## Root Cause Hypotheses/,/## /p' | head -n -1 > "$case_dir/pieces/root_cause_hypotheses.md" 2>/dev/null || true
+    fi
+    
+    # Step 6: Add to knowledge base
+    echo "  6. Adding to knowledge base..." >&2
+    if [[ -f "$case_dir/pieces/initial_screen.md" ]]; then
+        pai-search add cases "Case $case_number Analysis" "$(cat "$case_dir/pieces/initial_screen.md")" 2>/dev/null || true
+    fi
+    
+    # Log the analysis
+    pai-audit log "CASE_ANALYZED" "case=$case_number specialty=$specialty account=$account"
+    
+    echo "  ✅ Comprehensive analysis complete for case $case_number" >&2
+}
+
+# Function to move resolved cases
+move_resolved_cases() {
+    local specialty="$1"
+    local account="$2"
+    local active_cases="$3"
+    
+    local active_dir="$TAM_BASE/$specialty/$account/casework/active"
+    local resolved_dir="$TAM_BASE/$specialty/$account/casework/resolved"
+    
+    if [[ ! -d "$active_dir" ]]; then
+        return 0
+    fi
+    
+    # Ensure resolved directory exists
+    mkdir -p "$resolved_dir"
+    
+    local moved_count=0
+    
+    # Check each directory in active
+    for case_dir in "$active_dir"/*; do
+        if [[ -d "$case_dir" ]]; then
+            local case_number=$(basename "$case_dir")
+            
+            # Check if case is still active (in rhcase list)
+            if ! echo "$active_cases" | grep -q "$case_number"; then
+                echo "    Moving resolved case $case_number to resolved directory..." >&2
+                
+                # Move to resolved with timestamp
+                local resolved_case_dir="$resolved_dir/${case_number}-resolved-$(date +%Y%m%d)"
+                mv "$case_dir" "$resolved_case_dir"
+                
+                # Log the move
+                pai-audit log "CASE_RESOLVED" "case=$case_number specialty=$specialty account=$account moved_to=$resolved_case_dir"
+                
+                ((moved_count++))
+            fi
+        fi
+    done
+    
+    if [[ $moved_count -gt 0 ]]; then
+        echo "  Moved $moved_count resolved cases for $account" >&2
+    fi
+    
+    echo "$moved_count"
+}
+
+# Function to process all cases for an account
+process_account_cases() {
+    local specialty="$1"
+    local account="$2"
+    
+    echo "Processing cases for $account ($specialty)..." >&2
+    
+    # Get case list from rhcase
+    local cases=""
+    if command -v rhcase >/dev/null 2>&1; then
+        cases=$(rhcase list "$account" 2>/dev/null | grep -o '[0-9]\{8\}' | sort -u)
+    fi
+    
+    # Move resolved cases first
+    local moved_count=$(move_resolved_cases "$specialty" "$account" "$cases")
+    
+    if [[ -z "$cases" ]]; then
+        echo "  No active cases found for $account" >&2
+        if [[ $moved_count -gt 0 ]]; then
+            echo "  However, moved $moved_count resolved cases" >&2
+        fi
+        return 0
+    fi
+    
+    local case_count=0
+    local analyzed_count=0
+    
+    # Process each case
+    while read -r case_number; do
+        if [[ -n "$case_number" ]]; then
+            ((case_count++))
+            
+            local case_dir="$TAM_BASE/$specialty/$account/casework/active/$case_number"
+            
+            # Check if case needs analysis
+            if case_needs_analysis "$case_dir" || [[ ! -d "$case_dir" ]]; then
+                echo "  Analyzing case $case_number..." >&2
+                if analyze_case_comprehensive "$specialty" "$account" "$case_number"; then
+                    ((analyzed_count++))
+                fi
+            else
+                echo "  Case $case_number already analyzed" >&2
+            fi
+        fi
+    done <<< "$cases"
+    
+    echo "  Account $account: $analyzed_count/$case_count cases analyzed" >&2
+    echo "$account:$case_count:$analyzed_count"
+}
+
+# Function to process all accounts across all specialties
+process_all_accounts() {
+    local summary=""
+    local total_cases=0
+    local total_analyzed=0
+    
+    for specialty in "${!ACCOUNTS[@]}"; do
+        local account_list="${ACCOUNTS[$specialty]}"
+        
+        if [[ -n "$account_list" ]]; then
+            echo "Processing specialty: $specialty" >&2
+            
+            for account in $account_list; do
+                local result=$(process_account_cases "$specialty" "$account")
+                if [[ -n "$result" ]]; then
+                    IFS=':' read -r acc_name case_count analyzed_count <<< "$result"
+                    summary+="$specialty,$acc_name,$case_count,$analyzed_count"$'\n'
+                    ((total_cases += case_count))
+                    ((total_analyzed += analyzed_count))
+                fi
+            done
+        fi
+    done
+    
+    echo "SUMMARY: $total_analyzed/$total_cases cases analyzed across all specialties" >&2
+    echo "$summary"
+}
+
+# Function to generate daily case analysis report
+generate_daily_report() {
+    local date_str=$(date +%Y-%m-%d)
+    local output_file="$PAI_DIR/create/outputs/reports/daily-case-analysis-$date_str.md"
+    
+    echo "Generating daily case analysis report..." >&2
+    
+    # Process all accounts and get summary
+    local analysis_summary=$(process_all_accounts)
+    
+    # Create report
+    cat > "$output_file" << EOF
+---
+title: Daily Case Analysis Report ($date_str)
+generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+type: case_analysis_report
+tags: [daily, case-analysis, tam]
+---
+
+# Daily Case Analysis Report - $date_str
+
+## Analysis Summary
+$analysis_summary
+
+## Accounts Processed
+$(echo "$analysis_summary" | awk -F',' '{printf "- %s/%s: %s cases (%s analyzed)\n", $1, $2, $3, $4}')
+
+## Analysis Status by Specialty
+
+### TAM-OCP (OpenShift)
+$(echo "$analysis_summary" | grep "tam-ocp" | awk -F',' '{printf "- %s: %s cases (%s analyzed)\n", $2, $3, $4}' || echo "- No cases processed")
+
+### TAM-AI (AI Portfolio)  
+$(echo "$analysis_summary" | grep "tam-ai" | awk -F',' '{printf "- %s: %s cases (%s analyzed)\n", $2, $3, $4}' || echo "- No cases processed")
+
+### TAM-SEC (Security)
+$(echo "$analysis_summary" | grep "tam-sec" | awk -F',' '{printf "- %s: %s cases (%s analyzed)\n", $2, $3, $4}' || echo "- No cases processed")
+
+## Next Steps
+- Review newly analyzed cases in workspace directories
+- Follow up on cases requiring additional research
+- Update case status in Salesforce/Hydra as needed
+
+## Tools Used
+- rhcase for case data export and research
+- pai-case-initial-screen-v2 for AI analysis
+- fabric patterns for enhanced analysis
+- pai-search for knowledge base integration
+
+---
+Generated by pai-case-processor
+EOF
+
+    echo "Daily case analysis report saved to: $output_file"
+    pai-audit log "DAILY_ANALYSIS" "processed cases across all specialties"
+    
+    echo "$output_file"
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    account)
+        shift
+        specialty="${1:-}"
+        account="${2:-}"
+        if [[ -z "$specialty" || -z "$account" ]]; then
+            echo "Usage: pai-case-processor account <specialty> <account>"
+            exit 1
+        fi
+        process_account_cases "$specialty" "$account"
+        ;;
+    case)
+        shift
+        specialty="${1:-}"
+        account="${2:-}"
+        case_number="${3:-}"
+        if [[ -z "$specialty" || -z "$account" || -z "$case_number" ]]; then
+            echo "Usage: pai-case-processor case <specialty> <account> <case_number>"
+            exit 1
+        fi
+        analyze_case_comprehensive "$specialty" "$account" "$case_number"
+        ;;
+    all)
+        process_all_accounts
+        ;;
+    report)
+        generate_daily_report
+        ;;
+    help|--help|-h)
+        cat << 'EOF'
+PAI Case Processor - Comprehensive TAM Case Analysis
+
+Usage: pai-case-processor <command> [options]
+
+Commands:
+  account <specialty> <account>     Process all cases for specific account
+  case <specialty> <account> <case> Analyze specific case comprehensively
+  all                               Process all accounts across specialties
+  report                            Generate daily case analysis report
+  help                              Show this help
+
+Examples:
+  pai-case-processor account tam-ocp bny
+  pai-case-processor case tam-ocp bny 04056105
+  pai-case-processor all
+  pai-case-processor report
+
+Workflow per Case:
+  1. Export case data with rhcase
+  2. Generate initial analysis (timeline, problem statement, hypotheses)
+  3. Research KCS articles
+  4. Research JIRA issues
+  5. Generate analysis artifacts
+  6. Add to knowledge base
+  7. Audit logging
+
+Integration:
+  - Uses pai-workspace for case structure creation
+  - Uses pai-case-initial-screen-v2 for AI analysis
+  - Uses rhcase for data export and research
+  - Uses fabric patterns for enhanced analysis
+  - Uses pai-search for knowledge base integration
+  - Uses pai-audit for comprehensive logging
+
+Output Locations:
+  - Case analysis: ~/Documents/rh/projects/{specialty}/{account}/casework/active/{case}/pieces/
+  - Knowledge base: ~/.claude/context/knowledge/cases/
+  - Reports: ~/.claude/context/create/outputs/reports/
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-case-processor help' for usage"
+        exit 1
+        ;;
+esac
