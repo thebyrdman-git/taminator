@@ -84,6 +84,14 @@ curl -I https://source.redhat.com
 - **License request**: Must be completed during your first login session
 - **Getting access guide**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/getting_started_guide#getting-access
 
+**License Request Form Information:**
+When filling out the license request form, you'll need to provide:
+- **# licenses requested**: 1
+- **Username / Full name**: Your Red Hat username and full name
+- **Projects to collaborate on**: rfe-and-bug-tracker-automation
+- **Why access is required**: Collaborating with group and need ability to update GitLab repos
+- **How long you need access**: Permanent access
+
 ### 💻 **Optional: Install Cursor IDE (Recommended)**
 
 **For the best experience, install Cursor IDE with Red Hat enterprise license:**
