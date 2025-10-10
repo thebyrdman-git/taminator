@@ -37,7 +37,8 @@
 - Red Hat VPN access
 - Your Red Hat login credentials
 - Access to customer portal
-- Git installed (usually already on RHEL/Fedora/Mac)
+- Git installed and configured (usually already on RHEL/Fedora/Mac)
+- Python 3 with required packages (usually already installed)
 - Cursor IDE with enterprise license (recommended for best experience)
 
 ### 📥 **Step 0: Get the Tool (One Time Only)**
@@ -56,6 +57,10 @@
 ./bin/install-dependencies
 ```
 *This automatically installs the rhcase tool and all other dependencies*
+
+**If you need to install Python packages or configure Git:**
+- **Python packages**: https://packaging.python.org/en/latest/tutorials/installing-packages/
+- **Git configuration**: https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup
 
 ### 💻 **Optional: Install Cursor IDE (Recommended)**
 
@@ -213,6 +218,8 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
   - Test rhcase works: type `./rhcase/rhcase --version` in terminal
   - Try: `./rhcase/rhcase list [customer-name] --months 1` to see if it finds cases
   - If rhcase doesn't work, ask your IT team for help
+- **"Python packages missing"** → Install with: `pip3 install requests` or see: https://packaging.python.org/en/latest/tutorials/installing-packages/
+- **"Git not configured"** → Set up with: `git config --global user.name "Your Name"` or see: https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup
 - **"I can't find customer account numbers"** → Check your customer portal or ask your manager
 - **"I want to change how reports look"** → Use the chat and ask: "Can you customize the report format?"
 - **"I'm stuck!"** → Use the chat and type: "Help me" or "I need assistance"
