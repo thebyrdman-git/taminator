@@ -1,0 +1,354 @@
+#!/bin/bash
+
+# RFE Report Validation Script
+# Purpose: Comprehensive validation of both system functionality and report content accuracy
+# Usage: ./bin/validate-rfe-reports [customer] [--content-only] [--system-only] [--verbose]
+
+set -e  # Exit on any error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Default values
+CUSTOMER=""
+CONTENT_ONLY=false
+SYSTEM_ONLY=false
+VERBOSE=false
+TEST_MODE=true
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --content-only)
+            CONTENT_ONLY=true
+            shift
+            ;;
+        --system-only)
+            SYSTEM_ONLY=true
+            shift
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --production)
+            TEST_MODE=false
+            shift
+            ;;
+        *)
+            if [[ -z "$CUSTOMER" ]]; then
+                CUSTOMER="$1"
+            else
+                echo "❌ Error: Unknown argument $1"
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Check if we're in the right directory
+if [ ! -f "README.md" ] || [ ! -d "bin" ]; then
+    echo "❌ Error: Please run this script from the RFE automation tool directory"
+    echo "   Make sure you're in the folder where you extracted the tool"
+    exit 1
+fi
+
+echo "🔍 RFE Report Validation System"
+echo "==============================="
+echo ""
+
+# Function to print colored output
+print_status() {
+    local status=$1
+    local message=$2
+    case $status in
+        "SUCCESS")
+            echo -e "${GREEN}✅ $message${NC}"
+            ;;
+        "WARNING")
+            echo -e "${YELLOW}⚠️  $message${NC}"
+            ;;
+        "ERROR")
+            echo -e "${RED}❌ $message${NC}"
+            ;;
+        "INFO")
+            echo -e "${BLUE}ℹ️  $message${NC}"
+            ;;
+    esac
+}
+
+# Function to run system validation
+run_system_validation() {
+    echo "🔧 Running System Validation..."
+    echo "-------------------------------"
+    
+    # Check if Python is available
+    if ! command -v python3 &> /dev/null; then
+        print_status "ERROR" "Python 3 is not installed"
+        return 1
+    fi
+    print_status "SUCCESS" "Python 3 is available"
+    
+    # Check if required Python modules are available
+    echo "📦 Checking Python dependencies..."
+    python3 -c "
+import sys
+required_modules = ['requests', 'json', 'os', 'subprocess', 'yaml', 'logging']
+missing = []
+for module in required_modules:
+    try:
+        __import__(module)
+    except ImportError:
+        missing.append(module)
+
+if missing:
+    print('❌ Missing Python modules:', ', '.join(missing))
+    print('Please install them with: pip3 install ' + ' '.join(missing))
+    sys.exit(1)
+else:
+    print('✅ All Python dependencies are available')
+"
+    
+    # Check if rhcase is available
+    if [ -f "rhcase/rhcase" ]; then
+        print_status "SUCCESS" "rhcase tool is available"
+    else
+        print_status "ERROR" "rhcase tool is not found. Run ./bin/install-dependencies first"
+        return 1
+    fi
+    
+    # Run RFE verification system
+    echo "🧪 Running RFE Verification System..."
+    if [ -f "src/rfe_verification_system.py" ]; then
+        python3 src/rfe_verification_system.py
+        if [ $? -eq 0 ]; then
+            print_status "SUCCESS" "System validation passed"
+        else
+            print_status "ERROR" "System validation failed"
+            return 1
+        fi
+    else
+        print_status "WARNING" "RFE verification system not found"
+    fi
+    
+    # Validate customer configuration if customer specified
+    if [ -n "$CUSTOMER" ]; then
+        echo "👤 Validating customer configuration for: $CUSTOMER"
+        python3 -c "
+import sys
+sys.path.append('src')
+from ultimate_rfe_portal_system import UltimateRFEPortalSystem
+
+try:
+    system = UltimateRFEPortalSystem()
+    validation = system.validate_customer_config('$CUSTOMER')
+    
+    if validation['valid']:
+        print('✅ Customer configuration is valid')
+    else:
+        print('❌ Customer configuration has issues:')
+        for issue in validation['issues']:
+            print(f'   - {issue}')
+    
+    if validation['warnings']:
+        print('⚠️  Warnings:')
+        for warning in validation['warnings']:
+            print(f'   - {warning}')
+            
+except Exception as e:
+    print(f'❌ Error validating customer: {e}')
+    sys.exit(1)
+"
+    fi
+    
+    echo ""
+    return 0
+}
+
+# Function to run content validation
+run_content_validation() {
+    echo "📝 Running Content Validation..."
+    echo "--------------------------------"
+    
+    if [ -z "$CUSTOMER" ]; then
+        print_status "WARNING" "No customer specified. Content validation requires a customer."
+        echo "   Usage: ./bin/validate-rfe-reports [customer] --content-only"
+        return 1
+    fi
+    
+    # Generate a test report for content validation
+    echo "📊 Generating test report for content validation..."
+    python3 -c "
+import sys
+sys.path.append('src')
+from ultimate_rfe_portal_system import UltimateRFEPortalSystem
+
+try:
+    system = UltimateRFEPortalSystem()
+    
+    # Generate report data
+    print('🔄 Generating report data...')
+    report_data = system.generate_customer_report('$CUSTOMER', test_mode=True)
+    
+    if report_data.get('error'):
+        print(f'❌ Error generating report: {report_data[\"error\"]}')
+        sys.exit(1)
+    
+    print('✅ Report data generated successfully')
+    
+    # Validate content
+    print('🔍 Validating report content...')
+    content_validation = system.validate_report_content(report_data, '$CUSTOMER')
+    
+    # Print results
+    print(f'\\n📊 Content Validation Results:')
+    print(f'   Status: {content_validation[\"validation_status\"]}')
+    print(f'   Accuracy Score: {content_validation[\"accuracy_score\"]:.1%}')
+    print(f'   Total Issues: {content_validation[\"total_issues\"]}')
+    print(f'   Critical Issues: {content_validation[\"critical_issues\"]}')
+    print(f'   High Issues: {content_validation[\"high_issues\"]}')
+    
+    if content_validation.get('recommendations'):
+        print(f'\\n💡 Recommendations:')
+        for rec in content_validation['recommendations']:
+            print(f'   {rec}')
+    
+    # Save detailed validation report
+    import json
+    from datetime import datetime
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    report_file = f'/tmp/content_validation_${CUSTOMER}_{timestamp}.json'
+    
+    with open(report_file, 'w') as f:
+        json.dump(content_validation, f, indent=2, default=str)
+    
+    print(f'\\n📄 Detailed validation report saved to: {report_file}')
+    
+    # Return appropriate exit code
+    if content_validation['validation_status'] == 'accurate':
+        print('\\n✅ Content validation passed - Report is accurate')
+        sys.exit(0)
+    elif content_validation['validation_status'] == 'inaccurate':
+        print('\\n❌ Content validation failed - Report contains critical issues')
+        sys.exit(1)
+    else:
+        print('\\n⚠️  Content validation warnings - Review recommendations')
+        sys.exit(2)
+        
+except Exception as e:
+    print(f'❌ Error during content validation: {e}')
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+"
+    
+    return $?
+}
+
+# Function to run comprehensive validation
+run_comprehensive_validation() {
+    echo "🚀 Running Comprehensive Validation..."
+    echo "====================================="
+    
+    # Run system validation first
+    if ! run_system_validation; then
+        print_status "ERROR" "System validation failed. Cannot proceed with content validation."
+        return 1
+    fi
+    
+    echo ""
+    
+    # Run content validation
+    if ! run_content_validation; then
+        print_status "ERROR" "Content validation failed."
+        return 1
+    fi
+    
+    echo ""
+    print_status "SUCCESS" "Comprehensive validation completed successfully!"
+    return 0
+}
+
+# Main execution logic
+main() {
+    # Determine what to run
+    if [ "$CONTENT_ONLY" = true ]; then
+        run_content_validation
+    elif [ "$SYSTEM_ONLY" = true ]; then
+        run_system_validation
+    else
+        run_comprehensive_validation
+    fi
+    
+    exit_code=$?
+    
+    echo ""
+    echo "📋 Validation Summary"
+    echo "===================="
+    
+    if [ $exit_code -eq 0 ]; then
+        print_status "SUCCESS" "All validations passed! Reports are ready for use."
+    elif [ $exit_code -eq 1 ]; then
+        print_status "ERROR" "Critical validation failures detected. Fix issues before using reports."
+    elif [ $exit_code -eq 2 ]; then
+        print_status "WARNING" "Validation completed with warnings. Review recommendations."
+    else
+        print_status "ERROR" "Validation failed with unknown error."
+    fi
+    
+    echo ""
+    echo "💡 Next Steps:"
+    if [ $exit_code -eq 0 ]; then
+        echo "   • Reports are validated and ready for publication"
+        echo "   • Consider running regular validation checks"
+    else
+        echo "   • Review validation reports in /tmp/"
+        echo "   • Fix identified issues"
+        echo "   • Re-run validation: ./bin/validate-rfe-reports $CUSTOMER"
+    fi
+    
+    echo ""
+    echo "📚 For more information:"
+    echo "   • System issues: Check /tmp/rfe-verification-*.log"
+    echo "   • Content issues: Check /tmp/content_validation_*.json"
+    echo "   • Help: ./bin/validate-rfe-reports --help"
+    
+    return $exit_code
+}
+
+# Show help if requested
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo "RFE Report Validation Script"
+    echo ""
+    echo "Usage: $0 [customer] [options]"
+    echo ""
+    echo "Arguments:"
+    echo "  customer          Customer key to validate (e.g., wellsfargo, tdbank)"
+    echo ""
+    echo "Options:"
+    echo "  --content-only    Only run content accuracy validation"
+    echo "  --system-only     Only run system functionality validation"
+    echo "  --verbose         Show detailed output"
+    echo "  --production      Run in production mode (not test mode)"
+    echo "  --help, -h        Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0 wellsfargo                    # Full validation for Wells Fargo"
+    echo "  $0 tdbank --content-only         # Only content validation for TD Bank"
+    echo "  $0 --system-only                 # Only system validation"
+    echo ""
+    echo "Exit Codes:"
+    echo "  0  All validations passed"
+    echo "  1  Critical validation failures"
+    echo "  2  Validation warnings (non-critical)"
+    echo ""
+    exit 0
+fi
+
+# Run main function
+main

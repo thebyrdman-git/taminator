@@ -155,7 +155,7 @@ cd ~/rfe-automation
 - The tool remembers your answers for next time
 - **No technical knowledge needed** - just answer the questions!
 
-### 📋 **After Setup, You Have 2 Easy Options**
+### 📋 **After Setup, You Have 3 Easy Options**
 
 **Option 1: Talk to the Tool (Easiest)**
 ```bash
@@ -168,6 +168,12 @@ cd ~/rfe-automation
 ./bin/tam-rfe-monitor-simple wellsfargo --test
 ```
 *This creates a test report you can review before posting*
+
+**Option 3: Validate Before Using (Recommended)**
+```bash
+./bin/validate-rfe-reports wellsfargo
+```
+*This checks both system functionality and report content accuracy*
 
 ## 💬 How to Use (Super Simple!)
 
@@ -208,16 +214,47 @@ If you prefer commands, here are the only ones you need:
 - Recent case closures
 - Everything formatted nicely for customer meetings
 
-**You get 2 options:**
+**You get 3 options:**
 1. **Copy the report** - Tool shows you the text, you copy and paste it anywhere
 2. **Auto-post** - Tool automatically puts it on the customer portal (you get an email confirmation)
+3. **Validate first** - Check report accuracy before publishing (recommended)
 
 ## 📋 Report Options
 
-When you ask for reports, I'll give you **two options**:
+When you ask for reports, I'll give you **three options**:
 
 1. **Copy/Paste** - I show you the markdown, you paste it wherever you need it
 2. **Auto-Post** - I automatically post to the customer portal
+3. **Validate First** - Check report accuracy before publishing (recommended)
+
+## 🔍 Report Validation (NEW!)
+
+**Ensure your reports are accurate and professional:**
+
+### Quick Validation
+```bash
+# Validate everything for a customer
+./bin/validate-rfe-reports wellsfargo
+
+# Check system functionality only
+./bin/validate-rfe-reports --system-only
+
+# Check report content accuracy only
+./bin/validate-rfe-reports wellsfargo --content-only
+```
+
+### What Validation Checks
+- **System Health**: Connectivity, authentication, dependencies
+- **Content Accuracy**: Case numbers, RFE IDs, data consistency
+- **Quality Score**: 99%+ accuracy required for customer reports
+- **Issue Detection**: Identifies problems before customers see them
+
+### Validation Results (Enterprise Standards)
+- **✅ 99%+ Accuracy**: Report ready for customer distribution
+- **⚠️ 95-98% Accuracy**: Acceptable for internal use, review before customer distribution
+- **❌ <95% Accuracy**: Fix issues before any distribution
+
+**📚 For detailed validation guide**: See `docs/REPORT-VALIDATION-GUIDE.md`
 
 ## 🏢 Example Customers
 

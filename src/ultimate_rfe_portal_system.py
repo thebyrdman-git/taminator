@@ -14,6 +14,7 @@ import argparse
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any
+from dataclasses import asdict
 
 # Import our custom modules
 from active_case_report_system import ActiveCaseReportSystem
@@ -315,6 +316,53 @@ class UltimateRFEPortalSystem:
             validation_result['issues'].append(f"Validation error: {e}")
         
         return validation_result
+    
+    def validate_report_content(self, report_data: Dict[str, Any], customer_name: str) -> Dict[str, Any]:
+        """
+        Validate report content accuracy using the content validator
+        
+        Args:
+            report_data: The generated report data
+            customer_name: Customer name for context validation
+            
+        Returns:
+            Dict with content validation results
+        """
+        try:
+            # Import content validator
+            from .report_content_validator import ReportContentValidator
+            
+            # Initialize validator
+            content_validator = ReportContentValidator()
+            
+            # Validate content
+            validation_report = content_validator.validate_report_content(report_data, customer_name)
+            
+            # Convert to dict format for compatibility
+            return {
+                'valid': validation_report.validation_status.value == 'accurate',
+                'accuracy_score': validation_report.overall_accuracy_score,
+                'validation_status': validation_report.validation_status.value,
+                'total_issues': validation_report.total_issues,
+                'critical_issues': validation_report.critical_issues,
+                'high_issues': validation_report.high_issues,
+                'medium_issues': validation_report.medium_issues,
+                'low_issues': validation_report.low_issues,
+                'content_issues': [asdict(issue) for issue in validation_report.content_issues],
+                'recommendations': validation_report.recommendations,
+                'validation_summary': validation_report.validation_summary,
+                'detailed_report': asdict(validation_report)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Content validation error: {e}")
+            return {
+                'valid': False,
+                'accuracy_score': 0.0,
+                'validation_status': 'error',
+                'error': str(e),
+                'recommendations': ['Content validation failed. Check system logs for details.']
+            }
 
 def main():
     """Main function for command-line usage"""
