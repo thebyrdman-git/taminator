@@ -4,7 +4,7 @@
 
 **This is the TAM RFE Automation Tool, developed by jbyrd as a standalone, self-contained solution that uses tools from grimm's PAI project. This IS the RFE automation tool itself.**
 
-**The tool automatically generates and posts professional RFE/Bug tracker reports to customer portal groups, saving TAMs 2-3 hours per customer per week.**
+**The tool automatically generates and posts professional RFE/Bug tracker reports and active case reports to customer portal groups, saving TAMs 2-3 hours per customer per week.**
 
 ### 🔄 Project Status
 - **Developer**: jbyrd - Independent development
@@ -15,7 +15,9 @@
 ### What This Tool Does
 - **Automatically discovers** all RFE and Bug cases for your customers using `rhcase`
 - **Filters cases** by SBR Group (Ansible, OpenShift, etc.) and status (Active, Closed, etc.)
-- **Generates professional 3-table reports** with Active RFE, Active Bug, and Closed case history
+- **Generates professional reports** including:
+  - Active case reports (current open cases)
+  - RFE/Bug tracker reports (3-table format with Active RFE, Active Bug, and Closed case history)
 - **Posts content directly** to customer portal groups via Red Hat API
 - **Sends email notifications** to TAMs with success/failure status
 
@@ -72,7 +74,7 @@
 ```bash
 ./bin/tam-rfe-chat
 ```
-*Then just ask naturally: "Generate RFE report for Wells Fargo"*
+*Then just ask naturally: "Generate RFE report for Wells Fargo" or "Create active case report for TD Bank"*
 
 **Option B: Direct Commands**
 ```bash
@@ -81,6 +83,9 @@
 
 # Run daily automation (posts to portal)
 ./bin/tam-rfe-monitor-simple wellsfargo --daily
+
+# Generate active case report
+./bin/tam-rfe-monitor-simple tdbank --active-cases
 
 # Run all customers at once
 ./bin/tam-rfe-monitor-simple --all
