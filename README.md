@@ -224,6 +224,7 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
 - **"I can't find customer account numbers"** → Check your customer portal or ask your manager
 - **"I want to change how reports look"** → Use the chat and ask: "Can you customize the report format?"
 - **"I'm stuck!"** → Use the chat and type: "Help me" or "I need assistance"
+- **"RFE tool issues"** → Contact jbyrd (RFE tool developer) via GitLab: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/issues
 
 ### Getting Support
 - **Slack**: #tam-automation-tools
