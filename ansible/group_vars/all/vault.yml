@@ -1,0 +1,33 @@
+---
+# Ansible Vault - Encrypted secrets for RFE Automation Tool
+# Use: ansible-vault encrypt group_vars/all/vault.yml
+
+# Red Hat Customer Portal API credentials
+portal_api_credentials:
+  client_id: "{{ vault_portal_client_id }}"
+  client_secret: "{{ vault_portal_client_secret }}"
+  base_url: "https://access.redhat.com"
+
+# Slack webhook for notifications
+slack_webhook_url: "{{ vault_slack_webhook_url }}"
+
+# Email SMTP settings
+smtp_settings:
+  server: "{{ vault_smtp_server }}"
+  port: "{{ vault_smtp_port }}"
+  username: "{{ vault_smtp_username }}"
+  password: "{{ vault_smtp_password }}"
+  use_tls: true
+
+# Database credentials (if needed for future enhancements)
+database_credentials:
+  host: "{{ vault_db_host }}"
+  port: "{{ vault_db_port }}"
+  username: "{{ vault_db_username }}"
+  password: "{{ vault_db_password }}"
+  database: "rfe_automation"
+
+# Encryption keys for sensitive data
+encryption_keys:
+  data_encryption_key: "{{ vault_data_encryption_key }}"
+  api_signing_key: "{{ vault_api_signing_key }}"

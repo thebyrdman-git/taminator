@@ -1,0 +1,80 @@
+---
+# Content preparation tasks for Customer Portal Role
+
+- name: Prepare RFE/Bug Tracker content for portal
+  template:
+    src: portal_rfe_bug_content.j2
+    dest: "{{ output_dir }}/portal/rfe_bug_portal_content_{{ ansible_date_time.epoch }}.md"
+    mode: '0644'
+  vars:
+    customer_name: "{{ customer_name }}"
+    account_name: "{{ account_name }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+    active_rfes: "{{ active_rfes | default([]) }}"
+    active_bugs: "{{ active_bugs | default([]) }}"
+    closed_cases: "{{ closed_cases | default([]) }}"
+    data_quality_score: "{{ data_quality_score | default(0.0) }}"
+  when: 
+    - portal_posting_enabled
+    - portal_sections.rfe_bug_tracker.enabled
+    - "'rfe_bug_tracker' in (report_types | default([]))"
+  tags: [content_preparation, rfe_bug]
+
+- name: Prepare Active Cases content for portal
+  template:
+    src: portal_active_cases_content.j2
+    dest: "{{ output_dir }}/portal/active_cases_portal_content_{{ ansible_date_time.epoch }}.md"
+    mode: '0644'
+  vars:
+    customer_name: "{{ customer_name }}"
+    account_name: "{{ account_name }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+    all_active_cases: "{{ all_active_cases | default([]) }}"
+    priority_active_cases: "{{ priority_active_cases | default([]) }}"
+    cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
+    data_quality_score: "{{ data_quality_score | default(0.0) }}"
+  when: 
+    - portal_posting_enabled
+    - portal_sections.active_cases.enabled
+    - "'active_cases' in (report_types | default([]))"
+  tags: [content_preparation, active_cases]
+
+- name: Generate portal metadata
+  set_fact:
+    portal_metadata:
+      customer: "{{ customer_name }}"
+      account: "{{ account_name }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      sections:
+        rfe_bug_tracker:
+          enabled: "{{ portal_sections.rfe_bug_tracker.enabled }}"
+          title: "{{ portal_sections.rfe_bug_tracker.title_template }}"
+          content_file: "{{ output_dir }}/portal/rfe_bug_portal_content_{{ ansible_date_time.epoch }}.md"
+        active_cases:
+          enabled: "{{ portal_sections.active_cases.enabled }}"
+          title: "{{ portal_sections.active_cases.title_template }}"
+          content_file: "{{ output_dir }}/portal/active_cases_portal_content_{{ ansible_date_time.epoch }}.md"
+  when: portal_posting_enabled
+  tags: [content_preparation, metadata]
+
+- name: Save portal metadata
+  copy:
+    content: "{{ portal_metadata | to_nice_json }}"
+    dest: "{{ output_dir }}/portal/portal_metadata_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  when: portal_posting_enabled
+  tags: [content_preparation, metadata]
+
+- name: Display content preparation summary
+  debug:
+    msg: |
+      📝 Portal Content Preparation Summary:
+      🏢 Customer: {{ customer_name }}
+      📊 Account: {{ account_name }}
+      📋 Sections Prepared:
+      {% for section_name, section_data in portal_metadata.sections.items() %}
+      - {{ section_name }}: {{ 'Enabled' if section_data.enabled else 'Disabled' }}
+      {% endfor %}
+      📁 Content Directory: {{ output_dir }}/portal/
+  when: portal_posting_enabled
+  tags: [content_preparation, summary]

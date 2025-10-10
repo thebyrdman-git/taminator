@@ -1,0 +1,155 @@
+---
+# Master RFE Automation Playbook
+# Orchestrates the complete RFE automation workflow with advanced features
+
+- name: RFE Automation Master Workflow
+  hosts: customers
+  gather_facts: yes
+  become: no
+  serial: "{{ performance_config.max_parallel_customers | default(3) }}"
+  
+  vars:
+    # Execution context
+    execution_id: "{{ ansible_date_time.epoch }}"
+    execution_start: "{{ ansible_date_time.iso8601 }}"
+    
+    # Override defaults based on environment
+    validation_threshold: "{{ validation_threshold | default(validation_config.accuracy_threshold) }}"
+    report_types: "{{ report_types | default(report_config.types) }}"
+    
+  pre_tasks:
+    - name: Validate execution environment
+      block:
+        - name: Check system requirements
+          assert:
+            that:
+              - ansible_python_version is version('3.6', '>=')
+              - ansible_os_family in ['RedHat', 'Debian', 'Darwin']
+            fail_msg: "System requirements not met"
+        
+        - name: Validate customer configuration
+          assert:
+            that:
+              - customer_name is defined
+              - account_number is defined
+              - account_name is defined
+              - priority_components is defined
+            fail_msg: "Customer configuration is incomplete"
+        
+        - name: Check rhcase availability
+          stat:
+            path: "{{ system_paths.rhcase_path }}"
+          register: rhcase_check
+          
+        - name: Fail if rhcase not available
+          fail:
+            msg: "rhcase tool not found at {{ system_paths.rhcase_path }}"
+          when: not rhcase_check.stat.exists
+          
+      rescue:
+        - name: Log pre-task failure
+          lineinfile:
+            path: "{{ system_paths.logs_dir }}/errors.log"
+            line: "{{ ansible_date_time.iso8601 }} - PRE_TASK_FAILURE - {{ customer_name }} - {{ ansible_failed_result.msg }}"
+            create: yes
+          
+        - name: Send failure notification
+          include_tasks: ../roles/rfe-reports/tasks/notifications.yml
+          vars:
+            notification_type: "failure"
+            customer_name: "{{ customer_name }}"
+            error_message: "Pre-task validation failed: {{ ansible_failed_result.msg }}"
+          
+        - name: Fail execution
+          fail:
+            msg: "Pre-task validation failed: {{ ansible_failed_result.msg }}"
+
+  roles:
+    - role: rfe-reports
+      vars:
+        # Pass execution context to role
+        execution_id: "{{ execution_id }}"
+        execution_start: "{{ execution_start }}"
+        
+        # Override role defaults
+        validation_threshold: "{{ validation_threshold }}"
+        report_types: "{{ report_types }}"
+        
+        # Environment-specific settings
+        environment: "{{ environment | default('development') }}"
+        customer_size: "{{ customer_size | default('mid_market') }}"
+        industry: "{{ industry | default('technology') }}"
+
+  post_tasks:
+    - name: Generate execution summary
+      block:
+        - name: Collect execution metrics
+          set_fact:
+            execution_metrics:
+              execution_id: "{{ execution_id }}"
+              customer_name: "{{ customer_name }}"
+              start_time: "{{ execution_start }}"
+              end_time: "{{ ansible_date_time.iso8601 }}"
+              duration: "{{ ((ansible_date_time.epoch | int) - (execution_id | int)) }}"
+              reports_generated: "{{ report_types | length }}"
+              validation_passed: "{{ validation_passed | default(false) }}"
+              accuracy_score: "{{ accuracy_score | default(0) }}"
+        
+        - name: Generate summary report
+          template:
+            src: execution_summary.j2
+            dest: "{{ system_paths.output_dir }}/execution_summary_{{ execution_id }}.json"
+          vars:
+            metrics: "{{ execution_metrics }}"
+            customer_info: "{{ hostvars[inventory_hostname] }}"
+        
+        - name: Log execution completion
+          lineinfile:
+            path: "{{ system_paths.logs_dir }}/execution.log"
+            line: "{{ ansible_date_time.iso8601 }} - COMPLETE - {{ customer_name }} - Duration: {{ execution_metrics.duration }}s - Reports: {{ execution_metrics.reports_generated }}"
+          
+      rescue:
+        - name: Log post-task failure
+          lineinfile:
+            path: "{{ system_paths.logs_dir }}/errors.log"
+            line: "{{ ansible_date_time.iso8601 }} - POST_TASK_FAILURE - {{ customer_name }} - {{ ansible_failed_result.msg }}"
+          
+        - name: Send failure notification
+          include_tasks: ../roles/rfe-reports/tasks/notifications.yml
+          vars:
+            notification_type: "failure"
+            customer_name: "{{ customer_name }}"
+            error_message: "Post-task processing failed: {{ ansible_failed_result.msg }}"
+      
+      always:
+        - name: Cleanup temporary files
+          file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - "{{ system_paths.temp_dir }}/{{ customer_name | lower }}_*"
+            - "{{ system_paths.output_dir }}/temp_*"
+          ignore_errors: true
+          notify: cleanup temporary files
+        
+        - name: Rotate old files
+          shell: |
+            find {{ system_paths.logs_dir }} -name "*.log" -mtime +{{ logging_config.rotation.backup_count | default(5) }} -delete
+            find {{ system_paths.output_dir }} -name "*.md" -mtime +{{ security_config.data_retention_days | default(365) }} -delete
+          changed_when: false
+          notify: rotate logs
+
+  handlers:
+    - name: send success notification
+      include_tasks: ../roles/rfe-reports/tasks/notifications.yml
+      vars:
+        notification_type: "success"
+        customer_name: "{{ customer_name }}"
+        execution_metrics: "{{ execution_metrics }}"
+    
+    - name: send failure notification
+      include_tasks: ../roles/rfe-reports/tasks/notifications.yml
+      vars:
+        notification_type: "failure"
+        customer_name: "{{ customer_name }}"
+        error_message: "{{ error_message | default('Unknown error') }}"

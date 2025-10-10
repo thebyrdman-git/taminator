@@ -1,0 +1,43 @@
+---
+# Handlers for RFE Reports role
+# Triggered by notify statements in tasks
+
+- name: restart logging service
+  systemd:
+    name: rfe-automation-logging
+    state: restarted
+  when: ansible_os_family != "Windows"
+
+- name: reload configuration
+  command: touch /tmp/rfe-automation-reload
+  changed_when: false
+
+- name: send failure notification
+  include_tasks: ../tasks/notifications.yml
+  vars:
+    notification_type: "failure"
+    customer_name: "{{ customer_name }}"
+    error_message: "{{ error_message | default('Unknown error') }}"
+
+- name: send success notification
+  include_tasks: ../tasks/notifications.yml
+  vars:
+    notification_type: "success"
+    customer_name: "{{ customer_name }}"
+    report_count: "{{ report_count | default(0) }}"
+
+- name: cleanup temporary files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ output_dir }}/temp_*.json"
+    - "{{ output_dir }}/temp_*.md"
+    - "{{ logs_dir }}/temp_*.log"
+  ignore_errors: true
+
+- name: rotate logs
+  shell: |
+    find {{ logs_dir }} -name "*.log" -mtime +{{ retention.logs_days | default(30) }} -delete
+    find {{ output_dir }} -name "*.md" -mtime +{{ retention.reports_days | default(90) }} -delete
+  changed_when: false

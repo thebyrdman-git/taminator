@@ -1,0 +1,57 @@
+---
+# Ansible Playbook for RFE Report Generation
+# Uses structured variables for consistent, reliable results
+
+- name: Generate RFE Reports for Customers
+  hosts: localhost
+  gather_facts: yes
+  become: no
+  
+  vars:
+    # Global settings
+    ansible_python_interpreter: /usr/bin/python3
+    report_timestamp: "{{ ansible_date_time.epoch }}"
+    
+  pre_tasks:
+    - name: Display customer information
+      debug:
+        msg: |
+          🏢 Generating RFE reports for: {{ customer_name }}
+          📊 Account: {{ account_number }} ({{ account_name }})
+          🎯 Priority Components: {{ priority_components | join(', ') }}
+          📅 Report Frequency: {{ report_frequency }}
+          ✅ Validation Threshold: {{ validation_threshold * 100 }}%
+
+  roles:
+    - role: rfe-reports
+      vars:
+        # Override role defaults with customer-specific settings
+        validation_threshold: "{{ validation_threshold | default(0.99) }}"
+        report_types: ['rfe_bug_tracker', 'active_cases']
+        
+  post_tasks:
+    - name: Generate execution summary
+      template:
+        src: execution_summary.j2
+        dest: "{{ output_dir }}/execution_summary_{{ ansible_date_time.epoch }}.md"
+      vars:
+        execution_timestamp: "{{ ansible_date_time.iso8601 }}"
+        customers_processed: "{{ groups['customers'] | length }}"
+        total_hosts: "{{ ansible_play_hosts | length }}"
+        
+    - name: Display completion message
+      debug:
+        msg: |
+          🎉 RFE Report Generation Complete!
+          📁 Reports saved to: {{ output_dir }}
+          📊 Summary: {{ execution_summary_{{ ansible_date_time.epoch }}.md }}
+          🔍 Check logs in: {{ logs_dir }}
+          
+    - name: Clean up temporary files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ output_dir }}/temp_*.json"
+        - "{{ output_dir }}/temp_*.md"
+      ignore_errors: yes

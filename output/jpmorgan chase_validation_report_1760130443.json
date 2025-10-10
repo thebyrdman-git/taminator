@@ -1,0 +1,24 @@
+{
+    "active_bugs": "6",
+    "active_rfes": "19",
+    "available_case_types": [
+        "Defect / Bug",
+        "Account / Customer Service Request",
+        "Feature / Enhancement Request",
+        "Configuration Issue"
+    ],
+    "closed_cases": "0",
+    "customer": "JPMorgan Chase",
+    "data_quality_score": "1.0",
+    "missing_priority_components": [
+        "Satellite",
+        "OpenShift",
+        "RHEL"
+    ],
+    "sbr_groups": [
+        "Ansible"
+    ],
+    "suspicious_results": [],
+    "timestamp": "2025-10-10T21:07:23Z",
+    "total_cases": "29"
+}

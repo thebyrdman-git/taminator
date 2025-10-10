@@ -1,0 +1,41 @@
+---
+# Ansible Galaxy collection metadata
+namespace: redhat
+name: rfe_automation
+version: 1.0.0
+readme: README.md
+authors:
+  - "Red Hat TAM Operations"
+description: "Red Hat RFE and Case Management Automation Collection"
+license:
+  - "GPL-3.0-or-later"
+tags:
+  - redhat
+  - rfe
+  - bug-tracking
+  - case-management
+  - automation
+  - support
+  - ansible
+  - tam
+repository: "https://github.com/redhat/rfe-automation"
+documentation: "https://github.com/redhat/rfe-automation/docs"
+homepage: "https://github.com/redhat/rfe-automation"
+issues: "https://github.com/redhat/rfe-automation/issues"
+dependencies: {}
+keywords:
+  - redhat
+  - rfe
+  - bug
+  - case
+  - management
+  - automation
+  - support
+  - tam
+  - ansible
+  - reporting
+  - tracking
+  - jira
+  - external-tracker
+  - validation
+  - quality-assurance

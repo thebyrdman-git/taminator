@@ -1,0 +1,40 @@
+---
+# Generate Active Cases report
+
+- name: Get all active cases from rhcase
+  shell: |
+    {{ rhcase_path }} --account {{ account_name }} \
+      --includefilter 'status,Open' \
+      --format json
+  register: active_cases_output
+  changed_when: false
+
+- name: Parse active cases JSON
+  set_fact:
+    all_active_cases: "{{ active_cases_output.stdout | from_json }}"
+
+- name: Filter cases by priority components
+  set_fact:
+    priority_active_cases: "{{ all_active_cases | selectattr('sbrGroup', 'in', priority_components) | list }}"
+
+- name: Generate Active Cases report
+  template:
+    src: active_cases_report.j2
+    dest: "{{ output_dir }}/{{ customer_name | lower }}_active_cases_{{ ansible_date_time.epoch }}.md"
+  vars:
+    customer_name: "{{ customer_name }}"
+    account_number: "{{ account_number }}"
+    current_date: "{{ ansible_date_time.date }}"
+    total_active_cases: "{{ all_active_cases | length }}"
+    priority_cases: "{{ priority_active_cases | length }}"
+    all_active_cases: "{{ all_active_cases }}"
+    priority_active_cases: "{{ priority_active_cases }}"
+    priority_components: "{{ priority_components }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+
+- name: Log active cases report generation
+  lineinfile:
+    path: "{{ logs_dir }}/active_cases.log"
+    line: "{{ ansible_date_time.iso8601 }} - Generated Active Cases report for {{ customer_name }} - {{ all_active_cases | length }} total active cases, {{ priority_active_cases | length }} priority cases"
+    create: yes
+    mode: '0644'

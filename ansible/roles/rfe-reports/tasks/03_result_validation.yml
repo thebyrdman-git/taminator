@@ -1,0 +1,121 @@
+---
+# Result validation and sanity checking tasks
+
+- name: Calculate result statistics
+  set_fact:
+    result_stats:
+      total_cases: "{{ rfe_cases | length }}"
+      active_rfes_count: "{{ active_rfes | length }}"
+      active_bugs_count: "{{ active_bugs | length }}"
+      closed_cases_count: "{{ closed_cases | length }}"
+      calculated_total_active: "{{ (active_rfes | length) + (active_bugs | length) }}"
+      external_tracker_cases: "{{ cases_with_external_trackers | default([]) | length }}"
+      active_cases_after_filtering: "{{ all_active_cases | length }}"
+  tags: [result_validation, stats]
+
+- name: Validate result consistency
+  assert:
+    that:
+      - result_stats.active_rfes_count | int >= 0
+      - result_stats.active_bugs_count | int >= 0
+      - result_stats.closed_cases_count | int >= 0
+      - result_stats.calculated_total_active | int >= 0
+    fail_msg: "Negative case counts detected - filtering logic error"
+  tags: [result_validation, consistency]
+
+- name: Check for zero results anomaly
+  set_fact:
+    zero_results_anomaly: "{{ (result_stats.calculated_total_active | int) == 0 and (result_stats.total_cases | int) > 0 }}"
+  tags: [result_validation, anomaly]
+
+- name: Detect suspicious results
+  set_fact:
+    suspicious_results: []
+  tags: [result_validation, anomaly]
+
+- name: Check for zero active cases when total cases exist
+  set_fact:
+    suspicious_results: "{{ suspicious_results + ['Zero active cases detected despite having ' + (result_stats.total_cases | string) + ' total cases'] }}"
+  when: zero_results_anomaly
+  tags: [result_validation, anomaly]
+
+- name: Check for unusually high case counts
+  set_fact:
+    suspicious_results: "{{ suspicious_results + ['Unusually high case count: ' + (result_stats.calculated_total_active | string) + ' active cases'] }}"
+  when: (result_stats.calculated_total_active | int) > 100
+  tags: [result_validation, anomaly]
+
+- name: Validate SBR Group distribution
+  set_fact:
+    sbr_groups: "{{ rfe_cases | map(attribute='sbrGroup') | list | unique }}"
+  when: rfe_cases | length > 0
+  tags: [result_validation, distribution]
+
+- name: Check for missing priority components
+  set_fact:
+    missing_priority_components: "{{ priority_components | difference(sbr_groups) }}"
+  when: rfe_cases | length > 0
+  tags: [result_validation, distribution]
+
+- name: Warn about missing priority components
+  debug:
+    msg: |
+      ⚠️  Missing Priority Components in Data:
+      {% for component in missing_priority_components %}
+      - {{ component }}
+      {% endfor %}
+      This may indicate data filtering issues.
+  when: 
+    - rfe_cases | length > 0
+    - missing_priority_components | length > 0
+  tags: [result_validation, distribution]
+
+- name: Generate result validation report
+  set_fact:
+    validation_report:
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      customer: "{{ customer_name }}"
+      total_cases: "{{ result_stats.total_cases }}"
+      active_rfes: "{{ result_stats.active_rfes_count }}"
+      active_bugs: "{{ result_stats.active_bugs_count }}"
+      closed_cases: "{{ result_stats.closed_cases_count }}"
+      data_quality_score: "{{ data_quality_score | default(0.0) }}"
+      suspicious_results: "{{ suspicious_results }}"
+      available_case_types: "{{ available_case_types | default([]) }}"
+      sbr_groups: "{{ sbr_groups | default([]) }}"
+      missing_priority_components: "{{ missing_priority_components | default([]) }}"
+  tags: [result_validation, report]
+
+- name: Save validation report
+  copy:
+    content: "{{ validation_report | to_nice_json }}"
+    dest: "{{ output_dir }}/{{ customer_name | lower }}_validation_report_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  tags: [result_validation, report]
+
+- name: Display validation summary
+  debug:
+    msg: |
+      📊 Result Validation Summary:
+      ✅ Total Cases: {{ result_stats.total_cases }}
+      ✅ Active RFEs: {{ result_stats.active_rfes_count }}
+      ✅ Active Bugs: {{ result_stats.active_bugs_count }}
+      ✅ Closed Cases: {{ result_stats.closed_cases_count }}
+      ✅ External Tracker Cases: {{ result_stats.external_tracker_cases }}
+      ✅ Active Cases After Filtering: {{ result_stats.active_cases_after_filtering }}
+      ✅ Data Quality: {{ ((data_quality_score | default(0.0) | float) * 100) | round(1) }}%
+      {% if suspicious_results | length > 0 %}
+      ⚠️  Suspicious Results:
+      {% for result in suspicious_results %}
+      - {{ result }}
+      {% endfor %}
+      {% endif %}
+  tags: [result_validation, summary]
+
+- name: Fail on critical anomalies
+  fail:
+    msg: "Critical anomalies detected: {{ suspicious_results | join(', ') }}"
+  when: 
+    - suspicious_results | length > 0
+    - zero_results_anomaly
+  tags: [result_validation, critical]

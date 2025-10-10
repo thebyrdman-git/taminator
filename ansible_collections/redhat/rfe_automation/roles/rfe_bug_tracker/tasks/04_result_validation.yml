@@ -1,0 +1,118 @@
+---
+# Result validation tasks for RFE/Bug Tracker Role
+
+- name: Calculate RFE/Bug result statistics
+  set_fact:
+    rfe_bug_result_stats:
+      total_cases: "{{ rfe_bug_cases | length }}"
+      active_rfes_count: "{{ active_rfes | length }}"
+      active_bugs_count: "{{ active_bugs | length }}"
+      closed_cases_count: "{{ closed_cases | length }}"
+      calculated_total_active: "{{ (active_rfes | length) + (active_bugs | length) }}"
+  tags: [result_validation, stats]
+
+- name: Validate RFE/Bug result consistency
+  assert:
+    that:
+      - rfe_bug_result_stats.active_rfes_count | int >= 0
+      - rfe_bug_result_stats.active_bugs_count | int >= 0
+      - rfe_bug_result_stats.closed_cases_count | int >= 0
+      - rfe_bug_result_stats.calculated_total_active | int >= 0
+    fail_msg: "Negative RFE/Bug case counts detected - filtering logic error"
+  tags: [result_validation, consistency]
+
+- name: Check for zero RFE/Bug results anomaly
+  set_fact:
+    zero_rfe_bug_results_anomaly: "{{ (rfe_bug_result_stats.calculated_total_active | int) == 0 and (rfe_bug_result_stats.total_cases | int) > 0 }}"
+  tags: [result_validation, anomaly]
+
+- name: Detect suspicious RFE/Bug results
+  set_fact:
+    suspicious_rfe_bug_results: []
+  tags: [result_validation, anomaly]
+
+- name: Check for zero active RFE/Bug cases when total cases exist
+  set_fact:
+    suspicious_rfe_bug_results: "{{ suspicious_rfe_bug_results + ['Zero active RFE/Bug cases detected despite having ' + (rfe_bug_result_stats.total_cases | string) + ' total cases'] }}"
+  when: zero_rfe_bug_results_anomaly
+  tags: [result_validation, anomaly]
+
+- name: Check for unusually high RFE/Bug case counts
+  set_fact:
+    suspicious_rfe_bug_results: "{{ suspicious_rfe_bug_results + ['Unusually high RFE/Bug case count: ' + (rfe_bug_result_stats.calculated_total_active | string) + ' active cases'] }}"
+  when: (rfe_bug_result_stats.calculated_total_active | int) > 100
+  tags: [result_validation, anomaly]
+
+- name: Validate SBR Group distribution for RFE/Bug
+  set_fact:
+    sbr_groups: "{{ rfe_bug_cases | map(attribute='sbrGroup') | list | unique }}"
+  when: rfe_bug_cases | length > 0
+  tags: [result_validation, distribution]
+
+- name: Check for missing priority components in RFE/Bug
+  set_fact:
+    missing_priority_components: "{{ priority_components | difference(sbr_groups) }}"
+  when: rfe_bug_cases | length > 0
+  tags: [result_validation, distribution]
+
+- name: Warn about missing priority components in RFE/Bug
+  debug:
+    msg: |
+      ⚠️  Missing Priority Components in RFE/Bug Data:
+      {% for component in missing_priority_components %}
+      - {{ component }}
+      {% endfor %}
+      This may indicate data filtering issues.
+  when: 
+    - rfe_bug_cases | length > 0
+    - missing_priority_components | length > 0
+  tags: [result_validation, distribution]
+
+- name: Generate RFE/Bug result validation report
+  set_fact:
+    rfe_bug_validation_report:
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      customer: "{{ customer_name }}"
+      report_type: "RFE/Bug Tracker"
+      total_cases: "{{ rfe_bug_result_stats.total_cases }}"
+      active_rfes: "{{ rfe_bug_result_stats.active_rfes_count }}"
+      active_bugs: "{{ rfe_bug_result_stats.active_bugs_count }}"
+      closed_cases: "{{ rfe_bug_result_stats.closed_cases_count }}"
+      data_quality_score: "{{ data_quality_score | default(0.0) }}"
+      suspicious_results: "{{ suspicious_rfe_bug_results }}"
+      available_case_types: "{{ available_case_types | default([]) }}"
+      sbr_groups: "{{ sbr_groups | default([]) }}"
+      missing_priority_components: "{{ missing_priority_components | default([]) }}"
+  tags: [result_validation, report]
+
+- name: Save RFE/Bug validation report
+  copy:
+    content: "{{ rfe_bug_validation_report | to_nice_json }}"
+    dest: "{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_validation_report_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  tags: [result_validation, report]
+
+- name: Display RFE/Bug validation summary
+  debug:
+    msg: |
+      📊 RFE/Bug Tracker Validation Summary:
+      ✅ Total Cases: {{ rfe_bug_result_stats.total_cases }}
+      ✅ Active RFEs: {{ rfe_bug_result_stats.active_rfes_count }}
+      ✅ Active Bugs: {{ rfe_bug_result_stats.active_bugs_count }}
+      ✅ Closed Cases: {{ rfe_bug_result_stats.closed_cases_count }}
+      ✅ Data Quality: {{ ((data_quality_score | default(0.0) | float) * 100) | round(1) }}%
+      {% if suspicious_rfe_bug_results | length > 0 %}
+      ⚠️  Suspicious Results:
+      {% for result in suspicious_rfe_bug_results %}
+      - {{ result }}
+      {% endfor %}
+      {% endif %}
+  tags: [result_validation, summary]
+
+- name: Fail on critical RFE/Bug anomalies
+  fail:
+    msg: "Critical RFE/Bug anomalies detected: {{ suspicious_rfe_bug_results | join(', ') }}"
+  when: 
+    - suspicious_rfe_bug_results | length > 0
+    - zero_rfe_bug_results_anomaly
+  tags: [result_validation, critical]

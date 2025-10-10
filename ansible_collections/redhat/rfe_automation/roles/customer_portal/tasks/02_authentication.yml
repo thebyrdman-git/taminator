@@ -1,0 +1,89 @@
+---
+# Authentication tasks for Customer Portal Role
+
+- name: Load portal authentication token
+  slurp:
+    src: "{{ portal_token_file | expanduser }}"
+  register: portal_token_file_content
+  when: 
+    - portal_posting_enabled
+    - portal_auth_method == 'bearer_token'
+  tags: [authentication, token]
+
+- name: Set portal authentication token
+  set_fact:
+    portal_auth_token: "{{ (portal_token_file_content.content | b64decode) | trim }}"
+  when: 
+    - portal_posting_enabled
+    - portal_auth_method == 'bearer_token'
+    - portal_token_file_content is defined
+  tags: [authentication, token]
+
+- name: Load portal API key
+  slurp:
+    src: "{{ portal_api_key_file | expanduser }}"
+  register: portal_api_key_content
+  when: 
+    - portal_posting_enabled
+    - portal_auth_method == 'api_key'
+  tags: [authentication, api_key]
+
+- name: Set portal API key
+  set_fact:
+    portal_auth_key: "{{ (portal_api_key_content.content | b64decode) | trim }}"
+  when: 
+    - portal_posting_enabled
+    - portal_auth_method == 'api_key'
+    - portal_api_key_content is defined
+  tags: [authentication, api_key]
+
+- name: Test portal authentication
+  uri:
+    url: "{{ portal_api_url }}/auth/test"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ portal_auth_token }}"
+    status_code: [200, 401, 403]
+  register: portal_auth_test
+  when: 
+    - portal_posting_enabled
+    - portal_auth_method == 'bearer_token'
+    - portal_auth_token is defined
+  tags: [authentication, test]
+
+- name: Test portal API key authentication
+  uri:
+    url: "{{ portal_api_url }}/auth/test"
+    method: GET
+    headers:
+      X-API-Key: "{{ portal_auth_key }}"
+    status_code: [200, 401, 403]
+  register: portal_auth_test
+  when: 
+    - portal_posting_enabled
+    - portal_auth_method == 'api_key'
+    - portal_auth_key is defined
+  tags: [authentication, test]
+
+- name: Validate portal authentication
+  assert:
+    that:
+      - portal_auth_test.status == 200
+    fail_msg: "Portal authentication failed. Status: {{ portal_auth_test.status }}"
+  when: 
+    - portal_posting_enabled
+    - portal_auth_test is defined
+  tags: [authentication, validation]
+
+- name: Display authentication status
+  debug:
+    msg: |
+      🔐 Portal Authentication Status:
+      ✅ Method: {{ portal_auth_method }}
+      ✅ Status: Authenticated
+      🔗 API URL: {{ portal_api_url }}
+  when: 
+    - portal_posting_enabled
+    - portal_auth_test is defined
+    - portal_auth_test.status == 200
+  tags: [authentication, status]

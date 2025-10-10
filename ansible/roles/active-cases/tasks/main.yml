@@ -1,0 +1,22 @@
+---
+# Main tasks for Active Cases Role
+
+- name: Include prerequisites
+  include_tasks: 01_prerequisites.yml
+  tags: [prerequisites]
+
+- name: Include data collection
+  include_tasks: 02_data_collection.yml
+  tags: [data_collection]
+
+- name: Include data validation
+  include_tasks: 03_data_validation.yml
+  tags: [data_validation]
+
+- name: Include result validation
+  include_tasks: 04_result_validation.yml
+  tags: [result_validation]
+
+- name: Include report generation
+  include_tasks: 05_report_generation.yml
+  tags: [report_generation]

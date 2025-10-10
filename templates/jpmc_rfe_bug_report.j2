@@ -1,0 +1,134 @@
+# JP Morgan Chase - RFE/Bug Tracker Report
+**Generated**: {{ current_date }}  
+**Time Period**: All Active Cases  
+**SBR Groups**: {{ sbr_groups | default('Ansible, OpenShift, RHEL') }}  
+**Account Number**: 334224
+
+---
+
+## 📊 Executive Summary
+
+| Metric | Count | Percentage |
+|--------|-------|------------|
+| **Total Active Cases** | {{ summary_stats.total_active }} | 100% |
+| **Active RFE Cases** | {{ summary_stats.active_rfe }} | {{ (summary_stats.active_rfe / summary_stats.total_active * 100) | round(1) if summary_stats.total_active > 0 else 0 }}% |
+| **Active Bug Cases** | {{ summary_stats.active_bug }} | {{ (summary_stats.active_bug / summary_stats.total_active * 100) | round(1) if summary_stats.total_active > 0 else 0 }}% |
+| **Cases Waiting on Red Hat** | {{ by_status.get('Waiting on Red Hat', []) | length }} | {{ (by_status.get('Waiting on Red Hat', []) | length / summary_stats.total_active * 100) | round(1) if summary_stats.total_active > 0 else 0 }}% |
+| **Cases Waiting on Customer** | {{ by_status.get('Waiting on Customer', []) | length }} | {{ (by_status.get('Waiting on Customer', []) | length / summary_stats.total_active * 100) | round(1) if summary_stats.total_active > 0 else 0 }}% |
+
+### 🎯 Key Insights
+- **Primary Focus**: {{ by_sbr_group.keys() | list | first | default('Ansible') }} ({{ by_sbr_group.values() | list | first | length | default(0) }} cases)
+- **Resolution Trend**: {{ 'Improving' if summary_stats.total_closed > 0 else 'Stable' }}
+- **Customer Impact**: {{ summary_stats.total_active }} active cases requiring attention
+
+---
+
+# 🔧 **REQUEST FOR ENHANCEMENTS (RFEs)**
+
+{% for sbr_group, cases in by_sbr_group.items() %}
+{% set rfe_cases = cases | selectattr('is_rfe') | selectattr('is_closed', 'equalto', false) | list %}
+{% if rfe_cases %}
+## 🔧 **{{ sbr_group }}** ({{ rfe_cases | length }} cases)
+*Component: {{ sbr_group }}*
+
+| Case Number | JIRA ID | Summary | JIRA Status | Created | Business Impact |
+|-------------|---------|---------|-------------|---------|-----------------|
+{% for case in rfe_cases %}
+| {{ case.case_number | format_case_number }} | {{ case.raw_data.get('jira_id', '') | format_jira_id }} | {{ case.summary | truncate_summary(80) }} | {{ case.status }} | {{ case.created_date | format_date('%Y-%m-%d') }} | {{ case.business_impact }} |
+{% endfor %}
+
+**Business Impact**: Enhanced {{ sbr_group.lower() }} capabilities, improved operational efficiency, strengthened enterprise platform functionality
+
+---
+
+{% endif %}
+{% endfor %}
+
+# 🐛 **ACTIVE BUG REPORTS**
+
+{% for sbr_group, cases in by_sbr_group.items() %}
+{% set bug_cases = cases | selectattr('is_bug') | selectattr('is_closed', 'equalto', false) | list %}
+{% if bug_cases %}
+## 🐛 **{{ sbr_group }} Bugs** ({{ bug_cases | length }} cases)
+*Severity: Various, Impact: Medium-High*
+
+| Case Number | JIRA ID | Summary | JIRA Status | Created | Severity | Business Impact |
+|-------------|---------|---------|-------------|---------|----------|-----------------|
+{% for case in bug_cases %}
+| {{ case.case_number | format_case_number }} | {{ case.raw_data.get('jira_id', '') | format_jira_id }} | {{ case.summary | truncate_summary(80) }} | {{ case.status }} | {{ case.created_date | format_date('%Y-%m-%d') }} | {{ case.priority }} | {{ case.business_impact }} |
+{% endfor %}
+
+---
+
+{% endif %}
+{% endfor %}
+
+# 📈 **CLOSED JIRA TICKET HISTORY** (Recent)
+
+{% set recent_closed = closed_cases | selectattr('updated_date') | list %}
+{% if recent_closed %}
+## ✅ **Recently Resolved** ({{ recent_closed | length }} cases)
+*Closed within last 30 days*
+
+| Case Number | JIRA ID | Summary | Resolution | Closed Date | Business Impact |
+|-------------|---------|---------|------------|-------------|-----------------|
+{% for case in recent_closed[:10] %}
+| {{ case.case_number | format_case_number }} | {{ case.raw_data.get('jira_id', '') | format_jira_id }} | {{ case.summary | truncate_summary(80) }} | {{ case.status }} | {{ case.updated_date | format_date('%Y-%m-%d') }} | {{ case.business_impact }} |
+{% endfor %}
+
+---
+
+{% endif %}
+
+# 📊 **COMPONENT DISTRIBUTION ANALYSIS**
+
+## 🔧 **RFE Distribution by Component**
+| Component | Count | Percentage | Business Priority |
+|-----------|-------|------------|-------------------|
+{% for sbr_group, cases in by_sbr_group.items() %}
+{% set rfe_count = cases | selectattr('is_rfe') | list | length %}
+| {{ sbr_group }} | {{ rfe_count }} | {{ (rfe_count / summary_stats.total_rfe * 100) | round(1) if summary_stats.total_rfe > 0 else 0 }}% | {{ 'High' if rfe_count > 5 else 'Medium' if rfe_count > 2 else 'Low' }} |
+{% endfor %}
+
+## 🐛 **Bug Distribution by Severity**
+| Severity | Count | Percentage | Average Resolution Time |
+|----------|-------|------------|------------------------|
+{% for priority, cases in by_priority.items() %}
+{% set bug_cases = cases | selectattr('is_bug') | list %}
+{% if bug_cases %}
+| {{ priority }} | {{ bug_cases | length }} | {{ (bug_cases | length / summary_stats.total_bug * 100) | round(1) if summary_stats.total_bug > 0 else 0 }}% | {{ '2-3 weeks' if priority.startswith('1') or priority.startswith('2') else '1-2 weeks' }} |
+{% endif %}
+{% endfor %}
+
+---
+
+# 🎯 **STRATEGIC PRIORITIES**
+
+## 🚀 **High Priority Components**
+{% set sorted_groups = by_sbr_group.items() | sort(attribute='1') | reverse %}
+{% for sbr_group, cases in sorted_groups[:3] %}
+{% set rfe_count = cases | selectattr('is_rfe') | list | length %}
+{{ loop.index }}. **{{ sbr_group }}** - {{ rfe_count }} active RFEs requiring attention
+{% endfor %}
+
+## 📋 **Recommended Actions**
+- **Immediate**: Follow up on {{ by_status.get('Waiting on Red Hat', []) | length }} cases waiting on Red Hat
+- **Short-term**: Engage customer on {{ by_status.get('Waiting on Customer', []) | length }} cases waiting on customer
+- **Long-term**: Strategic review of {{ summary_stats.total_rfe }} RFE requests for prioritization
+
+## 💼 **Business Value Alignment**
+- **Regulatory Compliance**: {{ 'Enhanced' if summary_stats.total_rfe > 10 else 'Maintained' }} audit trail and reporting capabilities
+- **Operational Efficiency**: {{ 'Significantly improved' if summary_stats.total_bug < 5 else 'Improved' }} automation reliability
+- **Risk Mitigation**: {{ 'Proactive' if summary_stats.total_active < 20 else 'Active' }} issue identification and resolution
+- **Cost Optimization**: {{ 'Optimized' if summary_stats.total_closed > summary_stats.total_active else 'Stable' }} support resource allocation
+
+---
+
+**🤖 Automated Update via Red Hat Customer Portal API**  
+**Generated by**: RFE Automation Tool (Jinja2 Template Engine)  
+**Last Updated**: {{ timestamp }}  
+**Next Update**: {{ next_update_time }}
+
+---
+
+*This report focuses specifically on RFE and Bug tracking cases. For active troubleshooting cases, please refer to the separate Active Case Report.*

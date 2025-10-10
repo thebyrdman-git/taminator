@@ -1,0 +1,50 @@
+---
+# Default variables for Customer Portal Role
+
+# Portal configuration
+portal_name: "Red Hat Customer Portal"
+portal_base_url: "https://access.redhat.com"
+portal_api_url: "https://api.access.redhat.com"
+
+# Authentication settings
+portal_auth_method: "bearer_token"  # bearer_token, api_key, oauth
+portal_token_file: "~/.config/portal/token"
+portal_api_key_file: "~/.config/portal/api_key"
+
+# Posting configuration
+portal_posting_enabled: false
+portal_auto_post: false
+portal_post_delay: 30  # seconds between posts
+portal_max_posts_per_run: 10
+
+# Content settings
+portal_content_format: "markdown"
+portal_include_attachments: true
+portal_include_charts: true
+portal_include_summary: true
+
+# Portal sections
+portal_sections:
+  rfe_bug_tracker:
+    enabled: true
+    section_id: "rfe-bug-tracker"
+    title_template: "RFE/Bug Tracker Report - {{ customer_name }}"
+  active_cases:
+    enabled: true
+    section_id: "active-cases"
+    title_template: "Active Cases Report - {{ customer_name }}"
+
+# Validation settings
+portal_validation_enabled: true
+portal_content_validation: true
+portal_duplicate_detection: true
+
+# Logging settings
+portal_log_level: "INFO"
+portal_log_posts: true
+portal_log_failures: true
+
+# Retry settings
+portal_retry_attempts: 3
+portal_retry_delay: 5
+portal_retry_backoff: 2

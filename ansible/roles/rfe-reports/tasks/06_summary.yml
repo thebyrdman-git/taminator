@@ -1,0 +1,59 @@
+---
+# Summary and cleanup tasks
+
+- name: Generate customer report summary
+  template:
+    src: report_summary.j2
+    dest: "{{ output_dir }}/{{ customer_name | lower }}_{{ ansible_date_time.epoch }}_summary.md"
+  vars:
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+    customer_info: "{{ hostvars[inventory_hostname] }}"
+    validation_passed: "{{ validation_passed | default(true) }}"
+    accuracy_score: "{{ accuracy_score | default('N/A') }}"
+    total_issues: "{{ total_issues | default(0) }}"
+    critical_issues: "{{ critical_issues | default(0) }}"
+    high_issues: "{{ high_issues | default(0) }}"
+    portal_post_result: "{{ portal_post_result | default({}) }}"
+  tags: [summary, report_summary]
+
+- name: Generate execution summary
+  template:
+    src: execution_summary.j2
+    dest: "{{ output_dir }}/execution_summary_{{ ansible_date_time.epoch }}.md"
+  vars:
+    execution_timestamp: "{{ ansible_date_time.iso8601 }}"
+    customers_processed: "{{ groups['customers'] | length }}"
+    total_hosts: "{{ ansible_play_hosts | length }}"
+  run_once: true
+  tags: [summary, execution_summary]
+
+- name: Display completion message
+  debug:
+    msg: |
+      🎉 RFE Report Generation Complete for {{ customer_name }}!
+      📁 Reports saved to: {{ output_dir }}
+      📊 Customer Summary: {{ customer_name | lower }}_{{ ansible_date_time.epoch }}_summary.md
+      🔍 Check logs in: {{ logs_dir }}
+      {% if validation_enabled %}
+      ✅ Validation: {{ 'PASSED' if validation_passed else 'FAILED' }}
+      📈 Accuracy: {{ accuracy_score }}%
+      {% endif %}
+  tags: [summary, completion]
+
+- name: Clean up temporary files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ output_dir }}/temp_*.json"
+    - "{{ output_dir }}/temp_*.md"
+  ignore_errors: yes
+  tags: [summary, cleanup]
+
+- name: Log execution completion
+  lineinfile:
+    path: "{{ logs_dir }}/execution.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - Execution completed successfully - Reports: {{ report_types | join(', ') }}"
+    create: yes
+    mode: '0644'
+  tags: [summary, logging]

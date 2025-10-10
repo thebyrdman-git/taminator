@@ -1,0 +1,139 @@
+---
+# Default variables for RFE Reports role
+# These can be overridden by inventory, group_vars, or playbook vars
+
+# System paths and directories
+system_paths:
+  project_root: "/home/{{ ansible_user }}/pai/rfe-automation-clean"
+  rhcase_path: "{{ system_paths.project_root }}/rhcase/.venv/bin/rhcase"
+  output_dir: "{{ system_paths.project_root }}/output"
+  logs_dir: "{{ system_paths.project_root }}/logs"
+  temp_dir: "{{ system_paths.project_root }}/tmp"
+  templates_dir: "{{ system_paths.project_root }}/templates"
+  backups_dir: "{{ system_paths.project_root }}/backups"
+
+# Report configuration
+report_config:
+  types: ["rfe_bug_tracker", "active_cases"]
+  formats: ["markdown", "json"]
+  default_template: "rfe_bug_report.j2"
+  max_cases_per_report: 1000
+  include_closed_cases: true
+  include_private_cases: false
+
+# Validation settings
+validation_config:
+  enabled: true
+  strict_mode: false
+  accuracy_threshold: 0.99
+  consistency_threshold: 0.995
+  customer_report_threshold: 0.99
+  
+  # Validation rules
+  rules:
+    require_case_numbers: true
+    require_jira_ids: true
+    validate_dates: true
+    check_duplicates: true
+    verify_components: true
+    cross_reference_validation: false
+    business_logic_validation: false
+
+# Performance settings
+performance_config:
+  max_parallel_customers: 3
+  rhcase_timeout: 300
+  api_timeout: 60
+  retry_attempts: 3
+  retry_delay: 5
+  connection_pool_size: 10
+
+# Portal settings
+portal_config:
+  api_enabled: false
+  base_url: "https://access.redhat.com"
+  rate_limiting: true
+  ssl_verify: true
+  timeout: 120
+
+# Notification settings
+notification_config:
+  enabled: true
+  channels:
+    email: true
+    slack: false
+    portal: true
+    console: true
+  
+  # Notification templates
+  templates:
+    success: "✅ RFE report generated successfully for {{ customer_name }}"
+    failure: "❌ RFE report generation failed for {{ customer_name }}: {{ error }}"
+    warning: "⚠️ RFE report validation warnings for {{ customer_name }}"
+    info: "ℹ️ RFE report processing started for {{ customer_name }}"
+
+# Logging configuration
+logging_config:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  rotation:
+    max_size: "10MB"
+    backup_count: 5
+  
+  # Log categories
+  categories:
+    system: "system.log"
+    validation: "validation.log"
+    reports: "reports.log"
+    api: "api.log"
+    errors: "errors.log"
+    performance: "performance.log"
+
+# Security settings
+security_config:
+  encryption_enabled: false
+  audit_logging: true
+  access_control: false
+  data_retention_days: 365
+  backup_encryption: false
+
+# Monitoring settings
+monitoring_config:
+  enabled: false
+  health_checks: false
+  metrics_collection: false
+  alerting_enabled: false
+  
+  # Report types to generate
+  report_types:
+    - "rfe_bug_tracker"
+    - "active_cases"
+  
+  # Health check settings
+  system_health_checks:
+    rhcase_connectivity: true
+    api_connectivity: true
+    disk_space: true
+    memory_usage: true
+    
+  # Metrics to collect
+  metrics:
+    execution_time: true
+    case_count: true
+    validation_scores: true
+    error_rates: true
+    api_response_times: true
+
+# Backup settings
+backup_config:
+  enabled: false
+  frequency: "daily"
+  retention_days: 30
+  compression: true
+  encryption: false
+  
+  # Backup locations
+  locations:
+    reports: "{{ system_paths.backups_dir }}/reports"
+    logs: "{{ system_paths.backups_dir }}/logs"
+    config: "{{ system_paths.backups_dir }}/config"

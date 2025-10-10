@@ -219,6 +219,47 @@ If you prefer commands, here are the only ones you need:
 2. **Auto-post** - Tool automatically puts it on the customer portal (you get an email confirmation)
 3. **Validate first** - Check report accuracy before publishing (recommended)
 
+## 🔍 **How Filtering Works (Sets Your Expectations)**
+
+The tool generates **two different types of reports** with different filtering logic:
+
+### **📊 RFE/Bug Tracker Report**
+**What it includes:**
+- ✅ All cases with `[RFE]` in the title (Feature Requests)
+- ✅ All cases with `[BUG]` in the title (Bug Reports)
+- ✅ Recent closed cases for historical context
+
+**What it excludes:**
+- ❌ Cases without `[RFE]` or `[BUG]` in the title
+- ❌ Configuration issues, account service requests, etc.
+
+### **📋 Active Cases Report**
+**What it includes:**
+- ✅ All active cases EXCEPT those with `[RFE]` or `[BUG]` in the title
+- ✅ Configuration issues, account service requests, support cases
+- ✅ Any other active cases that aren't explicitly RFE or Bug
+
+**What it excludes:**
+- ❌ Cases with `[RFE]` in the title
+- ❌ Cases with `[BUG]` in the title
+- ❌ Cases with external tracker references (`issues.redhat.com` or `jira.redhat.com` URLs in subject, description, or tags)
+
+### **🔍 External Tracker Detection**
+The tool automatically detects cases that are tracked in external systems (like JIRA) by searching for patterns in:
+- **Subject/Title**: `issues.redhat.com` or `jira.redhat.com` URLs
+- **Description**: Same patterns as above  
+- **Tags**: Same patterns as above
+
+**Example**: Case 03208295 contains `https://issues.redhat.com/browse/AAP-3456` in the description field.
+
+Cases with external tracker references are excluded from the Active Cases Report to avoid duplication with formal tracking systems.
+
+### **🎯 Why This Matters**
+- **RFE/Bug Report**: Focuses on feature requests and bug reports for product development
+- **Active Cases Report**: Shows operational issues, configuration problems, and support requests
+- **External Tracker Detection**: Prevents duplicate tracking of cases already managed in JIRA or other systems
+- **Together**: They give you a complete picture of all customer cases without duplication
+
 ## 📋 Report Options
 
 When you ask for reports, I'll give you **three options**:

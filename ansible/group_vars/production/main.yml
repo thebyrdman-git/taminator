@@ -1,0 +1,77 @@
+---
+# Production environment configuration
+# High-availability, performance-optimized settings
+
+environment: "production"
+
+# Production-specific settings
+production_config:
+  # High availability
+  ha_enabled: true
+  backup_enabled: true
+  monitoring_enabled: true
+  
+  # Performance optimization
+  performance:
+    max_parallel_customers: 5
+    rhcase_timeout: 600
+    api_timeout: 120
+    retry_attempts: 5
+    retry_delay: 10
+  
+  # Security
+  security:
+    encryption_enabled: true
+    audit_logging: true
+    access_control: true
+  
+  # Monitoring
+  monitoring:
+    health_checks: true
+    metrics_collection: true
+    alerting_enabled: true
+  
+  # Backup and recovery
+  backup:
+    frequency: "daily"
+    retention_days: 365
+    compression: true
+    encryption: true
+
+# Production API settings
+api_config:
+  rate_limiting: true
+  authentication: "oauth2"
+  ssl_verify: true
+  timeout: 120
+
+# Production validation settings
+validation_config:
+  strict_mode: true
+  accuracy_threshold: 0.995
+  consistency_threshold: 0.999
+  
+  # Enhanced validation rules
+  rules:
+    require_case_numbers: true
+    require_jira_ids: true
+    validate_dates: true
+    check_duplicates: true
+    verify_components: true
+    cross_reference_validation: true
+    business_logic_validation: true
+
+# Production notification settings
+notification_config:
+  channels:
+    email: true
+    slack: true
+    portal: true
+    pagerduty: true
+  
+  # Production alerting
+  alerting:
+    critical_errors: true
+    validation_failures: true
+    system_issues: true
+    performance_degradation: true

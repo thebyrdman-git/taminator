@@ -1,0 +1,75 @@
+---
+# Ansible Inventory for RFE Automation Tool
+# Customer account numbers, group IDs, and configuration data
+
+all:
+  children:
+    customers:
+      children:
+        jpmc:
+          vars:
+            customer_name: "JPMorgan Chase"
+            account_number: "838043"
+            account_name: "jpmc"
+            portal_group_id: "jpmc-rfe-group"
+            contact_email: "tam@jpmc.com"
+            business_units:
+              - "Investment Banking"
+              - "Commercial Banking" 
+              - "Asset Management"
+            priority_components:
+              - "OpenShift"
+              - "RHEL"
+              - "Ansible"
+              - "Satellite"
+            report_frequency: "weekly"
+            validation_threshold: 0.99
+          hosts:
+            jpmc-rfe-system:
+              ansible_host: localhost
+              ansible_connection: local
+
+        wellsfargo:
+          vars:
+            customer_name: "Wells Fargo"
+            account_number: "123456"
+            account_name: "wellsfargo"
+            portal_group_id: "wellsfargo-rfe-group"
+            contact_email: "tam@wellsfargo.com"
+            business_units:
+              - "Retail Banking"
+              - "Commercial Banking"
+              - "Wealth Management"
+            priority_components:
+              - "OpenShift"
+              - "RHEL"
+              - "Ansible"
+              - "JBoss"
+            report_frequency: "bi-weekly"
+            validation_threshold: 0.99
+          hosts:
+            wellsfargo-rfe-system:
+              ansible_host: localhost
+              ansible_connection: local
+
+        # Add more customers as needed
+        # Example template:
+        # customer_name:
+        #   vars:
+        #     customer_name: "Customer Name"
+        #     account_number: "123456"
+        #     account_name: "Customer Account Name"
+        #     portal_group_id: "customer-rfe-group"
+        #     contact_email: "tam@customer.com"
+        #     business_units:
+        #       - "Business Unit 1"
+        #       - "Business Unit 2"
+        #     priority_components:
+        #       - "OpenShift"
+        #       - "RHEL"
+        #     report_frequency: "weekly"
+        #     validation_threshold: 0.99
+        #   hosts:
+        #     customer-rfe-system:
+        #       ansible_host: localhost
+        #       ansible_connection: local

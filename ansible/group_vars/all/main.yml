@@ -1,0 +1,89 @@
+---
+# Global variables for RFE Automation Tool
+# Environment-agnostic configuration
+
+# System configuration
+system_config:
+  project_root: "/home/{{ ansible_user }}/pai/rfe-automation-clean"
+  output_dir: "{{ system_config.project_root }}/output"
+  logs_dir: "{{ system_config.project_root }}/logs"
+  temp_dir: "{{ system_config.project_root }}/tmp"
+  backup_dir: "{{ system_config.project_root }}/backups"
+  
+  # File permissions
+  file_permissions:
+    directories: '0755'
+    files: '0644'
+    scripts: '0755'
+  
+  # Retention policies
+  retention:
+    logs_days: 30
+    reports_days: 90
+    backups_days: 180
+
+# Tool configuration
+tool_config:
+  version: "2.0.0"
+  name: "tam-rfe-automation"
+  
+  # Default settings
+  defaults:
+    validation_threshold: 0.99
+    report_types: ["rfe_bug_tracker", "active_cases"]
+    output_format: "markdown"
+    include_closed_cases: true
+    max_cases_per_report: 1000
+  
+  # Performance settings
+  performance:
+    max_parallel_customers: 3
+    rhcase_timeout: 300
+    api_timeout: 60
+    retry_attempts: 3
+    retry_delay: 5
+
+# Validation settings
+validation_config:
+  enabled: true
+  strict_mode: true
+  accuracy_threshold: 0.99
+  consistency_threshold: 0.995
+  
+  # Validation rules
+  rules:
+    require_case_numbers: true
+    require_jira_ids: true
+    validate_dates: true
+    check_duplicates: true
+    verify_components: true
+
+# Notification settings
+notification_config:
+  enabled: true
+  channels:
+    email: true
+    slack: false
+    portal: true
+  
+  # Notification templates
+  templates:
+    success: "✅ RFE report generated successfully for {{ customer_name }}"
+    failure: "❌ RFE report generation failed for {{ customer_name }}: {{ error }}"
+    warning: "⚠️ RFE report validation warnings for {{ customer_name }}"
+
+# Logging configuration
+logging_config:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  rotation:
+    max_size: "10MB"
+    backup_count: 5
+  
+  # Log categories
+  categories:
+    system: "system.log"
+    validation: "validation.log"
+    reports: "reports.log"
+    api: "api.log"
+    errors: "errors.log"

@@ -1,0 +1,62 @@
+---
+# Prerequisites for Customer Portal Role
+
+- name: Check if portal posting is enabled
+  debug:
+    msg: "Portal posting is disabled. Set portal_posting_enabled=true to enable."
+  when: not portal_posting_enabled
+  tags: [prerequisites, check]
+
+- name: Create portal configuration directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ output_dir }}/portal"
+    - "{{ logs_dir }}/portal"
+  when: portal_posting_enabled
+  tags: [prerequisites, setup]
+
+- name: Validate portal configuration
+  assert:
+    that:
+      - customer_name is defined
+      - account_name is defined
+      - portal_base_url is defined
+      - portal_api_url is defined
+    fail_msg: "Missing required portal configuration variables"
+  when: portal_posting_enabled
+  tags: [prerequisites, validation]
+
+- name: Validate portal authentication method
+  assert:
+    that:
+      - portal_auth_method in ['bearer_token', 'api_key', 'oauth']
+    fail_msg: "Invalid portal authentication method: {{ portal_auth_method }}"
+  when: portal_posting_enabled
+  tags: [prerequisites, validation]
+
+- name: Check portal authentication files
+  stat:
+    path: "{{ item }}"
+  register: portal_auth_files
+  loop:
+    - "{{ portal_token_file | expanduser }}"
+    - "{{ portal_api_key_file | expanduser }}"
+  when: portal_posting_enabled
+  tags: [prerequisites, auth_check]
+
+- name: Display portal configuration
+  debug:
+    msg: |
+      🌐 Customer Portal Configuration:
+      🏢 Customer: {{ customer_name }}
+      📊 Account: {{ account_name }}
+      🔗 Portal URL: {{ portal_base_url }}
+      🔑 Auth Method: {{ portal_auth_method }}
+      📝 Posting Enabled: {{ portal_posting_enabled }}
+      🤖 Auto Post: {{ portal_auto_post }}
+      📋 Sections: {{ portal_sections.keys() | list }}
+  when: portal_posting_enabled
+  tags: [prerequisites, info]

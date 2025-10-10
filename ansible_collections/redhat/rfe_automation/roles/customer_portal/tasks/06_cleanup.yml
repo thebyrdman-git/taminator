@@ -1,0 +1,59 @@
+---
+# Cleanup tasks for Customer Portal Role
+
+- name: Clean up temporary portal content files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ output_dir }}/portal/rfe_bug_portal_content_{{ ansible_date_time.epoch }}.md"
+    - "{{ output_dir }}/portal/active_cases_portal_content_{{ ansible_date_time.epoch }}.md"
+  when: 
+    - portal_posting_enabled
+    - not portal_keep_temp_files | default(false)
+  tags: [cleanup, temp_files]
+
+- name: Archive portal posting results
+  copy:
+    content: |
+      {
+        "customer": "{{ customer_name }}",
+        "account": "{{ account_name }}",
+        "timestamp": "{{ ansible_date_time.iso8601 }}",
+        "posting_results": {
+          "rfe_bug_tracker": {
+            "status": {{ portal_rfe_bug_post.status | default('skipped') }},
+            "url": "{{ portal_rfe_bug_post.json.url | default('') }}",
+            "post_id": "{{ portal_rfe_bug_post.json.id | default('') }}"
+          },
+          "active_cases": {
+            "status": {{ portal_active_cases_post.status | default('skipped') }},
+            "url": "{{ portal_active_cases_post.json.url | default('') }}",
+            "post_id": "{{ portal_active_cases_post.json.id | default('') }}"
+          }
+        },
+        "metadata": {{ portal_metadata | to_nice_json }}
+      }
+    dest: "{{ output_dir }}/portal/portal_posting_results_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  when: portal_posting_enabled
+  tags: [cleanup, archive]
+
+- name: Update portal posting history
+  lineinfile:
+    path: "{{ logs_dir }}/portal/portal_posting_history.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - {{ account_name }} - RFE/Bug: {{ portal_rfe_bug_post.status | default('skipped') }} - Active Cases: {{ portal_active_cases_post.status | default('skipped') }} - Results: {{ output_dir }}/portal/portal_posting_results_{{ ansible_date_time.epoch }}.json"
+    create: yes
+    mode: '0644'
+  when: portal_posting_enabled
+  tags: [cleanup, history]
+
+- name: Display cleanup summary
+  debug:
+    msg: |
+      🧹 Portal Cleanup Summary:
+      📁 Temp Files: {{ 'Cleaned' if not portal_keep_temp_files | default(false) else 'Preserved' }}
+      📊 Results Archived: {{ output_dir }}/portal/portal_posting_results_{{ ansible_date_time.epoch }}.json
+      📋 History Updated: {{ logs_dir }}/portal/portal_posting_history.log
+  when: portal_posting_enabled
+  tags: [cleanup, summary]

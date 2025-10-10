@@ -1,0 +1,51 @@
+---
+# Post reports to Red Hat Customer Portal (when API credentials are configured)
+
+- name: Check if portal API credentials are configured
+  stat:
+    path: "{{ project_root }}/.env"
+  register: env_file_check
+
+- name: Load portal API credentials
+  include_vars:
+    file: "{{ project_root }}/.env"
+  when: env_file_check.stat.exists
+
+- name: Post RFE/Bug report to portal
+  uri:
+    url: "{{ portal_base_url }}/api/v1/groups/{{ portal_group_id }}/discussions"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ portal_api_token | default('') }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      title: "RFE/Bug Tracker Report - {{ customer_name }} - {{ ansible_date_time.date }}"
+      body: "{{ lookup('file', output_dir + '/' + customer_name | lower + '_rfe_bug_report_' + ansible_date_time.epoch + '.md') }}"
+      category: "rfe-bug-tracker"
+      tags:
+        - "{{ customer_name | lower }}"
+        - "rfe-report"
+        - "{{ ansible_date_time.date }}"
+  register: portal_post_result
+  when: 
+    - portal_api_enabled
+    - portal_api_token is defined
+    - portal_api_token != ""
+
+- name: Log portal posting result
+  lineinfile:
+    path: "{{ logs_dir }}/portal_posts.log"
+    line: "{{ ansible_date_time.iso8601 }} - Posted RFE report for {{ customer_name }} to portal - Status: {{ portal_post_result.status | default('failed') }}"
+    create: yes
+    mode: '0644'
+  when: portal_post_result is defined
+
+- name: Display portal posting status
+  debug:
+    msg: |
+      📤 Portal Posting Status for {{ customer_name }}:
+      - Status Code: {{ portal_post_result.status | default('Not posted - API disabled or credentials missing') }}
+      - Discussion ID: {{ portal_post_result.json.discussion_id | default('N/A') }}
+      - URL: {{ portal_post_result.json.url | default('N/A') }}
+  when: portal_post_result is defined

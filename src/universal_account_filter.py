@@ -545,7 +545,7 @@ class UniversalAccountFilter:
         # Test rhcase connectivity
         try:
             result = subprocess.run(
-                ['rhcase', 'list', account.account_number, '--months', '1'],
+                ['/home/jbyrd/pai/rfe-automation-clean/rhcase/.venv/bin/rhcase', 'list', account.account_number, '--months', '1'],
                 capture_output=True,
                 text=True,
                 timeout=10
@@ -575,7 +575,7 @@ class UniversalAccountFilter:
         # Get recent case count
         try:
             result = subprocess.run(
-                ['rhcase', 'list', account.account_number, '--months', '1'],
+                ['/home/jbyrd/pai/rfe-automation-clean/rhcase/.venv/bin/rhcase', 'list', account.account_number, '--months', '1'],
                 capture_output=True,
                 text=True,
                 timeout=10

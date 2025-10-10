@@ -113,13 +113,22 @@ class ActiveCaseReportSystem:
         try:
             self.logger.info(f"Discovering cases for customer {customer_account}")
             
-            # Build rhcase command
-            cmd = ['rhcase', 'list', customer_account, '--months', str(months)]
+            # Build rhcase command (use the properly installed version)
+            # Map customer account numbers to account names
+            account_name_map = {
+                '838043': 'wellsfargo',
+                '1912101': 'tdbank', 
+                '334224': 'jpmc',
+                '1460290': 'fanniemae'
+            }
+            
+            account_name = account_name_map.get(customer_account, customer_account)
+            cmd = ['/home/jbyrd/pai/rfe-automation-clean/rhcase/.venv/bin/rhcase', 'list', account_name, '--months', str(months), '--format', 'json']
             
             # Add SBR group filter if specified
             if sbr_groups:
                 for sbr_group in sbr_groups:
-                    cmd.extend(['--filter', f'SBR Group:{sbr_group}'])
+                    cmd.extend(['--includefilter', f'sbrGroup,{sbr_group}'])
             
             # Execute rhcase command
             result = subprocess.run(
@@ -133,8 +142,8 @@ class ActiveCaseReportSystem:
                 self.logger.error(f"rhcase command failed: {result.stderr}")
                 return []
             
-            # Parse rhcase output
-            cases = self._parse_rhcase_output(result.stdout, customer_account)
+            # Parse rhcase JSON output
+            cases = self._parse_rhcase_json_output(result.stdout, customer_account)
             
             self.logger.info(f"Discovered {len(cases)} cases for customer {customer_account}")
             return cases
@@ -144,6 +153,37 @@ class ActiveCaseReportSystem:
             return []
         except Exception as e:
             self.logger.error(f"Error discovering cases for {customer_account}: {e}")
+            return []
+    
+    def _parse_rhcase_json_output(self, output: str, customer_account: str) -> List[CaseInfo]:
+        """Parse rhcase JSON output into CaseInfo objects"""
+        try:
+            import json
+            cases_data = json.loads(output)
+            cases = []
+            
+            for case_data in cases_data:
+                case_info = CaseInfo(
+                    case_number=case_data.get('caseNumber', ''),
+                    summary=case_data.get('summary', ''),
+                    status=case_data.get('status', ''),
+                    sbr_group=case_data.get('sbrGroup', ''),
+                    created_date=case_data.get('createdDate', ''),
+                    updated_date=case_data.get('lastModifiedDate', ''),
+                    rfe_type=case_data.get('caseType', ''),
+                    priority=case_data.get('severity', ''),
+                    customer_account=customer_account,
+                    raw_data=case_data
+                )
+                cases.append(case_info)
+            
+            return cases
+            
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse JSON output: {e}")
+            return []
+        except Exception as e:
+            self.logger.error(f"Error parsing case data: {e}")
             return []
     
     def _parse_rhcase_output(self, output: str, customer_account: str) -> List[CaseInfo]:

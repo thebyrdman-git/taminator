@@ -1,0 +1,44 @@
+---
+# Prerequisites for RFE/Bug Tracker Role
+
+- name: Create output directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ output_dir }}"
+    - "{{ logs_dir }}"
+  tags: [prerequisites, setup]
+
+- name: Validate rhcase tool availability
+  command: "{{ rhcase_path }} --version"
+  register: rhcase_version
+  changed_when: false
+  tags: [prerequisites, validation]
+
+- name: Display rhcase version
+  debug:
+    msg: "rhcase version: {{ rhcase_version.stdout }}"
+  tags: [prerequisites, validation]
+
+- name: Validate customer account configuration
+  assert:
+    that:
+      - customer_name is defined
+      - account_name is defined
+      - priority_components is defined
+      - priority_components | length > 0
+    fail_msg: "Missing required customer configuration variables"
+  tags: [prerequisites, validation]
+
+- name: Display RFE/Bug Tracker processing information
+  debug:
+    msg: |
+      🎯 RFE/Bug Tracker Report Processing:
+      🏢 Customer: {{ customer_name }}
+      📊 Account: {{ account_number }} ({{ account_name }})
+      🎯 Components: {{ priority_components | join(', ') }}
+      📋 Report: {{ report_name }}
+      ✅ Validation Threshold: {{ (validation_threshold * 100) | round(1) }}%
+  tags: [prerequisites, info]

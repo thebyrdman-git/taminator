@@ -1,0 +1,96 @@
+---
+# Data collection tasks for Active Cases Role
+
+- name: Get active cases from rhcase
+  shell: |
+    {{ rhcase_path }} list "{{ account_name }}" \
+      --format json --includefilter 'sbrGroup,{{ priority_components | join(",") }}' > /tmp/active_cases_{{ ansible_date_time.epoch }}.json
+  register: active_cases_output
+  changed_when: false
+  tags: [data_collection, active_cases]
+
+- name: Debug rhcase output
+  debug:
+    msg: |
+      rhcase rc: "{{ active_cases_output.rc }}"
+      rhcase stderr: "{{ active_cases_output.stderr }}"
+  when: active_cases_output.rc != 0
+  tags: [data_collection, debug]
+
+- name: Parse active cases JSON from file
+  slurp:
+    src: "/tmp/active_cases_{{ ansible_date_time.epoch }}.json"
+  register: active_cases_file
+  when: active_cases_output.rc == 0
+  tags: [data_collection, active_cases]
+
+- name: Set active cases from file content
+  set_fact:
+    all_cases: "{{ (active_cases_file.content | b64decode) | from_json }}"
+  when: 
+    - active_cases_output.rc == 0
+    - active_cases_file is defined
+  tags: [data_collection, active_cases]
+
+- name: Set empty cases if error or no file
+  set_fact:
+    all_cases: []
+  when: 
+    - active_cases_output.rc != 0
+    - or active_cases_file is not defined
+  tags: [data_collection, active_cases]
+
+- name: Clean up temporary JSON file
+  file:
+    path: "/tmp/active_cases_{{ ansible_date_time.epoch }}.json"
+    state: absent
+  tags: [data_collection, cleanup]
+
+# External tracker detection - look for JIRA references in case content
+- name: Detect external tracker references in case content
+  set_fact:
+    cases_with_external_trackers: "{{ all_cases | selectattr('isClosed', 'equalto', false) | selectattr('subject', 'match', '.*(issues\\.redhat\\.com|jira\\.redhat\\.com).*') | list }}"
+  when: all_cases | length > 0
+  tags: [data_collection, external_tracker_detection]
+
+- name: Enhanced external tracker detection in description field
+  set_fact:
+    cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) + (all_cases | selectattr('isClosed', 'equalto', false) | selectattr('description', 'match', '.*(issues\\.redhat\\.com|jira\\.redhat\\.com).*') | list) }}"
+  when: all_cases | length > 0
+  tags: [data_collection, external_tracker_detection]
+
+- name: Enhanced external tracker detection in tags field
+  set_fact:
+    cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) + (all_cases | selectattr('isClosed', 'equalto', false) | selectattr('tags', 'match', '.*(issues\\.redhat\\.com|jira\\.redhat\\.com).*') | list) }}"
+  when: all_cases | length > 0
+  tags: [data_collection, external_tracker_detection]
+
+- name: Remove duplicates from external tracker cases
+  set_fact:
+    cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) | unique }}"
+  when: all_cases | length > 0
+  tags: [data_collection, external_tracker_detection]
+
+# Active cases collection - exclude cases with [RFE] or [BUG] in title AND cases with external trackers
+- name: Filter active cases (exclude [RFE]/[BUG] cases by title AND external tracker cases)
+  set_fact:
+    all_active_cases: "{{ all_cases | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | reject('in', cases_with_external_trackers) | list }}"
+    priority_active_cases: "{{ all_cases | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | reject('in', cases_with_external_trackers) | selectattr('sbrGroup', 'in', priority_components) | list }}"
+  when: all_cases | length > 0
+  tags: [data_collection, active_cases]
+
+- name: Set empty active cases if no cases
+  set_fact:
+    all_active_cases: []
+    priority_active_cases: []
+    cases_with_external_trackers: []
+  when: all_cases | length == 0
+  tags: [data_collection, active_cases]
+
+- name: Log active cases data collection results
+  lineinfile:
+    path: "{{ logs_dir }}/active_cases_data_collection.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - Collected {{ all_cases | length }} total cases ({{ all_active_cases | length }} active after filtering, {{ cases_with_external_trackers | default([]) | length }} external tracker cases excluded)"
+    create: yes
+    mode: '0644'
+  tags: [data_collection, logging]

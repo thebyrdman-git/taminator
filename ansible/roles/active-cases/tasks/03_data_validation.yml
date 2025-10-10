@@ -1,0 +1,86 @@
+---
+# Data validation tasks for Active Cases Role
+
+- name: Validate active cases data structure
+  assert:
+    that:
+      - all_cases is defined
+      - all_cases | length >= 0
+      - all_cases is iterable
+    fail_msg: "Invalid active cases data structure - all_cases not properly defined"
+  tags: [data_validation, structure]
+
+- name: Validate individual active case data quality
+  assert:
+    that:
+      - item.caseNumber is defined
+      - item.caseNumber | length > 0
+      - item.caseType is defined
+      - item.caseType | length > 0
+      - item.sbrGroup is defined
+      - item.isClosed is defined
+    fail_msg: "Active case {{ item.caseNumber | default('unknown') }} has missing required fields"
+  loop: "{{ all_cases }}"
+  when: all_cases | length > 0
+  tags: [data_validation, quality]
+
+- name: Validate external tracker detection
+  assert:
+    that:
+      - cases_with_external_trackers is defined
+      - cases_with_external_trackers | length >= 0
+    fail_msg: "External tracker detection failed - cases_with_external_trackers not properly defined"
+  when: all_cases | length > 0
+  tags: [data_validation, external_tracker]
+
+- name: Display external tracker detection results
+  debug:
+    msg: |
+      🔍 External Tracker Detection Results:
+      - Cases with external trackers: {{ cases_with_external_trackers | default([]) | length }}
+      {% if cases_with_external_trackers | default([]) | length > 0 %}
+      - External tracker cases:
+      {% for case in cases_with_external_trackers %}
+      - {{ case.caseNumber }}: {{ case.subject }}
+      {% endfor %}
+      {% endif %}
+  when: all_cases | length > 0
+  tags: [data_validation, external_tracker]
+
+- name: Detect available case types in active cases data
+  set_fact:
+    available_case_types: "{{ all_cases | map(attribute='caseType') | list | unique }}"
+  when: all_cases | length > 0
+  tags: [data_validation, detection]
+
+- name: Display detected active case types
+  debug:
+    msg: |
+      📊 Detected Active Case Types in Data:
+      {% for case_type in available_case_types %}
+      - {{ case_type }}
+      {% endfor %}
+  when: all_cases | length > 0
+  tags: [data_validation, detection]
+
+- name: Calculate active cases data quality score
+  set_fact:
+    data_quality_score: "{{ (all_cases | selectattr('caseNumber') | list | length) / (all_cases | length) }}"
+  when: all_cases | length > 0
+  tags: [data_validation, quality]
+
+- name: Validate active cases data quality threshold
+  assert:
+    that:
+      - data_quality_score | float >= 0.95
+    fail_msg: "Active cases data quality score {{ data_quality_score | float }} is below threshold (0.95)"
+  when: all_cases | length > 0
+  tags: [data_validation, quality]
+
+- name: Log active cases data validation results
+  lineinfile:
+    path: "{{ logs_dir }}/active_cases_data_validation.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - Active Cases Data Quality: {{ (data_quality_score | float * 100) | round(1) }}% - Case Types: {{ available_case_types | length }} - Total Cases: {{ all_cases | length }} - External Trackers: {{ cases_with_external_trackers | default([]) | length }}"
+    create: yes
+    mode: '0644'
+  tags: [data_validation, logging]

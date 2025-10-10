@@ -1,0 +1,88 @@
+---
+# Default variables for Notification System Role
+
+# Notification configuration
+notifications_enabled: false
+notification_methods: ["email", "slack"]  # email, slack, teams, webhook
+
+# Email configuration
+email_enabled: true
+email_smtp_server: "smtp.redhat.com"
+email_smtp_port: 587
+email_smtp_tls: true
+email_from: "rfe-automation@redhat.com"
+email_from_name: "RFE Automation System"
+email_credentials_file: "~/.config/rfe/email_credentials"
+
+# Email recipients
+email_recipients:
+  - "{{ customer_contact_email | default('') }}"
+  - "{{ tam_email | default('') }}"
+email_cc_recipients: []
+email_bcc_recipients: []
+
+# Slack configuration
+slack_enabled: true
+slack_webhook_url_file: "~/.config/rfe/slack_webhook"
+slack_channel: "#rfe-automation"
+slack_username: "RFE Automation Bot"
+slack_icon_emoji: ":robot_face:"
+
+# Teams configuration
+teams_enabled: false
+teams_webhook_url_file: "~/.config/rfe/teams_webhook"
+teams_theme_color: "0078D4"
+
+# Webhook configuration
+webhook_enabled: false
+webhook_url_file: "~/.config/rfe/webhook_url"
+webhook_headers:
+  Content-Type: "application/json"
+  User-Agent: "RFE-Automation/1.0"
+
+# Notification content
+notification_templates:
+  rfe_bug_tracker:
+    email_subject: "RFE/Bug Tracker Report - {{ customer_name }}"
+    email_template: "email_rfe_bug_report.j2"
+    slack_template: "slack_rfe_bug_report.j2"
+    teams_template: "teams_rfe_bug_report.j2"
+  active_cases:
+    email_subject: "Active Cases Report - {{ customer_name }}"
+    email_template: "email_active_cases_report.j2"
+    slack_template: "slack_active_cases_report.j2"
+    teams_template: "teams_active_cases_report.j2"
+
+# Notification triggers
+notification_triggers:
+  on_success: true
+  on_failure: true
+  on_warning: true
+  on_data_quality_issues: true
+  on_anomalies: true
+
+# Notification frequency
+notification_frequency: "immediate"  # immediate, daily, weekly
+notification_cooldown: 3600  # seconds between notifications for same customer
+
+# Content settings
+notification_include_summary: true
+notification_include_details: true
+notification_include_charts: false
+notification_include_attachments: false
+notification_max_cases_per_notification: 50
+
+# Validation settings
+notification_validation_enabled: true
+notification_content_validation: true
+notification_recipient_validation: true
+
+# Logging settings
+notification_log_level: "INFO"
+notification_log_notifications: true
+notification_log_failures: true
+
+# Retry settings
+notification_retry_attempts: 3
+notification_retry_delay: 5
+notification_retry_backoff: 2

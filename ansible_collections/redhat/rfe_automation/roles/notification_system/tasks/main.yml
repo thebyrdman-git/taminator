@@ -1,0 +1,26 @@
+---
+# Main tasks for Notification System Role
+
+- name: Include prerequisites
+  include_tasks: 01_prerequisites.yml
+  tags: [prerequisites]
+
+- name: Include authentication
+  include_tasks: 02_authentication.yml
+  tags: [authentication]
+
+- name: Include content preparation
+  include_tasks: 03_content_preparation.yml
+  tags: [content_preparation]
+
+- name: Include validation
+  include_tasks: 04_validation.yml
+  tags: [validation]
+
+- name: Include notifications
+  include_tasks: 05_notifications.yml
+  tags: [notifications]
+
+- name: Include cleanup
+  include_tasks: 06_cleanup.yml
+  tags: [cleanup]

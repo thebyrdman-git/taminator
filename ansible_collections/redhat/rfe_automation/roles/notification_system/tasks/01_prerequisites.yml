@@ -1,0 +1,91 @@
+---
+# Prerequisites for Notification System Role
+
+- name: Check if notifications are enabled
+  debug:
+    msg: "Notifications are disabled. Set notifications_enabled=true to enable."
+  when: not notifications_enabled
+  tags: [prerequisites, check]
+
+- name: Create notification configuration directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ output_dir }}/notifications"
+    - "{{ logs_dir }}/notifications"
+  when: notifications_enabled
+  tags: [prerequisites, setup]
+
+- name: Validate notification configuration
+  assert:
+    that:
+      - customer_name is defined
+      - account_name is defined
+      - notification_methods is defined
+      - notification_methods | length > 0
+    fail_msg: "Missing required notification configuration variables"
+  when: notifications_enabled
+  tags: [prerequisites, validation]
+
+- name: Validate notification methods
+  assert:
+    that:
+      - item in ['email', 'slack', 'teams', 'webhook']
+    fail_msg: "Invalid notification method: {{ item }}"
+  loop: "{{ notification_methods }}"
+  when: notifications_enabled
+  tags: [prerequisites, validation]
+
+- name: Check notification credential files
+  stat:
+    path: "{{ item }}"
+  register: notification_credential_files
+  loop:
+    - "{{ email_credentials_file | expanduser }}"
+    - "{{ slack_webhook_url_file | expanduser }}"
+    - "{{ teams_webhook_url_file | expanduser }}"
+    - "{{ webhook_url_file | expanduser }}"
+  when: notifications_enabled
+  tags: [prerequisites, credentials]
+
+- name: Validate email configuration
+  assert:
+    that:
+      - email_smtp_server is defined
+      - email_smtp_port is defined
+      - email_from is defined
+      - email_recipients is defined
+      - email_recipients | length > 0
+    fail_msg: "Missing required email configuration"
+  when: 
+    - notifications_enabled
+    - 'email' in notification_methods
+  tags: [prerequisites, email_config]
+
+- name: Validate Slack configuration
+  assert:
+    that:
+      - slack_channel is defined
+      - slack_webhook_url_file is defined
+    fail_msg: "Missing required Slack configuration"
+  when: 
+    - notifications_enabled
+    - 'slack' in notification_methods
+  tags: [prerequisites, slack_config]
+
+- name: Display notification configuration
+  debug:
+    msg: |
+      📧 Notification System Configuration:
+      🏢 Customer: {{ customer_name }}
+      📊 Account: {{ account_name }}
+      📋 Methods: {{ notification_methods | join(', ') }}
+      📧 Email Enabled: {{ email_enabled }}
+      💬 Slack Enabled: {{ slack_enabled }}
+      🔔 Teams Enabled: {{ teams_enabled }}
+      🌐 Webhook Enabled: {{ webhook_enabled }}
+      📋 Triggers: {{ notification_triggers.keys() | list }}
+  when: notifications_enabled
+  tags: [prerequisites, info]

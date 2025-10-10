@@ -1,0 +1,105 @@
+---
+# Validation tasks for Customer Portal Role
+
+- name: Validate portal content files
+  stat:
+    path: "{{ item.content_file }}"
+  register: portal_content_files
+  loop: "{{ portal_metadata.sections.values() | selectattr('enabled') | list }}"
+  when: 
+    - portal_posting_enabled
+    - portal_validation_enabled
+  tags: [validation, content]
+
+- name: Check portal content file existence
+  assert:
+    that:
+      - item.stat.exists
+    fail_msg: "Portal content file does not exist: {{ item.item.content_file }}"
+  loop: "{{ portal_content_files.results }}"
+  when: 
+    - portal_posting_enabled
+    - portal_validation_enabled
+    - portal_content_files is defined
+  tags: [validation, content]
+
+- name: Validate portal content size
+  assert:
+    that:
+      - item.stat.size > 0
+    fail_msg: "Portal content file is empty: {{ item.item.content_file }}"
+  loop: "{{ portal_content_files.results }}"
+  when: 
+    - portal_posting_enabled
+    - portal_validation_enabled
+    - portal_content_files is defined
+  tags: [validation, content]
+
+- name: Check for duplicate portal posts
+  uri:
+    url: "{{ portal_api_url }}/posts/search"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ portal_auth_token }}"
+    body_format: json
+    body:
+      customer: "{{ customer_name }}"
+      date_range: "last_24_hours"
+    status_code: [200, 404]
+  register: portal_duplicate_check
+  when: 
+    - portal_posting_enabled
+    - portal_validation_enabled
+    - portal_duplicate_detection
+    - portal_auth_token is defined
+  tags: [validation, duplicates]
+
+- name: Detect duplicate portal posts
+  set_fact:
+    portal_duplicate_posts: "{{ portal_duplicate_check.json.posts | selectattr('title', 'match', '.*' + customer_name + '.*') | list }}"
+  when: 
+    - portal_posting_enabled
+    - portal_validation_enabled
+    - portal_duplicate_detection
+    - portal_duplicate_check is defined
+    - portal_duplicate_check.status == 200
+  tags: [validation, duplicates]
+
+- name: Warn about duplicate portal posts
+  debug:
+    msg: |
+      ⚠️  Duplicate Portal Posts Detected:
+      {% for post in portal_duplicate_posts %}
+      - {{ post.title }} ({{ post.created_date }})
+      {% endfor %}
+      Consider reviewing before posting new content.
+  when: 
+    - portal_posting_enabled
+    - portal_validation_enabled
+    - portal_duplicate_detection
+    - portal_duplicate_posts is defined
+    - portal_duplicate_posts | length > 0
+  tags: [validation, duplicates]
+
+- name: Validate portal authentication before posting
+  assert:
+    that:
+      - portal_auth_token is defined or portal_auth_key is defined
+    fail_msg: "Portal authentication not configured properly"
+  when: 
+    - portal_posting_enabled
+    - portal_validation_enabled
+  tags: [validation, auth]
+
+- name: Display validation summary
+  debug:
+    msg: |
+      ✅ Portal Validation Summary:
+      📁 Content Files: {{ portal_content_files.results | length }} validated
+      🔐 Authentication: Validated
+      🔍 Duplicate Check: {{ 'Completed' if portal_duplicate_detection else 'Skipped' }}
+      📊 Duplicates Found: {{ portal_duplicate_posts | default([]) | length }}
+  when: 
+    - portal_posting_enabled
+    - portal_validation_enabled
+  tags: [validation, summary]

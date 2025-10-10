@@ -193,7 +193,13 @@ try:
     
     # Generate report data
     print('🔄 Generating report data...')
-    report_data = system.generate_customer_report('$CUSTOMER', test_mode=True)
+    result = system.process_customer('$CUSTOMER', test_mode=True)
+    
+    if result.get('success'):
+        report_data = result.get('case_report', {})
+    else:
+        print(f'❌ Error generating report: {result.get(\"error\", \"Unknown error\")}')
+        sys.exit(1)
     
     if report_data.get('error'):
         print(f'❌ Error generating report: {report_data[\"error\"]}')
@@ -203,15 +209,19 @@ try:
     
     # Validate content
     print('🔍 Validating report content...')
-    content_validation = system.validate_report_content(report_data, '$CUSTOMER')
+    try:
+        content_validation = system.validate_report_content(report_data, '$CUSTOMER')
+    except Exception as e:
+        print(f'❌ Content validation failed: {e}')
+        sys.exit(1)
     
     # Print results
     print(f'\\n📊 Content Validation Results:')
-    print(f'   Status: {content_validation[\"validation_status\"]}')
-    print(f'   Accuracy Score: {content_validation[\"accuracy_score\"]:.1%}')
-    print(f'   Total Issues: {content_validation[\"total_issues\"]}')
-    print(f'   Critical Issues: {content_validation[\"critical_issues\"]}')
-    print(f'   High Issues: {content_validation[\"high_issues\"]}')
+    print(f'   Status: {content_validation.get(\"validation_status\", \"unknown\")}')
+    print(f'   Accuracy Score: {content_validation.get(\"accuracy_score\", 0.0):.1%}')
+    print(f'   Total Issues: {content_validation.get(\"total_issues\", 0)}')
+    print(f'   Critical Issues: {content_validation.get(\"critical_issues\", 0)}')
+    print(f'   High Issues: {content_validation.get(\"high_issues\", 0)}')
     
     if content_validation.get('recommendations'):
         print(f'\\n💡 Recommendations:')

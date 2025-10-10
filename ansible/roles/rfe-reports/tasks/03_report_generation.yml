@@ -1,0 +1,54 @@
+---
+# Report generation tasks using Jinja2 templates
+
+- name: Generate RFE/Bug tracker report
+  template:
+    src: "{{ default_template }}"
+    dest: "{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_report_{{ ansible_date_time.epoch }}.md"
+  vars:
+    current_date: "{{ ansible_date_time.date }}"
+    total_active_cases: "{{ (active_rfes | length) + (active_bugs | length) }}"
+    total_closed_cases: "{{ closed_cases | length }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+  when: "'rfe_bug_tracker' in (report_types | default([]))"
+  tags: [report_generation, rfe_bug_tracker]
+
+- name: Generate RFE/Bug tracker JSON data
+  copy:
+    content: |
+      {
+        "customer_name": "{{ customer_name }}",
+        "account_number": "{{ account_number }}",
+        "report_date": "{{ ansible_date_time.iso8601 }}",
+        "total_active_cases": {{ (active_rfes | length) + (active_bugs | length) }},
+        "total_closed_cases": {{ closed_cases | length }},
+        "active_rfes": {{ active_rfes | to_json }},
+        "active_bugs": {{ active_bugs | to_json }},
+        "closed_cases": {{ closed_cases | to_json }},
+        "priority_components": {{ priority_components | to_json }},
+        "business_units": {{ business_units | default([]) | to_json }}
+      }
+    dest: "{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_report_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  when: "'rfe_bug_tracker' in (report_types | default([]))"
+  tags: [report_generation, rfe_bug_tracker]
+
+- name: Generate Active Cases report
+  template:
+    src: active_cases_report.j2
+    dest: "{{ output_dir }}/{{ customer_name | lower }}_active_cases_{{ ansible_date_time.epoch }}.md"
+  vars:
+    current_date: "{{ ansible_date_time.date }}"
+    total_active_cases: "{{ all_active_cases | length }}"
+    priority_cases: "{{ priority_active_cases | length }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+  when: "'active_cases' in (report_types | default([]))"
+  tags: [report_generation, active_cases]
+
+- name: Log report generation
+  lineinfile:
+    path: "{{ logs_dir }}/report_generation.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - Generated reports: {{ report_types | join(', ') }}"
+    create: yes
+    mode: '0644'
+  tags: [report_generation, logging]

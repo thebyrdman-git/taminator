@@ -1,0 +1,115 @@
+---
+# Posting tasks for Customer Portal Role
+
+- name: Post RFE/Bug Tracker content to portal
+  uri:
+    url: "{{ portal_api_url }}/posts"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ portal_auth_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      title: "{{ portal_sections.rfe_bug_tracker.title_template }}"
+      content: "{{ lookup('file', portal_metadata.sections.rfe_bug_tracker.content_file) }}"
+      section: "{{ portal_sections.rfe_bug_tracker.section_id }}"
+      customer: "{{ customer_name }}"
+      account: "{{ account_name }}"
+      tags: ["rfe", "bug-tracker", "{{ customer_name | lower }}"]
+      metadata:
+        report_type: "rfe_bug_tracker"
+        timestamp: "{{ ansible_date_time.iso8601 }}"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+    status_code: [201, 400, 401, 403, 409]
+  register: portal_rfe_bug_post
+  retries: "{{ portal_retry_attempts }}"
+  delay: "{{ portal_retry_delay }}"
+  when: 
+    - portal_posting_enabled
+    - portal_sections.rfe_bug_tracker.enabled
+    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - portal_auth_token is defined
+  tags: [posting, rfe_bug]
+
+- name: Post Active Cases content to portal
+  uri:
+    url: "{{ portal_api_url }}/posts"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ portal_auth_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      title: "{{ portal_sections.active_cases.title_template }}"
+      content: "{{ lookup('file', portal_metadata.sections.active_cases.content_file) }}"
+      section: "{{ portal_sections.active_cases.section_id }}"
+      customer: "{{ customer_name }}"
+      account: "{{ account_name }}"
+      tags: ["active-cases", "support", "{{ customer_name | lower }}"]
+      metadata:
+        report_type: "active_cases"
+        timestamp: "{{ ansible_date_time.iso8601 }}"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+    status_code: [201, 400, 401, 403, 409]
+  register: portal_active_cases_post
+  retries: "{{ portal_retry_attempts }}"
+  delay: "{{ portal_retry_delay }}"
+  when: 
+    - portal_posting_enabled
+    - portal_sections.active_cases.enabled
+    - "'active_cases' in (report_types | default([]))"
+    - portal_auth_token is defined
+  tags: [posting, active_cases]
+
+- name: Handle portal posting success
+  debug:
+    msg: |
+      ✅ Portal Post Successful:
+      📋 Section: {{ item.section }}
+      🔗 URL: {{ item.json.url | default('N/A') }}
+      📊 Status: {{ item.status }}
+  loop:
+    - "{{ portal_rfe_bug_post | default({}) }}"
+    - "{{ portal_active_cases_post | default({}) }}"
+  when: 
+    - portal_posting_enabled
+    - item is defined
+    - item.status == 201
+  tags: [posting, success]
+
+- name: Handle portal posting errors
+  debug:
+    msg: |
+      ❌ Portal Post Failed:
+      📋 Section: {{ item.section | default('Unknown') }}
+      📊 Status: {{ item.status }}
+      💬 Error: {{ item.json.message | default('Unknown error') }}
+  loop:
+    - "{{ portal_rfe_bug_post | default({}) }}"
+    - "{{ portal_active_cases_post | default({}) }}"
+  when: 
+    - portal_posting_enabled
+    - item is defined
+    - item.status != 201
+  tags: [posting, errors]
+
+- name: Log portal posting results
+  lineinfile:
+    path: "{{ logs_dir }}/portal/portal_posting.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - RFE/Bug Post: {{ portal_rfe_bug_post.status | default('skipped') }} - Active Cases Post: {{ portal_active_cases_post.status | default('skipped') }}"
+    create: yes
+    mode: '0644'
+  when: portal_posting_enabled
+  tags: [posting, logging]
+
+- name: Display portal posting summary
+  debug:
+    msg: |
+      🌐 Portal Posting Summary:
+      🏢 Customer: {{ customer_name }}
+      📊 Account: {{ account_name }}
+      📋 RFE/Bug Tracker: {{ 'Posted' if (portal_rfe_bug_post.status | default(0) == 201) else 'Failed/Skipped' }}
+      📋 Active Cases: {{ 'Posted' if (portal_active_cases_post.status | default(0) == 201) else 'Failed/Skipped' }}
+      🔗 Portal URL: {{ portal_base_url }}
+  when: portal_posting_enabled
+  tags: [posting, summary]

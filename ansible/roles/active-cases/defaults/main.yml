@@ -1,0 +1,28 @@
+---
+# Default variables for Active Cases Role
+
+# Report configuration
+report_name: "Active Cases Report"
+report_description: "Comprehensive tracking of active support cases excluding RFE/Bug cases"
+
+# Template configuration
+default_template: "active_cases_report.j2"
+output_format: "markdown"
+
+# External tracker detection patterns
+external_tracker_patterns:
+  - "issues\\.redhat\\.com"
+  - "jira\\.redhat\\.com"
+
+# Exclusion patterns for case titles
+title_exclusion_patterns:
+  - ".*\\[RFE\\].*"
+  - ".*\\[BUG\\].*"
+
+# Validation settings
+validation_threshold: 0.99
+data_quality_threshold: 0.95
+
+# Logging settings
+log_level: "INFO"
+enable_debug: false

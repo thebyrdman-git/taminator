@@ -1,0 +1,93 @@
+---
+# Data collection tasks for RFE/Bug Tracker Role
+
+- name: Get RFE/Bug cases from rhcase
+  shell: |
+    {{ rhcase_path }} list "{{ account_name }}" \
+      --format json --includefilter 'sbrGroup,{{ priority_components | join(",") }}' > /tmp/rfe_bug_cases_{{ ansible_date_time.epoch }}.json
+  register: rfe_bug_cases_output
+  changed_when: false
+  tags: [data_collection, rfe_bug_cases]
+
+- name: Debug rhcase output
+  debug:
+    msg: |
+      rhcase rc: "{{ rfe_bug_cases_output.rc }}"
+      rhcase stderr: "{{ rfe_bug_cases_output.stderr }}"
+  when: rfe_bug_cases_output.rc != 0
+  tags: [data_collection, debug]
+
+- name: Parse RFE/Bug cases JSON from file
+  slurp:
+    src: "/tmp/rfe_bug_cases_{{ ansible_date_time.epoch }}.json"
+  register: rfe_bug_cases_file
+  when: rfe_bug_cases_output.rc == 0
+  tags: [data_collection, rfe_bug_cases]
+
+- name: Set RFE/Bug cases from file content
+  set_fact:
+    rfe_bug_cases: "{{ (rfe_bug_cases_file.content | b64decode) | from_json }}"
+  when: 
+    - rfe_bug_cases_output.rc == 0
+    - rfe_bug_cases_file is defined
+  tags: [data_collection, rfe_bug_cases]
+
+- name: Set empty RFE/Bug cases if error or no file
+  set_fact:
+    rfe_bug_cases: []
+  when: 
+    - rfe_bug_cases_output.rc != 0
+    - or rfe_bug_cases_file is not defined
+  tags: [data_collection, rfe_bug_cases]
+
+- name: Clean up temporary JSON file
+  file:
+    path: "/tmp/rfe_bug_cases_{{ ansible_date_time.epoch }}.json"
+    state: absent
+  tags: [data_collection, cleanup]
+
+- name: Detect available case types
+  set_fact:
+    available_case_types: "{{ rfe_bug_cases | map(attribute='caseType') | list | unique }}"
+  when: rfe_bug_cases | length > 0
+  tags: [data_collection, detection]
+
+- name: Intelligent case type filtering for RFE/Bug
+  set_fact:
+    rfe_case_types: "{{ available_case_types | select('match', '.*[Rr][Ff][Ee].*|.*[Ff]eature.*[Ee]nhancement.*') | list }}"
+    bug_case_types: "{{ available_case_types | select('match', '.*[Bb]ug.*|.*[Dd]efect.*') | list }}"
+  when: rfe_bug_cases | length > 0
+  tags: [data_collection, intelligent_filtering]
+
+- name: Fallback to exact matching if flexible matching fails
+  set_fact:
+    rfe_case_types: "{{ available_case_types | select('equalto', 'Feature / Enhancement Request') | list }}"
+    bug_case_types: "{{ available_case_types | select('equalto', 'Defect / Bug') | list }}"
+  when:
+    - rfe_bug_cases | length > 0
+    - rfe_case_types | length == 0
+  tags: [data_collection, fallback_filtering]
+
+- name: Filter RFE cases by detected types and status
+  set_fact:
+    active_rfes: "{{ rfe_bug_cases | selectattr('caseType', 'in', rfe_case_types) | selectattr('isClosed', 'equalto', false) | list }}"
+    active_bugs: "{{ rfe_bug_cases | selectattr('caseType', 'in', bug_case_types) | selectattr('isClosed', 'equalto', false) | list }}"
+    closed_cases: "{{ rfe_bug_cases | selectattr('isClosed', 'equalto', true) | list }}"
+  when: rfe_bug_cases | length > 0
+  tags: [data_collection, filtering]
+
+- name: Set empty results if no cases
+  set_fact:
+    active_rfes: []
+    active_bugs: []
+    closed_cases: []
+  when: rfe_bug_cases | length == 0
+  tags: [data_collection, empty_results]
+
+- name: Log RFE/Bug data collection results
+  lineinfile:
+    path: "{{ logs_dir }}/rfe_bug_data_collection.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - Collected {{ rfe_bug_cases | length }} total cases ({{ active_rfes | length }} RFEs, {{ active_bugs | length }} bugs, {{ closed_cases | length }} closed)"
+    create: yes
+    mode: '0644'
+  tags: [data_collection, logging]

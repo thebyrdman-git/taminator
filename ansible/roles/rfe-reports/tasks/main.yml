@@ -1,0 +1,37 @@
+---
+# Main tasks for RFE Reports generation
+# Orchestrates the complete report generation workflow
+
+- name: Prerequisites and system validation
+  include_tasks: 01_prerequisites.yml
+  tags: [prerequisites, setup, validation]
+
+- name: Data collection from rhcase
+  include_tasks: 02_data_collection.yml
+  tags: [data_collection, rhcase]
+
+- name: Data validation and quality assurance
+  include_tasks: 02_data_validation.yml
+  tags: [data_validation, quality]
+
+- name: Result validation and sanity checking
+  include_tasks: 03_result_validation.yml
+  tags: [result_validation, sanity]
+
+- name: Report generation using templates
+  include_tasks: 03_report_generation.yml
+  tags: [report_generation, templates]
+
+- name: Content validation
+  include_tasks: 04_validation.yml
+  when: validation_enabled
+  tags: [validation, content_validation]
+
+- name: Portal posting (optional)
+  include_tasks: 05_portal_posting.yml
+  when: portal_api_enabled
+  tags: [portal_posting, api]
+
+- name: Summary and cleanup
+  include_tasks: 06_summary.yml
+  tags: [summary, cleanup]

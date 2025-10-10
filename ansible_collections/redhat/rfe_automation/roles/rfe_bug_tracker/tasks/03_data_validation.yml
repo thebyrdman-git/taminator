@@ -1,0 +1,75 @@
+---
+# Data validation tasks for RFE/Bug Tracker Role
+
+- name: Validate RFE/Bug case data structure
+  assert:
+    that:
+      - rfe_bug_cases is defined
+      - rfe_bug_cases | length >= 0
+      - rfe_bug_cases is iterable
+    fail_msg: "Invalid RFE/Bug case data structure - rfe_bug_cases not properly defined"
+  tags: [data_validation, structure]
+
+- name: Validate individual RFE/Bug case data quality
+  assert:
+    that:
+      - item.caseNumber is defined
+      - item.caseNumber | length > 0
+      - item.caseType is defined
+      - item.caseType | length > 0
+      - item.sbrGroup is defined
+      - item.isClosed is defined
+    fail_msg: "RFE/Bug case {{ item.caseNumber | default('unknown') }} has missing required fields"
+  loop: "{{ rfe_bug_cases }}"
+  when: rfe_bug_cases | length > 0
+  tags: [data_validation, quality]
+
+- name: Detect available case types in RFE/Bug data
+  set_fact:
+    available_case_types: "{{ rfe_bug_cases | map(attribute='caseType') | list | unique }}"
+  when: rfe_bug_cases | length > 0
+  tags: [data_validation, detection]
+
+- name: Display detected RFE/Bug case types
+  debug:
+    msg: |
+      📊 Detected RFE/Bug Case Types in Data:
+      {% for case_type in available_case_types %}
+      - {{ case_type }}
+      {% endfor %}
+  when: rfe_bug_cases | length > 0
+  tags: [data_validation, detection]
+
+- name: Validate RFE/Bug case type filtering logic
+  assert:
+    that:
+      - "'Feature / Enhancement Request' in available_case_types or 'RFE' in available_case_types"
+      - "'Defect / Bug' in available_case_types or 'Bug' in available_case_types"
+    fail_msg: |
+      RFE/Bug case type filtering logic mismatch detected!
+      Available types: {{ available_case_types | join(', ') }}
+      Expected: 'Feature / Enhancement Request' or 'RFE', 'Defect / Bug' or 'Bug'
+  when: rfe_bug_cases | length > 0
+  tags: [data_validation, filtering]
+
+- name: Calculate RFE/Bug data quality score
+  set_fact:
+    data_quality_score: "{{ (rfe_bug_cases | selectattr('caseNumber') | list | length) / (rfe_bug_cases | length) }}"
+  when: rfe_bug_cases | length > 0
+  tags: [data_validation, quality]
+
+- name: Validate RFE/Bug data quality threshold
+  assert:
+    that:
+      - data_quality_score | float >= 0.95
+    fail_msg: "RFE/Bug data quality score {{ data_quality_score | float }} is below threshold (0.95)"
+  when: rfe_bug_cases | length > 0
+  tags: [data_validation, quality]
+
+- name: Log RFE/Bug data validation results
+  lineinfile:
+    path: "{{ logs_dir }}/rfe_bug_data_validation.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - RFE/Bug Data Quality: {{ (data_quality_score | float * 100) | round(1) }}% - Case Types: {{ available_case_types | length }} - Total Cases: {{ rfe_bug_cases | length }}"
+    create: yes
+    mode: '0644'
+  tags: [data_validation, logging]

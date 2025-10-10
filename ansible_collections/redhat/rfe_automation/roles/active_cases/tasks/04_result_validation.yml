@@ -1,0 +1,116 @@
+---
+# Result validation tasks for Active Cases Role
+
+- name: Calculate active cases result statistics
+  set_fact:
+    active_cases_result_stats:
+      total_cases: "{{ all_cases | length }}"
+      all_active_cases_count: "{{ all_active_cases | length }}"
+      priority_active_cases_count: "{{ priority_active_cases | length }}"
+      external_tracker_cases: "{{ cases_with_external_trackers | default([]) | length }}"
+  tags: [result_validation, stats]
+
+- name: Validate active cases result consistency
+  assert:
+    that:
+      - active_cases_result_stats.all_active_cases_count | int >= 0
+      - active_cases_result_stats.priority_active_cases_count | int >= 0
+      - active_cases_result_stats.external_tracker_cases | int >= 0
+    fail_msg: "Negative active cases counts detected - filtering logic error"
+  tags: [result_validation, consistency]
+
+- name: Check for zero active cases anomaly
+  set_fact:
+    zero_active_cases_anomaly: "{{ (active_cases_result_stats.all_active_cases_count | int) == 0 and (active_cases_result_stats.total_cases | int) > 0 }}"
+  tags: [result_validation, anomaly]
+
+- name: Detect suspicious active cases results
+  set_fact:
+    suspicious_active_cases_results: []
+  tags: [result_validation, anomaly]
+
+- name: Check for zero active cases when total cases exist
+  set_fact:
+    suspicious_active_cases_results: "{{ suspicious_active_cases_results + ['Zero active cases detected despite having ' + (active_cases_result_stats.total_cases | string) + ' total cases'] }}"
+  when: zero_active_cases_anomaly
+  tags: [result_validation, anomaly]
+
+- name: Check for unusually high active case counts
+  set_fact:
+    suspicious_active_cases_results: "{{ suspicious_active_cases_results + ['Unusually high active case count: ' + (active_cases_result_stats.all_active_cases_count | string) + ' active cases'] }}"
+  when: (active_cases_result_stats.all_active_cases_count | int) > 100
+  tags: [result_validation, anomaly]
+
+- name: Validate SBR Group distribution for active cases
+  set_fact:
+    sbr_groups: "{{ all_cases | map(attribute='sbrGroup') | list | unique }}"
+  when: all_cases | length > 0
+  tags: [result_validation, distribution]
+
+- name: Check for missing priority components in active cases
+  set_fact:
+    missing_priority_components: "{{ priority_components | difference(sbr_groups) }}"
+  when: all_cases | length > 0
+  tags: [result_validation, distribution]
+
+- name: Warn about missing priority components in active cases
+  debug:
+    msg: |
+      ⚠️  Missing Priority Components in Active Cases Data:
+      {% for component in missing_priority_components %}
+      - {{ component }}
+      {% endfor %}
+      This may indicate data filtering issues.
+  when: 
+    - all_cases | length > 0
+    - missing_priority_components | length > 0
+  tags: [result_validation, distribution]
+
+- name: Generate active cases result validation report
+  set_fact:
+    active_cases_validation_report:
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      customer: "{{ customer_name }}"
+      report_type: "Active Cases"
+      total_cases: "{{ active_cases_result_stats.total_cases }}"
+      all_active_cases: "{{ active_cases_result_stats.all_active_cases_count }}"
+      priority_active_cases: "{{ active_cases_result_stats.priority_active_cases_count }}"
+      external_tracker_cases: "{{ active_cases_result_stats.external_tracker_cases }}"
+      data_quality_score: "{{ data_quality_score | default(0.0) }}"
+      suspicious_results: "{{ suspicious_active_cases_results }}"
+      available_case_types: "{{ available_case_types | default([]) }}"
+      sbr_groups: "{{ sbr_groups | default([]) }}"
+      missing_priority_components: "{{ missing_priority_components | default([]) }}"
+  tags: [result_validation, report]
+
+- name: Save active cases validation report
+  copy:
+    content: "{{ active_cases_validation_report | to_nice_json }}"
+    dest: "{{ output_dir }}/{{ customer_name | lower }}_active_cases_validation_report_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  tags: [result_validation, report]
+
+- name: Display active cases validation summary
+  debug:
+    msg: |
+      📊 Active Cases Validation Summary:
+      ✅ Total Cases: {{ active_cases_result_stats.total_cases }}
+      ✅ All Active Cases: {{ active_cases_result_stats.all_active_cases_count }}
+      ✅ Priority Active Cases: {{ active_cases_result_stats.priority_active_cases_count }}
+      ✅ External Tracker Cases: {{ active_cases_result_stats.external_tracker_cases }}
+      ✅ Data Quality: {{ ((data_quality_score | default(0.0) | float) * 100) | round(1) }}%
+      {% if suspicious_active_cases_results | length > 0 %}
+      ⚠️  Suspicious Results:
+      {% for result in suspicious_active_cases_results %}
+      - {{ result }}
+      {% endfor %}
+      {% endif %}
+  tags: [result_validation, summary]
+
+- name: Fail on critical active cases anomalies
+  fail:
+    msg: "Critical active cases anomalies detected: {{ suspicious_active_cases_results | join(', ') }}"
+  when: 
+    - suspicious_active_cases_results | length > 0
+    - zero_active_cases_anomaly
+  tags: [result_validation, critical]

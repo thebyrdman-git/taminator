@@ -1,0 +1,133 @@
+---
+# Data collection tasks using rhcase
+
+- name: Get RFE cases from rhcase
+  shell: |
+    {{ rhcase_path }} list "{{ account_name }}" \
+      --format json --includefilter 'sbrGroup,Ansible' > /tmp/rfe_cases_{{ ansible_date_time.epoch }}.json
+  register: rfe_cases_output
+  changed_when: false
+  tags: [data_collection, rfe_cases]
+
+- name: Debug rhcase output
+  debug:
+    msg: |
+      rhcase rc: "{{ rfe_cases_output.rc }}"
+      rhcase stderr: "{{ rfe_cases_output.stderr }}"
+  tags: [data_collection, debug]
+
+- name: Parse RFE cases JSON from file
+  slurp:
+    src: "/tmp/rfe_cases_{{ ansible_date_time.epoch }}.json"
+  register: rfe_cases_file
+  when: rfe_cases_output.rc == 0
+  tags: [data_collection, rfe_cases]
+
+- name: Set RFE cases from file content
+  set_fact:
+    rfe_cases: "{{ (rfe_cases_file.content | b64decode) | from_json }}"
+  when: 
+    - rfe_cases_output.rc == 0
+    - rfe_cases_file is defined
+  tags: [data_collection, rfe_cases]
+
+- name: Set empty RFE cases if error or no file
+  set_fact:
+    rfe_cases: []
+  when: 
+    - rfe_cases_output.rc != 0
+    - or rfe_cases_file is not defined
+  tags: [data_collection, rfe_cases]
+
+- name: Clean up temporary JSON file
+  file:
+    path: "/tmp/rfe_cases_{{ ansible_date_time.epoch }}.json"
+    state: absent
+  tags: [data_collection, cleanup]
+
+- name: Detect available case types
+  set_fact:
+    available_case_types: "{{ rfe_cases | map(attribute='caseType') | list | unique }}"
+  when: rfe_cases | length > 0
+  tags: [data_collection, detection]
+
+- name: Intelligent case type filtering
+  set_fact:
+    # Use flexible matching for case types
+    rfe_case_types: "{{ available_case_types | select('match', '.*[Rr][Ff][Ee].*|.*[Ff]eature.*[Ee]nhancement.*') | list }}"
+    bug_case_types: "{{ available_case_types | select('match', '.*[Bb]ug.*|.*[Dd]efect.*') | list }}"
+  when: rfe_cases | length > 0
+  tags: [data_collection, intelligent_filtering]
+
+- name: Fallback to exact matching if flexible matching fails
+  set_fact:
+    rfe_case_types: "{{ available_case_types | select('equalto', 'Feature / Enhancement Request') | list }}"
+    bug_case_types: "{{ available_case_types | select('equalto', 'Defect / Bug') | list }}"
+  when: 
+    - rfe_cases | length > 0
+    - rfe_case_types | length == 0
+  tags: [data_collection, fallback_filtering]
+
+- name: Filter RFE cases by detected types and status
+  set_fact:
+    active_rfes: "{{ rfe_cases | selectattr('caseType', 'in', rfe_case_types) | selectattr('isClosed', 'equalto', false) | list }}"
+    active_bugs: "{{ rfe_cases | selectattr('caseType', 'in', bug_case_types) | selectattr('isClosed', 'equalto', false) | list }}"
+    closed_cases: "{{ rfe_cases | selectattr('isClosed', 'equalto', true) | list }}"
+  when: rfe_cases | length > 0
+  tags: [data_collection, filtering]
+
+- name: Set empty results if no cases
+  set_fact:
+    active_rfes: []
+    active_bugs: []
+    closed_cases: []
+  when: rfe_cases | length == 0
+  tags: [data_collection, empty_results]
+
+# External tracker detection - look for JIRA references in case content
+- name: Detect external tracker references in case content
+  set_fact:
+    cases_with_external_trackers: "{{ rfe_cases | selectattr('isClosed', 'equalto', false) | selectattr('subject', 'match', '.*(issues\\.redhat\\.com|jira\\.redhat\\.com).*') | list }}"
+  when: rfe_cases | length > 0
+  tags: [data_collection, external_tracker_detection]
+
+- name: Enhanced external tracker detection in description field
+  set_fact:
+    cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) + (rfe_cases | selectattr('isClosed', 'equalto', false) | selectattr('description', 'match', '.*(issues\\.redhat\\.com|jira\\.redhat\\.com).*') | list) }}"
+  when: rfe_cases | length > 0
+  tags: [data_collection, external_tracker_detection]
+
+- name: Enhanced external tracker detection in tags field
+  set_fact:
+    cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) + (rfe_cases | selectattr('isClosed', 'equalto', false) | selectattr('tags', 'match', '.*(issues\\.redhat\\.com|jira\\.redhat\\.com).*') | list) }}"
+  when: rfe_cases | length > 0
+  tags: [data_collection, external_tracker_detection]
+
+- name: Remove duplicates from external tracker cases
+  set_fact:
+    cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) | unique }}"
+  when: rfe_cases | length > 0
+  tags: [data_collection, external_tracker_detection]
+
+# Active cases collection - exclude cases with [RFE] or [BUG] in title AND cases with external trackers
+- name: Filter active cases (exclude [RFE]/[BUG] cases by title AND external tracker cases)
+  set_fact:
+    all_active_cases: "{{ rfe_cases | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | reject('in', cases_with_external_trackers) | list }}"
+    priority_active_cases: "{{ rfe_cases | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | reject('in', cases_with_external_trackers) | selectattr('sbrGroup', 'in', priority_components) | list }}"
+  when: rfe_cases | length > 0
+  tags: [data_collection, active_cases]
+
+- name: Set empty active cases if no cases
+  set_fact:
+    all_active_cases: []
+    priority_active_cases: []
+  when: rfe_cases | length == 0
+  tags: [data_collection, active_cases]
+
+- name: Log data collection results
+  lineinfile:
+    path: "{{ logs_dir }}/data_collection.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - Collected {{ rfe_cases | length }} total cases ({{ active_rfes | length }} RFEs, {{ active_bugs | length }} bugs, {{ closed_cases | length }} closed)"
+    create: yes
+    mode: '0644'
+  tags: [data_collection, logging]

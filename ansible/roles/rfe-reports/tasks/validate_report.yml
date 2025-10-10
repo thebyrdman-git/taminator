@@ -1,0 +1,75 @@
+---
+# Validate generated report content using the validation system
+
+- name: Run content validation on generated report
+  shell: |
+    cd {{ project_root }} && \
+    python3 -c "
+    import sys
+    sys.path.append('src')
+    from ultimate_rfe_portal_system import UltimateRFEPortalSystem
+    import json
+    
+    # Load the generated JSON report
+    with open('{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_report_{{ ansible_date_time.epoch }}.json', 'r') as f:
+        report_data = json.load(f)
+    
+    # Initialize validation system
+    system = UltimateRFEPortalSystem()
+    
+    # Validate content
+    validation_result = system.validate_report_content(report_data, '{{ customer_name }}')
+    
+    # Save validation results
+    with open('{{ output_dir }}/{{ customer_name | lower }}_validation_{{ ansible_date_time.epoch }}.json', 'w') as f:
+        json.dump(validation_result, f, indent=2)
+    
+    # Print results for Ansible
+    print(f'VALIDATION_STATUS={validation_result.get(\"validation_status\", \"unknown\")}')
+    print(f'ACCURACY_SCORE={validation_result.get(\"accuracy_score\", 0.0)}')
+    print(f'TOTAL_ISSUES={validation_result.get(\"total_issues\", 0)}')
+    print(f'CRITICAL_ISSUES={validation_result.get(\"critical_issues\", 0)}')
+    print(f'HIGH_ISSUES={validation_result.get(\"high_issues\", 0)}')
+    "
+  register: validation_output
+  changed_when: false
+
+- name: Parse validation results
+  set_fact:
+    validation_status: "{{ validation_output.stdout_lines | select('match', '^VALIDATION_STATUS=') | first | regex_replace('^VALIDATION_STATUS=', '') }}"
+    accuracy_score: "{{ (validation_output.stdout_lines | select('match', '^ACCURACY_SCORE=') | first | regex_replace('^ACCURACY_SCORE=', '') | float) * 100 }}"
+    total_issues: "{{ validation_output.stdout_lines | select('match', '^TOTAL_ISSUES=') | first | regex_replace('^TOTAL_ISSUES=', '') | int }}"
+    critical_issues: "{{ validation_output.stdout_lines | select('match', '^CRITICAL_ISSUES=') | first | regex_replace('^CRITICAL_ISSUES=', '') | int }}"
+    high_issues: "{{ validation_output.stdout_lines | select('match', '^HIGH_ISSUES=') | first | regex_replace('^HIGH_ISSUES=', '') | int }}"
+
+- name: Check if validation passes threshold
+  set_fact:
+    validation_passed: "{{ (accuracy_score | float) >= (validation_threshold | float * 100) }}"
+
+- name: Fail if validation threshold not met
+  fail:
+    msg: |
+      Report validation failed for {{ customer_name }}:
+      - Accuracy Score: {{ accuracy_score }}% (Required: {{ validation_threshold | float * 100 }}%)
+      - Total Issues: {{ total_issues }}
+      - Critical Issues: {{ critical_issues }}
+      - High Issues: {{ high_issues }}
+      
+      Review the validation report at: {{ output_dir }}/{{ customer_name | lower }}_validation_{{ ansible_date_time.epoch }}.json
+  when: not validation_passed
+
+- name: Log validation results
+  lineinfile:
+    path: "{{ logs_dir }}/validation.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - Validation: {{ validation_status }} - Accuracy: {{ accuracy_score }}% - Issues: {{ total_issues }} ({{ critical_issues }} critical, {{ high_issues }} high)"
+    create: yes
+    mode: '0644'
+
+- name: Display validation success
+  debug:
+    msg: |
+      ✅ Report validation PASSED for {{ customer_name }}
+      - Accuracy Score: {{ accuracy_score }}%
+      - Validation Status: {{ validation_status }}
+      - Total Issues: {{ total_issues }}
+      - Report ready for distribution

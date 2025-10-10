@@ -1,0 +1,132 @@
+---
+# Authentication tasks for Notification System Role
+
+- name: Load email credentials
+  slurp:
+    src: "{{ email_credentials_file | expanduser }}"
+  register: email_credentials_content
+  when: 
+    - notifications_enabled
+    - 'email' in notification_methods
+    - email_enabled
+  tags: [authentication, email]
+
+- name: Set email credentials
+  set_fact:
+    email_username: "{{ (email_credentials_content.content | b64decode | from_json).username }}"
+    email_password: "{{ (email_credentials_content.content | b64decode | from_json).password }}"
+  when: 
+    - notifications_enabled
+    - 'email' in notification_methods
+    - email_enabled
+    - email_credentials_content is defined
+  tags: [authentication, email]
+
+- name: Load Slack webhook URL
+  slurp:
+    src: "{{ slack_webhook_url_file | expanduser }}"
+  register: slack_webhook_content
+  when: 
+    - notifications_enabled
+    - 'slack' in notification_methods
+    - slack_enabled
+  tags: [authentication, slack]
+
+- name: Set Slack webhook URL
+  set_fact:
+    slack_webhook_url: "{{ (slack_webhook_content.content | b64decode) | trim }}"
+  when: 
+    - notifications_enabled
+    - 'slack' in notification_methods
+    - slack_enabled
+    - slack_webhook_content is defined
+  tags: [authentication, slack]
+
+- name: Load Teams webhook URL
+  slurp:
+    src: "{{ teams_webhook_url_file | expanduser }}"
+  register: teams_webhook_content
+  when: 
+    - notifications_enabled
+    - 'teams' in notification_methods
+    - teams_enabled
+  tags: [authentication, teams]
+
+- name: Set Teams webhook URL
+  set_fact:
+    teams_webhook_url: "{{ (teams_webhook_content.content | b64decode) | trim }}"
+  when: 
+    - notifications_enabled
+    - 'teams' in notification_methods
+    - teams_enabled
+    - teams_webhook_content is defined
+  tags: [authentication, teams]
+
+- name: Load webhook URL
+  slurp:
+    src: "{{ webhook_url_file | expanduser }}"
+  register: webhook_url_content
+  when: 
+    - notifications_enabled
+    - 'webhook' in notification_methods
+    - webhook_enabled
+  tags: [authentication, webhook]
+
+- name: Set webhook URL
+  set_fact:
+    webhook_url: "{{ (webhook_url_content.content | b64decode) | trim }}"
+  when: 
+    - notifications_enabled
+    - 'webhook' in notification_methods
+    - webhook_enabled
+    - webhook_url_content is defined
+  tags: [authentication, webhook]
+
+- name: Test email authentication
+  mail:
+    host: "{{ email_smtp_server }}"
+    port: "{{ email_smtp_port }}"
+    username: "{{ email_username }}"
+    password: "{{ email_password }}"
+    to: "{{ email_recipients[0] }}"
+    subject: "RFE Automation - Test Email"
+    body: "This is a test email from the RFE Automation system."
+    secure: "{{ 'starttls' if email_smtp_tls else 'never' }}"
+  delegate_to: localhost
+  when: 
+    - notifications_enabled
+    - 'email' in notification_methods
+    - email_enabled
+    - email_username is defined
+    - email_password is defined
+  tags: [authentication, email_test]
+
+- name: Test Slack webhook
+  uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: "RFE Automation - Test Slack Message"
+      channel: "{{ slack_channel }}"
+      username: "{{ slack_username }}"
+      icon_emoji: "{{ slack_icon_emoji }}"
+    status_code: [200, 404]
+  register: slack_test
+  when: 
+    - notifications_enabled
+    - 'slack' in notification_methods
+    - slack_enabled
+    - slack_webhook_url is defined
+  tags: [authentication, slack_test]
+
+- name: Display authentication status
+  debug:
+    msg: |
+      🔐 Notification Authentication Status:
+      📧 Email: {{ 'Configured' if (email_username is defined and email_password is defined) else 'Not Configured' }}
+      💬 Slack: {{ 'Configured' if slack_webhook_url is defined else 'Not Configured' }}
+      🔔 Teams: {{ 'Configured' if teams_webhook_url is defined else 'Not Configured' }}
+      🌐 Webhook: {{ 'Configured' if webhook_url is defined else 'Not Configured' }}
+  when: notifications_enabled
+  tags: [authentication, status]

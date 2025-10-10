@@ -330,7 +330,7 @@ class UltimateRFEPortalSystem:
         """
         try:
             # Import content validator
-            from .report_content_validator import ReportContentValidator
+            from report_content_validator import ReportContentValidator
             
             # Initialize validator
             content_validator = ReportContentValidator()

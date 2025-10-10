@@ -1,0 +1,49 @@
+---
+# Development environment configuration
+# Relaxed settings for testing and development
+
+environment: "development"
+
+# Development-specific settings
+development_config:
+  # Relaxed validation for testing
+  validation:
+    strict_mode: false
+    accuracy_threshold: 0.85
+    consistency_threshold: 0.90
+  
+  # Performance settings for development
+  performance:
+    max_parallel_customers: 1
+    rhcase_timeout: 120
+    api_timeout: 30
+    retry_attempts: 2
+    retry_delay: 2
+  
+  # Development features
+  features:
+    debug_mode: true
+    verbose_logging: true
+    test_data: true
+    mock_apis: true
+
+# Development API settings
+api_config:
+  rate_limiting: false
+  authentication: "basic"
+  ssl_verify: false
+  timeout: 60
+
+# Development notification settings
+notification_config:
+  channels:
+    email: false
+    slack: false
+    portal: false
+    console: true
+  
+  # Development logging
+  logging:
+    level: "DEBUG"
+    console_output: true
+    file_output: true

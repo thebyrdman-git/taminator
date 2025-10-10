@@ -164,8 +164,8 @@ class RFEDiscussionAPIClient:
         print(f"📝 Posting RFE discussion for {customer_name} (Group {group_id})...")
         
         # Separate cases by type and status for 3-table structure
-        active_rfe_cases = [c for c in cases if c.get('rfe_type') == 'RFE' and not self._is_closed_status(c)]
-        active_bug_cases = [c for c in cases if c.get('rfe_type') == 'Bug' and not self._is_closed_status(c)]
+        active_rfe_cases = [c for c in cases if c.get('caseType', '').lower() in ['rfe', 'feature / enhancement request'] and not self._is_closed_status(c)]
+        active_bug_cases = [c for c in cases if c.get('caseType', '').lower() in ['bug', 'defect / bug'] and not self._is_closed_status(c)]
         closed_cases = [c for c in cases if self._is_closed_status(c)]
         
         print(f"   📊 Content breakdown: {len(active_rfe_cases)} RFE, {len(active_bug_cases)} Bug, {len(closed_cases)} Closed")
@@ -241,18 +241,14 @@ class RFEDiscussionAPIClient:
             return None
     
     def _is_closed_status(self, case: Dict) -> bool:
-        """Check if a case status indicates it's closed (same as template renderer)"""
-        # Check JIRA status first (most reliable)
-        jira_refs = case.get('enriched_jira', case.get('jira_refs', []))
-        if jira_refs:
-            for jira_ref in jira_refs:
-                status = jira_ref.get('status', '').lower()
-                if status in ['closed', 'done', 'resolved', 'complete', 'delivered']:
-                    return True
-        
-        # Fallback to case status if no JIRA status available
+        """Check if a case status indicates it's closed"""
+        # Check case status (primary field from rhcase JSON output)
         case_status = case.get('status', '').lower()
-        if case_status in ['closed', 'resolved', 'solved', 'done', 'complete']:
+        if case_status in ['closed', 'resolved', 'solved', 'done', 'complete', 'delivered']:
+            return True
+        
+        # Check isClosed flag if available
+        if case.get('isClosed', False):
             return True
         
         return False

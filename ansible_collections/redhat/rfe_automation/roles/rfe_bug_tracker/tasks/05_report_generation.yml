@@ -1,0 +1,55 @@
+---
+# Report generation tasks for RFE/Bug Tracker Role
+
+- name: Generate RFE/Bug Tracker Report
+  template:
+    src: "{{ default_template }}"
+    dest: "{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_tracker_report_{{ ansible_date_time.epoch }}.md"
+    mode: '0644'
+  vars:
+    customer_name: "{{ customer_name }}"
+    account_name: "{{ account_name }}"
+    account_number: "{{ account_number }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+    active_rfes: "{{ active_rfes }}"
+    active_bugs: "{{ active_bugs }}"
+    closed_cases: "{{ closed_cases }}"
+    total_cases: "{{ rfe_bug_cases | length }}"
+    data_quality_score: "{{ data_quality_score | default(0.0) }}"
+  when: "'rfe_bug_tracker' in (report_types | default([]))"
+  tags: [report_generation, rfe_bug_tracker]
+
+- name: Generate RFE/Bug Tracker JSON Report
+  copy:
+    content: |
+      {
+        "report_type": "RFE/Bug Tracker",
+        "customer": "{{ customer_name }}",
+        "account": "{{ account_name }}",
+        "account_number": "{{ account_number }}",
+        "timestamp": "{{ ansible_date_time.iso8601 }}",
+        "summary": {
+          "total_cases": {{ rfe_bug_cases | length }},
+          "active_rfes": {{ active_rfes | length }},
+          "active_bugs": {{ active_bugs | length }},
+          "closed_cases": {{ closed_cases | length }},
+          "data_quality_score": {{ data_quality_score | default(0.0) }}
+        },
+        "active_rfes": {{ active_rfes | to_nice_json }},
+        "active_bugs": {{ active_bugs | to_nice_json }},
+        "closed_cases": {{ closed_cases | to_nice_json }}
+      }
+    dest: "{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_tracker_report_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  when: "'rfe_bug_tracker' in (report_types | default([]))"
+  tags: [report_generation, rfe_bug_tracker, json]
+
+- name: Display RFE/Bug Tracker report generation summary
+  debug:
+    msg: |
+      📋 RFE/Bug Tracker Report Generated:
+      📁 Location: {{ output_dir }}/{{ customer_name | lower }}_rfe_bug_tracker_report_{{ ansible_date_time.epoch }}.md
+      📊 Summary: {{ active_rfes | length }} RFEs, {{ active_bugs | length }} Bugs, {{ closed_cases | length }} Closed
+      ✅ Data Quality: {{ ((data_quality_score | default(0.0) | float) * 100) | round(1) }}%
+  when: "'rfe_bug_tracker' in (report_types | default([]))"
+  tags: [report_generation, summary]

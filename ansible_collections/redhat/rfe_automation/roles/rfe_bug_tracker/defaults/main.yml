@@ -1,0 +1,27 @@
+---
+# Default variables for RFE/Bug Tracker Role
+
+# Report configuration
+report_name: "RFE/Bug Tracker Report"
+report_description: "Comprehensive tracking of Feature Requests and Bug Reports"
+
+# Template configuration
+default_template: "rfe_bug_report.j2"
+output_format: "markdown"
+
+# Data collection settings
+case_types:
+  rfe_types:
+    - "Feature / Enhancement Request"
+    - "RFE"
+  bug_types:
+    - "Defect / Bug"
+    - "Bug"
+
+# Validation settings
+validation_threshold: 0.99
+data_quality_threshold: 0.95
+
+# Logging settings
+log_level: "INFO"
+enable_debug: false

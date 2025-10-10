@@ -1,0 +1,45 @@
+---
+# Prerequisites and system validation tasks
+
+- name: Create output directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ output_dir }}"
+    - "{{ logs_dir }}"
+  tags: [prerequisites, setup]
+
+- name: Validate rhcase tool availability
+  stat:
+    path: "{{ rhcase_path }}"
+  register: rhcase_check
+  tags: [prerequisites, validation]
+
+- name: Fail if rhcase tool not found
+  fail:
+    msg: "rhcase tool not found at {{ rhcase_path }}. Run ./bin/install-dependencies first."
+  when: not rhcase_check.stat.exists
+  tags: [prerequisites, validation]
+
+- name: Validate customer account configuration
+  assert:
+    that:
+      - customer_name is defined
+      - account_number is defined
+      - account_name is defined
+      - priority_components is defined
+      - priority_components | length > 0
+    fail_msg: "Customer configuration is incomplete. Check inventory file."
+  tags: [prerequisites, validation]
+
+- name: Display customer information
+  debug:
+    msg: |
+      🏢 Processing: {{ customer_name }}
+      📊 Account: {{ account_number }} ({{ account_name }})
+      🎯 Components: {{ priority_components | join(', ') }}
+      📅 Frequency: {{ report_frequency | default('weekly') }}
+      ✅ Threshold: 99%
+  tags: [prerequisites, info]
