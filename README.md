@@ -37,7 +37,7 @@
 - Red Hat VPN access
 - Your Red Hat login credentials
 - Access to customer portal
-- `rhcase` tool installed
+- [`rhcase` tool](https://gitlab.cee.redhat.com/gvaughn/rhcase) installed
 
 ### 🎯 **First Time Setup (5 Minutes - One Time Only)**
 
