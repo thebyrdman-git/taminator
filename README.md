@@ -37,7 +37,24 @@
 - Red Hat VPN access
 - Your Red Hat login credentials
 - Access to customer portal
-- [`rhcase` tool](https://gitlab.cee.redhat.com/gvaughn/rhcase) installed
+- [`rhcase` tool](https://gitlab.cee.redhat.com/gvaughn/rhcase) installed (see installation instructions below)
+
+### 📥 **Step 0: Get the Tool (One Time Only)**
+
+**Download the RFE Automation Tool:**
+1. Go to: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation
+2. Click the green "Clone" button
+3. Click "Download ZIP"
+4. Extract the ZIP file to a folder on your computer (like `C:\rfe-automation` or `~/rfe-automation`)
+5. Remember where you put it - you'll need to go there to run the commands
+
+### 🔧 **Install rhcase Tool (One Time Only)**
+
+**If you don't have rhcase installed:**
+1. Go to: https://gitlab.cee.redhat.com/gvaughn/rhcase
+2. Follow the installation instructions on that page
+3. Test it works by opening terminal and typing: `rhcase --version`
+4. If you see a version number, you're good to go!
 
 ### 🎯 **First Time Setup (5 Minutes - One Time Only)**
 
@@ -45,7 +62,13 @@
 - On Windows: Press `Windows + R`, type `cmd`, press Enter
 - On Mac/Linux: Press `Ctrl + Alt + T` or find "Terminal" in applications
 
-**Step 2: Run the setup wizard**
+**Step 2: Go to the tool folder**
+```bash
+cd C:\rfe-automation
+```
+*Replace `C:\rfe-automation` with wherever you put the tool folder*
+
+**Step 3: Run the setup wizard**
 ```bash
 ./bin/tam-rfe-onboard-intelligent
 ```
@@ -54,6 +77,8 @@
 **What happens next:**
 - The tool asks you simple questions like "What customers do you work with?"
 - You type answers like "Wells Fargo" or "TD Bank"
+- It may ask for customer account numbers - you can find these in your customer portal or ask your manager
+- It may ask for group IDs - these are also in the customer portal
 - The tool remembers your answers for next time
 - **No technical knowledge needed** - just answer the questions!
 
@@ -166,7 +191,12 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
 
 ### Common Questions
 - **"How do I add a new customer?"** → Run the setup wizard again: `./bin/tam-rfe-onboard-intelligent`
-- **"The tool isn't finding cases"** → Ask your IT team to check your `rhcase` setup
+- **"The tool isn't finding cases"** → Check these things:
+  - Make sure you're connected to Red Hat VPN
+  - Test rhcase works: type `rhcase --version` in terminal
+  - Try: `rhcase list [customer-name] --months 1` to see if it finds cases
+  - If rhcase doesn't work, ask your IT team for help
+- **"I can't find customer account numbers"** → Check your customer portal or ask your manager
 - **"I want to change how reports look"** → Use the chat and ask: "Can you customize the report format?"
 - **"I'm stuck!"** → Use the chat and type: "Help me" or "I need assistance"
 
