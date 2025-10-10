@@ -45,7 +45,7 @@
 1. Go to: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation
 2. Click the green "Clone" button
 3. Click "Download ZIP"
-4. Extract the ZIP file to a folder on your computer (like `C:\rfe-automation` or `~/rfe-automation`)
+4. Extract the ZIP file to a folder on your computer (like `~/rfe-automation` or `/home/username/rfe-automation`)
 5. Remember where you put it - you'll need to go there to run the commands
 
 ### 🔧 **Install rhcase Tool (One Time Only)**
@@ -58,15 +58,16 @@
 
 ### 🎯 **First Time Setup (5 Minutes - One Time Only)**
 
-**Step 1: Open your terminal/command prompt**
-- On Windows: Press `Windows + R`, type `cmd`, press Enter
-- On Mac/Linux: Press `Ctrl + Alt + T` or find "Terminal" in applications
+**Step 1: Open your terminal**
+- On RHEL/Fedora: Press `Ctrl + Alt + T` or click Activities → Terminal
+- On Mac: Press `Cmd + Space`, type "Terminal", press Enter
+- You should see a black window with text (this is your terminal)
 
 **Step 2: Go to the tool folder**
 ```bash
-cd C:\rfe-automation
+cd ~/rfe-automation
 ```
-*Replace `C:\rfe-automation` with wherever you put the tool folder*
+*Replace `~/rfe-automation` with wherever you put the tool folder*
 
 **Step 3: Run the setup wizard**
 ```bash
@@ -210,8 +211,8 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
 ### For All Users
 
 **Step 1: Open Terminal**
-- Windows: Press `Windows + R`, type `cmd`, press Enter
-- Mac/Linux: Press `Ctrl + Alt + T`
+- RHEL/Fedora: Press `Ctrl + Alt + T` or click Activities → Terminal
+- Mac: Press `Cmd + Space`, type "Terminal", press Enter
 
 **Step 2: Run Setup (One Time Only)**
 ```bash
