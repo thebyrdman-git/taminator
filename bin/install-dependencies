@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# TAM RFE Automation Tool - Dependency Installer
+# This script installs all required dependencies including rhcase
+
+set -e  # Exit on any error
+
+echo "🚀 TAM RFE Automation Tool - Installing Dependencies"
+echo "=================================================="
+
+# Check if we're in the right directory
+if [ ! -f "README.md" ] || [ ! -d "bin" ]; then
+    echo "❌ Error: Please run this script from the RFE automation tool directory"
+    echo "   Make sure you're in the folder where you extracted the tool"
+    exit 1
+fi
+
+# Check if git is installed
+if ! command -v git &> /dev/null; then
+    echo "❌ Error: Git is not installed. Please install git first:"
+    echo "   RHEL/Fedora: sudo dnf install git"
+    echo "   Mac: Install Xcode Command Line Tools"
+    exit 1
+fi
+
+echo "✅ Git is installed"
+
+# Initialize and update submodules (rhcase)
+echo "📥 Installing rhcase tool..."
+if [ ! -d "rhcase" ]; then
+    echo "   Initializing rhcase submodule..."
+    git submodule init
+fi
+
+git submodule update --init --recursive
+
+if [ -f "rhcase/rhcase" ]; then
+    echo "✅ rhcase tool installed successfully"
+else
+    echo "❌ Error: rhcase tool installation failed"
+    exit 1
+fi
+
+# Check Python
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Error: Python 3 is not installed. Please install Python 3 first:"
+    echo "   RHEL/Fedora: sudo dnf install python3"
+    echo "   Mac: Install Python 3 from python.org or use Homebrew"
+    exit 1
+fi
+
+echo "✅ Python 3 is installed"
+
+# Check if we can import required Python modules
+echo "🔍 Checking Python dependencies..."
+python3 -c "
+import sys
+required_modules = ['requests', 'json', 'os', 'subprocess']
+missing = []
+for module in required_modules:
+    try:
+        __import__(module)
+    except ImportError:
+        missing.append(module)
+
+if missing:
+    print(f'❌ Missing Python modules: {missing}')
+    print('Please install them with: pip3 install ' + ' '.join(missing))
+    sys.exit(1)
+else:
+    print('✅ All Python dependencies are available')
+"
+
+# Make scripts executable
+echo "🔧 Making scripts executable..."
+chmod +x bin/*
+
+echo ""
+echo "🎉 Installation Complete!"
+echo "========================"
+echo "✅ All dependencies installed successfully"
+echo "✅ rhcase tool is ready to use"
+echo "✅ Python dependencies are available"
+echo ""
+echo "Next steps:"
+echo "1. Run: ./bin/tam-rfe-onboard-intelligent"
+echo "2. Then: ./bin/tam-rfe-chat"
+echo ""
+echo "Happy automating! 🚀"

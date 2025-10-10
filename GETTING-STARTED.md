@@ -3,10 +3,21 @@
 ## 🚀 Super Simple 3-Step Start
 
 ### Step 1: Open Terminal (30 seconds)
-- **Windows**: Press `Windows + R`, type `cmd`, press Enter
-- **Mac/Linux**: Press `Ctrl + Alt + T` or find "Terminal" in applications
+- **RHEL/Fedora**: Press `Ctrl + Alt + T` or click Activities → Terminal
+- **Mac**: Press `Cmd + Space`, type "Terminal", press Enter
 
-### Step 2: Run Setup (2 minutes - One Time Only)
+### Step 2: Install Dependencies (1 minute - One Time Only)
+```bash
+./bin/install-dependencies
+```
+*Just copy and paste this line, then press Enter*
+
+**What happens:**
+- Tool automatically downloads and installs everything you need
+- Includes the rhcase tool and all dependencies
+- **No technical knowledge needed** - it does everything automatically!
+
+### Step 3: Run Setup (2 minutes - One Time Only)
 ```bash
 ./bin/tam-rfe-onboard-intelligent
 ```
@@ -18,7 +29,7 @@
 - Tool remembers your answers for next time
 - **No technical knowledge needed** - just answer the questions!
 
-### Step 3: Start Using It (1 minute)
+### Step 4: Start Using It (1 minute)
 ```bash
 ./bin/tam-rfe-chat
 ```

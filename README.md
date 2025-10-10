@@ -37,7 +37,7 @@
 - Red Hat VPN access
 - Your Red Hat login credentials
 - Access to customer portal
-- [`rhcase` tool](https://gitlab.cee.redhat.com/gvaughn/rhcase) installed (see installation instructions below)
+- Git installed (usually already on RHEL/Fedora/Mac)
 
 ### 📥 **Step 0: Get the Tool (One Time Only)**
 
@@ -48,13 +48,13 @@
 4. Extract the ZIP file to a folder on your computer (like `~/rfe-automation` or `/home/username/rfe-automation`)
 5. Remember where you put it - you'll need to go there to run the commands
 
-### 🔧 **Install rhcase Tool (One Time Only)**
+### 🔧 **Install Dependencies (One Time Only)**
 
-**If you don't have rhcase installed:**
-1. Go to: https://gitlab.cee.redhat.com/gvaughn/rhcase
-2. Follow the installation instructions on that page
-3. Test it works by opening terminal and typing: `rhcase --version`
-4. If you see a version number, you're good to go!
+**The tool includes everything you need! Just run:**
+```bash
+./bin/install-dependencies
+```
+*This automatically installs the rhcase tool and all other dependencies*
 
 ### 🎯 **First Time Setup (5 Minutes - One Time Only)**
 
@@ -69,7 +69,13 @@ cd ~/rfe-automation
 ```
 *Replace `~/rfe-automation` with wherever you put the tool folder*
 
-**Step 3: Run the setup wizard**
+**Step 3: Install dependencies**
+```bash
+./bin/install-dependencies
+```
+*This installs everything you need automatically*
+
+**Step 4: Run the setup wizard**
 ```bash
 ./bin/tam-rfe-onboard-intelligent
 ```
@@ -194,8 +200,9 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
 - **"How do I add a new customer?"** → Run the setup wizard again: `./bin/tam-rfe-onboard-intelligent`
 - **"The tool isn't finding cases"** → Check these things:
   - Make sure you're connected to Red Hat VPN
-  - Test rhcase works: type `rhcase --version` in terminal
-  - Try: `rhcase list [customer-name] --months 1` to see if it finds cases
+  - Run the dependency installer again: `./bin/install-dependencies`
+  - Test rhcase works: type `./rhcase/rhcase --version` in terminal
+  - Try: `./rhcase/rhcase list [customer-name] --months 1` to see if it finds cases
   - If rhcase doesn't work, ask your IT team for help
 - **"I can't find customer account numbers"** → Check your customer portal or ask your manager
 - **"I want to change how reports look"** → Use the chat and ask: "Can you customize the report format?"
@@ -214,13 +221,19 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
 - RHEL/Fedora: Press `Ctrl + Alt + T` or click Activities → Terminal
 - Mac: Press `Cmd + Space`, type "Terminal", press Enter
 
-**Step 2: Run Setup (One Time Only)**
+**Step 2: Install Dependencies (One Time Only)**
+```bash
+./bin/install-dependencies
+```
+*This installs everything you need automatically*
+
+**Step 3: Run Setup (One Time Only)**
 ```bash
 ./bin/tam-rfe-onboard-intelligent
 ```
 *Answer the questions about your customers*
 
-**Step 3: Start Using It**
+**Step 4: Start Using It**
 ```bash
 ./bin/tam-rfe-chat
 ```
