@@ -59,7 +59,7 @@
 *This automatically installs the rhcase tool and all other dependencies*
 
 **If you need to install Python packages or configure Git:**
-- **Python packages**: https://packaging.python.org/en/latest/tutorials/installing-packages/
+- **Python packages**: https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/installing_and_using_dynamic_programming_languages/installing-and-using-python
 - **GitLab setup**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/getting_started_guide
 - **GitLab CLI (glab)**: https://source.redhat.com/groups/public/ccs/ccs_blog/installing_and_configuring_the_gitlab_cli_glab
 
@@ -219,7 +219,7 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
   - Test rhcase works: type `./rhcase/rhcase --version` in terminal
   - Try: `./rhcase/rhcase list [customer-name] --months 1` to see if it finds cases
   - If rhcase doesn't work, ask your IT team for help
-- **"Python packages missing"** → Install with: `pip3 install requests` or see: https://packaging.python.org/en/latest/tutorials/installing-packages/
+- **"Python packages missing"** → Install with: `pip3 install requests` or see: https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/installing_and_using_dynamic_programming_languages/installing-and-using-python
 - **"Git not configured"** → Set up with: `git config --global user.name "Your Name"` or see: https://source.redhat.com/groups/public/gitlabcee/user_documentation/getting_started_guide
 - **"I can't find customer account numbers"** → Check your customer portal or ask your manager
 - **"I want to change how reports look"** → Use the chat and ask: "Can you customize the report format?"
