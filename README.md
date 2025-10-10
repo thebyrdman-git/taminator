@@ -37,6 +37,7 @@
 - Red Hat VPN access (ask IT if you don't have it)
 - Your Red Hat login credentials
 - Access to customer portal (your manager can help with this)
+- `rhcase` tool installed (download from: https://access.redhat.com/solutions/2112)
 
 ### 🎯 **First Time Setup (5 Minutes - One Time Only)**
 
