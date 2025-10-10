@@ -4,7 +4,7 @@
 
 **This is the TAM RFE Automation Tool, developed by jbyrd as a standalone, self-contained solution that uses tools from [grimm's PAI project](https://gitlab.cee.redhat.com/gvaughn/hatter-pai). This IS the RFE automation tool itself.**
 
-**The tool automatically generates and posts professional RFE/Bug tracker reports and active case reports to customer portal groups, saving TAMs 2-3 hours per customer per week.**
+**The tool automatically generates and posts professional RFE/Bug tracker reports and Active Case reports to Customer Portal Groups, saving TAMs 2-3 hours per customer per week.**
 
 ### 🔄 Project Status
 - **Developer**: jbyrd - Independent development
