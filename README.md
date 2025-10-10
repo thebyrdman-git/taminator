@@ -243,7 +243,7 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
 - **"I can't find customer account numbers"** → Check your customer portal or ask your manager
 - **"I want to change how reports look"** → Use the chat and ask: "Can you customize the report format?"
 - **"I'm stuck!"** → Use the chat and type: "Help me" or "I need assistance"
-- **"Can't access Cursor license request page"** → Make sure you're connected to Red Hat VPN first, then try: https://devservices.dpp.openshift.com/support/cursor_license_request/ (if still having issues, contact jbyrd for troubleshooting)
+- **"Can't access Cursor license request page"** → Make sure you're connected to Red Hat VPN first, then try: https://devservices.dpp.openshift.com/support/cursor_license_request/ (if still having issues, contact Red Hat IT support or check the Cursor setup guide for alternative access methods)
 - **"RFE tool issues"** → Contact jbyrd (RFE tool developer) via GitLab: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/issues
 
 ### Getting Support
