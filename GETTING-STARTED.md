@@ -1,54 +1,53 @@
 # Getting Started - TAM RFE Automation
 
-## 🚀 3-Step Quick Start
+## 🚀 Super Simple 3-Step Start
 
-### Step 1: Setup (2 minutes)
+### Step 1: Open Terminal (30 seconds)
+- **Windows**: Press `Windows + R`, type `cmd`, press Enter
+- **Mac/Linux**: Press `Ctrl + Alt + T` or find "Terminal" in applications
+
+### Step 2: Run Setup (2 minutes - One Time Only)
 ```bash
-cd rfe-bug-tracker
-
-# Option A: Auto-Detection (Recommended)
-./bin/tam-rfe-auto-detect
-
-# Option B: Interactive Setup
 ./bin/tam-rfe-onboard-intelligent
 ```
-*Auto-detection finds your existing setup, or answer a few questions about your customers*
+*Just copy and paste this line, then press Enter*
 
-### Step 2: Customize (Optional - 2 minutes)
-```bash
-./bin/tam-rfe-template-customizer
-```
-*Create personalized report templates that fit your style*
+**What happens:**
+- Tool asks you simple questions like "What customers do you work with?"
+- You type answers like "Wells Fargo" or "TD Bank"
+- Tool remembers your answers for next time
+- **No technical knowledge needed** - just answer the questions!
 
-### Step 3: Use (1 minute)
+### Step 3: Start Using It (1 minute)
 ```bash
 ./bin/tam-rfe-chat
 ```
 
-### Step 4: Ask (30 seconds)
-```
-"Generate RFE report for Wells Fargo"
-```
+**Then just type what you want:**
+- "Generate a report for Wells Fargo"
+- "Show me TD Bank cases"
+- "Create active case report for JPMC"
 
 **Done! You'll get both copy/paste and auto-posting options.**
 
 ## 💡 Pro Tips
 
-- **Use the chat interface** - it's the easiest way
+- **The chat interface is like texting** - just type what you want
 - **Ask naturally** - "Show me TD Bank cases" works perfectly
-- **I learn your preferences** - the more you use it, the smarter it gets
-- **Choose your delivery method** - copy/paste for control, auto-post for speed
+- **The tool learns your preferences** - the more you use it, the smarter it gets
+- **You get 2 options**: copy/paste for control, auto-post for speed
 
-## 🆘 Stuck?
+## 🆘 Need Help?
 
-**Just ask me!** In the chat interface, type:
+**In the chat interface, just type:**
 - "help" - See all available commands
 - "How do I add a customer?" - Get step-by-step help
-- "What can you do?" - See my capabilities
+- "What can you do?" - See all capabilities
+- "I'm stuck!" - Get assistance
 
 ## 🎯 That's It!
 
-**No complex configuration. No overwhelming documentation. Just ask me what you need, and I'll help you automate your RFE reporting.**
+**No complex configuration. No overwhelming documentation. Just ask the tool what you need, and it will help you automate your RFE reporting.**
 
 ---
 
