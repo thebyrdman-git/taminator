@@ -1,0 +1,347 @@
+#!/usr/bin/env bash
+
+# TAM RFE Schedule - Automation Scheduling Management
+# Purpose: Manage scheduled RFE automation for customers
+# Usage: tam-rfe-schedule [--customer CUSTOMER] [--weekly|--daily] [--help]
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$HOME/.config/tam-rfe-automation"
+SCHEDULE_CONFIG="$CONFIG_DIR/automation_schedule.yaml"
+CRON_FILE="$CONFIG_DIR/rfe-automation.cron"
+
+# Logging
+LOG_FILE="/tmp/tam-rfe-schedule-$(date +%Y%m%d-%H%M%S).log"
+exec 1> >(tee -a "$LOG_FILE")
+exec 2> >(tee -a "$LOG_FILE" >&2)
+
+print_header() {
+    echo -e "${CYAN}"
+    echo "📅 TAM RFE SCHEDULE - Automation Scheduling Management"
+    echo "====================================================="
+    echo -e "${NC}"
+    echo "📅 Started: $(date)"
+    echo "📁 Log File: $LOG_FILE"
+    echo "🎯 Purpose: Manage scheduled RFE automation"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+create_schedule_config() {
+    local customer="$1"
+    local frequency="$2"
+    local day_of_week="$3"
+    local time="$4"
+    
+    print_section "📅 CREATING SCHEDULE CONFIGURATION"
+    
+    # Ensure config directory exists
+    mkdir -p "$CONFIG_DIR"
+    
+    # Create schedule configuration
+    cat > "$SCHEDULE_CONFIG" << EOF
+# TAM RFE Automation Schedule Configuration
+# Generated on $(date)
+
+schedule:
+  enabled: true
+  timezone: "EST"
+  
+customers:
+  $customer:
+    frequency: "$frequency"
+    day_of_week: "$day_of_week"
+    time: "$time"
+    enabled: true
+    created_date: "$(date -I)"
+    created_by: "$USER"
+    
+    # Command to execute
+    command: "tam-rfe-monitor $customer --daily"
+    
+    # Notification settings
+    notifications:
+      email: "$USER@redhat.com"
+      on_success: true
+      on_failure: true
+EOF
+    
+    print_success "Schedule configuration created: $SCHEDULE_CONFIG"
+}
+
+create_cron_job() {
+    local customer="$1"
+    local frequency="$2"
+    local day_of_week="$3"
+    local time="$4"
+    
+    print_section "⏰ CREATING CRON JOB"
+    
+    # Convert time to cron format
+    local hour minute
+    IFS=':' read -r hour minute <<< "$time"
+    
+    # Create cron expression based on frequency
+    local cron_expression
+    if [[ "$frequency" == "daily" ]]; then
+        cron_expression="$minute $hour * * *"
+    elif [[ "$frequency" == "weekly" ]]; then
+        # Convert day of week to cron format (0=Sunday, 1=Monday, etc.)
+        case "$day_of_week" in
+            "sunday") cron_day=0 ;;
+            "monday") cron_day=1 ;;
+            "tuesday") cron_day=2 ;;
+            "wednesday") cron_day=3 ;;
+            "thursday") cron_day=4 ;;
+            "friday") cron_day=5 ;;
+            "saturday") cron_day=6 ;;
+            *) cron_day=3 ;; # Default to Wednesday
+        esac
+        cron_expression="$minute $hour * * $cron_day"
+    else
+        print_error "Invalid frequency: $frequency"
+        return 1
+    fi
+    
+    # Create cron job
+    local cron_job="$cron_expression $SCRIPT_DIR/tam-rfe-monitor $customer --daily >> $LOG_FILE 2>&1"
+    
+    # Create cron file
+    cat > "$CRON_FILE" << EOF
+# TAM RFE Automation Cron Jobs
+# Generated on $(date)
+# Customer: $customer
+# Frequency: $frequency
+# Schedule: $cron_expression
+
+$cron_job
+EOF
+    
+    print_success "Cron job created: $CRON_FILE"
+    print_info "Cron expression: $cron_expression"
+    print_info "Command: $cron_job"
+    
+    # Install cron job
+    print_info "Installing cron job..."
+    
+    # Remove existing RFE automation cron jobs
+    crontab -l 2>/dev/null | grep -v "tam-rfe-monitor" | crontab - 2>/dev/null || true
+    
+    # Add new cron job
+    (crontab -l 2>/dev/null; cat "$CRON_FILE") | crontab -
+    
+    print_success "Cron job installed successfully"
+}
+
+show_schedule_status() {
+    print_section "📊 SCHEDULE STATUS"
+    
+    # Show current cron jobs
+    echo "Current RFE automation cron jobs:"
+    crontab -l 2>/dev/null | grep "tam-rfe-monitor" || echo "  No RFE automation cron jobs found"
+    
+    echo ""
+    
+    # Show configuration
+    if [[ -f "$SCHEDULE_CONFIG" ]]; then
+        echo "Schedule configuration:"
+        cat "$SCHEDULE_CONFIG"
+    else
+        echo "No schedule configuration found"
+    fi
+}
+
+remove_schedule() {
+    local customer="$1"
+    
+    print_section "🗑️  REMOVING SCHEDULE"
+    
+    # Remove cron jobs for customer
+    print_info "Removing cron jobs for $customer..."
+    
+    # Remove existing RFE automation cron jobs
+    crontab -l 2>/dev/null | grep -v "tam-rfe-monitor.*$customer" | crontab - 2>/dev/null || true
+    
+    print_success "Schedule removed for $customer"
+}
+
+setup_customer_schedule() {
+    local customer="$1"
+    local frequency="$2"
+    local day_of_week="$3"
+    local time="$4"
+    
+    print_section "⏰ SETTING UP SCHEDULE FOR $customer"
+    
+    # Validate inputs
+    if [[ -z "$customer" ]]; then
+        print_error "Customer key required"
+        return 1
+    fi
+    
+    if [[ -z "$frequency" ]]; then
+        print_error "Frequency required (daily or weekly)"
+        return 1
+    fi
+    
+    if [[ "$frequency" == "weekly" && -z "$day_of_week" ]]; then
+        print_error "Day of week required for weekly schedule"
+        return 1
+    fi
+    
+    if [[ -z "$time" ]]; then
+        print_error "Time required (HH:MM format)"
+        return 1
+    fi
+    
+    # Create schedule configuration
+    create_schedule_config "$customer" "$frequency" "$day_of_week" "$time"
+    
+    # Create cron job
+    create_cron_job "$customer" "$frequency" "$day_of_week" "$time"
+    
+    print_success "Schedule setup completed for $customer"
+    print_info "Schedule: $frequency at $time"
+    if [[ "$frequency" == "weekly" ]]; then
+        print_info "Day: $day_of_week"
+    fi
+}
+
+show_help() {
+    echo "TAM RFE Schedule - Automation Scheduling Management"
+    echo ""
+    echo "Usage: tam-rfe-schedule [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --customer CUSTOMER    Customer key to schedule"
+    echo "  --daily               Set up daily schedule"
+    echo "  --weekly              Set up weekly schedule"
+    echo "  --day DAY             Day of week for weekly schedule"
+    echo "  --time TIME           Time in HH:MM format (24-hour)"
+    echo "  --remove CUSTOMER     Remove schedule for customer"
+    echo "  --status              Show current schedule status"
+    echo "  --help                Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  tam-rfe-schedule --customer wellsfargo --weekly --day wednesday --time 09:00"
+    echo "  tam-rfe-schedule --customer tdbank --daily --time 10:00"
+    echo "  tam-rfe-schedule --status"
+    echo "  tam-rfe-schedule --remove wellsfargo"
+    echo ""
+    echo "Features:"
+    echo "  📅 Flexible scheduling (daily/weekly)"
+    echo "  ⏰ Time-based automation"
+    echo "  📧 Email notifications"
+    echo "  🗑️  Easy schedule removal"
+}
+
+main() {
+    print_header
+    
+    local customer=""
+    local frequency=""
+    local day_of_week=""
+    local time=""
+    local action=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --customer)
+                customer="$2"
+                shift 2
+                ;;
+            --daily)
+                frequency="daily"
+                shift
+                ;;
+            --weekly)
+                frequency="weekly"
+                shift
+                ;;
+            --day)
+                day_of_week="$2"
+                shift 2
+                ;;
+            --time)
+                time="$2"
+                shift 2
+                ;;
+            --remove)
+                action="remove"
+                customer="$2"
+                shift 2
+                ;;
+            --status)
+                action="status"
+                shift
+                ;;
+            --help)
+                show_help
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Execute action
+    case "$action" in
+        "remove")
+            if [[ -z "$customer" ]]; then
+                print_error "Customer key required for --remove"
+                exit 1
+            fi
+            remove_schedule "$customer"
+            ;;
+        "status")
+            show_schedule_status
+            ;;
+        "")
+            if [[ -n "$customer" && -n "$frequency" ]]; then
+                setup_customer_schedule "$customer" "$frequency" "$day_of_week" "$time"
+            else
+                print_error "Missing required options"
+                show_help
+                exit 1
+            fi
+            ;;
+    esac
+}
+
+main "$@"

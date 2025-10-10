@@ -1,0 +1,361 @@
+#!/usr/bin/env bash
+
+# TAM RFE Onboard - Customer Configuration Setup
+# Purpose: Interactive setup for new customer RFE automation
+# Usage: tam-rfe-onboard [--customer CUSTOMER] [--help]
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$HOME/.config/tam-rfe-automation"
+CUSTOMER_CONFIG="$CONFIG_DIR/customer_accounts.yaml"
+
+# Logging
+LOG_FILE="/tmp/tam-rfe-onboard-$(date +%Y%m%d-%H%M%S).log"
+exec 1> >(tee -a "$LOG_FILE")
+exec 2> >(tee -a "$LOG_FILE" >&2)
+
+print_header() {
+    echo -e "${CYAN}"
+    echo "🚀 TAM RFE ONBOARD - Customer Configuration Setup"
+    echo "================================================"
+    echo -e "${NC}"
+    echo "📅 Started: $(date)"
+    echo "📁 Log File: $LOG_FILE"
+    echo "🎯 Purpose: Configure new customer for RFE automation"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+prompt_input() {
+    local prompt="$1"
+    local default="$2"
+    local required="${3:-false}"
+    
+    if [[ -n "$default" ]]; then
+        read -p "$prompt [$default]: " input
+        input="${input:-$default}"
+    else
+        read -p "$prompt: " input
+    fi
+    
+    if [[ "$required" == "true" && -z "$input" ]]; then
+        print_error "This field is required"
+        return 1
+    fi
+    
+    echo "$input"
+}
+
+validate_account_number() {
+    local account="$1"
+    
+    if [[ ! "$account" =~ ^[0-9]+$ ]]; then
+        print_error "Account number must be numeric"
+        return 1
+    fi
+    
+    if [[ ${#account} -lt 4 || ${#account} -gt 10 ]]; then
+        print_error "Account number must be 4-10 digits"
+        return 1
+    fi
+    
+    return 0
+}
+
+validate_group_id() {
+    local group_id="$1"
+    
+    if [[ ! "$group_id" =~ ^[0-9]+$ ]]; then
+        print_error "Group ID must be numeric"
+        return 1
+    fi
+    
+    if [[ ${#group_id} -lt 4 || ${#group_id} -gt 10 ]]; then
+        print_error "Group ID must be 4-10 digits"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_rhcase_connectivity() {
+    local account_number="$1"
+    
+    print_info "Testing rhcase connectivity for account $account_number..."
+    
+    if rhcase list "$account_number" --months 1 >/dev/null 2>&1; then
+        print_success "rhcase connectivity verified"
+        return 0
+    else
+        print_error "rhcase connectivity failed"
+        print_info "Please check:"
+        print_info "  1. Red Hat VPN connection"
+        print_info "  2. rhcase configuration: rhcase configure"
+        print_info "  3. Account number validity"
+        return 1
+    fi
+}
+
+test_portal_access() {
+    local group_id="$1"
+    
+    print_info "Testing portal access for group $group_id..."
+    
+    if curl -s --connect-timeout 10 "https://access.redhat.com/groups/$group_id" >/dev/null 2>&1; then
+        print_success "Portal access verified"
+        return 0
+    else
+        print_warning "Portal access test failed"
+        print_info "This may be normal if the group ID is not yet confirmed"
+        return 0  # Don't fail for this
+    fi
+}
+
+create_customer_config() {
+    local customer_key="$1"
+    local customer_name="$2"
+    local account_number="$3"
+    local group_id="$4"
+    local portal_url="$5"
+    
+    print_section "💾 CREATING CUSTOMER CONFIGURATION"
+    
+    # Ensure config directory exists
+    mkdir -p "$CONFIG_DIR"
+    
+    # Create customer configuration
+    cat > "$CUSTOMER_CONFIG" << EOF
+# TAM RFE Automation - Customer Configuration
+# Generated on $(date)
+
+customers:
+  $customer_key:
+    name: "$customer_name"
+    account_number: "$account_number"
+    group_id: "$group_id"
+    portal_url: "$portal_url"
+    enabled: true
+    confidence: "manual"
+    created_date: "$(date -I)"
+    created_by: "$USER"
+    
+    # SBR Group filters
+    sbr_groups:
+      - "Ansible"
+      - "OpenShift"
+      - "RHEL"
+      - "Satellite"
+    
+    # Case status filters
+    active_statuses:
+      - "Waiting on Red Hat"
+      - "Waiting on Customer"
+      - "In Progress"
+      - "New"
+      - "Assigned"
+    
+    # Report configuration
+    report_config:
+      title_format: "Weekly Troubleshooting Case Report - {customer} - {date}"
+      include_executive_summary: true
+      max_cases_display: 20
+      style: "executive"
+    
+    # Schedule configuration
+    schedule:
+      day_of_week: "wednesday"
+      time: "09:00"
+      timezone: "EST"
+      enabled: true
+EOF
+    
+    print_success "Customer configuration created: $CUSTOMER_CONFIG"
+}
+
+interactive_onboard() {
+    print_section "🎯 INTERACTIVE CUSTOMER ONBOARDING"
+    
+    # Get customer information
+    echo ""
+    print_info "Please provide the following information:"
+    echo ""
+    
+    # Customer key
+    customer_key=$(prompt_input "Customer key (e.g., 'wellsfargo', 'newcustomer')" "" true)
+    if [[ $? -ne 0 ]]; then return 1; fi
+    
+    # Customer name
+    customer_name=$(prompt_input "Customer name (e.g., 'Wells Fargo')" "" true)
+    if [[ $? -ne 0 ]]; then return 1; fi
+    
+    # Account number
+    account_number=$(prompt_input "Account number" "" true)
+    if [[ $? -ne 0 ]]; then return 1; fi
+    
+    if ! validate_account_number "$account_number"; then
+        return 1
+    fi
+    
+    # Group ID
+    group_id=$(prompt_input "Portal group ID (optional, can be added later)" "")
+    if [[ -n "$group_id" ]]; then
+        if ! validate_group_id "$group_id"; then
+            return 1
+        fi
+    fi
+    
+    # Portal URL
+    if [[ -n "$group_id" ]]; then
+        portal_url="https://access.redhat.com/groups/$group_id"
+    else
+        portal_url="https://access.redhat.com/groups/TBD"
+    fi
+    
+    # Confirm information
+    echo ""
+    print_section "📋 CONFIRMATION"
+    echo "Customer Key: $customer_key"
+    echo "Customer Name: $customer_name"
+    echo "Account Number: $account_number"
+    echo "Group ID: ${group_id:-'Not provided'}"
+    echo "Portal URL: $portal_url"
+    echo ""
+    
+    read -p "Is this information correct? (y/N): " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        print_info "Onboarding cancelled"
+        return 1
+    fi
+    
+    # Test connectivity
+    print_section "🧪 TESTING CONNECTIVITY"
+    
+    if ! test_rhcase_connectivity "$account_number"; then
+        print_error "rhcase connectivity test failed"
+        read -p "Continue anyway? (y/N): " continue_anyway
+        if [[ ! "$continue_anyway" =~ ^[Yy]$ ]]; then
+            return 1
+        fi
+    fi
+    
+    if [[ -n "$group_id" ]]; then
+        test_portal_access "$group_id"
+    fi
+    
+    # Create configuration
+    create_customer_config "$customer_key" "$customer_name" "$account_number" "$group_id" "$portal_url"
+    
+    # Test configuration
+    print_section "🧪 TESTING CONFIGURATION"
+    
+    print_info "Testing customer configuration..."
+    
+    python3 -c "
+import sys
+import os
+sys.path.insert(0, '$PROJECT_ROOT/src')
+
+try:
+    from ultimate_rfe_portal_system import UltimateRFEPortalSystem
+    
+    system = UltimateRFEPortalSystem()
+    validation = system.validate_customer_config('$customer_key')
+    
+    if validation['valid']:
+        print('✅ Customer configuration is valid')
+    else:
+        print('❌ Customer configuration has issues:')
+        for issue in validation['issues']:
+            print(f'   - {issue}')
+        for warning in validation['warnings']:
+            print(f'   - {warning}')
+    
+except Exception as e:
+    print(f'❌ Configuration test error: {e}')
+"
+    
+    print_success "Customer onboarding completed for $customer_name"
+    print_info "Next steps:"
+    print_info "  1. Test the configuration: tam-rfe-monitor $customer_key --test"
+    print_info "  2. Run production automation: tam-rfe-monitor $customer_key --daily"
+    print_info "  3. Set up scheduling: tam-rfe-schedule --customer $customer_key --weekly"
+}
+
+show_help() {
+    echo "TAM RFE Onboard - Customer Configuration Setup"
+    echo ""
+    echo "Usage: tam-rfe-onboard [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --customer CUSTOMER    Pre-fill customer key"
+    echo "  --help                Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  tam-rfe-onboard                    # Interactive onboarding"
+    echo "  tam-rfe-onboard --customer newcust # Pre-fill customer key"
+    echo ""
+    echo "Features:"
+    echo "  🎯 Interactive customer setup"
+    echo "  🧪 Connectivity testing"
+    echo "  📋 Configuration validation"
+    echo "  💾 Automatic configuration file creation"
+}
+
+main() {
+    print_header
+    
+    case "${1:-}" in
+        --customer)
+            if [[ -z "${2:-}" ]]; then
+                print_error "Customer key required for --customer option"
+                show_help
+                exit 1
+            fi
+            # Pre-fill customer key and run interactive onboarding
+            export PRE_FILL_CUSTOMER_KEY="$2"
+            interactive_onboard
+            ;;
+        --help|"")
+            show_help
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

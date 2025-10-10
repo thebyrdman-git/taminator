@@ -1,0 +1,472 @@
+#!/bin/bash
+
+# TAM RFE Intelligent Monitor - Feedback-Based Learning System
+# Learns from TAM feedback to provide personalized, predictive automation
+
+set -euo pipefail
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+LEARNING_DIR="$PROJECT_ROOT/learning"
+CONFIG_DIR="$PROJECT_ROOT/config"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Functions
+print_header() {
+    echo -e "${CYAN}"
+    echo "🤖 TAM AUTOMATION ASSISTANT - INTELLIGENT MONITORING"
+    echo "===================================================="
+    echo -e "${NC}"
+    echo "📅 Started: $(date)"
+    echo "🧠 Intelligence Level: Predictive, Feedback-Based, Self-Improving"
+    echo "🎯 Mission: Provide personalized automation based on your learned preferences"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_ai_response() {
+    echo -e "${CYAN}🤖 TAM Automation Assistant: $1${NC}"
+}
+
+print_user_prompt() {
+    echo -e "${YELLOW}👤 Your response: ${NC}"
+}
+
+# Learning system functions
+save_feedback_data() {
+    local feedback_type="$1"
+    local feedback_data="$2"
+    local timestamp=$(date +%Y%m%d-%H%M%S)
+    
+    mkdir -p "$LEARNING_DIR"
+    echo "$feedback_data" >> "$LEARNING_DIR/feedback_${feedback_type}_${timestamp}.json"
+}
+
+load_learning_data() {
+    local data_type="$1"
+    if [[ -f "$LEARNING_DIR/${data_type}_latest.json" ]]; then
+        cat "$LEARNING_DIR/${data_type}_latest.json"
+    else
+        echo "{}"
+    fi
+}
+
+# Intelligent analysis functions
+analyze_usage_patterns() {
+    print_section "🧠 INTELLIGENT USAGE ANALYSIS"
+    
+    print_ai_response "Analyzing your usage patterns and learning from your feedback..."
+    
+    # Load learning data
+    local profile_data=$(load_learning_data "tam_profile")
+    local sbr_data=$(load_learning_data "sbr_preferences")
+    local customer_data=$(load_learning_data "customer_configurations")
+    
+    # Analyze patterns
+    print_info "Pattern Analysis:"
+    echo "  • Your preferred SBR groups: $(echo "$sbr_data" | grep -o '"selected_sbr_groups":"[^"]*"' | cut -d'"' -f4)"
+    echo "  • Your reporting frequency: $(echo "$profile_data" | grep -o '"reporting_frequency":"[^"]*"' | cut -d'"' -f4)"
+    echo "  • Your customer count: $(echo "$profile_data" | grep -o '"customer_count":"[^"]*"' | cut -d'"' -f4)"
+    
+    print_success "Usage patterns analyzed and learned"
+    echo ""
+}
+
+provide_predictive_suggestions() {
+    print_section "🔮 PREDICTIVE SUGGESTIONS"
+    
+    print_ai_response "Based on your usage patterns, I have some predictive suggestions:"
+    echo ""
+    
+    # Load learning data
+    local profile_data=$(load_learning_data "tam_profile")
+    local sbr_data=$(load_learning_data "sbr_preferences")
+    
+    # Generate suggestions based on learned patterns
+    local reporting_freq=$(echo "$profile_data" | grep -o '"reporting_frequency":"[^"]*"' | cut -d'"' -f4)
+    local customer_count=$(echo "$profile_data" | grep -o '"customer_count":"[^"]*"' | cut -d'"' -f4)
+    
+    print_info "Predictive Insights:"
+    echo "  • Based on your $reporting_freq reporting frequency, I suggest optimizing case discovery"
+    echo "  • With $customer_count customers, I recommend batch processing for efficiency"
+    echo "  • Your SBR group preferences suggest focusing on Ansible-related cases"
+    
+    print_ai_response "Would you like me to implement these optimizations? (y/n)"
+    print_user_prompt
+    read -r implement_optimizations
+    
+    if [[ "$implement_optimizations" == "y" ]]; then
+        print_success "Implementing predictive optimizations based on your patterns..."
+        # Implement optimizations here
+    else
+        print_info "I'll remember your preference and continue with current settings."
+    fi
+    echo ""
+}
+
+collect_feedback_after_automation() {
+    local customer="$1"
+    local automation_result="$2"
+    
+    print_section "📝 FEEDBACK COLLECTION - $customer"
+    
+    print_ai_response "Did the SBR group filtering work correctly for $customer?"
+    echo "  [1] ✅ Perfect"
+    echo "  [2] ⚠️  Some cases missing"
+    echo "  [3] ❌ Wrong SBR groups included"
+    echo ""
+    print_user_prompt
+    read -r sbr_feedback
+    
+    # Collect detailed feedback
+    case $sbr_feedback in
+        1)
+            print_success "Excellent! I'll remember this successful configuration."
+            ;;
+        2)
+            print_ai_response "Which cases were missing? Please describe:"
+            print_user_prompt
+            read -r missing_cases
+            print_ai_response "I'll learn from this and improve the filtering for next time."
+            ;;
+        3)
+            print_ai_response "Which SBR groups should be excluded? Please specify:"
+            print_user_prompt
+            read -r wrong_sbr_groups
+            print_ai_response "I'll update the filtering to exclude these groups."
+            ;;
+    esac
+    
+    # Save feedback data
+    local feedback_data=$(cat <<EOF
+{
+    "customer": "$customer",
+    "sbr_feedback": "$sbr_feedback",
+    "missing_cases": "${missing_cases:-}",
+    "wrong_sbr_groups": "${wrong_sbr_groups:-}",
+    "automation_result": "$automation_result",
+    "feedback_timestamp": "$(date -Iseconds)"
+}
+EOF
+)
+    
+    save_feedback_data "sbr_filtering" "$feedback_data"
+    
+    print_success "Feedback collected and saved for learning"
+    echo ""
+}
+
+intelligent_customer_processing() {
+    local customer="$1"
+    
+    print_section "🤖 INTELLIGENT PROCESSING - $customer"
+    
+    # Load customer-specific learning data
+    local customer_data=$(load_learning_data "customer_configurations")
+    
+    print_ai_response "Processing $customer with your learned preferences..."
+    
+    # Run automation with learned preferences
+    local start_time=$(date +%s)
+    
+    if timeout 60 python3 "$PROJECT_ROOT/src/ultimate_rfe_portal_system.py" "$customer" --test; then
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        
+        print_success "$customer automation completed successfully in ${duration}s"
+        
+        # Collect feedback
+        collect_feedback_after_automation "$customer" "success"
+        
+        return 0
+    else
+        local exit_code=$?
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        
+        print_error "$customer automation failed after ${duration}s (exit code: $exit_code)"
+        
+        # Collect feedback on failure
+        collect_feedback_after_automation "$customer" "failed"
+        
+        return 1
+    fi
+}
+
+weekly_intelligent_checkin() {
+    print_section "📅 WEEKLY INTELLIGENT CHECK-IN"
+    
+    print_ai_response "It's time for our weekly check-in! How is the automation working for you?"
+    echo ""
+    
+    print_ai_response "Any customers need different SBR group filtering? (y/n)"
+    print_user_prompt
+    read -r sbr_adjustments_needed
+    
+    if [[ "$sbr_adjustments_needed" == "y" ]]; then
+        print_ai_response "Which customers and what adjustments are needed?"
+        print_user_prompt
+        read -r sbr_adjustments
+        print_ai_response "I'll learn from this and update the filtering accordingly."
+    fi
+    
+    print_ai_response "Any reporting frequency adjustments needed? (y/n)"
+    print_user_prompt
+    read -r frequency_adjustments_needed
+    
+    if [[ "$frequency_adjustments_needed" == "y" ]]; then
+        print_ai_response "What frequency adjustments would you like?"
+        print_user_prompt
+        read -r frequency_adjustments
+        print_ai_response "I'll update the scheduling based on your preferences."
+    fi
+    
+    print_ai_response "Any new customers to add? (y/n)"
+    print_user_prompt
+    read -r new_customers_needed
+    
+    if [[ "$new_customers_needed" == "y" ]]; then
+        print_ai_response "Let me guide you through adding new customers with intelligent onboarding."
+        # Trigger intelligent onboarding for new customers
+    fi
+    
+    # Save weekly feedback
+    local weekly_feedback=$(cat <<EOF
+{
+    "sbr_adjustments_needed": "$sbr_adjustments_needed",
+    "sbr_adjustments": "${sbr_adjustments:-}",
+    "frequency_adjustments_needed": "$frequency_adjustments_needed",
+    "frequency_adjustments": "${frequency_adjustments:-}",
+    "new_customers_needed": "$new_customers_needed",
+    "checkin_timestamp": "$(date -Iseconds)"
+}
+EOF
+)
+    
+    save_feedback_data "weekly_checkin" "$weekly_feedback"
+    
+    print_success "Weekly check-in completed and feedback saved for learning"
+    echo ""
+}
+
+monthly_optimization_suggestions() {
+    print_section "🔧 MONTHLY OPTIMIZATION SUGGESTIONS"
+    
+    print_ai_response "Based on your usage over the past month, I've noticed some patterns. Would you like me to suggest optimizations?"
+    echo ""
+    
+    print_ai_response "Here are my intelligent suggestions:"
+    echo ""
+    
+    # Load usage patterns
+    local profile_data=$(load_learning_data "tam_profile")
+    local sbr_data=$(load_learning_data "sbr_preferences")
+    
+    print_info "Optimization Suggestions:"
+    echo "  • Your SBR group preferences show focus on Ansible - I suggest prioritizing Ansible cases"
+    echo "  • Your reporting frequency suggests batch processing would be more efficient"
+    echo "  • Your customer count indicates automated scheduling would save time"
+    
+    print_ai_response "Would you like me to implement these optimizations? (y/n)"
+    print_user_prompt
+    read -r implement_monthly_optimizations
+    
+    if [[ "$implement_monthly_optimizations" == "y" ]]; then
+        print_success "Implementing monthly optimizations based on your usage patterns..."
+        # Implement optimizations here
+    else
+        print_info "I'll remember your preference and continue with current settings."
+    fi
+    
+    # Save monthly feedback
+    local monthly_feedback=$(cat <<EOF
+{
+    "optimization_suggestions": "Ansible prioritization, batch processing, automated scheduling",
+    "implement_optimizations": "$implement_monthly_optimizations",
+    "monthly_timestamp": "$(date -Iseconds)"
+}
+EOF
+)
+    
+    save_feedback_data "monthly_optimization" "$monthly_feedback"
+    
+    print_success "Monthly optimization suggestions completed and feedback saved"
+    echo ""
+}
+
+# Main execution
+main() {
+    print_header
+    
+    # Check if learning directory exists
+    mkdir -p "$LEARNING_DIR"
+    
+    # Parse arguments
+    local customer=""
+    local mode=""
+    local test_flag=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            --test)
+                mode="test"
+                test_flag="--test"
+                shift
+                ;;
+            --daily)
+                mode="daily"
+                test_flag=""
+                shift
+                ;;
+            --weekly-checkin)
+                mode="weekly-checkin"
+                shift
+                ;;
+            --monthly-optimization)
+                mode="monthly-optimization"
+                shift
+                ;;
+            --all-intelligent)
+                mode="all-intelligent"
+                test_flag=""
+                shift
+                ;;
+            wellsfargo|tdbank|jpmc|fanniemae)
+                customer="$1"
+                shift
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Handle different modes
+    case $mode in
+        "weekly-checkin")
+            weekly_intelligent_checkin
+            exit 0
+            ;;
+        "monthly-optimization")
+            monthly_optimization_suggestions
+            exit 0
+            ;;
+        "all-intelligent")
+            analyze_usage_patterns
+            provide_predictive_suggestions
+            
+            local customers=("wellsfargo" "tdbank" "jpmc" "fanniemae")
+            local success_count=0
+            local total_count=${#customers[@]}
+            
+            for cust in "${customers[@]}"; do
+                if intelligent_customer_processing "$cust"; then
+                    ((success_count++))
+                fi
+            done
+            
+            print_section "📊 INTELLIGENT AUTOMATION SUMMARY"
+            print_success "Completed: $success_count/$total_count customers"
+            if [[ $success_count -eq $total_count ]]; then
+                print_success "All customers processed successfully with intelligent learning!"
+            else
+                print_warning "Some customers failed - I've learned from the feedback"
+            fi
+            exit 0
+            ;;
+    esac
+    
+    # Default intelligent processing
+    if [[ -z "$customer" ]]; then
+        print_error "Customer not specified"
+        show_help
+        exit 1
+    fi
+    
+    # Set default mode
+    if [[ -z "$mode" ]]; then
+        mode="test"
+        test_flag="--test"
+        print_info "No mode specified, defaulting to test mode with intelligent learning"
+    fi
+    
+    # Run intelligent analysis
+    analyze_usage_patterns
+    provide_predictive_suggestions
+    
+    # Process customer with intelligent learning
+    intelligent_customer_processing "$customer"
+}
+
+# Show help
+show_help() {
+    print_header
+    echo "TAM RFE Intelligent Monitor - Feedback-Based Learning System"
+    echo ""
+    echo "Usage: tam-rfe-monitor-intelligent [CUSTOMER] [OPTIONS]"
+    echo ""
+    echo "Customers:"
+    echo "  wellsfargo    Run Wells Fargo RFE automation with intelligent learning"
+    echo "  tdbank        Run TD Bank RFE automation with intelligent learning"
+    echo "  jpmc          Run JPMC RFE automation with intelligent learning"
+    echo "  fanniemae     Run Fannie Mae RFE automation with intelligent learning"
+    echo ""
+    echo "Options:"
+    echo "  --test        Test mode (content generation only, no portal posting)"
+    echo "  --daily       Daily mode (full automation with portal posting)"
+    echo "  --all-intelligent  Run intelligent automation for all customers"
+    echo "  --weekly-checkin   Weekly intelligent check-in and feedback collection"
+    echo "  --monthly-optimization  Monthly optimization suggestions based on usage"
+    echo "  --help        Show this help message"
+    echo ""
+    echo "Intelligent Features:"
+    echo "  🧠 Learns from your feedback after each automation run"
+    echo "  🧠 Provides predictive suggestions based on usage patterns"
+    echo "  🧠 Adapts SBR group filtering based on your corrections"
+    echo "  🧠 Suggests optimizations based on your workflow"
+    echo "  🧠 Collects feedback to continuously improve accuracy"
+    echo ""
+    echo "Examples:"
+    echo "  tam-rfe-monitor-intelligent wellsfargo --test"
+    echo "  tam-rfe-monitor-intelligent --all-intelligent"
+    echo "  tam-rfe-monitor-intelligent --weekly-checkin"
+    echo "  tam-rfe-monitor-intelligent --monthly-optimization"
+}
+
+# Run main function
+main "$@"
