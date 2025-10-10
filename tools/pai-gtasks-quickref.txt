@@ -1,0 +1,37 @@
+GOOGLE TASKS + TASKWARRIOR QUICK REFERENCE
+==========================================
+
+DAILY COMMANDS
+--------------
+task list tag:work              # View all work tasks
+task add "New task" +work       # Add a task (syncs to Google)
+task 42 done                    # Complete task #42
+task next tag:work              # Show next actionable task
+
+FILTERING
+---------
+task list tag:work priority:H              # High priority only
+task list tag:work /keyword/               # Search for keyword
+task list tag:work due:today               # Due today
+task list tag:work status:pending          # Active tasks only
+
+MANUAL SYNC
+-----------
+tw_gtasks_sync -b work-tasks.yaml          # Force sync now
+
+CHECK STATUS
+------------
+task count tag:work                        # Total task count
+tail -f ~/.local/share/syncall/sync.log    # Watch sync log
+
+TROUBLESHOOTING
+---------------
+# Re-authenticate:
+rm ~/.config/syncall/token.json
+tw_gtasks_sync -b work-tasks.yaml
+
+# Check cron:
+crontab -l | grep sync-work-tasks
+
+AUTO-SYNC: Every 15 minutes via cron
+OAUTH CLIENT: 604570179581-guofc4t6pvqseoqhg3gg2osqi8e6rp5s.apps.googleusercontent.com

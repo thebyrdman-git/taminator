@@ -1,0 +1,110 @@
+#!/bin/bash
+# Improved case sync logic that checks case_details JSON status
+
+sync_case_directories_improved() {
+    local account="$1"
+    local specialty="$2"
+    local account_dir="$HOME/Documents/rh/projects/$specialty/$account"
+    local active_dir="$account_dir/casework/active"
+    local resolved_dir="$account_dir/casework/resolved"
+    
+    # Ensure directories exist
+    mkdir -p "$active_dir" "$resolved_dir"
+    
+    echo "Syncing case directories based on case_details status..." >&2
+    
+    # Check each case directory in active
+    for case_dir in "$active_dir"/[0-9]*; do
+        if [[ -d "$case_dir" ]]; then
+            local case_num=$(basename "$case_dir")
+            local case_details_file="$case_dir/case_details.json"
+            
+            # Check if case_details.json exists and shows closed status
+            if [[ -f "$case_details_file" ]]; then
+                local status=$(jq -r '.status // empty' "$case_details_file" 2>/dev/null)
+                
+                if [[ "$status" == "Closed" ]] || [[ "$status" == "closed" ]]; then
+                    echo "  Case $case_num is closed, moving to resolved..." >&2
+                    
+                    # Create a resolution log inside the directory
+                    local log_file="$case_dir/resolution.log"
+                    {
+                        echo "Case Resolution Log"
+                        echo "=================="
+                        echo "Case Number: $case_num"
+                        echo "Moved to Resolved: $(date '+%Y-%m-%d %H:%M:%S')"
+                        echo "Status: $status"
+                        echo "Account: $account"
+                        echo "Specialty: $specialty"
+                        echo ""
+                        echo "Case Details at Resolution:"
+                        jq '.' "$case_details_file" 2>/dev/null || echo "Unable to read case details"
+                    } > "$log_file"
+                    
+                    # Move directory WITHOUT renaming
+                    mv "$case_dir" "$resolved_dir/"
+                    
+                    # Log the move
+                    if command -v pai-audit >/dev/null 2>&1; then
+                        pai-audit log "CASE_RESOLVED" "case=$case_num account=$account specialty=$specialty status=$status"
+                    fi
+                else
+                    echo "  Case $case_num is still active (status: ${status:-unknown})" >&2
+                fi
+            else
+                echo "  Warning: No case_details.json for case $case_num" >&2
+                
+                # Optionally fetch case details from rhcase
+                if command -v rhcase >/dev/null 2>&1; then
+                    echo "    Fetching case details from rhcase..." >&2
+                    rhcase details "$case_num" -o json > "$case_details_file" 2>/dev/null || true
+                fi
+            fi
+        fi
+    done
+    
+    # Also check resolved directory for cases that might have been reopened
+    for case_dir in "$resolved_dir"/[0-9]*; do
+        if [[ -d "$case_dir" ]]; then
+            local case_num=$(basename "$case_dir" | cut -d'-' -f1)  # Handle renamed dirs
+            local case_details_file="$case_dir/case_details.json"
+            
+            if [[ -f "$case_details_file" ]]; then
+                local status=$(jq -r '.status // empty' "$case_details_file" 2>/dev/null)
+                
+                if [[ "$status" != "Closed" ]] && [[ "$status" != "closed" ]] && [[ -n "$status" ]]; then
+                    echo "  Case $case_num was reopened, moving back to active..." >&2
+                    
+                    # Move back to active (handling potential renamed directories)
+                    if [[ "$case_dir" =~ .*-resolved-.* ]]; then
+                        # If it was renamed, move it back with original name
+                        mv "$case_dir" "$active_dir/$case_num"
+                    else
+                        mv "$case_dir" "$active_dir/"
+                    fi
+                    
+                    # Add reopening log
+                    local log_file="$active_dir/$case_num/reopening.log"
+                    {
+                        echo "Case Reopening Log"
+                        echo "=================="
+                        echo "Case Number: $case_num"
+                        echo "Moved to Active: $(date '+%Y-%m-%d %H:%M:%S')"
+                        echo "Status: $status"
+                    } > "$log_file"
+                fi
+            fi
+        fi
+    done
+}
+
+# If run directly, execute the function
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    if [[ $# -lt 2 ]]; then
+        echo "Usage: $0 <account> <specialty>" >&2
+        echo "Example: $0 discover tam-ocp" >&2
+        exit 1
+    fi
+    
+    sync_case_directories_improved "$1" "$2"
+fi

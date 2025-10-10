@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Helper script to manage PAI services via systemd
+
+case "${1:-}" in
+  start)
+    echo "Starting PAI services..."
+    systemctl --user daemon-reload
+    systemctl --user start pai-services.service
+    ;;
+  stop)
+    echo "Stopping PAI services..."
+    systemctl --user stop pai-services.service
+    ;;
+  restart)
+    echo "Restarting PAI services..."
+    systemctl --user restart pai-services.service
+    ;;
+  status)
+    systemctl --user status pai-services.service
+    ;;
+  logs)
+    journalctl --user -u pai-services.service -f
+    ;;
+  enable)
+    echo "Enabling PAI services at login..."
+    systemctl --user enable pai-services.service
+    ;;
+  disable)
+    echo "Disabling PAI services at login..."
+    systemctl --user disable pai-services.service
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status|logs|enable|disable}"
+    exit 1
+    ;;
+esac

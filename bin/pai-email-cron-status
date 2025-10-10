@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Email Cron Status - Monitor automated email sync
+
+LOG_FILE="$HOME/.claude/context/logs/email-sync.log"
+TOKEN_FILE="$HOME/.claude/context/capture/email/gmail-gvaughn/token.pickle"
+
+echo "PAI Email Sync Automation Status"
+echo "================================="
+
+# Check if cron job exists
+if crontab -l 2>/dev/null | grep -q "pai-email-sync"; then
+    echo "✅ Cron job: Active (every 15 minutes)"
+    echo "   $(crontab -l | grep pai-email-sync)"
+else
+    echo "❌ Cron job: Not configured"
+fi
+
+# Check OAuth token
+if [[ -f "$TOKEN_FILE" ]]; then
+    echo "✅ OAuth token: Present"
+    echo "   Modified: $(stat -c %y "$TOKEN_FILE" | cut -d. -f1)"
+else
+    echo "❌ OAuth token: Missing"
+fi
+
+# Check recent sync activity
+if [[ -f "$LOG_FILE" ]]; then
+    echo ""
+    echo "Recent Sync Activity:"
+    echo "=====================" 
+    tail -10 "$LOG_FILE" | while read line; do
+        echo "   $line"
+    done
+    
+    echo ""
+    echo "Last successful sync: $(grep -h "Gmail sync completed" "$LOG_FILE" 2>/dev/null | tail -1 | cut -d']' -f1 | tr -d '[')" 
+else
+    echo "⚠️  Log file: Not found (no syncs yet)"
+fi
+
+# Check email count
+email_count=$(notmuch count '*' 2>/dev/null || echo "0")
+recent_count=$(notmuch count 'date:1day..now' 2>/dev/null || echo "0") 
+
+echo ""
+echo "Email Database Status:"
+echo "====================="
+echo "   Total emails: $email_count"  
+echo "   Last 24 hours: $recent_count"
+
+# Test connectivity
+echo ""
+echo "Testing Gmail API connectivity..."
+if timeout 10 pai-gmail-sync >/dev/null 2>&1; then
+    echo "✅ Gmail API: Connection successful"
+else
+    echo "⚠️  Gmail API: Connection test timed out (may still work for cron)"
+fi
+
+echo ""
+echo "Next cron run: Within 15 minutes"
+echo "Monitor logs: tail -f $LOG_FILE"

@@ -1,0 +1,269 @@
+#!/bin/bash
+# pai-status-show - Show project and business status
+# Part of PAI-Cursor integration system
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+CONTEXT_FILE="$PAI_CONFIG_DIR/current-context"
+
+# Help function
+show_help() {
+    cat << EOF
+pai-status-show - Show project and business status
+
+USAGE:
+    pai-status-show [OPTIONS]
+
+OPTIONS:
+    --context CONTEXT   Show status for specific context
+    --json             Output in JSON format
+    --detailed         Show detailed information
+    --help, -h         Show this help message
+
+EXIT CODES:
+    0   Status retrieved successfully
+    1   Error retrieving status
+    2   Invalid arguments
+
+EXAMPLES:
+    pai-status-show
+    pai-status-show --context mga --detailed
+    pai-status-show --json
+EOF
+}
+
+# Get current context
+get_current_context() {
+    if [[ -f "$CONTEXT_FILE" ]]; then
+        cat "$CONTEXT_FILE" 2>/dev/null || echo "general"
+    else
+        echo "general"
+    fi
+}
+
+# Get basic system status
+get_system_status() {
+    local context="$1"
+    local current_time=$(date -Iseconds)
+    local uptime=$(uptime | awk '{print $3,$4}' | sed 's/,//')
+
+    echo "System Status:"
+    echo "  Current time: $current_time"
+    echo "  System uptime: $uptime"
+    echo "  Active context: $context"
+
+    # Check if we're in a git repository
+    if git rev-parse --git-dir >/dev/null 2>&1; then
+        local branch=$(git branch --show-current 2>/dev/null || echo "unknown")
+        local status=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+        echo "  Git branch: $branch"
+        echo "  Uncommitted changes: $status"
+    fi
+}
+
+# Get context-specific business metrics
+get_business_metrics() {
+    local context="$1"
+    local detailed="$2"
+
+    case "$context" in
+        redhat)
+            echo ""
+            echo "Red Hat PSIRT Metrics:"
+            echo "  Compliance mode: $(if [[ -f "$PAI_CONFIG_DIR/compliance.log" ]]; then echo "Active"; else echo "Not configured"; fi)"
+            echo "  Security level: High (customer data)"
+            echo "  Model restrictions: Local only"
+
+            if [[ "$detailed" == "true" ]]; then
+                echo "  Team focus: Vulnerability management"
+                echo "  Key responsibilities: CVE assessment, compliance"
+                if [[ -f "$PAI_CONFIG_DIR/compliance.log" ]]; then
+                    local last_check=$(tail -1 "$PAI_CONFIG_DIR/compliance.log" 2>/dev/null | cut -d' ' -f1 || echo "Never")
+                    echo "  Last compliance check: $last_check"
+                fi
+            fi
+            ;;
+        mga)
+            echo ""
+            echo "Midnight Garden Apothecary Metrics:"
+            echo "  Business type: Cottage industry manufacturing"
+            echo "  Production status: Pre-warehouse setup"
+            echo "  Warehouse timeline: October 1, 2025"
+
+            if [[ "$detailed" == "true" ]]; then
+                echo "  Product focus: Herbal soaps, salves, ointments"
+                echo "  Branding: Celtic Tree of Life"
+                echo "  Regulatory: Cottage industry compliance"
+                echo "  Knowledge base: $(if [[ -L ~/.claude/context/knowledge/businesses/mga/files ]]; then echo "Connected"; else echo "Not linked"; fi)"
+            fi
+            ;;
+        rec)
+            echo ""
+            echo "Raven's Eye Consulting Metrics:"
+            echo "  Business type: Metaphysical retail"
+            echo "  Operations: E-commerce and warehousing"
+            echo "  Warehouse timeline: October 1, 2025"
+
+            if [[ "$detailed" == "true" ]]; then
+                echo "  Product focus: Crystals, neo-pagan supplies"
+                echo "  Platform: Shopify integration"
+                echo "  Order fulfillment: Transitioning to warehouse"
+                echo "  Knowledge base: $(if [[ -L ~/.claude/context/knowledge/businesses/rec/files ]]; then echo "Connected"; else echo "Not linked"; fi)"
+            fi
+            ;;
+        warehouse)
+            echo ""
+            echo "Warehouse Consolidation Project Metrics:"
+            echo "  Start date: October 1, 2025"
+            echo "  Space: Two adjoining 760 sqft units"
+            echo "  Lease term: 3 years (through 2028)"
+
+            if [[ "$detailed" == "true" ]]; then
+                echo "  Location: 3975 Kathryn Ave, Springfield OR"
+                echo "  Integration: Red Hat offices + MGA production + REC warehouse"
+                echo "  Coordination: Shared project with Shale"
+                echo "  Insurance: \$1M/\$2M liability required"
+                echo "  Monthly cost: ~\$885 (Year 1)"
+            fi
+            ;;
+        general)
+            echo ""
+            echo "General Development Metrics:"
+            echo "  Context: Standard development work"
+            echo "  Tools: Full development toolkit available"
+            echo "  Compliance: Standard practices"
+
+            if [[ "$detailed" == "true" ]]; then
+                echo "  Focus: Code quality and best practices"
+                echo "  Security: Standard protections"
+                echo "  Documentation: Maintained as needed"
+            fi
+            ;;
+    esac
+}
+
+# Get project deadlines and priorities
+get_priorities_deadlines() {
+    local context="$1"
+    local detailed="$2"
+
+    echo ""
+    echo "Priorities and Deadlines:"
+
+    case "$context" in
+        redhat)
+            echo "  High: Customer vulnerability assessments (ongoing)"
+            echo "  High: Compliance policy adherence (continuous)"
+            echo "  Medium: PSIRT team coordination (weekly)"
+            ;;
+        mga)
+            echo "  High: Warehouse production setup (by Oct 1, 2025)"
+            echo "  Medium: Recipe documentation and testing (ongoing)"
+            echo "  Medium: Equipment procurement and staging (Sep 2025)"
+            ;;
+        rec)
+            echo "  High: Inventory consolidation planning (by Oct 1, 2025)"
+            echo "  Medium: Order fulfillment optimization (ongoing)"
+            echo "  Low: Customer relationship management (continuous)"
+            ;;
+        warehouse)
+            echo "  Critical: Space planning and coordination (by Oct 1, 2025)"
+            echo "  High: Insurance and legal compliance (immediate)"
+            echo "  Medium: Equipment setup and testing (Oct 2025)"
+            if [[ "$detailed" == "true" ]]; then
+                echo "  Dependencies: Coordination with Shale required"
+                echo "  Risk factors: Timeline constraints, multi-business complexity"
+            fi
+            ;;
+        general)
+            echo "  Medium: Code quality maintenance (ongoing)"
+            echo "  Low: Documentation updates (as needed)"
+            echo "  Low: Technical debt reduction (continuous)"
+            ;;
+    esac
+}
+
+# Generate JSON output
+generate_json_output() {
+    local context="$1"
+    local detailed="$2"
+    local timestamp=$(date -Iseconds)
+
+    echo "{"
+    echo "  \"timestamp\": \"$timestamp\","
+    echo "  \"context\": \"$context\","
+    echo "  \"detailed\": $detailed,"
+    echo "  \"system\": {"
+    echo "    \"uptime\": \"$(uptime | awk '{print $3,$4}' | sed 's/,//')\","
+    echo "    \"git_status\": $(if git rev-parse --git-dir >/dev/null 2>&1; then echo "true"; else echo "false"; fi),"
+    if git rev-parse --git-dir >/dev/null 2>&1; then
+        echo "    \"git_branch\": \"$(git branch --show-current 2>/dev/null || echo "unknown")\","
+        echo "    \"uncommitted_changes\": $(git status --porcelain 2>/dev/null | wc -l | tr -d ' '),"
+    fi
+    echo "    \"compliance_active\": $(if [[ -f "$PAI_CONFIG_DIR/compliance.log" ]]; then echo "true"; else echo "false"; fi)"
+    echo "  },"
+    echo "  \"business\": {"
+    echo "    \"type\": \"$(case "$context" in redhat) echo "psirt";; mga) echo "manufacturing";; rec) echo "retail";; warehouse) echo "project";; *) echo "general";; esac)\","
+    echo "    \"compliance_required\": $(if [[ "$context" == "redhat" ]]; then echo "true"; else echo "false"; fi),"
+    echo "    \"warehouse_deadline\": \"$(if [[ "$context" == "warehouse" || "$context" == "mga" || "$context" == "rec" ]]; then echo "2025-10-01"; else echo "null"; fi)\""
+    echo "  }"
+    echo "}"
+}
+
+# Parse arguments
+CONTEXT=""
+JSON_OUTPUT=false
+DETAILED=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --context)
+            CONTEXT="$2"
+            shift 2
+            ;;
+        --json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        --detailed)
+            DETAILED=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Error: Unknown option $1" >&2
+            show_help >&2
+            exit 2
+            ;;
+    esac
+done
+
+# Get context (use current if not specified)
+if [[ -z "$CONTEXT" ]]; then
+    CONTEXT=$(get_current_context)
+fi
+
+# Validate context
+case "$CONTEXT" in
+    redhat|mga|rec|warehouse|general) ;;
+    *)
+        echo "Error: Invalid context '$CONTEXT'" >&2
+        exit 1
+        ;;
+esac
+
+# Generate output
+if [[ "$JSON_OUTPUT" == "true" ]]; then
+    generate_json_output "$CONTEXT" "$DETAILED"
+else
+    get_system_status "$CONTEXT"
+    get_business_metrics "$CONTEXT" "$DETAILED"
+    get_priorities_deadlines "$CONTEXT" "$DETAILED"
+fi
+
+exit 0

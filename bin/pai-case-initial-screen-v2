@@ -1,0 +1,351 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Enhanced PAI Case Initial Screen - follows TAM workflow from workflow.md
+# Can run in template mode (default) or AI-assisted mode (-a flag)
+
+# Configuration
+PAI_DIR="$HOME/.claude/context"
+OUT_DIR="$PAI_DIR/create/outputs/plans"
+TAM_BASE="/home/grimm/Documents/rh/projects"
+TAM_SPECIALTIES=("tam-ocp" "tam-ai" "tam-sec")
+GRANITE_ENDPOINT="${GRANITE_ENDPOINT:-https://granite-3-2-8b-instruct--apicast-production.apps.int.stc.ai.prod.us-east-1.aws.paas.redhat.com:443/v1/chat/completions}"
+GRANITE_API_KEY="${GRANITE_32_API_KEY:-}"
+
+# Parse arguments
+AI_MODE=false
+CASE_NUMBER=""
+CASE_DIR=""
+VERBOSE=false
+
+usage() {
+    echo "Usage: $0 [-a] [-c CASE_NUMBER] [-d CASE_DIR] [-v]"
+    echo "  -a              Enable AI-assisted analysis using Granite"
+    echo "  -c CASE_NUMBER  Case number to analyze"
+    echo "  -d CASE_DIR     Directory containing case extracts"
+    echo "  -v              Verbose output"
+    echo "  -h              Show this help"
+    exit 1
+}
+
+while getopts "ac:d:vh" opt; do
+    case $opt in
+        a) AI_MODE=true ;;
+        c) CASE_NUMBER="$OPTARG" ;;
+        d) CASE_DIR="$OPTARG" ;;
+        v) VERBOSE=true ;;
+        h) usage ;;
+        *) usage ;;
+    esac
+done
+
+# Auto-detect case directory if case number provided but no directory
+if [[ -n "$CASE_NUMBER" ]] && [[ -z "$CASE_DIR" ]]; then
+    # Search for case across all TAM specialties
+    for specialty in "${TAM_SPECIALTIES[@]}"; do
+        if [[ -d "$TAM_BASE/$specialty" ]]; then
+            for account_dir in "$TAM_BASE/$specialty"/*; do
+                if [[ -d "$account_dir/casework/active/$CASE_NUMBER" ]]; then
+                    CASE_DIR="$account_dir/casework/active/$CASE_NUMBER/extracts"
+                    [[ "$VERBOSE" == true ]] && echo "Auto-detected case in $specialty: $CASE_DIR" >&2
+                    break 2
+                fi
+            done
+        fi
+    done
+fi
+
+# Create output directory
+mkdir -p "$OUT_DIR"
+
+# Generate timestamp and output file
+ts=$(date -u +%FT%TZ)
+if [[ -n "$CASE_NUMBER" ]]; then
+    out="$OUT_DIR/case-${CASE_NUMBER}-initial-screen-$ts.md"
+else
+    out="$OUT_DIR/case-initial-screen-$ts.md"
+fi
+
+# Function to call Granite API
+call_granite() {
+    local case_data="$1"
+    local analysis_prompt="$2"
+    
+    # Use fabric with granite model for analysis
+    local full_prompt="You are a Technical Account Manager analyzing a Red Hat support case.
+    
+CASE DATA:
+$case_data
+
+ANALYSIS REQUEST:
+$analysis_prompt
+
+Please provide detailed technical analysis following TAM best practices."
+
+    echo "$full_prompt" | fabric -m remote-local-granite-3-2-8b-instruct 2>/dev/null || echo "Analysis failed - check fabric configuration and VPN connection"
+}
+
+# Start building the output
+{
+    echo "---"
+    echo "title: Case Initial Screen${CASE_NUMBER:+ - $CASE_NUMBER} ($ts)"
+    echo "tags: [case,initial-screen${CASE_NUMBER:+,$CASE_NUMBER}]"
+    echo "generated_by: pai-case-initial-screen-v2"
+    echo "ai_assisted: $AI_MODE"
+    echo "---"
+    echo
+    
+    if [[ -n "$CASE_NUMBER" ]]; then
+        echo "# Case $CASE_NUMBER Initial Screen"
+    else
+        echo "# Case Initial Screen"
+    fi
+    echo
+    
+    # Basic Information Section
+    echo "## Basic Information"
+    echo "- **Case Number**: ${CASE_NUMBER:-[TO BE FILLED]}"
+    echo "- **Account**: [TO BE FILLED]"
+    echo "- **Product**: [TO BE FILLED]"
+    echo "- **Version**: [TO BE FILLED]"
+    echo "- **Severity**: [TO BE FILLED]"
+    echo "- **Status**: [TO BE FILLED]"
+    echo
+    
+    # Pre-engagement Checklist
+    echo "## Pre-engagement Checklist"
+    echo "- [ ] Is SBR (Strategic Business Review) status correct?"
+    echo "- [ ] Are subscriptions/entitlements valid and current?"
+    echo "- [ ] Are tags/labels properly set?"
+    echo "- [ ] Is severity level appropriate for business impact?"
+    echo "- [ ] Have I reviewed recent case history for this account?"
+    echo "- [ ] Are there related cases that should be linked?"
+    echo
+    
+    # Problem Analysis (Following workflow.md pattern)
+    echo "## Problem Analysis"
+    echo
+    
+    if [[ "$AI_MODE" == true ]] && [[ -n "$CASE_DIR" ]] && [[ -d "$CASE_DIR" ]]; then
+        # AI-assisted analysis
+        echo "### AI-Assisted Analysis"
+        echo "_Generated using case data from: $CASE_DIR"
+        echo
+        
+        # Read case data from extracts directory
+        combined_file="$CASE_DIR/case_${CASE_NUMBER}_combined.json"
+        details_file="$CASE_DIR/case_${CASE_NUMBER}_details.json"
+        comments_file="$CASE_DIR/case_${CASE_NUMBER}_comments.json"
+        
+        if [[ -f "$combined_file" ]]; then
+            CASE_DATA=$(cat "$combined_file")
+        elif [[ -f "$details_file" ]]; then
+            CASE_DATA=$(cat "$details_file")
+            # Add comments if available
+            if [[ -f "$comments_file" ]]; then
+                CASE_DATA+="\n\nCOMMENTS:\n$(cat "$comments_file")"
+            fi
+        else
+            echo "_No case data files found in $CASE_DIR_"
+            return 1
+        fi
+        
+        # Create pieces directory for workflow.md outputs
+        mkdir -p "$CASE_DIR/../pieces"
+        
+        if [[ -n "$CASE_DATA" ]]; then
+            
+            # Generate and save workflow.md pieces
+            pieces_dir="$(dirname "$CASE_DIR")/pieces"
+            mkdir -p "$pieces_dir"
+            
+            # 1. Generate incident timeline
+            [[ "$VERBOSE" == true ]] && echo "Generating incident timeline..." >&2
+            TIMELINE=$(call_granite "$CASE_DATA" "Extract and create a chronological incident timeline from this support case data. Include key events, customer actions, and support interactions. Format as a markdown timeline.")
+            echo "$TIMELINE" > "$pieces_dir/incident_timeline.md"
+            
+            echo "### Incident Timeline"
+            echo "$TIMELINE"
+            echo
+            
+            # 2. Generate detailed problem statement
+            [[ "$VERBOSE" == true ]] && echo "Generating problem statement..." >&2
+            PROBLEM=$(call_granite "$CASE_DATA" "Create a detailed problem statement based on this case data. Include: what is broken, when it started, scope of impact, business impact, and any environmental details. Update the initial problem description with insights from case comments.")
+            echo "$PROBLEM" > "$pieces_dir/detailed_problem_statement.md"
+            
+            echo "### Detailed Problem Statement"
+            echo "$PROBLEM"
+            echo
+            
+            # 3. Generate root cause hypotheses
+            [[ "$VERBOSE" == true ]] && echo "Generating root cause hypotheses..." >&2
+            HYPOTHESES=$(call_granite "$CASE_DATA" "Generate 3-5 potential root cause hypotheses for this issue. For each hypothesis provide: a brief explanation, supporting evidence from the case, what information is needed for validation/invalidation listed with each hypothesis, and suggested diagnostic steps.")
+            echo "$HYPOTHESES" > "$pieces_dir/root_cause_hypotheses.md"
+            
+            echo "### Root Cause Hypotheses"
+            echo "$HYPOTHESES"
+            echo
+            
+            # 4. KCS Article Research (workflow.md step 3)
+            [[ "$VERBOSE" == true ]] && echo "Researching KCS articles..." >&2
+            echo "### KCS Article Research" 
+            echo "Searching for relevant Knowledge Base articles..."
+            
+            # 5. JIRA Issue Research (workflow.md step 4) 
+            [[ "$VERBOSE" == true ]] && echo "Researching JIRA issues..." >&2
+            echo "### JIRA Issue Research"
+            echo "Searching for relevant JIRA issues..."
+            
+            # 6. Insights Analysis (workflow.md step 5)
+            [[ "$VERBOSE" == true ]] && echo "Processing Insights analysis..." >&2
+            echo "### Insights Analysis"
+            echo "Reviewing Red Hat Insights data..."
+            
+            # 7. Hypothesis Testing (workflow.md step 6)
+            [[ "$VERBOSE" == true ]] && echo "Developing hypothesis tests..." >&2
+            echo "### Hypothesis Testing and Validation"
+            echo "Creating validation tests for each hypothesis..."
+            
+            # Save initial screen to pieces directory
+            echo "Saving analysis pieces to: $pieces_dir"
+            cp "$out" "$pieces_dir/initial_screen.md"
+            
+            echo
+            echo "=== Workflow.md Analysis Complete ==="
+            echo "Generated files:"
+            echo "- $pieces_dir/incident_timeline.md"
+            echo "- $pieces_dir/detailed_problem_statement.md" 
+            echo "- $pieces_dir/root_cause_hypotheses.md"
+            echo "- $pieces_dir/initial_screen.md"
+            echo
+            echo "Next steps (manual):"
+            echo "1. Run KCS searches: rhcase kcs search <terms>"
+            echo "2. Run JIRA searches: rhcase jira search <terms>"
+            echo "3. Review Insights data if available"
+            echo "4. Execute hypothesis validation tests"
+        else
+            echo "_Case data file not found at $CASE_DIR/case.json_"
+            echo
+        fi
+    else
+        # Template mode
+        echo "### Incident Timeline"
+        echo "- [DATE/TIME]: Initial issue reported"
+        echo "- [DATE/TIME]: [Event description]"
+        echo "- [DATE/TIME]: Current status"
+        echo
+        
+        echo "### Detailed Problem Statement"
+        echo "**What is broken**: [Describe the specific functionality that is not working]"
+        echo
+        echo "**When it started**: [Date/time of first occurrence]"
+        echo
+        echo "**Scope of impact**: [Number of users/systems affected]"
+        echo
+        echo "**Business impact**: [How this affects customer's business operations]"
+        echo
+        echo "**Environmental details**: [Relevant configuration, recent changes, etc.]"
+        echo
+        
+        echo "### Root Cause Hypotheses"
+        echo "#### Hypothesis 1: [Title]"
+        echo "- **Explanation**: [Brief description]"
+        echo "- **Supporting evidence**: [What in the case suggests this]"
+        echo "- **To validate**: [What information/tests needed]"
+        echo "- **To invalidate**: [What would rule this out]"
+        echo
+        echo "#### Hypothesis 2: [Title]"
+        echo "- **Explanation**: [Brief description]"
+        echo "- **Supporting evidence**: [What in the case suggests this]"
+        echo "- **To validate**: [What information/tests needed]"
+        echo "- **To invalidate**: [What would rule this out]"
+        echo
+    fi
+    
+    # Research Steps (following workflow.md)
+    echo "## Research Steps"
+    echo
+    echo "### KCS Research"
+    echo '```bash'
+    echo "# Search for relevant KCS articles"
+    echo "rhcase kcs search \"[relevant search terms]\""
+    echo
+    echo "# Fetch promising articles"
+    echo "# rhcase kcs fetch [KCS_ID]"
+    echo '```'
+    echo
+    echo "**Relevant KCS Articles**:"
+    echo "- [ ] KCS-XXXXX: [Title]"
+    echo "- [ ] KCS-XXXXX: [Title]"
+    echo
+    
+    echo "### JIRA/Bug Research"
+    echo '```bash'
+    echo "# Search for related issues"
+    echo "rhcase jira search \"[relevant search terms]\""
+    echo
+    echo "# Fetch specific issues"
+    echo "# rhcase jira fetch [ISSUE_ID]"
+    echo '```'
+    echo
+    echo "**Related Issues**:"
+    echo "- [ ] BZ-XXXXX: [Title] - [Status]"
+    echo "- [ ] RHEL-XXXXX: [Title] - [Status]"
+    echo
+    
+    # Clarifying Questions
+    echo "## Clarifying Questions for Customer"
+    echo "1. [Question about recent changes or timeline]"
+    echo "2. [Question about scope/impact]"
+    echo "3. [Question about attempted workarounds]"
+    echo "4. [Environment-specific question]"
+    echo "5. [Business impact question]"
+    echo
+    
+    # Initial Action Plan
+    echo "## Initial Action Plan"
+    echo "### Immediate Actions"
+    echo "- [ ] Acknowledge case and set appropriate expectations"
+    echo "- [ ] Verify severity matches business impact"
+    echo "- [ ] Request additional diagnostics if needed"
+    echo
+    echo "### Short-term Actions (Next 24-48 hours)"
+    echo "- [ ] Analyze provided logs/data"
+    echo "- [ ] Test hypothesis 1: [Brief description]"
+    echo "- [ ] Test hypothesis 2: [Brief description]"
+    echo "- [ ] Schedule follow-up call if needed"
+    echo
+    echo "### Data Collection Requirements"
+    echo "- [ ] Must-gather or sosreport"
+    echo "- [ ] Specific log files: [List needed logs]"
+    echo "- [ ] Configuration files: [List needed configs]"
+    echo "- [ ] Performance metrics for timeframe: [Specify]"
+    echo
+    
+    # Next Steps
+    echo "## Next Steps"
+    echo "1. Review and validate this initial assessment"
+    echo "2. Prioritize hypotheses based on likelihood and available evidence"
+    echo "3. Begin systematic testing of hypotheses"
+    echo "4. Update customer with findings and action plan"
+    echo "5. Document all findings in case notes"
+    echo
+    
+    # Notes Section
+    echo "## Notes"
+    echo "_Add any additional observations or concerns here_"
+    echo
+    
+} > "$out"
+
+# Output location
+echo "Case initial screen generated: $out"
+
+# Optional: Open in editor
+if command -v code >/dev/null 2>&1; then
+    echo "Opening in VS Code..."
+    code "$out"
+elif command -v vim >/dev/null 2>&1; then
+    echo "Opening in vim..."
+    vim "$out"
+fi

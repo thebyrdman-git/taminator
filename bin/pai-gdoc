@@ -1,0 +1,349 @@
+#!/usr/bin/env python3
+"""
+PAI Google Document Tool - Direct URL-based document access
+Supports stdin/stdout for chaining with other PAI tools and fabric patterns
+
+Usage Examples:
+  pai-gdoc <url>                           # Extract document content to stdout
+  pai-gdoc <url> | fabric -p summarize     # Summarize document
+  echo "question" | pai-gdoc <url> analyze # Ask questions about document
+  pai-gdoc <url> --format json             # JSON output for processing
+"""
+
+import sys
+import os
+import json
+import pickle
+import re
+import argparse
+from datetime import datetime
+from pathlib import Path
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+# Configuration
+SCOPES = [
+    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/documents.readonly',
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    'https://www.googleapis.com/auth/presentations.readonly'
+]
+
+PAI_DIR = Path.home() / ".claude" / "context"
+CREDENTIALS_FILE = PAI_DIR / "secrets" / "client_secret_604570179581-e7njihorvctfebcfi6k57jr9c1km18vs.apps.googleusercontent.com.json"
+TOKEN_FILE = PAI_DIR / "capture" / "gdocs" / "gdocs_token.pickle"
+
+def authenticate():
+    """Authenticate with Google APIs - silent operation for CLI use"""
+    creds = None
+    
+    # Load existing token
+    if TOKEN_FILE.exists():
+        with open(TOKEN_FILE, 'rb') as token:
+            creds = pickle.load(token)
+    
+    # Refresh if needed
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            creds.refresh(Request())
+            with open(TOKEN_FILE, 'wb') as token:
+                pickle.dump(creds, token)
+        except Exception:
+            return None
+    
+    # Return services if valid
+    if creds and creds.valid:
+        try:
+            drive = build('drive', 'v3', credentials=creds)
+            docs = build('docs', 'v1', credentials=creds)
+            sheets = build('sheets', 'v4', credentials=creds)
+            slides = build('slides', 'v1', credentials=creds)
+            return drive, docs, sheets, slides
+        except Exception:
+            return None
+    
+    return None
+
+def extract_document_id(url):
+    """Extract document ID from Google Drive/Docs/Sheets/Slides URL"""
+    patterns = [
+        r'/document/d/([a-zA-Z0-9-_]+)',     # Docs
+        r'/spreadsheets/d/([a-zA-Z0-9-_]+)', # Sheets
+        r'/presentation/d/([a-zA-Z0-9-_]+)', # Slides
+        r'/file/d/([a-zA-Z0-9-_]+)',         # Drive files
+        r'id=([a-zA-Z0-9-_]+)',              # Generic Drive ID
+        r'd/([a-zA-Z0-9-_]+)',               # Direct ID pattern
+        r'([a-zA-Z0-9-_]{25,})'              # Long ID pattern (44+ chars typical)
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    
+    return None
+
+def get_file_info(drive_service, doc_id, resource_key=None):
+    """Get file information from Drive API with Shared Drive and permission support"""
+    try:
+        # Try with Shared Drive support
+        params = {
+            'fileId': doc_id,
+            'fields': "id,name,mimeType,modifiedTime,webViewLink,owners,permissions,capabilities",
+            'supportsAllDrives': True
+        }
+        
+        file_info = drive_service.files().get(**params).execute()
+        return file_info
+    except HttpError as e:
+        # Print detailed error for debugging
+        try:
+            error_details = json.loads(e.content.decode())
+            print(f"Drive API error: {error_details}", file=sys.stderr)
+        except:
+            print(f"Drive API error: {e}", file=sys.stderr)
+        
+        # For commenter-level access, try export instead
+        return None
+
+def extract_content(services, file_info):
+    """Extract content from Google Workspace document"""
+    drive, docs, sheets, slides = services
+    doc_id = file_info['id']
+    mime_type = file_info['mimeType']
+    
+    try:
+        if mime_type == 'application/vnd.google-apps.document':
+            # Google Docs
+            document = docs.documents().get(documentId=doc_id).execute()
+            
+            content = ""
+            for element in document.get('body', {}).get('content', []):
+                if 'paragraph' in element:
+                    for text_element in element['paragraph'].get('elements', []):
+                        if 'textRun' in text_element:
+                            content += text_element['textRun'].get('content', '')
+            return content
+            
+        elif mime_type == 'application/vnd.google-apps.spreadsheet':
+            # Google Sheets - get all sheets
+            spreadsheet = sheets.spreadsheets().get(spreadsheetId=doc_id).execute()
+            
+            content = ""
+            for sheet in spreadsheet.get('sheets', []):
+                sheet_title = sheet['properties']['title']
+                content += f"=== {sheet_title} ===\n"
+                
+                try:
+                    values = sheets.spreadsheets().values().get(
+                        spreadsheetId=doc_id,
+                        range=f"'{sheet_title}'!A1:Z1000"
+                    ).execute()
+                    
+                    for row in values.get('values', []):
+                        content += "\t".join(str(cell) for cell in row) + "\n"
+                except Exception:
+                    content += "(Unable to read sheet data)\n"
+                
+                content += "\n"
+            return content
+            
+        elif mime_type == 'application/vnd.google-apps.presentation':
+            # Google Slides
+            presentation = slides.presentations().get(presentationId=doc_id).execute()
+            
+            content = f"Presentation: {presentation.get('title', 'Unknown')}\n\n"
+            
+            for i, slide in enumerate(presentation.get('slides', []), 1):
+                content += f"=== Slide {i} ===\n"
+                
+                for element in slide.get('pageElements', []):
+                    if 'shape' in element and 'text' in element['shape']:
+                        for text_element in element['shape']['text'].get('textElements', []):
+                            if 'textRun' in text_element:
+                                content += text_element['textRun'].get('content', '')
+                content += "\n\n"
+            return content
+        
+        else:
+            return f"Unsupported file type: {mime_type}"
+        
+    except HttpError as e:
+        return f"Error accessing document: {e}"
+
+def analyze_with_stdin(content, file_info):
+    """Analyze document content using stdin input"""
+    if not sys.stdin.isatty():
+        # Read analysis prompt from stdin
+        stdin_content = sys.stdin.read().strip()
+        
+        analysis_prompt = f"""Document Analysis Request:
+{stdin_content}
+
+Document Information:
+- Title: {file_info['name']}
+- Type: {file_info['mimeType']}
+- Modified: {file_info['modifiedTime']}
+- Link: {file_info['webViewLink']}
+
+Document Content:
+{content}
+
+Please analyze the document based on the request above."""
+        
+        # Output the analysis prompt for fabric processing
+        print(analysis_prompt)
+    else:
+        # No stdin input, just output content
+        print(content)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Google Workspace document access tool',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  pai-gdoc https://docs.google.com/document/d/abc123
+  pai-gdoc <url> --format json
+  pai-gdoc <url> --extract-only
+  echo "summarize this document" | pai-gdoc <url> analyze
+  pai-gdoc <url> | fabric -p summarize -m gpt-4o
+  pai-gdoc <url> --metadata | jq '.name'
+        """
+    )
+    
+    parser.add_argument('url', help='Google Drive/Docs/Sheets/Slides URL')
+    parser.add_argument('command', nargs='?', default='extract', 
+                       choices=['extract', 'analyze', 'metadata'],
+                       help='Command to execute (default: extract)')
+    parser.add_argument('--format', choices=['text', 'json', 'markdown'], 
+                       default='text', help='Output format')
+    parser.add_argument('--extract-only', action='store_true', 
+                       help='Extract content only, no metadata')
+    parser.add_argument('--quiet', action='store_true', 
+                       help='Suppress status messages (stderr only)')
+    
+    args = parser.parse_args()
+    
+    try:
+        # Silent authentication for CLI use
+        services = authenticate()
+        if not services:
+            if not args.quiet:
+                print("Error: Authentication required. Run 'pai-gdocs-query setup' first.", file=sys.stderr)
+            sys.exit(1)
+        
+        drive, docs, sheets, slides = services
+        
+        # Extract document ID and resource key from URL
+        doc_id = extract_document_id(args.url)
+        if not doc_id:
+            if not args.quiet:
+                print(f"Error: Could not extract document ID from URL: {args.url}", file=sys.stderr)
+            sys.exit(1)
+        
+        # Extract resource key for shared documents
+        resource_key = None
+        resource_match = re.search(r'[?&]resourcekey=([^&]+)', args.url)
+        if resource_match:
+            resource_key = resource_match.group(1)
+        
+        # Get file info with shared drive and commenter permission support
+        file_info = get_file_info(drive, doc_id, resource_key)
+        if not file_info:
+            # Fallback for commenter-access documents - try direct content export
+            if '/document/' in args.url:
+                if not args.quiet:
+                    print("Drive metadata inaccessible, trying direct Docs export...", file=sys.stderr)
+                
+                try:
+                    # Try direct export for Google Docs (works with commenter access)
+                    exported_content = drive.files().export(
+                        fileId=doc_id,
+                        mimeType='text/plain',
+                        supportsAllDrives=True
+                    ).execute()
+                    
+                    # Create minimal file_info for commenter access
+                    file_info = {
+                        'id': doc_id,
+                        'name': f'Document {doc_id}',
+                        'mimeType': 'application/vnd.google-apps.document',
+                        'modifiedTime': 'unknown',
+                        'webViewLink': args.url
+                    }
+                    
+                    # Output the content directly since we already have it
+                    if isinstance(exported_content, bytes):
+                        print(exported_content.decode())
+                    else:
+                        print(exported_content)
+                    sys.exit(0)
+                    
+                except HttpError as e:
+                    if not args.quiet:
+                        print(f"Error: Could not access document with any method: {e}", file=sys.stderr)
+                    sys.exit(1)
+            else:
+                if not args.quiet:
+                    print(f"Error: Could not access document: {doc_id}", file=sys.stderr)
+                sys.exit(1)
+        
+        if not args.quiet:
+            print(f"Accessing: {file_info['name']} ({file_info['mimeType']})", file=sys.stderr)
+        
+        if args.command == 'metadata':
+            # Output metadata only
+            if args.format == 'json':
+                print(json.dumps(file_info, indent=2))
+            else:
+                print(f"Title: {file_info['name']}")
+                print(f"Type: {file_info['mimeType']}")
+                print(f"Modified: {file_info['modifiedTime']}")
+                print(f"Owner: {file_info.get('owners', [{}])[0].get('displayName', 'Unknown')}")
+                print(f"Link: {file_info['webViewLink']}")
+        
+        elif args.command in ['extract', 'analyze']:
+            # Extract document content
+            content = extract_content(services, file_info)
+            
+            if args.command == 'analyze':
+                # Handle analysis with potential stdin input
+                analyze_with_stdin(content, file_info)
+            else:
+                # Extract mode - output format
+                if args.format == 'json':
+                    output = {
+                        'metadata': file_info,
+                        'content': content,
+                        'extracted': datetime.utcnow().isoformat() + 'Z'
+                    }
+                    print(json.dumps(output, indent=2))
+                elif args.format == 'markdown':
+                    print(f"# {file_info['name']}")
+                    print(f"**Modified**: {file_info['modifiedTime']}")
+                    print(f"**Link**: {file_info['webViewLink']}")
+                    print(f"\n## Content\n")
+                    print(content)
+                else:
+                    # Plain text (default)
+                    if args.extract_only:
+                        print(content)
+                    else:
+                        print(f"Document: {file_info['name']}")
+                        print(f"Modified: {file_info['modifiedTime']}")
+                        print(f"Link: {file_info['webViewLink']}")
+                        print(f"\nContent:\n{content}")
+        
+    except KeyboardInterrupt:
+        sys.exit(1)
+    except Exception as e:
+        if not args.quiet:
+            print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()

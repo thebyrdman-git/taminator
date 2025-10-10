@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Google Docs Query - Interface for automated Google Docs search
+# Integrates with PAI knowledge base and TAM workflows
+
+PAI_DIR="$HOME/.claude/context"
+GDOCS_DIR="$PAI_DIR/capture/gdocs"
+OUTPUT_DIR="$PAI_DIR/create/outputs/gdocs"
+LOG_FILE="$PAI_DIR/logs/gdocs-query.log"
+
+# Ensure directories exist
+mkdir -p "$GDOCS_DIR" "$OUTPUT_DIR/daily"
+touch "$LOG_FILE"
+
+log_msg() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+# Function to search Google Docs
+search_docs() {
+    local query="$1"
+    local days="${2:-30}"
+    local max_results="${3:-50}"
+    
+    log_msg "Searching Google Docs for: '$query' (last $days days, max: $max_results)"
+    
+    # Run the Python script
+    if pai-gdocs-sync search --query "$query" --days "$days" --max "$max_results"; then
+        log_msg "✓ Google Docs search completed successfully"
+        
+        # Check if results were saved
+        local latest_result=$(find "$OUTPUT_DIR" -name "gdocs-search-*$(date +%Y%m%d)*.md" | sort | tail -1)
+        
+        if [[ -n "$latest_result" ]] && [[ -f "$latest_result" ]]; then
+            echo "Results available at: $latest_result"
+            
+            # Add to PAI knowledge base for searching
+            log_msg "Adding to PAI knowledge base"
+            return 0
+        else
+            log_msg "⚠ No results file generated"
+            return 1
+        fi
+    else
+        log_msg "✗ Google Docs search failed"
+        return 1
+    fi
+}
+
+# Function to check authentication status
+check_auth() {
+    log_msg "Checking Google Docs authentication..."
+    
+    if pai-gdocs-sync test; then
+        log_msg "✓ Google Docs authentication working"
+        return 0
+    else
+        log_msg "✗ Authentication failed"
+        echo "Run 'pai-gdocs-query setup' to configure authentication"
+        return 1
+    fi
+}
+
+# Function to set up authentication
+setup_auth() {
+    echo "Google Docs Authentication Setup"
+    echo "==============================="
+    echo ""
+    echo "This uses your existing Google OAuth application for automated access."
+    echo ""
+    echo "Required scopes:"
+    echo "- Google Drive API (readonly)"
+    echo "- Google Docs API (readonly)"
+    echo ""
+    echo "Steps:"
+    echo "1. Add Drive and Docs APIs to your existing Google Cloud project"
+    echo "2. Run the authentication flow (one-time browser auth)"
+    echo "3. Future queries will be fully automated"
+    echo ""
+    
+    read -p "Start authentication setup? (y/n): " -n 1 -r
+    echo
+    
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        log_msg "Starting Google Docs authentication setup..."
+        
+        if pai-gdocs-sync test; then
+            echo "✅ Authentication successful!"
+            echo ""
+            echo "Test your Google Docs search:"
+            echo "  pai-gdocs-query search \"discover\" 30"
+            echo "  pai-gdocs-query search \"case\" 14" 
+            echo "  pai-gdocs-query recent 7"
+        else
+            echo "❌ Authentication failed"
+            echo "Check that Google Drive and Docs APIs are enabled in your Google Cloud project"
+        fi
+    else
+        echo "Setup cancelled. Run again when ready to authenticate."
+    fi
+}
+
+# Function to show recent docs
+show_recent() {
+    local days="${1:-7}"
+    
+    log_msg "Fetching recent Google Docs (last $days days)"
+    
+    if pai-gdocs-sync recent --days "$days" --max 20; then
+        log_msg "✓ Recent docs retrieved"
+    else
+        log_msg "✗ Failed to get recent docs"
+    fi
+}
+
+# Function to show system status
+show_status() {
+    echo "PAI Google Docs Query Status"
+    echo "==========================="
+    
+    # Check if credentials exist
+    if [[ -f "$GDOCS_DIR/gdocs_token.pickle" ]]; then
+        echo "✅ Authentication: Configured"
+        echo "   Token file: $(stat -c %y "$GDOCS_DIR/gdocs_token.pickle" | cut -d. -f1)"
+    else
+        echo "❌ Authentication: Not configured"
+    fi
+    
+    # Check search results
+    local total_files=$(find "$OUTPUT_DIR" -name "gdocs-search-*.md" 2>/dev/null | wc -l)
+    local recent_files=$(find "$OUTPUT_DIR" -name "gdocs-search-*.md" -mtime -7 2>/dev/null | wc -l)
+    
+    echo "Search results: $total_files total, $recent_files recent"
+    echo "Storage: $OUTPUT_DIR"
+    echo "Logs: $LOG_FILE"
+    
+    # Test connection if authenticated
+    echo ""
+    echo "Testing connection..."
+    if check_auth >/dev/null 2>&1; then
+        echo "✅ Ready for automated Google Docs queries"
+    else
+        echo "⚠ Authentication needed - run 'pai-gdocs-query setup'"
+    fi
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    search)
+        shift
+        query="${1:-}"
+        days="${2:-30}"
+        max="${3:-50}"
+        
+        if [[ -z "$query" ]]; then
+            echo "Usage: pai-gdocs-query search <query> [days] [max]"
+            exit 1
+        fi
+        
+        search_docs "$query" "$days" "$max"
+        ;;
+    recent)
+        shift
+        days="${1:-7}"
+        show_recent "$days"
+        ;;
+    setup)
+        setup_auth
+        ;;
+    test)
+        check_auth
+        ;;
+    status)
+        show_status
+        ;;
+    help|--help|-h)
+        cat << 'EOF'
+PAI Google Docs Query - Automated Google Docs Search
+
+Usage: pai-gdocs-query <command> [options]
+
+Commands:
+  setup                     Setup authentication (one-time)
+  search <query> [days] [max] Search Google Docs for query
+  recent [days]             Show recently modified documents
+  test                      Test authentication
+  status                    Show system status
+  help                      Show this help
+
+Examples:
+  pai-gdocs-query setup                    # Initial setup
+  pai-gdocs-query search "discover" 30     # Search for "discover" last 30 days
+  pai-gdocs-query search "case 04" 14      # Search for case numbers last 2 weeks
+  pai-gdocs-query recent 7                 # Recently modified docs
+
+Features:
+  ✓ Automated Google Drive/Docs API access
+  ✓ Full document content search
+  ✓ Uses existing OAuth application
+  ✓ Integrates with PAI knowledge base
+  ✓ Searchable via pai-search
+  ✓ TAM relevance analysis ready
+
+Requirements:
+  - Google Drive API enabled in your Google Cloud project
+  - Google Docs API enabled in your Google Cloud project
+  - One-time authentication setup
+  - Python dependencies: google-api-python-client google-auth
+
+Integration:
+  - Results saved to: ~/.claude/context/create/outputs/gdocs/
+  - Searchable via: pai-search search "query"
+  - Analyze with: fabric patterns for TAM insights
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-gdocs-query help' for usage"
+        exit 1
+        ;;
+esac

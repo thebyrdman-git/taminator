@@ -1,0 +1,622 @@
+#!/bin/bash
+
+# PAI Confluence Integration Tool
+# Access Red Hat internal Confluence for development resources and business unit information
+
+set -euo pipefail
+
+# Configuration
+PAI_DIR="$HOME/.claude/context"
+CAPTURE_DIR="$PAI_DIR/capture/confluence"
+KNOWLEDGE_DIR="$PAI_DIR/knowledge/confluence"
+CONFIG_FILE="$PAI_DIR/config/confluence.yaml"
+SECRETS_FILE="$PAI_DIR/secrets/confluence-auth.enc"
+LOG_FILE="$PAI_DIR/logs/confluence-$(date +%Y%m%d).log"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Initialize global variables
+QUIET_MODE=false
+OUTPUT_MODE="file"
+
+# Ensure directories exist
+mkdir -p "$CAPTURE_DIR" "$KNOWLEDGE_DIR" "$(dirname "$LOG_FILE")"
+
+# Logging function
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
+}
+
+# Error handling
+error() {
+    echo -e "${RED}Error: $1${NC}" >&2
+    log "ERROR: $1"
+    exit 1
+}
+
+# Success message
+success() {
+    [[ "$QUIET_MODE" != "true" ]] && echo -e "${GREEN}✓ $1${NC}"
+    log "SUCCESS: $1"
+}
+
+# Info message
+info() {
+    [[ "$QUIET_MODE" != "true" ]] && echo -e "${BLUE}→ $1${NC}"
+    log "INFO: $1"
+}
+
+# Warning message
+warn() {
+    echo -e "${YELLOW}⚠ $1${NC}" >&2
+    log "WARN: $1"
+}
+
+# Check for required tools
+check_dependencies() {
+    local deps=(curl jq yq)
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &> /dev/null; then
+            error "$dep is required but not installed"
+        fi
+    done
+}
+
+# Initialize (load config and check dependencies)
+initialize() {
+    check_dependencies
+    load_config
+}
+
+# Load configuration
+load_config() {
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        warn "Configuration file not found. Creating default config..."
+        create_default_config
+    fi
+    
+    # Load config values
+    CONFLUENCE_URL=$(yq e '.confluence.url // "https://spaces.redhat.com"' "$CONFIG_FILE")
+    DEFAULT_SPACE=$(yq e '.confluence.default_space // ""' "$CONFIG_FILE")
+    RESULTS_LIMIT=$(yq e '.confluence.results_limit // 20' "$CONFIG_FILE")
+}
+
+# Create default configuration
+create_default_config() {
+    mkdir -p "$(dirname "$CONFIG_FILE")"
+    cat > "$CONFIG_FILE" << EOF
+confluence:
+  url: "https://spaces.redhat.com"
+  default_space: ""
+  results_limit: 20
+  spaces:
+    - key: "OCPSTRAT"
+      name: "OpenShift Strategy"
+    - key: "OCPSUP"
+      name: "OpenShift Support"
+    - key: "TAMKB"
+      name: "TAM Knowledge Base"
+    - key: "RHAIDOCS"
+      name: "Red Hat AI Documentation"
+  search_defaults:
+    type: "page"
+    include_archived: false
+    include_attachments: true
+EOF
+    success "Created default configuration at $CONFIG_FILE"
+}
+
+# Authentication management
+auth_setup() {
+    # Check if already configured
+    local existing_method=$(pai-audit secret get confluence-auth-method 2>/dev/null || echo "")
+    if [[ -n "$existing_method" ]]; then
+        info "Authentication already configured (method: $existing_method)"
+        info "Use --force to reconfigure"
+        [[ "$2" != "--force" ]] && return 0
+    fi
+    
+    # Non-interactive token setup if token provided as argument
+    if [[ -n "$2" ]] && [[ "$2" != "--force" ]]; then
+        info "Setting up authentication with provided token"
+        
+        # Store in both locations for redundancy
+        mkdir -p "$PAI_DIR/secrets"
+        echo -n "$2" > "$PAI_DIR/secrets/.confluence-token"
+        chmod 600 "$PAI_DIR/secrets/.confluence-token"
+        
+        # Also try pai-audit (but don't fail if it doesn't work)
+        echo -n "$2" | pai-audit secret set confluence-token 2>/dev/null || true
+        echo "token" | pai-audit secret set confluence-auth-method 2>/dev/null || true
+        
+        success "Authentication configured successfully"
+        return 0
+    fi
+    
+    # Interactive setup only if no token provided
+    echo "=== Confluence Authentication Setup ==="
+    echo
+    echo "Choose authentication method:"
+    echo "1) Personal Access Token (recommended)"
+    echo "2) Username/Password"
+    echo
+    read -p "Selection (1-2): " auth_method
+    
+    case $auth_method in
+        1)
+            echo
+            echo "Generate a Personal Access Token at:"
+            echo "$CONFLUENCE_URL/wiki/users/profile/editmyprofile.action"
+            echo
+            read -p "Enter your Personal Access Token: " -s token
+            echo
+            
+            # Store in both locations for redundancy
+            mkdir -p "$PAI_DIR/secrets"
+            echo -n "$token" > "$PAI_DIR/secrets/.confluence-token"
+            chmod 600 "$PAI_DIR/secrets/.confluence-token"
+            
+            # Also try pai-audit
+            echo -n "$token" | pai-audit secret set confluence-token 2>/dev/null || true
+            echo "token" | pai-audit secret set confluence-auth-method 2>/dev/null || true
+            ;;
+        2)
+            read -p "Username: " username
+            read -p "Password: " -s password
+            echo
+            
+            # Encrypt and store credentials
+            echo -n "$username" | pai-audit secret set confluence-username
+            echo -n "$password" | pai-audit secret set confluence-password
+            
+            # Store auth method
+            echo "basic" | pai-audit secret set confluence-auth-method
+            ;;
+        *)
+            error "Invalid selection"
+            ;;
+    esac
+    
+    success "Authentication configured successfully"
+}
+
+# Get authentication headers
+get_auth_headers() {
+    # Simple file-based token storage as fallback
+    local token_file="$PAI_DIR/secrets/.confluence-token"
+    
+    # First try pai-audit
+    local auth_method=$(pai-audit secret get confluence-auth-method 2>/dev/null || echo "")
+    
+    # If pai-audit fails, check file-based storage
+    if [[ -z "$auth_method" ]] && [[ -f "$token_file" ]]; then
+        auth_method="token"
+    fi
+    
+    if [[ -z "$auth_method" ]]; then
+        error "Authentication not configured. Run: pai-confluence auth"
+    fi
+    
+    case $auth_method in
+        "token")
+            # Try pai-audit first
+            local token=$(pai-audit secret get confluence-token 2>/dev/null || echo "")
+            
+            # Fallback to file
+            if [[ -z "$token" ]] && [[ -f "$token_file" ]]; then
+                token=$(cat "$token_file")
+            fi
+            
+            if [[ -z "$token" ]]; then
+                error "Token not found. Run: pai-confluence auth"
+            fi
+            
+            echo "Authorization: Bearer $token"
+            ;;
+        "basic")
+            local username=$(pai-audit secret get confluence-username)
+            local password=$(pai-audit secret get confluence-password)
+            local auth=$(echo -n "$username:$password" | base64)
+            echo "Authorization: Basic $auth"
+            ;;
+        *)
+            error "Invalid authentication method"
+            ;;
+    esac
+}
+
+# Search Confluence
+search_confluence() {
+    local query="$1"
+    local space="${2:-}"
+    local search_type="${3:-page}"
+    local quiet_mode="${4:-false}"
+    
+    [[ "$quiet_mode" != "true" ]] && info "Searching Confluence for: $query"
+    
+    # Build CQL query
+    local cql="text ~ \"$query\""
+    [[ -n "$space" ]] && cql="$cql AND space = \"$space\""
+    [[ -n "$search_type" ]] && cql="$cql AND type = \"$search_type\""
+    
+    # URL encode the CQL
+    local encoded_cql=$(echo -n "$cql" | jq -sRr @uri)
+    
+    # Make API request
+    local auth_header=$(get_auth_headers)
+    local response=$(curl -s -H "$auth_header" \
+        -H "Accept: application/json" \
+        "$CONFLUENCE_URL/rest/api/content/search?cql=$encoded_cql&limit=$RESULTS_LIMIT")
+    
+    # Check for errors
+    if echo "$response" | jq -e '.statusCode >= 400' &>/dev/null; then
+        local error_msg=$(echo "$response" | jq -r '.message // "Unknown error"')
+        error "Search failed: $error_msg"
+    fi
+    
+    # Output based on mode
+    if [[ "$quiet_mode" == "true" ]]; then
+        # Machine-readable output for piping
+        echo "$response" | jq -r '.results[] | "\(.id)\t\(.type)\t\(.space.key)\t\(.title)"'
+    else
+        # Human-readable output
+        echo
+        echo "=== Search Results ==="
+        echo "$response" | jq -r '.results[] | "[\(.type)] \(.title)\n    Space: \(.space.key) | ID: \(.id)\n    URL: '"$CONFLUENCE_URL"'/spaces/\(.space.key)/pages/\(.id)\n"'
+        
+        local count=$(echo "$response" | jq '.results | length')
+        echo
+        success "Found $count results"
+    fi
+    
+    # Save results
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    echo "$response" > "$CAPTURE_DIR/search_${timestamp}.json"
+}
+
+# Get page content
+get_page() {
+    local page_id="$1"
+    local format="${2:-view}"  # view, storage, or export_view
+    local quiet_mode="${3:-false}"
+    local output_mode="${4:-file}"  # file or stdout
+    
+    [[ "$quiet_mode" != "true" ]] && info "Fetching page $page_id..."
+    
+    local auth_header=$(get_auth_headers)
+    local response=$(curl -s -H "$auth_header" \
+        -H "Accept: application/json" \
+        "$CONFLUENCE_URL/rest/api/content/$page_id?expand=body.$format,version,space,ancestors")
+    
+    # Check for errors
+    if echo "$response" | jq -e '.statusCode >= 400' &>/dev/null; then
+        local error_msg=$(echo "$response" | jq -r '.message // "Unknown error"')
+        error "Failed to fetch page: $error_msg"
+    fi
+    
+    # Extract page info
+    local title=$(echo "$response" | jq -r '.title')
+    local space=$(echo "$response" | jq -r '.space.key')
+    local version=$(echo "$response" | jq -r '.version.number')
+    local content=$(echo "$response" | jq -r ".body.$format.value")
+    
+    # Convert HTML to markdown if pandoc is available
+    local markdown_content="$content"
+    if command -v pandoc &> /dev/null && [[ "$format" == "view" || "$format" == "export_view" ]]; then
+        markdown_content=$(echo "$content" | pandoc -f html -t markdown --wrap=none 2>/dev/null || echo "$content")
+    fi
+    
+    # Create markdown document
+    local markdown_doc=$(cat << EOF
+---
+title: "$title"
+space: "$space"
+page_id: "$page_id"
+version: $version
+confluence_url: "$CONFLUENCE_URL/spaces/$space/pages/$page_id"
+captured: $(date -Iseconds)
+format: "$format"
+---
+
+# $title
+
+[View in Confluence]($CONFLUENCE_URL/spaces/$space/pages/$page_id)
+
+## Content
+
+$markdown_content
+EOF
+)
+    
+    # Output based on mode
+    if [[ "$output_mode" == "stdout" ]]; then
+        echo "$markdown_doc"
+    else
+        # Save to file
+        local safe_title=$(echo "$title" | tr ' /:' '_-_' | tr -d '?"<>|*')
+        local output_file="$CAPTURE_DIR/${space}_${safe_title}_v${version}.md"
+        echo "$markdown_doc" > "$output_file"
+        
+        [[ "$quiet_mode" != "true" ]] && success "Page saved to $output_file"
+    fi
+}
+
+# List spaces
+list_spaces() {
+    local quiet_mode="${1:-false}"
+    
+    [[ "$quiet_mode" != "true" ]] && info "Fetching available Confluence spaces..."
+    
+    local auth_header=$(get_auth_headers)
+    local response=$(curl -s -H "$auth_header" \
+        -H "Accept: application/json" \
+        "$CONFLUENCE_URL/rest/api/space?limit=100")
+    
+    if [[ "$quiet_mode" == "true" ]]; then
+        # Machine-readable output
+        echo "$response" | jq -r '.results[] | "\(.key)\t\(.name)"' | sort
+    else
+        # Human-readable output
+        echo
+        echo "=== Confluence Spaces ==="
+        echo "$response" | jq -r '.results[] | "[\(.key)] \(.name)"' | sort
+    fi
+    
+    # Save for reference
+    echo "$response" > "$CAPTURE_DIR/spaces_list.json"
+}
+
+# Export space structure
+export_space_tree() {
+    local space="$1"
+    
+    info "Exporting space structure for $space..."
+    
+    local auth_header=$(get_auth_headers)
+    local response=$(curl -s -H "$auth_header" \
+        -H "Accept: application/json" \
+        "$CONFLUENCE_URL/wiki/rest/api/space/$space/content?expand=page&limit=500")
+    
+    # Build tree structure
+    echo
+    echo "=== Space: $space ==="
+    echo "$response" | jq -r '.page.results[] | "  [\(.type)] \(.title) (\(.id))"'
+    
+    # Save structure
+    local output_file="$CAPTURE_DIR/space_${space}_structure.json"
+    echo "$response" > "$output_file"
+    success "Space structure saved to $output_file"
+}
+
+# Sync to PAI knowledge base
+sync_to_knowledge() {
+    local source_file="$1"
+    local category="${2:-confluence}"
+    
+    info "Syncing to PAI knowledge base..."
+    
+    # Extract metadata
+    local title=$(yq e '.title' "$source_file" 2>/dev/null || basename "$source_file" .md)
+    local content=$(cat "$source_file")
+    
+    # Use pai-search to add to knowledge base
+    pai-search add "$category" "$title" "$content"
+    
+    success "Synced to knowledge base"
+}
+
+# Search with AI enhancement
+smart_search() {
+    local query="$1"
+    local space="${2:-}"
+    
+    # First do regular search
+    search_confluence "$query" "$space" > /tmp/confluence_search_$$.json
+    
+    # Enhance with AI if fabric is available
+    if command -v fabric &> /dev/null; then
+        info "Enhancing search results with AI..."
+        
+        cat /tmp/confluence_search_$$.json | \
+            jq -r '.results[] | "Title: \(.title)\nSpace: \(.space.key)\nExcerpt: \(.excerpt)\n---"' | \
+            fabric -p extract_wisdom -m gpt-4o | \
+            tee "$CAPTURE_DIR/enhanced_search_$(date +%Y%m%d_%H%M%S).md"
+    fi
+    
+    rm -f /tmp/confluence_search_$$.json
+}
+
+# Recent updates in spaces
+recent_updates() {
+    local space="${1:-}"
+    local days="${2:-7}"
+    
+    info "Fetching updates from last $days days..."
+    
+    # Calculate date
+    local since_date=$(date -d "$days days ago" '+%Y-%m-%d')
+    
+    # Build CQL for recent updates
+    local cql="lastModified >= '$since_date'"
+    [[ -n "$space" ]] && cql="$cql AND space = '$space'"
+    
+    # Use search with the CQL
+    search_confluence "" "" "page" "$cql"
+}
+
+# Parse global flags
+QUIET_MODE=false
+OUTPUT_MODE="file"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -q|--quiet)
+            QUIET_MODE=true
+            shift
+            ;;
+        -o|--output-stdout)
+            OUTPUT_MODE="stdout"
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Initialize for all commands except help
+if [[ "${1:-help}" != "help" ]]; then
+    initialize
+fi
+
+# Main command dispatcher
+case "${1:-help}" in
+    auth)
+        shift
+        auth_setup "$@"
+        ;;
+    search)
+        shift
+        query="${1:-}"
+        space="${2:-}"
+        [[ -z "$query" ]] && error "Search query required"
+        search_confluence "$query" "$space" "page" "$QUIET_MODE"
+        ;;
+    smart-search)
+        shift
+        query="${1:-}"
+        space="${2:-}"
+        [[ -z "$query" ]] && error "Search query required"
+        smart_search "$query" "$space"
+        ;;
+    get)
+        shift
+        page_id="${1:-}"
+        format="${2:-view}"
+        [[ -z "$page_id" ]] && error "Page ID required"
+        get_page "$page_id" "$format" "$QUIET_MODE" "$OUTPUT_MODE"
+        ;;
+    spaces)
+        list_spaces "$QUIET_MODE"
+        ;;
+    tree)
+        shift
+        space="${1:-}"
+        [[ -z "$space" ]] && error "Space key required"
+        export_space_tree "$space"
+        ;;
+    sync)
+        shift
+        file="${1:-}"
+        category="${2:-confluence}"
+        [[ -z "$file" ]] && error "File path required"
+        sync_to_knowledge "$file" "$category"
+        ;;
+    recent)
+        shift
+        space="${1:-}"
+        days="${2:-7}"
+        recent_updates "$space" "$days"
+        ;;
+    process-pdf)
+        shift
+        pdf_file="${1:-}"
+        [[ -z "$pdf_file" ]] && error "PDF file path required"
+        [[ ! -f "$pdf_file" ]] && error "PDF file not found: $pdf_file"
+        
+        info "Processing PDF: $pdf_file"
+        
+        # Extract text from PDF
+        if command -v pdftotext &> /dev/null; then
+            output_base="$CAPTURE_DIR/$(basename "$pdf_file" .pdf)"
+            pdftotext "$pdf_file" "${output_base}.txt"
+            
+            # Create markdown with metadata
+            cat > "${output_base}.md" << EOF
+---
+title: "$(basename "$pdf_file" .pdf | tr '_' ' ')"
+source: "Confluence PDF Export"
+original_file: "$pdf_file"
+processed: $(date -Iseconds)
+confluence_url: "$CONFLUENCE_URL"
+---
+
+# $(basename "$pdf_file" .pdf | tr '_' ' ')
+
+[Original PDF]($pdf_file)
+
+## Content
+
+$(cat "${output_base}.txt")
+EOF
+            
+            success "Processed PDF saved to ${output_base}.md"
+            
+            # Auto-sync if --sync flag is provided
+            if [[ "$2" == "--sync" ]]; then
+                info "Auto-syncing to knowledge base..."
+                sync_to_knowledge "${output_base}.md" "confluence"
+            else
+                info "Use --sync flag to automatically sync to knowledge base"
+            fi
+        else
+            error "pdftotext not installed. Install poppler-utils: sudo dnf install poppler-utils"
+        fi
+        ;;
+    help|*)
+        cat << EOF
+PAI Confluence Integration Tool
+
+Usage: pai-confluence [global-flags] <command> [options]
+
+Global Flags:
+  -q, --quiet           - Suppress informational output
+  -o, --output-stdout   - Output to stdout instead of files
+
+Commands:
+  auth [token]          - Configure authentication (provide token for non-interactive)
+  search <query> [space]- Search Confluence content
+  smart-search <q> [sp] - AI-enhanced search with fabric
+  get <page_id> [format]- Get page content (view/storage/export_view)
+  spaces                - List available Confluence spaces  
+  tree <space>          - Export space page structure
+  sync <file> [category]- Sync content to PAI knowledge base
+  recent [space] [days] - Show recent updates (default: 7 days)
+  process-pdf <f> [--sync]- Process PDF (add --sync to auto-sync to KB)
+
+Examples:
+  # Setup authentication non-interactively
+  pai-confluence auth "YOUR_PERSONAL_ACCESS_TOKEN"
+
+  # Search for content (human-readable)
+  pai-confluence search "OpenShift 4.17"
+  
+  # Search for content (machine-readable for piping)
+  pai-confluence -q search "etcd backup" | cut -f1
+  
+  # Get page and save to file
+  pai-confluence get 123456789
+  
+  # Get page and output to stdout
+  pai-confluence -o get 123456789 > page.md
+  
+  # Pipeline example: search and download all results
+  pai-confluence -q search "security" OCPSUP | cut -f1 | \\
+    xargs -I{} pai-confluence -q get {} 
+  
+  # Export space structure  
+  pai-confluence tree TAMKB
+
+Configuration: $CONFIG_FILE
+Captures saved to: $CAPTURE_DIR
+EOF
+        [[ "${1:-}" != "help" ]] && exit 1
+        ;;
+esac
+
+# Cleanup and logging
+log "Command completed: $*"

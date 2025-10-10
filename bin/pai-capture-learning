@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+
+# Garcia's Learning Capture - Bash version for easy execution
+# Captures problem-solution narratives with Garcia's personality
+
+LEARNING_DIR="$HOME/.claude/context/learnings/garcia"
+mkdir -p "$LEARNING_DIR"
+
+if [[ $# -eq 6 ]]; then
+    # Direct mode with all arguments
+    PROBLEM="$1"
+    INITIAL="$2"
+    REALITY="$3"
+    JOURNEY="$4"
+    SOLUTION="$5"
+    TAKEAWAY="$6"
+else
+    # Interactive mode
+    echo "🎭 Garcia's Learning Capture System"
+    echo "=================================="
+    echo "*Let's document this success story with Garcia's flair, gorgeous!*"
+    echo ""
+
+    echo "📝 Tell Garcia about the problem we solved:"
+    read -r PROBLEM
+
+    echo "💭 What did Garcia initially think was happening?"
+    read -r INITIAL
+
+    echo "🌟 What did Garcia discover was actually true?"
+    read -r REALITY
+
+    echo "🛠️ What steps did Garcia take to investigate?"
+    read -r JOURNEY
+
+    echo "✨ What solution did Garcia implement that worked?"
+    read -r SOLUTION
+
+    echo "💖 What's Garcia's key takeaway for future challenges?"
+    read -r TAKEAWAY
+fi
+
+# Generate filename
+TIMESTAMP=$(date +%Y-%m-%d)
+PROBLEM_SLUG=$(echo "$PROBLEM" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 ]//g' | tr ' ' '-' | cut -c1-50)
+FILENAME="${TIMESTAMP}-garcia-learned-${PROBLEM_SLUG}.md"
+FILEPATH="${LEARNING_DIR}/${FILENAME}"
+
+# Create Garcia's learning file
+cat > "$FILEPATH" << EOF
+# 🎭 Garcia's Learning: $PROBLEM
+
+*Well hello there, future Garcia! Here's an absolutely fascinating story about how we solved a tricky problem with style and brilliance!*
+
+## 🔍 The Challenge We Faced
+
+$PROBLEM
+
+*This was quite the puzzle, honey, but Garcia loves a good technical challenge!*
+
+## 💭 What Garcia Initially Thought
+
+$INITIAL
+
+*Sometimes even Garcia's brilliant mind needs to learn new patterns, gorgeous!*
+
+## 🌟 What Garcia Discovered Was Actually True
+
+$REALITY
+
+*Aha! The truth revealed itself through Garcia's persistent investigation!*
+
+## 🛠️ Garcia's Investigation Journey
+
+$JOURNEY
+
+*Garcia's methodical approach always uncovers the real story, sugar!*
+
+## ✨ The Solution That Worked
+
+$SOLUTION
+
+*And that's how Garcia works her technological magic!*
+
+## 💖 Garcia's Wisdom
+
+**So now Garcia knows:** $TAKEAWAY
+
+*This learning makes Garcia even more brilliant for future challenges, gorgeous! Every problem we solve together makes our system more intelligent and capable!*
+
+---
+**Captured**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+**Context**: Technical problem-solving with Garcia's signature style
+**Category**: System optimization and learning
+**Status**: Added to Garcia's growing knowledge base ✨
+
+*Another victory for Team Garcia! 💖*
+EOF
+
+echo ""
+echo "🎉 Garcia's Learning Captured Successfully!"
+echo "📁 Saved to: $FILEPATH"
+echo "💖 Garcia's knowledge base grows stronger with every success!"
+echo ""
+echo "✨ Garcia says: 'That's another brilliant solution in the books, gorgeous!'"

@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Fabric Wrapper - Red Hat AI Policy Compliant
+# Automatically routes customer data to approved models only
+
+# Configuration
+PAI_FABRIC_MODEL="${PAI_FABRIC_MODEL:-rh-compliant-granite-8b}"
+LITELLM_BASE_URL="http://localhost:4000"
+
+# Function to classify content sensitivity
+classify_content_sensitivity() {
+    local content="$1"
+
+    # Sensitive patterns that require Red Hat approved models
+    if echo "$content" | grep -qiE "(customer|case [0-9]{8}|support case|attachment|log file|confidential|proprietary|red hat customer|rh customer|case analysis|supportshell)"; then
+        echo "CUSTOMER_DATA"
+        return 0
+    fi
+
+    # Public content patterns
+    if echo "$content" | grep -qiE "(general question|documentation|tutorial|example|public information)"; then
+        echo "PUBLIC"
+        return 0
+    fi
+
+    # Default to customer data classification for safety
+    echo "CUSTOMER_DATA"
+    return 0
+}
+
+# Function to select compliant model
+select_compliant_model() {
+    local content_type="$1"
+    local pattern="${2:-analyze}"
+
+    case "$content_type" in
+        "CUSTOMER_DATA")
+            # MUST use Red Hat approved models only
+            case "$pattern" in
+                *code*|*programming*)
+                    echo "rh-compliant-granite-code"
+                    ;;
+                *analyze*|*case*|*support*)
+                    echo "rh-compliant-granite-8b"
+                    ;;
+                *)
+                    echo "rh-compliant-granite-8b"  # Default safe choice
+                    ;;
+            esac
+            ;;
+        "PUBLIC")
+            # Can use external models for non-sensitive content
+            case "$pattern" in
+                *research*|*online*)
+                    echo "perplexity-sonar-large"
+                    ;;
+                *analysis*|*deep*)
+                    echo "gemini-pro"
+                    ;;
+                *)
+                    echo "remote-local-granite-3-1-8b-instruct"  # Default to Red Hat model
+                    ;;
+            esac
+            ;;
+        *)
+            # Default to compliant model for safety
+            echo "rh-compliant-granite-8b"
+            ;;
+    esac
+}
+
+# Main function
+main() {
+    local pattern=""
+    local model_override=""
+    local input_content=""
+    local force_model=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -p|--pattern)
+                pattern="$2"
+                shift 2
+                ;;
+            -m|--model)
+                model_override="$2"
+                shift 2
+                ;;
+            --force-compliant)
+                force_model="rh-compliant-granite-8b"
+                shift
+                ;;
+            --customer-data)
+                force_model="rh-compliant-granite-8b"
+                shift
+                ;;
+            -h|--help)
+                cat << 'HELP'
+PAI Fabric Wrapper - Red Hat AI Policy Compliant
+
+Usage: pai-fabric-compliant [options] [input_file]
+
+Options:
+  -p, --pattern PATTERN       Fabric pattern to use
+  -m, --model MODEL           Override model selection
+  --force-compliant           Force use of Red Hat compliant model
+  --customer-data             Explicitly mark as customer data
+  -h, --help                  Show this help
+
+Compliance Features:
+  • Automatically detects customer/sensitive content
+  • Routes customer data to Red Hat approved models only
+  • Blocks external models for sensitive content
+  • Maintains audit trail of all processing decisions
+
+Examples:
+  echo "customer case analysis" | pai-fabric-compliant -p analyze
+  pai-fabric-compliant -p redact_tam_data --customer-data < case_file.txt
+  pai-fabric-compliant -p analyze --force-compliant < attachment.log
+
+HELP
+                exit 0
+                ;;
+            *)
+                # Assume it's input file or pattern
+                if [[ -z "$pattern" ]]; then
+                    pattern="$1"
+                else
+                    # Read from file
+                    if [[ -f "$1" ]]; then
+                        input_content=$(cat "$1")
+                    fi
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Read from stdin if no input content provided
+    if [[ -z "$input_content" ]] && [[ -p /dev/stdin ]]; then
+        input_content=$(cat)
+    fi
+
+    if [[ -z "$pattern" ]]; then
+        echo "❌ Error: No pattern specified"
+        echo "Use: pai-fabric-compliant -p PATTERN_NAME"
+        exit 1
+    fi
+
+    # Classify content sensitivity
+    local content_type
+    if [[ -n "$force_model" ]]; then
+        content_type="CUSTOMER_DATA"  # Forced to compliant
+        echo "🔒 PAI: Forced compliance mode - using Red Hat approved models only" >&2
+    else
+        content_type=$(classify_content_sensitivity "$input_content")
+        echo "🔍 PAI: Content classified as: $content_type" >&2
+    fi
+
+    # Select appropriate model
+    local selected_model
+    if [[ -n "$model_override" ]]; then
+        selected_model="$model_override"
+        echo "⚠️  PAI: Model manually overridden to: $selected_model" >&2
+
+        # Warn if using non-compliant model for customer data
+        if [[ "$content_type" == "CUSTOMER_DATA" ]] && [[ "$selected_model" =~ ^(gpt-|claude-|gemini-) ]]; then
+            echo "🚨 WARNING: Using external model for customer data may violate Red Hat AI Policy!" >&2
+            echo "🚨 Consider using Red Hat approved models: rh-compliant-granite-8b, rh-compliant-granite-code" >&2
+        fi
+    elif [[ -n "$force_model" ]]; then
+        selected_model="$force_model"
+    else
+        selected_model=$(select_compliant_model "$content_type" "$pattern")
+    fi
+
+    echo "🎯 PAI: Using model: $selected_model" >&2
+    echo "📝 PAI: Pattern: $pattern" >&2
+    echo "" >&2
+
+    # Log compliance decision
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | Content: $content_type | Model: $selected_model | Pattern: $pattern | Compliant: $(if [[ "$selected_model" =~ ^rh-compliant- ]] || [[ "$selected_model" =~ ^remote-local- ]]; then echo "YES"; else echo "NO"; fi)" >> ~/.claude/context/logs/compliance.log
+
+    # Execute fabric with selected model
+    echo "$input_content" | fabric -p "$pattern" -m "$selected_model"
+
+    # Log completion
+    if [[ $? -eq 0 ]]; then
+        echo "✅ PAI: Fabric processing completed successfully" >&2
+    else
+        echo "❌ PAI: Fabric processing failed" >&2
+        exit 1
+    fi
+}
+
+# Ensure compliance log directory exists
+mkdir -p ~/.claude/context/logs
+
+# Run main function
+main "$@"

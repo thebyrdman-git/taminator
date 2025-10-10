@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+
+"""
+PAI Hydra Notification Processor
+Processes Hydra notifications from Gmail to extract case metadata and convert to markdown
+"""
+
+import os
+import re
+import json
+import yaml
+import email
+import argparse
+from datetime import datetime, timezone
+from pathlib import Path
+import subprocess
+
+# Configuration
+PAI_DIR = Path.home() / '.claude' / 'context'
+EMAIL_DIR = PAI_DIR / 'capture' / 'email' / 'gmail-gvaughn'
+OUTPUT_DIR = PAI_DIR / 'capture' / 'hydra'
+PROCESSED_DIR = OUTPUT_DIR / 'processed'
+
+# Ensure directories exist
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+
+# Hydra notification patterns
+HYDRA_SUBJECT_PATTERN = r'Hydra:\s*Case\s*(\d{8})'
+CASE_ID_PATTERN = r'\b(\d{8})\b'
+SEVERITY_PATTERN = r'Severity[:\s]*([1-4]|Low|Medium|High|Critical)'
+ACCOUNT_PATTERNS = {
+    'bny': r'(?i)(?:bny|bank.*new.*york|mellon)',
+    'cibc': r'(?i)(?:cibc|canadian.*imperial)',
+    'citi': r'(?i)(?:citi|citigroup|citibank)',
+    'discover': r'(?i)(?:discover|discover.*financial)'
+}
+
+class HydraProcessor:
+    def __init__(self):
+        self.email_dir = EMAIL_DIR
+        self.output_dir = OUTPUT_DIR
+        self.processed_dir = PROCESSED_DIR
+        
+    def get_recent_emails(self, days=7):
+        """Get recent emails using notmuch"""
+        try:
+            os.chdir(self.email_dir)
+            cmd = ['notmuch', 'search', '--format=json', f'date:{days}days..', 'subject:Hydra']
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            return json.loads(result.stdout) if result.stdout.strip() else []
+        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+            print(f"Error getting emails: {e}")
+            return []
+    
+    def extract_email_content(self, thread_id):
+        """Extract email content from thread"""
+        try:
+            os.chdir(self.email_dir)
+            cmd = ['notmuch', 'show', '--format=json', f'thread:{thread_id}']
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            email_data = json.loads(result.stdout)
+            
+            # Extract first message from thread
+            if email_data and email_data[0] and email_data[0][0]:
+                msg = email_data[0][0][0]
+                return {
+                    'from': msg['headers'].get('From', ''),
+                    'to': msg['headers'].get('To', ''),
+                    'subject': msg['headers'].get('Subject', ''),
+                    'date': msg['headers'].get('Date', ''),
+                    'message_id': msg['headers'].get('Message-ID', ''),
+                    'body': msg['body'][0]['content'] if msg.get('body') else ''
+                }
+        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+            print(f"Error extracting email content: {e}")
+        return None
+    
+    def parse_hydra_notification(self, email_content):
+        """Parse Hydra notification and extract metadata"""
+        subject = email_content.get('subject', '')
+        body = email_content.get('body', '')
+        
+        # Extract case number from subject
+        case_match = re.search(HYDRA_SUBJECT_PATTERN, subject)
+        if not case_match:
+            # Try to find case number in body
+            case_match = re.search(CASE_ID_PATTERN, body)
+        
+        if not case_match:
+            return None
+            
+        case_number = case_match.group(1)
+        
+        # Extract severity
+        severity = 'Unknown'
+        severity_match = re.search(SEVERITY_PATTERN, body, re.IGNORECASE)
+        if severity_match:
+            severity = severity_match.group(1)
+        
+        # Identify account
+        account = 'Unknown'
+        for acc_name, pattern in ACCOUNT_PATTERNS.items():
+            if re.search(pattern, body) or re.search(pattern, subject):
+                account = acc_name
+                break
+        
+        # Extract other metadata
+        metadata = {
+            'case_number': case_number,
+            'severity': severity,
+            'account': account,
+            'subject': subject,
+            'from': email_content.get('from', ''),
+            'date': email_content.get('date', ''),
+            'message_id': email_content.get('message_id', ''),
+            'notification_type': 'hydra'
+        }
+        
+        return metadata
+    
+    def convert_to_markdown(self, email_content, metadata):
+        """Convert email to markdown with YAML frontmatter"""
+        case_number = metadata['case_number']
+        timestamp = datetime.now(timezone.utc).isoformat()
+        
+        # Create filename
+        date_str = datetime.now().strftime('%Y%m%d')
+        filename = f"hydra-case-{case_number}-{date_str}.md"
+        output_file = self.output_dir / filename
+        
+        # Create markdown content
+        markdown_content = f"""---
+title: "Hydra Notification - Case {case_number}"
+case_id: "{case_number}"
+account: "{metadata['account']}"
+severity: "{metadata['severity']}"
+notification_type: "hydra"
+from: "{metadata['from']}"
+date: "{metadata['date']}"
+processed: "{timestamp}"
+tags: [hydra, case{case_number}, {metadata['account']}]
+---
+
+# Hydra Notification - Case {case_number}
+
+**Account**: {metadata['account']}  
+**Severity**: {metadata['severity']}  
+**From**: {metadata['from']}  
+**Date**: {metadata['date']}  
+
+## Original Subject
+{metadata['subject']}
+
+## Notification Content
+{email_content.get('body', 'No content')}
+
+## Extracted Metadata
+- **Case Number**: {case_number}
+- **Account**: {metadata['account']}
+- **Severity**: {metadata['severity']}
+- **Notification Type**: Hydra
+
+## Action Items
+- [ ] Review case in Salesforce/Hydra
+- [ ] Run case analysis: `pai-workspace case {case_number} analyze`
+- [ ] Check for related cases: `rhcase list {metadata['account']}`
+
+## Related Commands
+```bash
+# Analyze this case
+pai-workspace case {case_number} analyze
+
+# Get case details
+rhcase analyze {case_number}
+
+# Search related KCS
+rhcase kcs search "relevant terms"
+```
+"""
+        
+        # Write markdown file
+        with open(output_file, 'w') as f:
+            f.write(markdown_content)
+        
+        # Log processing
+        subprocess.run(['pai-audit', 'log', 'HYDRA_PROCESSED', f'case={case_number} account={metadata["account"]}'], 
+                      check=False)
+        
+        return output_file
+    
+    def process_recent_hydra_notifications(self, days=7):
+        """Process recent Hydra notifications"""
+        print(f"Processing Hydra notifications from last {days} days...")
+        
+        emails = self.get_recent_emails(days)
+        processed_count = 0
+        
+        for email_thread in emails:
+            thread_id = email_thread.get('thread')
+            subject = email_thread.get('subject', '')
+            
+            # Check if it's a Hydra notification
+            if 'hydra' in subject.lower() or re.search(HYDRA_SUBJECT_PATTERN, subject):
+                email_content = self.extract_email_content(thread_id)
+                
+                if email_content:
+                    metadata = self.parse_hydra_notification(email_content)
+                    
+                    if metadata:
+                        # Check if already processed
+                        case_number = metadata['case_number']
+                        existing_files = list(self.output_dir.glob(f"hydra-case-{case_number}-*.md"))
+                        
+                        if not existing_files:
+                            output_file = self.convert_to_markdown(email_content, metadata)
+                            print(f"  Processed Hydra notification for case {case_number}")
+                            processed_count += 1
+                        else:
+                            print(f"  Case {case_number} already processed")
+        
+        print(f"Processed {processed_count} new Hydra notifications")
+        return processed_count
+    
+    def list_processed_notifications(self, days=30):
+        """List recently processed notifications"""
+        print(f"Hydra notifications processed in last {days} days:")
+        
+        cutoff_date = datetime.now().timestamp() - (days * 24 * 3600)
+        
+        for md_file in sorted(self.output_dir.glob("hydra-case-*.md")):
+            if md_file.stat().st_mtime > cutoff_date:
+                # Extract case number from filename
+                case_match = re.search(r'hydra-case-(\d{8})', md_file.name)
+                if case_match:
+                    case_number = case_match.group(1)
+                    mod_time = datetime.fromtimestamp(md_file.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
+                    print(f"  Case {case_number}: {mod_time}")
+
+def main():
+    parser = argparse.ArgumentParser(description='Process Hydra email notifications')
+    parser.add_argument('--days', type=int, default=7, help='Days to look back for emails')
+    parser.add_argument('--list', action='store_true', help='List processed notifications')
+    parser.add_argument('--case', help='Process specific case number')
+    
+    args = parser.parse_args()
+    
+    processor = HydraProcessor()
+    
+    if args.list:
+        processor.list_processed_notifications(args.days)
+    elif args.case:
+        print(f"Processing specific case: {args.case}")
+        # This would require implementing case-specific processing
+        print("Case-specific processing not yet implemented")
+    else:
+        processor.process_recent_hydra_notifications(args.days)
+
+if __name__ == '__main__':
+    main()

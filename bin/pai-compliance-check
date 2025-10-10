@@ -1,0 +1,323 @@
+#!/bin/bash
+# pai-compliance-check - Verify compliance settings for current context
+# Part of PAI-Cursor integration system
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+CONTEXT_FILE="$PAI_CONFIG_DIR/current-context"
+COMPLIANCE_LOG="$PAI_CONFIG_DIR/compliance.log"
+
+# Help function
+show_help() {
+    cat << EOF
+pai-compliance-check - Verify compliance settings for current context
+
+USAGE:
+    pai-compliance-check [OPTIONS]
+
+OPTIONS:
+    --set-strict        Set strict compliance mode (Red Hat context)
+    --json             Output results in JSON format
+    --verbose          Show detailed compliance checks
+    --help, -h         Show this help message
+
+EXIT CODES:
+    0   Compliant or compliance not required
+    1   Non-compliant (requires attention)
+    2   Warnings (review recommended)
+
+EXAMPLES:
+    pai-compliance-check
+    pai-compliance-check --verbose
+    pai-compliance-check --json
+    pai-compliance-check --set-strict
+EOF
+}
+
+# Logging function
+log_compliance() {
+    local level="$1"
+    local message="$2"
+    echo "$(date -Iseconds) [$level] $message" >> "$COMPLIANCE_LOG"
+}
+
+# Get current context
+get_current_context() {
+    if [[ -f "$CONTEXT_FILE" ]]; then
+        cat "$CONTEXT_FILE" 2>/dev/null || echo "general"
+    else
+        echo "general"
+    fi
+}
+
+# Check if context requires compliance
+requires_compliance() {
+    local context="$1"
+    [[ "$context" == "redhat" ]]
+}
+
+# Check cursor model settings (placeholder - would need cursor-specific implementation)
+check_cursor_models() {
+    local context="$1"
+    local issues=0
+
+    if [[ "$context" == "redhat" ]]; then
+        # For Red Hat context, should use local models only
+        # This is a placeholder - actual implementation would check cursor settings
+        if [[ "$VERBOSE" == "true" ]]; then
+            echo "  ✓ Model restrictions: Should be local-only for Red Hat context"
+        fi
+
+        # Check if there's a way to verify cursor model settings
+        # This would need cursor-specific API or config file checking
+        if [[ "$VERBOSE" == "true" ]]; then
+            echo "  ⚠ Cannot verify cursor model settings automatically"
+        fi
+        ((issues++))
+    fi
+
+    return $issues
+}
+
+# Check network restrictions
+check_network_restrictions() {
+    local context="$1"
+    local issues=0
+
+    if [[ "$context" == "redhat" ]]; then
+        # For Red Hat context, external APIs should be blocked
+        if [[ "$VERBOSE" == "true" ]]; then
+            echo "  ✓ Network restrictions: External APIs should be blocked"
+        fi
+
+        # This is a placeholder for actual network policy checking
+        # Real implementation might check firewall rules, proxy settings, etc.
+        if [[ "$VERBOSE" == "true" ]]; then
+            echo "  ⚠ Network restrictions require manual verification"
+        fi
+        ((issues++))
+    fi
+
+    return $issues
+}
+
+# Check rule presence and validity
+check_rule_presence() {
+    local context="$1"
+    local issues=0
+
+    # Check if cursor rules directory exists
+    if [[ ! -d ".cursor/rules" ]]; then
+        if [[ "$VERBOSE" == "true" ]]; then
+            echo "  ✗ Cursor rules directory not found"
+        fi
+        ((issues++))
+        return $issues
+    fi
+
+    # Check core rule
+    if [[ ! -f ".cursor/rules/00-core.md" ]]; then
+        if [[ "$VERBOSE" == "true" ]]; then
+            echo "  ✗ Core rule file missing"
+        fi
+        ((issues++))
+    elif [[ "$VERBOSE" == "true" ]]; then
+        echo "  ✓ Core rule file present"
+    fi
+
+    # Check context-specific rules
+    case "$context" in
+        redhat)
+            if [[ ! -f ".cursor/rules/10-compliance-redhat.md" ]]; then
+                if [[ "$VERBOSE" == "true" ]]; then
+                    echo "  ✗ Red Hat compliance rule missing"
+                fi
+                ((issues++))
+            elif [[ "$VERBOSE" == "true" ]]; then
+                echo "  ✓ Red Hat compliance rule present"
+            fi
+            ;;
+        mga)
+            if [[ ! -f ".cursor/rules/20-context-mga.md" ]]; then
+                if [[ "$VERBOSE" == "true" ]]; then
+                    echo "  ✗ MGA context rule missing"
+                fi
+                ((issues++))
+            elif [[ "$VERBOSE" == "true" ]]; then
+                echo "  ✓ MGA context rule present"
+            fi
+            ;;
+        rec)
+            if [[ ! -f ".cursor/rules/21-context-rec.md" ]]; then
+                if [[ "$VERBOSE" == "true" ]]; then
+                    echo "  ✗ REC context rule missing"
+                fi
+                ((issues++))
+            elif [[ "$VERBOSE" == "true" ]]; then
+                echo "  ✓ REC context rule present"
+            fi
+            ;;
+        warehouse)
+            if [[ ! -f ".cursor/rules/30-project-warehouse.md" ]]; then
+                if [[ "$VERBOSE" == "true" ]]; then
+                    echo "  ✗ Warehouse project rule missing"
+                fi
+                ((issues++))
+            elif [[ "$VERBOSE" == "true" ]]; then
+                echo "  ✓ Warehouse project rule present"
+            fi
+            ;;
+    esac
+
+    return $issues
+}
+
+# Set strict compliance mode
+set_strict_compliance() {
+    local context="$1"
+
+    if [[ "$context" != "redhat" ]]; then
+        echo "Warning: Strict compliance mode only applies to Red Hat context" >&2
+        return 0
+    fi
+
+    echo "Setting strict compliance mode for Red Hat context"
+
+    # Log the compliance mode setting
+    log_compliance "INFO" "Strict compliance mode set for Red Hat context"
+
+    # This is where you would implement actual compliance enforcement
+    # For example:
+    # - Update cursor configuration to use local models only
+    # - Set network restrictions
+    # - Configure audit logging
+
+    echo "Strict compliance mode configured"
+    echo "Manual verification required for:"
+    echo "  - Cursor model settings (local-only)"
+    echo "  - Network restrictions (external APIs blocked)"
+    echo "  - Audit logging enabled"
+
+    return 0
+}
+
+# Parse arguments
+SET_STRICT=false
+JSON_OUTPUT=false
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --set-strict)
+            SET_STRICT=true
+            shift
+            ;;
+        --json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Error: Unknown option $1" >&2
+            show_help >&2
+            exit 2
+            ;;
+    esac
+done
+
+# Create config directory if needed
+mkdir -p "$PAI_CONFIG_DIR"
+
+# Get current context
+context=$(get_current_context)
+
+# Handle set-strict mode
+if [[ "$SET_STRICT" == "true" ]]; then
+    set_strict_compliance "$context"
+    exit 0
+fi
+
+# Check if compliance is required for this context
+if ! requires_compliance "$context"; then
+    if [[ "$JSON_OUTPUT" == "true" ]]; then
+        echo '{"context":"'$context'","compliance_required":false,"status":"not_applicable","timestamp":"'$(date -Iseconds)'"}'
+    else
+        echo "Compliance check: Not required for context '$context'"
+    fi
+    exit 0
+fi
+
+# Run compliance checks
+echo "Running compliance checks for context: $context"
+log_compliance "INFO" "Starting compliance check for context: $context"
+
+total_issues=0
+warnings=0
+
+# Check cursor model settings
+if [[ "$VERBOSE" == "true" ]]; then
+    echo "Checking cursor model settings..."
+fi
+check_cursor_models "$context"
+model_issues=$?
+((total_issues += model_issues))
+
+# Check network restrictions
+if [[ "$VERBOSE" == "true" ]]; then
+    echo "Checking network restrictions..."
+fi
+check_network_restrictions "$context"
+network_issues=$?
+((total_issues += network_issues))
+
+# Check rule presence
+if [[ "$VERBOSE" == "true" ]]; then
+    echo "Checking rule presence..."
+fi
+check_rule_presence "$context"
+rule_issues=$?
+((total_issues += rule_issues))
+
+# Count warnings (issues that don't prevent operation but need attention)
+warnings=$((model_issues + network_issues))
+
+# Determine exit code and output
+if [[ "$total_issues" -eq 0 ]]; then
+    status="compliant"
+    exit_code=0
+    message="All compliance checks passed"
+elif [[ "$warnings" -gt 0 && "$rule_issues" -eq 0 ]]; then
+    status="warnings"
+    exit_code=2
+    message="Compliance warnings require review"
+else
+    status="non_compliant"
+    exit_code=1
+    message="Compliance issues require immediate attention"
+fi
+
+# Log result
+log_compliance "INFO" "Compliance check complete: $status (issues: $total_issues, warnings: $warnings)"
+
+# Output results
+if [[ "$JSON_OUTPUT" == "true" ]]; then
+    echo '{"context":"'$context'","compliance_required":true,"status":"'$status'","total_issues":'$total_issues',"warnings":'$warnings',"rule_issues":'$rule_issues',"message":"'$message'","timestamp":"'$(date -Iseconds)'"}'
+else
+    echo "$message"
+    if [[ "$total_issues" -gt 0 ]]; then
+        echo "Issues found: $total_issues"
+        echo "Warnings: $warnings"
+        echo "Use --verbose for detailed information"
+    fi
+fi
+
+exit $exit_code

@@ -1,0 +1,184 @@
+#!/bin/bash
+# pai-context-switch - Switch PAI context and update cursor rules
+# Part of PAI-Cursor integration system
+
+set -euo pipefail
+
+# Configuration
+PAI_CONFIG_DIR="$HOME/.config/pai"
+CONTEXT_FILE="$PAI_CONFIG_DIR/current-context"
+CONTEXTS_CONFIG="$PAI_CONFIG_DIR/contexts.yaml"
+
+# Help function
+show_help() {
+    cat << EOF
+pai-context-switch - Switch PAI context and update cursor rules
+
+USAGE:
+    pai-context-switch <context>
+
+CONTEXTS:
+    redhat      Red Hat PSIRT work (compliance required)
+    mga         Midnight Garden Apothecary business
+    rec         Raven's Eye Consulting business
+    warehouse   Warehouse consolidation project
+    personal    Personal projects and learning
+    content     Content creation and analysis
+    health      Health and wellness tracking
+    academic    Academic research and studies
+    general     General development (no specific business context)
+
+OPTIONS:
+    --help, -h  Show this help message
+
+EXIT CODES:
+    0   Context switched successfully
+    1   Invalid context or error
+    2   Missing arguments
+
+EXAMPLES:
+    pai-context-switch redhat
+    pai-context-switch mga
+    pai-context-switch warehouse
+EOF
+}
+
+# Validate context
+validate_context() {
+    local context="$1"
+    case "$context" in
+        redhat|mga|rec|warehouse|personal|content|health|academic|general)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Parse arguments
+if [[ $# -eq 0 ]]; then
+    echo "Error: Context required" >&2
+    show_help >&2
+    exit 2
+fi
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            show_help >&2
+            exit 2
+            ;;
+        *)
+            if [[ -z "${CONTEXT:-}" ]]; then
+                CONTEXT="$1"
+            else
+                echo "Error: Multiple contexts specified" >&2
+                exit 2
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Validate required argument
+if [[ -z "${CONTEXT:-}" ]]; then
+    echo "Error: Context required" >&2
+    show_help >&2
+    exit 2
+fi
+
+# Validate context
+if ! validate_context "$CONTEXT"; then
+    echo "Error: Invalid context '$CONTEXT'" >&2
+    echo "Valid contexts: redhat, mga, rec, warehouse, personal, content, health, academic, general" >&2
+    exit 1
+fi
+
+# Create config directory if it doesn't exist
+mkdir -p "$PAI_CONFIG_DIR"
+
+# Get current context for comparison
+current_context=""
+if [[ -f "$CONTEXT_FILE" ]]; then
+    current_context=$(cat "$CONTEXT_FILE" 2>/dev/null || echo "")
+fi
+
+# Check if already in this context
+if [[ "$current_context" == "$CONTEXT" ]]; then
+    echo "Already in context: $CONTEXT"
+    exit 0
+fi
+
+# Update context file
+echo "$CONTEXT" > "$CONTEXT_FILE"
+
+# Generate cursor rules for new context
+if command -v pai-rules-generate >/dev/null 2>&1; then
+    echo "Generating cursor rules for context: $CONTEXT"
+    pai-rules-generate "$CONTEXT" || {
+        echo "Warning: Failed to generate cursor rules" >&2
+    }
+else
+    echo "Warning: pai-rules-generate not found, skipping rule generation" >&2
+fi
+
+# Set compliance mode for Red Hat context
+if [[ "$CONTEXT" == "redhat" ]]; then
+    echo "Setting strict compliance mode for Red Hat context"
+    if command -v pai-compliance-check >/dev/null 2>&1; then
+        pai-compliance-check --set-strict || {
+            echo "Warning: Failed to set compliance mode" >&2
+        }
+    fi
+fi
+
+# Success message
+echo "Context switched to: $CONTEXT"
+
+# Show context banner
+case "$CONTEXT" in
+    redhat)
+        echo "🔴 Red Hat PSIRT context active - Compliance required"
+        echo "   Models: local-only | External APIs: disabled | Data: customer-sensitive"
+        ;;
+    mga)
+        echo "🌿 Midnight Garden Apothecary context active"
+        echo "   Focus: Herbal products manufacturing"
+        ;;
+    rec)
+        echo "🔮 Raven's Eye Consulting context active"
+        echo "   Focus: Metaphysical shop operations"
+        ;;
+    warehouse)
+        echo "🏭 Warehouse consolidation project context active"
+        echo "   Focus: Multi-business coordination"
+        ;;
+    personal)
+        echo "🏠 Personal projects context active"
+        echo "   Focus: Learning, creativity, personal productivity"
+        ;;
+    content)
+        echo "🎬 Content creation context active"
+        echo "   Focus: Video analysis, blog writing, content development"
+        ;;
+    health)
+        echo "🏥 Health and wellness context active"
+        echo "   Focus: Health tracking, wellness research"
+        ;;
+    academic)
+        echo "📚 Academic research context active"
+        echo "   Focus: Research papers, scholarly work"
+        ;;
+    general)
+        echo "⚙️ General development context active"
+        echo "   Focus: Standard development work"
+        ;;
+esac
+
+exit 0

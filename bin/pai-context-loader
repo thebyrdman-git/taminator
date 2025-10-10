@@ -1,0 +1,201 @@
+#!/usr/bin/env python3
+
+"""
+PAI Context Loader
+Automatically loads relevant TAM project context based on current working directory or meeting context
+"""
+
+import os
+import sys
+from pathlib import Path
+import argparse
+
+class ContextLoader:
+    def __init__(self):
+        self.rh_workspace = Path.home() / 'Documents' / 'rh'
+        self.projects_dir = self.rh_workspace / 'projects'
+        
+    def detect_current_context(self):
+        """Detect context based on current working directory"""
+        cwd = Path.cwd()
+        
+        # Check if we're in the RH workspace
+        if str(cwd).startswith(str(self.rh_workspace)):
+            relative_path = cwd.relative_to(self.rh_workspace)
+            path_parts = relative_path.parts
+            
+            context = {
+                'in_rh_workspace': True,
+                'base_path': str(cwd),
+                'relative_path': str(relative_path)
+            }
+            
+            # Determine project and customer context
+            if path_parts[0] == 'projects' and len(path_parts) > 1:
+                context['project'] = path_parts[1]  # tam-ocp, tam-ai, tam-sec
+                
+                if len(path_parts) > 2:
+                    context['customer'] = path_parts[2]  # customer name
+                    
+                if len(path_parts) > 3:
+                    context['section'] = path_parts[3]  # casework, strategic, etc.
+                    
+            elif path_parts[0] == 'archive':
+                context['archived'] = True
+                if len(path_parts) > 1:
+                    context['customer'] = path_parts[1]
+                    
+            return context
+        
+        return {'in_rh_workspace': False, 'base_path': str(cwd)}
+    
+    def find_relevant_claude_files(self, context):
+        """Find relevant CLAUDE.md files based on context"""
+        claude_files = []
+        
+        if not context.get('in_rh_workspace'):
+            return claude_files
+            
+        # Always include main RH CLAUDE.md
+        main_claude = self.rh_workspace / 'CLAUDE.md'
+        if main_claude.exists():
+            claude_files.append(('main', main_claude))
+            
+        # Project-level context
+        if 'project' in context:
+            project_claude = self.projects_dir / context['project'] / 'CLAUDE.md'
+            if project_claude.exists():
+                claude_files.append(('project', project_claude))
+                
+            # Customer-level context
+            if 'customer' in context:
+                customer_claude = self.projects_dir / context['project'] / context['customer'] / 'CLAUDE.md'
+                if customer_claude.exists():
+                    claude_files.append(('customer', customer_claude))
+                    
+                # Section-level context (casework, strategic, etc.)
+                if 'section' in context:
+                    section_claude = self.projects_dir / context['project'] / context['customer'] / context['section'] / 'CLAUDE.md'
+                    if section_claude.exists():
+                        claude_files.append(('section', section_claude))
+        
+        return claude_files
+    
+    def load_context_for_meeting(self, meeting_title, project=None, customer=None):
+        """Load context for a specific meeting"""
+        claude_files = []
+        
+        # Main RH context
+        main_claude = self.rh_workspace / 'CLAUDE.md'
+        if main_claude.exists():
+            claude_files.append(('main', main_claude))
+            
+        # Project context if specified
+        if project:
+            project_claude = self.projects_dir / project / 'CLAUDE.md'
+            if project_claude.exists():
+                claude_files.append(('project', project_claude))
+                
+            # Customer context if specified
+            if customer:
+                customer_claude = self.projects_dir / project / customer / 'CLAUDE.md'
+                if customer_claude.exists():
+                    claude_files.append(('customer', customer_claude))
+                    
+        return claude_files
+    
+    def display_context_summary(self, verbose=False):
+        """Display current context summary"""
+        context = self.detect_current_context()
+        claude_files = self.find_relevant_claude_files(context)
+        
+        print("📍 Current TAM Context:")
+        print(f"   Working Directory: {context['base_path']}")
+        
+        if context.get('in_rh_workspace'):
+            print(f"   RH Workspace: ✅ ({context['relative_path']})")
+            
+            if 'project' in context:
+                print(f"   Project: {context['project']}")
+            if 'customer' in context:
+                print(f"   Customer: {context['customer']}")
+            if 'section' in context:
+                print(f"   Section: {context['section']}")
+                
+            print(f"\n📚 Available Context Files ({len(claude_files)}):")
+            for level, file_path in claude_files:
+                print(f"   {level.title()}: {file_path}")
+                if verbose:
+                    try:
+                        with open(file_path, 'r') as f:
+                            first_lines = [line.strip() for line in f.readlines()[:5] if line.strip()]
+                            if first_lines:
+                                print(f"      Preview: {first_lines[0][:100]}...")
+                    except:
+                        pass
+                        
+        else:
+            print("   RH Workspace: ❌ (Not in TAM workspace)")
+            print("   Tip: cd ~/Documents/rh/projects/[project]/[customer] for full context")
+    
+    def suggest_context_for_meeting(self, meeting_title):
+        """Suggest appropriate context for a meeting"""
+        print(f"🎯 Context suggestions for: {meeting_title}")
+        
+        title_lower = meeting_title.lower()
+        
+        # Project suggestions
+        if any(word in title_lower for word in ['pipeline', 'openshift', 'ocp', 'tekton']):
+            suggested_project = 'tam-ocp'
+        elif any(word in title_lower for word in ['ai', 'ml', 'gpu', 'inference']):
+            suggested_project = 'tam-ai' 
+        elif any(word in title_lower for word in ['security', 'cve', 'compliance']):
+            suggested_project = 'tam-sec'
+        else:
+            suggested_project = 'tam-ocp'  # Default
+            
+        print(f"   Suggested Project: {suggested_project}")
+        
+        # Customer suggestions based on domain patterns or meeting title
+        customer_hints = {
+            'citi': ['citi', 'citibank', 'citigroup'],
+            'cibc': ['cibc', 'canadian imperial'],
+            'discover': ['discover', 'discover financial'],
+            'bny': ['bny', 'bank of new york', 'mellon']
+        }
+        
+        suggested_customer = None
+        for customer, keywords in customer_hints.items():
+            if any(keyword in title_lower for keyword in keywords):
+                suggested_customer = customer
+                break
+                
+        if suggested_customer:
+            print(f"   Suggested Customer: {suggested_customer}")
+            suggested_dir = self.projects_dir / suggested_project / suggested_customer
+            if suggested_dir.exists():
+                print(f"   Suggested Directory: cd {suggested_dir}")
+            else:
+                print(f"   Directory not found: {suggested_dir}")
+        else:
+            print(f"   Customer: Unable to determine from meeting title")
+            
+        return suggested_project, suggested_customer
+
+def main():
+    parser = argparse.ArgumentParser(description='PAI Context Loader')
+    parser.add_argument('--current', action='store_true', help='Show current context')
+    parser.add_argument('--meeting', help='Suggest context for meeting title')
+    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
+    
+    args = parser.parse_args()
+    
+    loader = ContextLoader()
+    
+    if args.meeting:
+        loader.suggest_context_for_meeting(args.meeting)
+    else:
+        loader.display_context_summary(args.verbose)
+
+if __name__ == '__main__':
+    main()

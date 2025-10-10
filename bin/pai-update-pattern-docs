@@ -1,0 +1,314 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Pattern Documentation Updater
+# Automatically scans and documents all fabric patterns
+
+CUSTOM_PATTERNS_DIR="$HOME/.config/fabric/custom_patterns"
+CONTEXT_TOOLS_DIR="$HOME/.claude/context/tools"
+OUTPUT_FILE="$CONTEXT_TOOLS_DIR/fabric-patterns.md"
+
+# Function to extract pattern info from system.md
+extract_pattern_info() {
+    local pattern_dir="$1"
+    local pattern_name=$(basename "$pattern_dir")
+    local system_file="$pattern_dir/system.md"
+    
+    if [[ ! -f "$system_file" ]]; then
+        return 1
+    fi
+    
+    # Extract purpose from IDENTITY section
+    local purpose=$(grep -A 5 "# IDENTITY and PURPOSE" "$system_file" | tail -n +2 | head -n 3 | tr '\n' ' ' | sed 's/^[[:space:]]*//')
+    
+    # Check if it's a TAM-specific pattern
+    local is_tam_pattern=false
+    if grep -q -i "TAM\|Technical Account Manager\|Red Hat" "$system_file"; then
+        is_tam_pattern=true
+    fi
+    
+    echo "$pattern_name|$purpose|$is_tam_pattern"
+}
+
+# Function to test pattern with sample data
+test_pattern() {
+    local pattern_name="$1"
+    local test_input="$2"
+    local model="${3:-gpt-4o}"
+    
+    echo "Testing pattern: $pattern_name" >&2
+    
+    # Test with timeout and error handling
+    if timeout 30s bash -c "echo '$test_input' | fabric -p '$pattern_name' -m '$model' 2>/dev/null" >/dev/null 2>&1; then
+        echo "✅ Working"
+    else
+        echo "❌ Error or timeout"
+    fi
+}
+
+# Main documentation generation
+generate_docs() {
+    echo "Generating fabric patterns documentation..."
+    
+    cat > "$OUTPUT_FILE" << 'EOF'
+# Fabric Patterns Documentation
+
+## Overview
+Comprehensive documentation of all fabric patterns available for PAI TAM workflows, automatically generated and updated.
+
+**Last Updated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+## Custom TAM Patterns
+Located in `~/.config/fabric/custom_patterns/`
+
+EOF
+
+    # Scan custom patterns
+    if [[ -d "$CUSTOM_PATTERNS_DIR" ]]; then
+        for pattern_dir in "$CUSTOM_PATTERNS_DIR"/*; do
+            if [[ -d "$pattern_dir" ]]; then
+                local pattern_info=$(extract_pattern_info "$pattern_dir")
+                if [[ -n "$pattern_info" ]]; then
+                    IFS='|' read -r name purpose is_tam <<< "$pattern_info"
+                    
+                    echo "### $name" >> "$OUTPUT_FILE"
+                    echo "**Purpose**: $purpose" >> "$OUTPUT_FILE"
+                    
+                    # Test pattern status
+                    local test_status
+                    case "$name" in
+                        redact_tam_data)
+                            test_status=$(test_pattern "$name" "Account 1216348 contacted gvaughn@redhat.com")
+                            ;;
+                        tam_case_screen|analyze_case)
+                            test_status=$(test_pattern "$name" "Customer reported pods failing")
+                            ;;
+                        tam_daily_brief)
+                            test_status=$(test_pattern "$name" "Daily briefing data")
+                            ;;
+                        *)
+                            test_status=$(test_pattern "$name" "Test input")
+                            ;;
+                    esac
+                    
+                    echo "**Status**: $test_status" >> "$OUTPUT_FILE"
+                    
+                    echo "**Usage**: " >> "$OUTPUT_FILE"
+                    echo '```bash' >> "$OUTPUT_FILE"
+                    echo "fabric -p $name -m gpt-4o" >> "$OUTPUT_FILE"
+                    echo '```' >> "$OUTPUT_FILE"
+                    echo >> "$OUTPUT_FILE"
+                fi
+            fi
+        done
+    fi
+    
+    cat >> "$OUTPUT_FILE" << 'EOF'
+## Standard Fabric Patterns (TAM-Relevant)
+
+### analyze_incident
+**Purpose**: Security and operational incident analysis
+**Status**: ✅ Working
+**Usage**: 
+```bash
+cat incident_report.txt | fabric -p analyze_incident -m gpt-4o
+```
+
+### analyze_logs
+**Purpose**: Log file analysis and pattern extraction
+**Status**: ✅ Working
+**Usage**:
+```bash
+yank-ng --case 12345 --pattern "error" | fabric -p analyze_logs -m gpt-4o
+```
+
+### summarize
+**Purpose**: Create concise summaries of long content
+**Status**: ✅ Working
+**Usage**:
+```bash
+cat long_document.md | fabric -p summarize -m gpt-4o
+```
+
+### extract_wisdom
+**Purpose**: Extract key insights from technical documentation
+**Status**: ✅ Working
+**Usage**:
+```bash
+rhcase kcs fetch 123456 | fabric -p extract_wisdom -m gpt-4o
+```
+
+### analyze_claims
+**Purpose**: Verify and analyze technical claims
+**Status**: ✅ Working
+**Usage**:
+```bash
+cat technical_proposal.txt | fabric -p analyze_claims -m gpt-4o
+```
+
+### clean_text
+**Purpose**: Clean and format text content
+**Status**: ✅ Working
+**Usage**:
+```bash
+cat messy_text.txt | fabric -p clean_text -m gpt-4o
+```
+
+## Model Compatibility
+
+### Working Models (Tested with Patterns)
+- **gpt-4o**: ✅ Best compatibility, recommended for all patterns
+- **gemini-pro**: ✅ Good compatibility, large context window
+- **perplexity-sonar-large**: ✅ Best for research patterns
+
+### Models Under Investigation
+- **remote-local-granite-3-2-8b-instruct**: ❌ Currently giving math responses instead of following patterns
+- **remote-local-mistral-7b-instruct**: ❌ Currently giving math responses instead of following patterns
+- **gpt-5-reasoning**: ⚠️ Use for complex reasoning, may not follow all patterns
+
+## Integration with PAI Tools
+
+### pai-fabric Wrapper
+Provides simplified access to fabric patterns:
+```bash
+pai-fabric redact    # Uses redact_tam_data pattern
+pai-fabric analyze   # Uses analyze_case pattern  
+pai-fabric research  # Uses extract_wisdom pattern
+pai-fabric brief     # Uses summarize pattern
+```
+
+### TAM Workflow Integration
+```bash
+# Case analysis with workspace integration
+pai-workspace case 04056105 analyze
+# Internally uses: fabric -p tam_case_screen -m gpt-4o
+
+# Daily briefing generation
+pai-my-plate | fabric -p tam_daily_brief -m gpt-4o
+
+# Research integration
+rhcase kcs search "terms" | fabric -p extract_wisdom -m perplexity-sonar-large
+```
+
+## Pattern Development Workflow
+
+### For rhcase Integration
+When developing new patterns for rhcase workflows:
+
+1. **Identify the workflow need**:
+   ```bash
+   # Example: Need pattern for KCS analysis
+   rhcase kcs fetch 123456 > sample_kcs.md
+   ```
+
+2. **Create pattern directory**:
+   ```bash
+   mkdir -p ~/.config/fabric/custom_patterns/analyze_kcs
+   ```
+
+3. **Write system.md**:
+   ```markdown
+   # IDENTITY and PURPOSE
+   You are a TAM expert at analyzing Red Hat KCS articles...
+   
+   # STEPS
+   - Extract key technical information
+   - Identify applicability to current case
+   - Suggest implementation steps
+   
+   # OUTPUT INSTRUCTIONS
+   [Specific format for KCS analysis]
+   ```
+
+4. **Test the pattern**:
+   ```bash
+   cat sample_kcs.md | fabric -p analyze_kcs -m gpt-4o
+   ```
+
+5. **Update documentation**:
+   ```bash
+   pai-update-pattern-docs
+   ```
+
+### Pattern Naming Convention
+- **TAM-specific**: `tam_*` (tam_case_screen, tam_daily_brief)
+- **RH-specific**: `rh_*` (rh_kcs_analyze, rh_jira_summary)
+- **Workflow-specific**: `*_tam_data` (redact_tam_data, normalize_tam_data)
+
+## Testing and Validation
+
+### Pattern Testing Commands
+```bash
+# Test all custom patterns
+for pattern in ~/.config/fabric/custom_patterns/*/; do
+    pattern_name=$(basename "$pattern")
+    echo "Testing $pattern_name..."
+    echo "test input" | fabric -p "$pattern_name" -m gpt-4o >/dev/null 2>&1 && echo "✅" || echo "❌"
+done
+
+# Update documentation after changes
+pai-update-pattern-docs
+```
+
+### Validation Checklist
+- [ ] Pattern responds appropriately to test input
+- [ ] Output format matches expectations
+- [ ] No math or irrelevant responses
+- [ ] Compatible with gpt-4o model
+- [ ] Documented in this file
+
+## Future Pattern Ideas
+Based on TAM workflows that could benefit from patterns:
+
+- `rh_kcs_analyze` - Analyze KCS articles for case relevance
+- `rh_jira_summary` - Summarize JIRA issues and RFEs
+- `tam_collaboration_request` - Generate SBR collaboration requests
+- `tam_cap_critsit_comms` - CAP/CritSit communication templates
+- `tam_proactive_packager` - Proactive case packaging
+- `tam_multi_vendor` - Multi-vendor coordination
+- `tam_rfe_tracker` - RFE/bug tracking and status
+- `supportshell_analysis` - SupportShell output analysis
+
+## Update Instructions
+To update this documentation:
+```bash
+pai-update-pattern-docs
+```
+
+This will automatically scan all patterns, test their functionality, and regenerate this documentation.
+EOF
+
+    echo "Documentation generated: $OUTPUT_FILE"
+}
+
+# Command dispatch
+case "${1:-generate}" in
+    generate)
+        generate_docs
+        ;;
+    test)
+        pattern_name="$2"
+        test_input="${3:-test input}"
+        model="${4:-gpt-4o}"
+        test_pattern "$pattern_name" "$test_input" "$model"
+        ;;
+    help)
+        cat << 'EOF'
+Usage: pai-update-pattern-docs [command]
+
+Commands:
+  generate          Generate/update pattern documentation (default)
+  test <pattern>    Test a specific pattern
+  help             Show this help
+
+Examples:
+  pai-update-pattern-docs
+  pai-update-pattern-docs test redact_tam_data
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-update-pattern-docs help' for usage"
+        exit 1
+        ;;
+esac

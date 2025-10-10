@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Complete Workflow Implementation
+# Implements the full 6-step workflow from ~/Documents/coding/workflow.md
+
+CASE_NUMBER="$1"
+CASE_DIR="${2:-$(pwd)}"
+FABRIC_MODEL="remote-local-granite-3-2-8b-instruct"
+
+# Ensure we have a case number
+if [[ -z "$CASE_NUMBER" ]]; then
+    echo "Usage: pai-workflow-complete <case_number> [case_directory]"
+    echo "Example: pai-workflow-complete 04247913 ./extracts"
+    exit 1
+fi
+
+# Find the case directory if not provided
+if [[ "$CASE_DIR" == "$(pwd)" ]]; then
+    # Look for case directory in current or parent directory
+    if [[ -d "./$CASE_NUMBER/extracts" ]]; then
+        CASE_DIR="./$CASE_NUMBER/extracts"
+    elif [[ -d "./extracts" ]]; then
+        CASE_DIR="./extracts"
+    else
+        echo "Error: Cannot find case extracts directory"
+        exit 1
+    fi
+fi
+
+# Ensure pieces directory exists
+PIECES_DIR="$(dirname "$CASE_DIR")/pieces"
+mkdir -p "$PIECES_DIR"
+
+# Progress indicator function
+show_progress() {
+    local step="$1"
+    local desc="$2"
+    local total=5
+    
+    local progress=$((step * 100 / total))
+    local filled=$((step * 20 / total))
+    local empty=$((20 - filled))
+    
+    printf "\r[%s%s] %d%% - Step %d/%d: %s\n" \
+        "$(printf '#%.0s' $(seq 1 $filled))" \
+        "$(printf ' %.0s' $(seq 1 $empty))" \
+        "$progress" "$step" "$total" "$desc"
+}
+
+echo "=== Starting Complete Workflow Analysis for Case $CASE_NUMBER ==="
+echo "Case Directory: $CASE_DIR"
+echo "Pieces Directory: $PIECES_DIR"
+echo
+show_progress 0 "Initializing analysis..."
+
+# Read case data
+COMBINED_FILE="$CASE_DIR/case_${CASE_NUMBER}_combined.json"
+DETAILS_FILE="$CASE_DIR/case_${CASE_NUMBER}_details.json"
+COMMENTS_FILE="$CASE_DIR/case_${CASE_NUMBER}_comments.json"
+
+if [[ -f "$COMBINED_FILE" ]]; then
+    CASE_DATA=$(cat "$COMBINED_FILE")
+elif [[ -f "$DETAILS_FILE" ]]; then
+    CASE_DATA=$(cat "$DETAILS_FILE")
+    if [[ -f "$COMMENTS_FILE" ]]; then
+        CASE_DATA+="\n\nCOMMENTS:\n$(cat "$COMMENTS_FILE")"
+    fi
+else
+    echo "Error: No case data files found in $CASE_DIR"
+    exit 1
+fi
+
+echo "✓ Case data loaded successfully"
+
+# Step 1: Initial Analysis (from workflow.md prompt 1)
+show_progress 1 "Running initial analysis with fabric + granite..."
+
+# Show working indicator during long granite processing
+show_working() {
+    local pid=$1
+    local step="$2"
+    local desc="$3"
+    local spinner=('|' '/' '-' '\')
+    local i=0
+    
+    while kill -0 $pid 2>/dev/null; do
+        printf "\r[####                ] %d%% - Step %d/5: %s %s" \
+            "20" "$step" "$desc" "${spinner[i++ % 4]}"
+        sleep 0.5
+    done
+    printf "\r[####                ] %d%% - Step %d/5: %s ✓\n" \
+        "20" "$step" "$desc"
+}
+
+STEP1_PROMPT="THINK HARD about this: In the extracts subdirectory I have saved the details about a support case I'm working on. Please review these and generate an incident timeline, detailed problem statement (updating what they posted initially with any insights from the comments), a list of potential hypotheses for the underlying cause with short explanations and what information is needed for validation/invalidation listed with each hypothesis. Create these files in a new subdirectory named pieces."
+
+# Run granite analysis with working indicator
+{
+    echo "CASE DATA: $CASE_DATA
+
+$STEP1_PROMPT" | fabric -m "$FABRIC_MODEL"
+} &
+FABRIC_PID=$!
+show_working $FABRIC_PID 1 "Granite model analyzing case data"
+wait $FABRIC_PID
+INITIAL_ANALYSIS=$(cat /tmp/fabric_output_$$ 2>/dev/null || echo "Analysis failed")
+
+# Clean up temp file
+rm -f /tmp/fabric_output_$$
+
+# Parse and save the three components
+echo "$INITIAL_ANALYSIS" | awk '/## Incident Timeline/,/## [^I]/ {if (!/## [^I]/) print}' > "$PIECES_DIR/incident_timeline.md"
+echo "$INITIAL_ANALYSIS" | awk '/## Detailed Problem Statement/,/## [^D]/ {if (!/## [^D]/) print}' > "$PIECES_DIR/detailed_problem_statement.md"  
+echo "$INITIAL_ANALYSIS" | awk '/## Root Cause Hypotheses/,/## [^R]/ {if (!/## [^R]/) print}' > "$PIECES_DIR/root_cause_hypotheses.md"
+
+show_progress 2 "Initial analysis complete - KCS article research..."
+mkdir -p "$PIECES_DIR/kcs"
+
+# Extract key terms for KCS search from the problem statement
+SEARCH_TERMS=$(echo "$CASE_DATA" | jq -r '.problem_statement // .summary // ""' | head -1 | sed 's/[^a-zA-Z0-9 ]/ /g' | awk '{for(i=1;i<=NF;i++) if(length($i)>3) print $i}' | head -5 | tr '\n' ' ')
+
+if [[ -n "$SEARCH_TERMS" ]]; then
+    echo "Searching KCS for: $SEARCH_TERMS"
+    rhcase kcs search "$SEARCH_TERMS" > "$PIECES_DIR/kcs/search_results.txt" 2>/dev/null || echo "KCS search failed"
+    
+    # Update hypotheses with KCS findings
+    if [[ -f "$PIECES_DIR/kcs/search_results.txt" ]]; then
+        KCS_UPDATE=$(echo "Original hypotheses: $(cat "$PIECES_DIR/root_cause_hypotheses.md")
+
+KCS Search Results: $(cat "$PIECES_DIR/kcs/search_results.txt")
+
+Please update the root cause hypotheses with insights from the KCS articles." | fabric -m "$FABRIC_MODEL")
+        echo "$KCS_UPDATE" > "$PIECES_DIR/root_cause_hypotheses.md"
+    fi
+fi
+
+show_progress 3 "KCS research complete - JIRA issue research..."
+mkdir -p "$PIECES_DIR/jira"
+
+if [[ -n "$SEARCH_TERMS" ]]; then
+    echo "Searching JIRA for: $SEARCH_TERMS"
+    rhcase jira search "$SEARCH_TERMS" > "$PIECES_DIR/jira/search_results.txt" 2>/dev/null || echo "JIRA search failed"
+    
+    # Update hypotheses with JIRA findings
+    if [[ -f "$PIECES_DIR/jira/search_results.txt" ]]; then
+        JIRA_UPDATE=$(echo "Current hypotheses: $(cat "$PIECES_DIR/root_cause_hypotheses.md")
+
+JIRA Search Results: $(cat "$PIECES_DIR/jira/search_results.txt")
+
+Please update the root cause hypotheses with insights from the JIRA issues." | fabric -m "$FABRIC_MODEL")
+        echo "$JIRA_UPDATE" > "$PIECES_DIR/root_cause_hypotheses.md"
+    fi
+fi
+
+show_progress 4 "JIRA research complete - Insights analysis..."
+# Note: This step would require actual Insights data
+echo "### Insights Analysis Placeholder" > "$PIECES_DIR/insights_analysis.md"
+echo "Red Hat Insights analysis would be performed here if cluster data available." >> "$PIECES_DIR/insights_analysis.md"
+
+show_progress 5 "Insights complete - Hypothesis validation and testing..."
+VALIDATION_PROMPT="THINK HARD about this: Now that we have fully developed the hypotheses, please develop tests to validate/invalidate each hypothesis. Consider available tools like omc and etcd-ocp-diag.py. For each hypothesis, specify: test procedures, expected outcomes, confidence levels."
+
+VALIDATION_TESTS=$(echo "Current hypotheses: $(cat "$PIECES_DIR/root_cause_hypotheses.md")
+
+$VALIDATION_PROMPT" | fabric -m "$FABRIC_MODEL")
+
+echo "$VALIDATION_TESTS" > "$PIECES_DIR/hypothesis_validation_tests.md"
+
+printf "\r[####################] 100%% - Analysis Complete!                    \n"
+
+# Final summary
+echo
+echo "=== Complete Workflow Analysis Finished ==="
+echo "Case $CASE_NUMBER analysis complete following workflow.md methodology"
+echo
+echo "Generated files:"
+ls -la "$PIECES_DIR"/*.md | awk '{print "- " $9}'
+echo
+echo "To continue the workflow:"
+echo "1. Review and execute validation tests in: $PIECES_DIR/hypothesis_validation_tests.md"
+echo "2. Update hypotheses based on test results"
+echo "3. Document final conclusions and recommendations"

@@ -1,0 +1,495 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Email Processor - Process emails for TAM insights and intelligence
+
+# Configuration
+PAI_DIR="$HOME/.claude/context"
+EMAIL_DIR="$PAI_DIR/capture/email/gmail-gvaughn"
+OUTPUT_DIR="$PAI_DIR/create/outputs/email"
+FABRIC_MODEL="${EMAIL_PROCESSOR_MODEL:-gpt-4o}"
+RESEARCH_MODEL="${EMAIL_RESEARCH_MODEL:-perplexity-sonar-large}"
+
+# Ensure directories exist
+mkdir -p "$OUTPUT_DIR/daily" "$OUTPUT_DIR/contacts" "$OUTPUT_DIR/issues"
+
+# Function to create summary from notmuch search when files are missing
+create_summary_from_search() {
+    local search_query="$1"
+    local output_file="$2"
+    
+    cd "$EMAIL_DIR"
+    
+    # Get email summary from notmuch search
+    local search_results=$(notmuch search --format=json "$search_query" 2>/dev/null)
+    
+    if [[ -z "$search_results" ]] || [[ "$search_results" == "[]" ]]; then
+        return 1
+    fi
+    
+    # Extract key information from search results
+    local subjects=$(echo "$search_results" | jq -r '.[] | .subject' 2>/dev/null)
+    local authors=$(echo "$search_results" | jq -r '.[] | .authors' 2>/dev/null)
+    local dates=$(echo "$search_results" | jq -r '.[] | .date_relative' 2>/dev/null)
+    local tags=$(echo "$search_results" | jq -r '.[] | .tags | join(", ")' 2>/dev/null)
+    
+    # Create summary markdown
+    cat > "$output_file" << EOF
+---
+title: "Email Summary: $search_query"
+type: "search_summary"
+query: "$search_query" 
+generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+tags: [email, summary, search]
+---
+
+# Email Summary: $search_query
+
+**Generated**: $(date -u +%Y-%m-%d)  
+**Query**: $search_query
+
+## Search Results
+
+$(echo "$search_results" | jq -r '.[] | "- **\(.subject)** from \(.authors) (\(.date_relative)) [\(.tags | join(", "))]"' 2>/dev/null)
+
+## Analysis Notes
+- Individual email files may be missing due to sync issues
+- Summary generated from notmuch search metadata
+- Contact research and detailed analysis require individual file access
+
+## Recommended Actions
+- Fix email sync to restore full content access  
+- Review subjects and authors for TAM relevance
+- Follow up on any customer/case-related communications
+
+EOF
+
+    echo "$output_file"
+}
+
+# Function to extract email content from notmuch
+extract_email_content() {
+    local email_id="$1"
+    local output_file="$2"
+    
+    # Extract email using notmuch
+    cd "$EMAIL_DIR"
+    
+    # Get email headers and content - handle missing files gracefully
+    local email_data=$(notmuch show --format=json "id:$email_id" 2>/dev/null)
+    
+    if [[ -z "$email_data" ]] || [[ "$email_data" == "[]" ]]; then
+        echo "Warning: Cannot access email $email_id (file missing or corrupted)" >&2
+        return 1
+    fi
+    
+    # Parse JSON with better error handling - notmuch structure is different
+    local from=$(echo "$email_data" | jq -r 'try (.[0][0][0].headers.From) // "Unknown"' 2>/dev/null)
+    local to=$(echo "$email_data" | jq -r 'try (.[0][0][0].headers.To) // "Unknown"' 2>/dev/null) 
+    local subject=$(echo "$email_data" | jq -r 'try (.[0][0][0].headers.Subject) // "No Subject"' 2>/dev/null)
+    local date=$(echo "$email_data" | jq -r 'try (.[0][0][0].headers.Date) // "Unknown"' 2>/dev/null)
+    
+    # Try multiple body extraction methods
+    local body=$(echo "$email_data" | jq -r 'try (.[0][0][0].body[0].content) // try (.[0][0][0].body) // "No content available"' 2>/dev/null)
+    
+    # Fallback to text format if JSON parsing fails
+    if [[ "$from" == "null" ]] || [[ -z "$from" ]]; then
+        echo "JSON parsing failed, falling back to text format" >&2
+        local text_output=$(notmuch show --format=text "id:$email_id" 2>/dev/null)
+        if [[ -n "$text_output" ]]; then
+            from=$(echo "$text_output" | grep "^From:" | head -1 | cut -d' ' -f2- || echo "Unknown")
+            to=$(echo "$text_output" | grep "^To:" | head -1 | cut -d' ' -f2- || echo "Unknown")
+            subject=$(echo "$text_output" | grep "^Subject:" | head -1 | cut -d' ' -f2- || echo "No Subject")
+            date=$(echo "$text_output" | grep "^Date:" | head -1 | cut -d' ' -f2- || echo "Unknown")
+            body=$(echo "$text_output" | sed -n '/^$/,$p' | tail -n +2 || echo "No content available")
+        else
+            return 1
+        fi
+    fi
+    
+    # Create markdown with YAML frontmatter
+    cat > "$output_file" << EOF
+---
+title: "Email: $subject"
+from: "$from"
+to: "$to" 
+date: "$date"
+email_id: "$email_id"
+processed: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+tags: [email, processed]
+---
+
+# Email: $subject
+
+**From**: $from  
+**To**: $to  
+**Date**: $date  
+
+## Content
+$body
+
+## AI Analysis
+_To be populated by email analysis_
+
+## Action Items
+_To be populated by email analysis_
+
+## Contact Intelligence
+_To be populated by contact research_
+EOF
+
+    echo "$output_file"
+}
+
+# Function to analyze email for TAM relevance
+analyze_email_content() {
+    local email_file="$1"
+    
+    if [[ ! -f "$email_file" ]]; then
+        return 1
+    fi
+    
+    # Extract email content for analysis
+    local email_content=$(cat "$email_file")
+    
+    # Create analysis prompt
+    local analysis_prompt="Analyze this email for TAM (Technical Account Manager) relevance:
+
+EMAIL CONTENT:
+$email_content
+
+Please identify:
+1. Customer/account mentions (BNY, CIBC, Citi, Discover, or other companies)
+2. Technical issues or problems mentioned
+3. Case numbers or support tickets referenced
+4. Escalations or urgent items
+5. Meeting requests or calendar items
+6. Product mentions (OpenShift, RHEL, AI, security tools)
+7. Action items for the TAM
+8. Contacts that need research
+
+Format as structured analysis with clear sections."
+
+    # Get AI analysis
+    echo "$analysis_prompt" | fabric -p analyze_incident -m "$FABRIC_MODEL" 2>/dev/null
+}
+
+# Function to research contact information
+research_contact() {
+    local email_address="$1"
+    local name="$2"
+    local output_file="$OUTPUT_DIR/contacts/$(echo "$email_address" | tr '@.' '-')-$(date +%Y%m%d).md"
+    
+    echo "Researching contact: $name <$email_address>..." >&2
+    
+    # Create research prompt
+    local research_prompt="Research this professional contact for TAM relationship building:
+
+NAME: $name
+EMAIL: $email_address
+
+Please find publicly available information about:
+1. Current role and company
+2. Technical background and expertise
+3. Previous work history
+4. Social media/professional profiles
+5. Recent publications or presentations
+6. Areas of technical interest
+7. Potential collaboration opportunities
+
+Focus on professional, publicly available information only. Do not include personal details."
+
+    # Get research results
+    local research_results=$(echo "$research_prompt" | fabric -p extract_wisdom -m "$RESEARCH_MODEL" 2>/dev/null)
+    
+    # Create contact dossier
+    cat > "$output_file" << EOF
+---
+title: Contact Dossier - $name
+email: $email_address
+name: $name
+researched: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+tags: [contact, research, dossier]
+---
+
+# Contact Dossier - $name
+
+**Email**: $email_address  
+**Research Date**: $(date -u +%Y-%m-%d)
+
+## Research Results
+$research_results
+
+## TAM Notes
+_Add manual observations and interaction history here_
+
+## Relationship Status
+- [ ] Initial contact
+- [ ] Active engagement
+- [ ] Regular communication
+- [ ] Strategic relationship
+
+## Action Items
+_Add follow-up actions based on research_
+EOF
+
+    echo "Contact research saved to: $output_file"
+    pai-audit log "CONTACT_RESEARCH" "email=$email_address name=$name"
+    
+    echo "$output_file"
+}
+
+# Function to process recent emails
+process_recent_emails() {
+    local days="${1:-1}"
+    local max_emails="${2:-20}"
+    
+    echo "Processing emails from last $days days (max: $max_emails)..." >&2
+    
+    cd "$EMAIL_DIR"
+    
+    # Get recent emails directly by message ID to handle missing files better
+    local email_ids=$(notmuch search --output=messages --limit="$max_emails" "date:${days}days.." 2>/dev/null)
+    
+    if [[ -z "$email_ids" ]]; then
+        echo "No recent emails found" >&2
+        return 0
+    fi
+    
+    local processed_count=0
+    local tam_relevant_count=0
+    local missing_files=0
+    
+    while read -r email_id; do
+        if [[ -n "$email_id" ]]; then
+            local email_file="$OUTPUT_DIR/daily/email-$(echo "$email_id" | tr '<>@.:/' '-')-$(date +%Y%m%d).md"
+            
+            # Extract email content - now with better error handling
+            if extract_email_content "$email_id" "$email_file"; then
+                ((processed_count++))
+                echo "✓ Processed: $(basename "$email_file")" >&2
+                
+                # Analyze for TAM relevance
+                local analysis=$(analyze_email_content "$email_file")
+                
+                # Update email file with analysis
+                if [[ -n "$analysis" ]]; then
+                    # Replace analysis section properly
+                    local temp_file="${email_file}.tmp"
+                    awk '
+                        /^## AI Analysis/ { in_analysis=1; print; print analysis; next }
+                        /^## Action Items/ { in_analysis=0 }
+                        !in_analysis { print }
+                    ' analysis="$analysis" "$email_file" > "$temp_file" && mv "$temp_file" "$email_file"
+                    
+                    # Check if TAM relevant
+                    if echo "$analysis" | grep -q -i "case\|customer\|account\|technical\|issue\|escalation\|discover\|bny\|citi\|cibc"; then
+                        ((tam_relevant_count++))
+                        
+                        # Extract contacts for research
+                        local from_email=$(grep "^from:" "$email_file" | cut -d'"' -f2)
+                        local from_name=$(echo "$from_email" | cut -d'<' -f1 | xargs)
+                        local email_addr=$(echo "$from_email" | grep -o '<[^>]*>' | tr -d '<>' || echo "$from_email")
+                        
+                        # Research contact if it's external and has a name
+                        if [[ "$email_addr" != *"@redhat.com" ]] && [[ -n "$from_name" ]] && [[ "$from_name" != "$email_addr" ]]; then
+                            research_contact "$email_addr" "$from_name" &
+                        fi
+                    fi
+                fi
+            else
+                ((missing_files++))
+                echo "⚠ Skipped: $email_id (file missing/corrupted)" >&2
+            fi
+            
+            # Break if we've processed enough
+            if [[ $processed_count -ge $max_emails ]]; then
+                break
+            fi
+        fi
+    done <<< "$email_ids"
+    
+    # Wait for background contact research jobs
+    wait
+    
+    echo "Processed $processed_count emails, $tam_relevant_count TAM-relevant, $missing_files missing/corrupted" >&2
+    echo "$processed_count:$tam_relevant_count:$missing_files"
+}
+
+# Function to identify potential issues from emails
+identify_issues() {
+    local days="${1:-1}"
+    
+    echo "Identifying potential issues from recent emails..." >&2
+    
+    # Get processed emails from last N days
+    local processed_emails=$(find "$OUTPUT_DIR/daily" -name "email-*-$(date +%Y%m%d).md" -o -name "email-*-$(date -d "yesterday" +%Y%m%d).md" 2>/dev/null)
+    
+    if [[ -z "$processed_emails" ]]; then
+        echo "No processed emails found" >&2
+        return 0
+    fi
+    
+    local issues_found=""
+    
+    while read -r email_file; do
+        if [[ -f "$email_file" ]]; then
+            # Extract potential issues using fabric
+            local issue_analysis=$(cat "$email_file" | fabric -p analyze_incident -m "$FABRIC_MODEL" 2>/dev/null)
+            
+            # Check for issue indicators
+            if echo "$issue_analysis" | grep -q -i "problem\|issue\|error\|failure\|down\|outage\|urgent"; then
+                local email_subject=$(grep "^title:" "$email_file" | cut -d'"' -f2)
+                local email_from=$(grep "^from:" "$email_file" | cut -d'"' -f2)
+                
+                issues_found+="- $email_subject (from: $email_from)"$'\n'
+            fi
+        fi
+    done <<< "$processed_emails"
+    
+    if [[ -n "$issues_found" ]]; then
+        echo "Potential Issues Identified:"
+        echo "$issues_found"
+    else
+        echo "No potential issues identified in recent emails"
+    fi
+}
+
+# Function to generate email summary for daily briefing
+generate_email_summary() {
+    local days="${1:-1}"
+    
+    # Process recent emails
+    local email_stats=$(process_recent_emails "$days")
+    IFS=':' read -r total_processed tam_relevant <<< "$email_stats"
+    
+    # Identify issues
+    local issues=$(identify_issues "$days")
+    
+    # Create summary
+    cat << EOF
+## Email Intelligence Summary
+
+### Processing Stats
+- **Total emails processed**: $total_processed
+- **TAM-relevant emails**: $tam_relevant
+- **Analysis period**: Last $days day(s)
+
+### Potential Issues Identified
+$issues
+
+### Contact Research
+- New contacts researched and added to dossier system
+- External contacts automatically profiled for relationship building
+
+### Recommendations
+- Review TAM-relevant emails for action items
+- Follow up on identified potential issues
+- Check contact dossiers before customer meetings
+EOF
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    process)
+        shift
+        days="${1:-1}"
+        max_emails="${2:-20}"
+        process_recent_emails "$days" "$max_emails"
+        ;;
+    issues)
+        shift
+        days="${1:-1}"
+        identify_issues "$days"
+        ;;
+    contact)
+        shift
+        email="${1:-}"
+        name="${2:-}"
+        if [[ -z "$email" ]]; then
+            echo "Usage: pai-email-processor contact <email> [name]"
+            exit 1
+        fi
+        research_contact "$email" "$name"
+        ;;
+    summary)
+        shift
+        days="${1:-1}"
+        generate_email_summary "$days"
+        ;;
+    discover)
+        shift
+        days="${1:-7}"
+        
+        # Create Discover-specific summary
+        output_file="$OUTPUT_DIR/daily/discover-summary-$(date +%Y%m%d).md"
+        if create_summary_from_search "discover date:${days}days.." "$output_file"; then
+            echo "Discover email summary created: $output_file"
+            cat "$output_file"
+        else
+            echo "No Discover emails found in last $days days"
+        fi
+        ;;
+    search)
+        shift
+        query="${1:-}"
+        days="${2:-7}"
+        if [[ -z "$query" ]]; then
+            echo "Usage: pai-email-processor search <query> [days]"
+            exit 1
+        fi
+        
+        output_file="$OUTPUT_DIR/daily/search-$(echo "$query" | tr ' ' '-')-$(date +%Y%m%d).md"
+        if create_summary_from_search "$query date:${days}days.." "$output_file"; then
+            echo "Search summary created: $output_file"
+            cat "$output_file"
+        else
+            echo "No emails found matching: $query"
+        fi
+        ;;
+    help|--help|-h)
+        cat << 'EOF'
+PAI Email Processor - TAM Email Intelligence
+
+Usage: pai-email-processor <command> [options]
+
+Commands:
+  process [days] [max]      Process recent emails (default: 1 day, 20 emails)
+  issues [days]             Identify potential issues from emails
+  contact <email> [name]    Research contact and create dossier
+  summary [days]            Generate email summary for daily briefing
+  discover [days]           Generate Discover-specific email summary (default: 7 days)
+  search <query> [days]     Search emails and create summary (default: 7 days)
+  help                      Show this help
+
+Examples:
+  pai-email-processor process 2 50
+  pai-email-processor issues 1
+  pai-email-processor contact "john@company.com" "John Smith"
+  pai-email-processor summary 1
+
+Features:
+  - TAM-relevance analysis using fabric patterns
+  - Automatic contact research and dossier creation
+  - Issue identification from email content
+  - Integration with daily briefing system
+  - Audit logging for all processing
+
+Output Locations:
+  - Daily emails: ~/.claude/context/create/outputs/email/daily/
+  - Contact dossiers: ~/.claude/context/create/outputs/email/contacts/
+  - Issue reports: ~/.claude/context/create/outputs/email/issues/
+
+Integration:
+  - Called by pai-my-plate-v2 for daily briefings
+  - Uses fabric patterns for AI analysis
+  - Uses perplexity for contact research
+  - Integrates with pai-audit for logging
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-email-processor help' for usage"
+        exit 1
+        ;;
+esac

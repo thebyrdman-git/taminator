@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI Knowledge Base Search Tool
+# Searches markdown knowledge base using ripgrep with TAM-focused queries
+
+KB_DIR="$HOME/.claude/context/knowledge"
+FABRIC_MODEL="${PAI_SEARCH_MODEL:-gpt-4o}"
+
+# Function to perform search
+search_kb() {
+    local query="$1"
+    local search_type="${2:-content}"
+    
+    case "$search_type" in
+        files)
+            # Search for files by name
+            find "$KB_DIR" -name "*.md" -ipath "*$query*" | sort
+            ;;
+        tags)
+            # Search by YAML frontmatter tags
+            rg --type md "^tags:.*$query" "$KB_DIR" -l | sort
+            ;;
+        content)
+            # Full text search with context
+            rg --type md -i -C 3 "$query" "$KB_DIR" | head -50
+            ;;
+        smart)
+            # AI-enhanced search using fabric
+            echo "Searching knowledge base for: $query" >&2
+            rg --type md -i "$query" "$KB_DIR" -A 2 -B 2 | \
+                fabric -p extract_wisdom -m "$FABRIC_MODEL" 2>/dev/null
+            ;;
+        *)
+            echo "Unknown search type: $search_type" >&2
+            return 1
+            ;;
+    esac
+}
+
+# Function to add knowledge entry
+add_entry() {
+    local category="$1"
+    local title="$2"
+    local content="$3"
+    
+    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    local filename=$(echo "$title" | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')
+    local filepath="$KB_DIR/$category/${filename}.md"
+    
+    mkdir -p "$KB_DIR/$category"
+    
+    cat > "$filepath" << EOF
+---
+title: $title
+category: $category
+created: $timestamp
+modified: $timestamp
+tags: [$category]
+---
+
+# $title
+
+$content
+
+## Related
+<!-- Add links to related knowledge entries -->
+
+## Sources
+<!-- Add source references -->
+EOF
+
+    echo "Knowledge entry created: $filepath"
+    
+    # Add to git if in a git repo
+    if [[ -d "$KB_DIR/.git" ]]; then
+        cd "$KB_DIR"
+        git add "$filepath"
+        git commit -m "Add knowledge entry: $title"
+    fi
+}
+
+# Function to update entry
+update_entry() {
+    local filepath="$1"
+    local new_content="$2"
+    
+    if [[ ! -f "$filepath" ]]; then
+        echo "Error: File not found: $filepath" >&2
+        return 1
+    fi
+    
+    # Update modified timestamp in frontmatter
+    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    sed -i "s/^modified: .*/modified: $timestamp/" "$filepath"
+    
+    # Append new content
+    echo "" >> "$filepath"
+    echo "## Update $(date -u +%Y-%m-%d)" >> "$filepath"
+    echo "$new_content" >> "$filepath"
+    
+    # Commit to git
+    if [[ -d "$KB_DIR/.git" ]]; then
+        cd "$KB_DIR"
+        git add "$filepath"
+        git commit -m "Update knowledge entry: $(basename "$filepath" .md)"
+    fi
+    
+    echo "Knowledge entry updated: $filepath"
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    search|s)
+        shift
+        query="${1:-}"
+        search_type="${2:-content}"
+        if [[ -z "$query" ]]; then
+            echo "Usage: pai-search search <query> [type]"
+            echo "Types: content (default), files, tags, smart"
+            exit 1
+        fi
+        search_kb "$query" "$search_type"
+        ;;
+    add)
+        shift
+        category="${1:-notes}"
+        title="${2:-}"
+        content="${3:-}"
+        if [[ -z "$title" ]]; then
+            echo "Usage: pai-search add <category> <title> <content>"
+            exit 1
+        fi
+        add_entry "$category" "$title" "$content"
+        ;;
+    update)
+        shift
+        filepath="$1"
+        content="$2"
+        if [[ -z "$filepath" || -z "$content" ]]; then
+            echo "Usage: pai-search update <filepath> <content>"
+            exit 1
+        fi
+        update_entry "$filepath" "$content"
+        ;;
+    list)
+        shift
+        category="${1:-}"
+        if [[ -n "$category" ]]; then
+            find "$KB_DIR/$category" -name "*.md" | sort
+        else
+            find "$KB_DIR" -name "*.md" | sort
+        fi
+        ;;
+    categories)
+        ls -1 "$KB_DIR" | grep -v "^\."
+        ;;
+    stats)
+        echo "Knowledge Base Statistics:"
+        echo "========================="
+        for dir in "$KB_DIR"/*; do
+            if [[ -d "$dir" ]]; then
+                category=$(basename "$dir")
+                count=$(find "$dir" -name "*.md" | wc -l)
+                printf "%-15s %3d files\n" "$category:" "$count"
+            fi
+        done
+        echo
+        total=$(find "$KB_DIR" -name "*.md" | wc -l)
+        echo "Total: $total knowledge entries"
+        ;;
+    help|--help|-h)
+        cat << 'EOF'
+PAI Knowledge Base Search Tool
+
+Usage: pai-search <command> [options]
+
+Commands:
+  search <query> [type]     Search knowledge base
+    Types:
+      content   - Full text search (default)
+      files     - Search by filename
+      tags      - Search by YAML tags
+      smart     - AI-enhanced search with fabric
+      
+  add <category> <title> <content>  Add new knowledge entry
+  update <filepath> <content>       Update existing entry
+  list [category]                   List all entries or by category
+  categories                        List all categories
+  stats                            Show knowledge base statistics
+  help                             Show this help
+
+Examples:
+  pai-search search "OpenShift networking"
+  pai-search search "case analysis" smart
+  pai-search add cases "BNY Case Analysis" "Analysis of case 04056105..."
+  pai-search list cases
+  pai-search stats
+
+Environment:
+  PAI_SEARCH_MODEL - Model for smart search (default: gpt-4o)
+
+Knowledge Base Location:
+  ~/.claude/context/knowledge/
+EOF
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'pai-search help' for usage"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,605 @@
+#!/usr/bin/env python3
+
+"""
+PAI Meeting Preparation Tool - Enhanced
+Automated meeting preparation with intelligent project detection and dossier management
+"""
+
+import os
+import re
+import json
+import sys
+import argparse
+import glob
+from datetime import datetime, timezone
+from pathlib import Path
+import subprocess
+
+# Configuration
+PAI_DIR = Path.home() / '.claude' / 'context'
+TAM_WORKSPACE = Path.home() / 'Documents' / 'rh' / 'projects'
+DEFAULT_OUTPUT_DIR = PAI_DIR / 'create' / 'outputs' / 'meetings'
+DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+class EnhancedMeetingPrep:
+    def __init__(self):
+        self.calendar_available = self._check_calendar()
+        self.tam_workspace = TAM_WORKSPACE
+        
+    def _check_calendar(self):
+        """Check if pai-calendar is available"""
+        try:
+            subprocess.run(['which', 'pai-calendar'], check=True, capture_output=True)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+    
+    def _detect_project_context(self, meeting_title, attendees):
+        """Intelligently detect which TAM project this meeting belongs to"""
+        meeting_lower = meeting_title.lower()
+        
+        # Define project indicators
+        project_indicators = {
+            'tam-ocp': [
+                'openshift', 'ocp', 'pipeline', 'tekton', 'acm', 'service mesh',
+                'aro', 'developer hub', 'operators', 'cluster', 'containers'
+            ],
+            'tam-ai': [
+                'ai', 'ml', 'machine learning', 'artificial intelligence', 
+                'rhel ai', 'openshift ai', 'gpu', 'nvidia', 'inference'
+            ],
+            'tam-sec': [
+                'security', 'cve', 'compliance', 'audit', 'rhacs', 
+                'advanced cluster security', 'vulnerability'
+            ]
+        }
+        
+        # Score each project based on meeting title
+        project_scores = {}
+        for project, keywords in project_indicators.items():
+            score = sum(1 for keyword in keywords if keyword in meeting_lower)
+            if score > 0:
+                project_scores[project] = score
+        
+        # Check attendee domains for additional context
+        customer_domains = set()
+        for email in attendees:
+            if '@' in email and not email.endswith('@redhat.com'):
+                domain = email.split('@')[1]
+                customer_domains.add(domain.lower())
+        
+        # Check existing customer directories
+        detected_customer = None
+        if customer_domains:
+            for domain in customer_domains:
+                # Extract company name from domain (e.g., citi.com -> citi)
+                company = domain.split('.')[0]
+                
+                # Check if this customer exists in any TAM project
+                for project in ['tam-ocp', 'tam-ai', 'tam-sec']:
+                    customer_dir = self.tam_workspace / project / company
+                    if customer_dir.exists():
+                        # Boost score for projects with existing customer data
+                        project_scores[project] = project_scores.get(project, 0) + 10
+                        detected_customer = company
+                        break
+        
+        # Return the highest scoring project, defaulting to tam-ocp
+        if project_scores:
+            best_project = max(project_scores.items(), key=lambda x: x[1])[0]
+        else:
+            best_project = 'tam-ocp'  # Default
+            
+        return best_project, detected_customer, list(customer_domains)
+    
+    def _find_existing_dossiers(self, attendees, project_dir):
+        """Find existing dossiers for attendees in the project directory"""
+        existing_dossiers = {}
+        
+        if not project_dir.exists():
+            return existing_dossiers
+            
+        # Search for dossier directories in the project
+        dossier_dirs = list(project_dir.glob('*/account-info/dossiers'))
+        
+        for dossier_dir in dossier_dirs:
+            if dossier_dir.exists():
+                for email in attendees:
+                    # Look for existing dossiers with this email
+                    email_slug = email.replace('@', '-at-').replace('.', '-')
+                    pattern = f"contact-dossier-*{email_slug}*.md"
+                    matches = list(dossier_dir.glob(pattern))
+                    
+                    if matches:
+                        # Use the most recent dossier
+                        latest = max(matches, key=lambda p: p.stat().st_mtime)
+                        existing_dossiers[email] = latest
+        
+        return existing_dossiers
+    
+    def _determine_dossier_location(self, project, customer, meeting_title):
+        """Determine where to store dossiers based on project and customer"""
+        if customer and project:
+            # Store in customer-specific dossier directory
+            dossier_dir = self.tam_workspace / project / customer / 'account-info' / 'dossiers'
+            dossier_dir.mkdir(parents=True, exist_ok=True)
+            return dossier_dir
+        elif project:
+            # Store in project-level directory
+            project_dir = self.tam_workspace / project
+            if project_dir.exists():
+                # Find first customer directory or create generic
+                customer_dirs = [d for d in project_dir.iterdir() 
+                               if d.is_dir() and not d.name.startswith('.')]
+                if customer_dirs:
+                    first_customer = customer_dirs[0]
+                    dossier_dir = first_customer / 'account-info' / 'dossiers'
+                    dossier_dir.mkdir(parents=True, exist_ok=True)
+                    return dossier_dir
+        
+        # Fallback to default PAI location
+        fallback_dir = PAI_DIR / 'create' / 'outputs' / 'contacts'
+        fallback_dir.mkdir(parents=True, exist_ok=True)
+        return fallback_dir
+    
+    def extract_emails_from_text(self, text):
+        """Extract email addresses from text"""
+        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        return re.findall(email_pattern, text)
+    
+    def extract_emails_from_sources(self, meeting_title, project=None, customer=None):
+        """Extract attendee emails from multiple sources"""
+        attendees = []
+        sources_checked = []
+        
+        # 1. Try calendar integration
+        if self.calendar_available:
+            try:
+                cmd = ['pai-calendar', 'today']
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                if result.returncode == 0:
+                    lines = result.stdout.split('\n')
+                    for line in lines:
+                        if meeting_title.lower() in line.lower():
+                            found_emails = self.extract_emails_from_text(line)
+                            attendees.extend(found_emails)
+                            sources_checked.append("calendar")
+                            break
+            except Exception as e:
+                print(f"⚠️ Calendar check failed: {e}")
+        
+        # 2. Search TAM workspace for meeting notes with this title
+        if project and customer:
+            search_dirs = [
+                self.tam_workspace / project / customer / 'communications',
+                self.tam_workspace / project / customer / 'coordination',
+                self.tam_workspace / project / customer / 'strategic' / 'meeting-notes'
+            ]
+            
+            for search_dir in search_dirs:
+                if search_dir.exists():
+                    for md_file in search_dir.rglob('*.md'):
+                        try:
+                            with open(md_file, 'r', encoding='utf-8') as f:
+                                content = f.read()
+                                if meeting_title.lower() in content.lower():
+                                    found_emails = self.extract_emails_from_text(content)
+                                    attendees.extend(found_emails)
+                                    sources_checked.append(f"meeting-notes:{md_file.name}")
+                        except Exception:
+                            continue
+        
+        # 3. Search email threads if available
+        if project and customer:
+            email_dir = self.tam_workspace / project / customer / 'communications' / 'emails'
+            if email_dir.exists():
+                for email_file in email_dir.rglob('*.md'):
+                    try:
+                        with open(email_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            found_emails = self.extract_emails_from_text(content)
+                            attendees.extend(found_emails)
+                            sources_checked.append(f"email-threads:{email_file.name}")
+                    except Exception:
+                        continue
+        
+        # Remove duplicates and Red Hat emails for external focus
+        unique_attendees = []
+        seen = set()
+        for email in attendees:
+            if email.lower() not in seen and not email.endswith('@redhat.com'):
+                unique_attendees.append(email)
+                seen.add(email.lower())
+        
+        return unique_attendees, sources_checked
+    
+    def manage_dossiers(self, attendees, dossier_location, force_update=False):
+        """Create or update dossiers for attendees"""
+        dossier_files = []
+        
+        if not attendees:
+            return dossier_files
+            
+        print(f"🔍 Managing dossiers for {len(attendees)} attendees...")
+        print(f"📁 Dossier location: {dossier_location}")
+        
+        for email in attendees:
+            try:
+                # Check if dossier already exists
+                email_slug = email.replace('@', '-at-').replace('.', '-')
+                existing_pattern = f"contact-dossier-*{email_slug}*.md"
+                existing_files = list(dossier_location.glob(existing_pattern))
+                
+                should_create = True
+                dossier_path = None
+                
+                if existing_files and not force_update:
+                    # Use existing dossier
+                    latest_dossier = max(existing_files, key=lambda p: p.stat().st_mtime)
+                    dossier_path = latest_dossier
+                    should_create = False
+                    print(f"  ✅ Using existing dossier for {email}: {latest_dossier.name}")
+                
+                if should_create:
+                    # Create new dossier - we need to temporarily change the output location
+                    # Save original OUTPUT_DIR value from pai-contact-intelligence
+                    cmd = ['pai-contact-intelligence', 'contact', email]
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+                    
+                    if result.returncode == 0 and 'Dossier saved:' in result.stdout:
+                        # Extract the created dossier path
+                        temp_path = result.stdout.split('Dossier saved: ')[1].strip()
+                        temp_file = Path(temp_path)
+                        
+                        if temp_file.exists():
+                            # Move to the correct location
+                            new_name = temp_file.name
+                            dossier_path = dossier_location / new_name
+                            
+                            # Move file to target location
+                            temp_file.rename(dossier_path)
+                            print(f"  📝 Created new dossier for {email}: {new_name}")
+                
+                if dossier_path:
+                    dossier_files.append((email, str(dossier_path)))
+                    
+            except Exception as e:
+                print(f"  ⚠️ Error managing dossier for {email}: {e}")
+        
+        return dossier_files
+    
+    def prepare_meeting(self, meeting_title, with_dossiers=True, output_dir=None, force_update_dossiers=False):
+        """Prepare comprehensive meeting briefing with intelligent project detection"""
+        print(f"📝 Preparing meeting: {meeting_title}")
+        
+        # Step 1: Extract attendees from multiple sources
+        attendees, sources = self.extract_emails_from_sources(meeting_title)
+        print(f"🔍 Found {len(attendees)} attendees from sources: {', '.join(sources)}")
+        
+        # Step 2: Detect project context
+        project, customer, domains = self._detect_project_context(meeting_title, attendees)
+        print(f"🎯 Detected context: {project}" + (f" / {customer}" if customer else ""))
+        
+        # Step 3: Determine output locations
+        if output_dir:
+            meeting_output_dir = Path(output_dir)
+            meeting_output_dir.mkdir(parents=True, exist_ok=True)
+            # For dossiers, use subdirectory
+            dossier_location = meeting_output_dir / 'dossiers'
+            dossier_location.mkdir(parents=True, exist_ok=True)
+        else:
+            # Intelligent project-based location
+            if customer and project:
+                meeting_output_dir = self.tam_workspace / project / customer / 'coordination'
+                meeting_output_dir.mkdir(parents=True, exist_ok=True)
+            else:
+                meeting_output_dir = DEFAULT_OUTPUT_DIR
+            
+            dossier_location = self._determine_dossier_location(project, customer, meeting_title)
+        
+        print(f"📁 Meeting prep location: {meeting_output_dir}")
+        
+        # Step 4: Manage dossiers
+        dossier_files = []
+        if with_dossiers:
+            dossier_files = self.manage_dossiers(attendees, dossier_location, force_update_dossiers)
+        
+        # Step 5: Create meeting preparation document
+        timestamp = datetime.now(timezone.utc).isoformat()
+        safe_title = re.sub(r'[^\w\-_\.]', '-', meeting_title.lower())
+        filename = f"meeting-prep-{safe_title}-{datetime.now().strftime('%Y%m%d-%H%M')}.md"
+        output_file = meeting_output_dir / filename
+        
+        # Step 6: Generate content
+        content = self._create_enhanced_meeting_prep_content(
+            meeting_title, timestamp, attendees, dossier_files, 
+            project, customer, sources, dossier_location
+        )
+        
+        # Write meeting prep file
+        with open(output_file, 'w') as f:
+            f.write(content)
+        
+        print(f"📄 Meeting prep saved: {output_file}")
+        
+        # Log to audit
+        subprocess.run(['pai-audit', 'log', 'MEETING_PREP', 
+                       f'meeting="{meeting_title}" project={project} customer={customer} attendees={len(attendees)} dossiers={len(dossier_files)}'], 
+                       check=False)
+        
+        return output_file, dossier_files
+    
+    def _create_enhanced_meeting_prep_content(self, meeting_title, timestamp, attendees, 
+                                            dossier_files, project, customer, sources, dossier_location):
+        """Create comprehensive meeting preparation content with project context"""
+        
+        content = f"""---
+title: "Meeting Preparation - {meeting_title}"
+meeting_title: "{meeting_title}"
+created: "{timestamp}"
+type: "meeting_preparation"
+project: "{project}"
+customer: "{customer or 'unknown'}"
+attendees_count: {len(attendees)}
+dossiers_generated: {len(dossier_files)}
+sources_checked: {sources}
+dossier_location: "{dossier_location}"
+tags: [meeting-prep, {project}, {customer or 'general'}, {re.sub(r'[^\w]', '-', meeting_title.lower())}]
+---
+
+# Meeting Preparation - {meeting_title}
+
+**Generated**: {timestamp}  
+**Project Context**: {project}{' / ' + customer if customer else ''}  
+**Attendees**: {len(attendees)} identified  
+**Dossiers**: {len(dossier_files)} managed  
+**Sources**: {', '.join(sources)}
+
+## Meeting Context
+
+**Detected Project**: {project}
+"""
+        
+        if customer:
+            content += f"**Customer Account**: {customer}\\n"
+        
+        content += f"""
+**Dossier Storage**: `{dossier_location}`
+
+## Attendees ({len(attendees)})
+"""
+        
+        if attendees:
+            for email in attendees:
+                content += f"- {email}\n"
+        else:
+            content += "*No external attendees identified - add manually*\n"
+        
+        content += f"""
+## Contact Dossiers ({len(dossier_files)})
+"""
+        
+        if dossier_files:
+            for email, dossier_path in dossier_files:
+                relative_path = Path(dossier_path).name
+                content += f"""
+### {email}
+**Dossier**: [`{relative_path}`]({dossier_path})
+"""
+        else:
+            content += "*Enable with --with-dossiers flag*\n"
+        
+        # Add project-specific preparation sections
+        if project == 'tam-ocp':
+            content += """
+## OpenShift TAM Pre-Meeting Checklist
+
+### Technical Preparation
+- [ ] Check cluster health: `oc get co,nodes`
+- [ ] Review recent must-gather files
+- [ ] Check operator status and versions
+- [ ] Review pipeline/build performance metrics
+- [ ] Check for any critical alerts or issues
+
+### Case Review
+- [ ] Recent OpenShift cases: `rhcase list [account]`
+- [ ] Pipeline-related issues: `rhcase search "tekton,pipeline"`
+- [ ] Upgrade planning status
+- [ ] Performance or scaling concerns
+
+"""
+        elif project == 'tam-ai':
+            content += """
+## AI TAM Pre-Meeting Checklist
+
+### Technical Preparation
+- [ ] GPU utilization and availability
+- [ ] RHEL AI / OpenShift AI status
+- [ ] Model performance and inference metrics
+- [ ] Resource allocation and scaling
+
+### AI-Specific Topics
+- [ ] Training workloads and performance
+- [ ] Model deployment challenges
+- [ ] Integration with existing workflows
+- [ ] Compliance and security requirements
+
+"""
+        elif project == 'tam-sec':
+            content += """
+## Security TAM Pre-Meeting Checklist
+
+### Security Preparation
+- [ ] Recent CVE analysis and patching status
+- [ ] Compliance audit results
+- [ ] RHACS/ACS deployment status
+- [ ] Security policy violations
+
+### Security Topics
+- [ ] Vulnerability management
+- [ ] Compliance framework alignment
+- [ ] Security tooling integration
+- [ ] Incident response procedures
+
+"""
+        
+        content += f"""
+## Pre-Meeting Research
+
+### Account Context Research
+- [ ] Review account health: `pai-workspace list`
+- [ ] Check recent escalations or concerns
+- [ ] Review subscription and renewal status
+- [ ] Identify current strategic initiatives
+
+### Technical Context
+"""
+        
+        if customer:
+            content += f"""- [ ] Search recent cases: `pai-workspace case search {customer}`
+- [ ] Review {customer} documentation in TAM workspace
+- [ ] Check for any active critical situations
+"""
+        else:
+            content += """- [ ] Search for relevant cases based on meeting topics
+- [ ] Review technical documentation
+- [ ] Check for any active issues
+"""
+        
+        content += f"""
+### Knowledge Base Research
+- [ ] Search KCS articles: `rhcase kcs search "relevant terms"`
+- [ ] Review JIRA issues: `rhcase jira search "topics"`
+- [ ] Check for recent product updates or known issues
+
+## Meeting Agenda (Template)
+1. **Welcome and Introductions** (5 min)
+2. **Previous Action Items Review** (10 min)
+3. **Current Status Updates** (15 min)
+4. **Technical Discussion** (20 min)
+5. **New Issues/Requests** (15 min)
+6. **Action Items and Next Steps** (10 min)
+7. **Closing and Next Meeting** (5 min)
+
+## Key Questions to Prepare
+- [ ] Any new challenges or technical blockers?
+- [ ] How are current solutions performing?
+- [ ] Any upcoming projects or architectural changes?
+- [ ] Feedback on Red Hat support and products?
+- [ ] Training, documentation, or consulting needs?
+- [ ] Budget or timeline considerations?
+
+## Technical Deep Dive Preparation
+- [ ] Prepare relevant architecture diagrams
+- [ ] Review performance metrics and trends
+- [ ] Gather troubleshooting resources and tools
+- [ ] Prepare demo environment if needed
+
+## Post-Meeting Follow-up Template
+- [ ] Send meeting summary to attendees within 24 hours
+- [ ] Create or update support cases as needed
+- [ ] Schedule technical deep-dive calls if required
+- [ ] Update account notes and CRM records
+- [ ] Share relevant documentation, KCS articles, or resources
+- [ ] Coordinate with internal Red Hat teams as needed
+
+## Related Commands
+```bash
+# Refresh dossiers for this meeting
+pai-meeting-prep prep \"{meeting_title}\" --with-dossiers --force-update
+
+# Search for related information
+pai-workspace search \"{meeting_title}\"
+
+# Get recent cases for account
+rhcase list {customer or '[account_name]'}
+
+# Research technical topics discussed
+echo "topic keywords" | fabric -p extract_wisdom -m perplexity-sonar-large
+
+# Update meeting notes post-call
+echo "meeting insights" | fabric -p summarize -m gpt-4-o
+```
+
+## Notes Section
+*(Add notes during the meeting)*
+
+### Attendee Introductions
+- 
+
+### Key Discussion Points
+- 
+
+### Technical Issues Discussed
+- 
+
+### Business Context and Priorities
+- 
+
+### Action Items
+- [ ] **[Owner]**: [Action] - Due: [Date]
+
+### Decisions Made
+- 
+
+### Next Steps and Follow-up
+- 
+
+### Questions for Future Research
+- 
+
+---
+*Generated by pai-meeting-prep (enhanced) - Project: {project}*
+"""
+        
+        return content
+
+def main():
+    parser = argparse.ArgumentParser(description='PAI Meeting Preparation Tool (Enhanced)')
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Prepare meeting command
+    prep_parser = subparsers.add_parser('prep', help='Prepare for specific meeting')
+    prep_parser.add_argument('meeting_title', help='Meeting title or partial title')
+    prep_parser.add_argument('--with-dossiers', action='store_true', default=True, 
+                           help='Generate/update attendee dossiers (default: True)')
+    prep_parser.add_argument('--no-dossiers', action='store_true', 
+                           help='Skip dossier generation')
+    prep_parser.add_argument('--force-update', action='store_true', 
+                           help='Force update existing dossiers')
+    prep_parser.add_argument('--output-dir', help='Custom output directory for all files')
+    
+    # Quick usage (backward compatibility) - only if no subcommand
+    if len(sys.argv) > 1 and sys.argv[1] not in ['prep']:
+        parser.add_argument('meeting_title', nargs='?', help='Meeting title (direct usage)')
+        parser.add_argument('--with-dossiers', action='store_true', default=True, 
+                           help='Generate attendee dossiers (default: True)')
+        parser.add_argument('--no-dossiers', action='store_true', help='Skip dossier generation')
+        parser.add_argument('--force-update', action='store_true', help='Force update dossiers')
+        parser.add_argument('--output-dir', help='Custom output directory')
+    
+    args = parser.parse_args()
+    
+    meeting_title = getattr(args, 'meeting_title', None)
+    
+    if not meeting_title and not args.command:
+        parser.print_help()
+        return
+    
+    prep = EnhancedMeetingPrep()
+    
+    # Determine dossier setting
+    with_dossiers = getattr(args, 'with_dossiers', True) and not getattr(args, 'no_dossiers', False)
+    force_update = getattr(args, 'force_update', False)
+    output_dir = getattr(args, 'output_dir', None)
+    
+    if args.command == 'prep':
+        prep.prepare_meeting(meeting_title, with_dossiers, output_dir, force_update)
+    elif meeting_title:
+        # Direct usage
+        prep.prepare_meeting(meeting_title, with_dossiers, output_dir, force_update)
+    else:
+        parser.print_help()
+
+if __name__ == '__main__':
+    main()
