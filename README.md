@@ -218,7 +218,7 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
   - Run the dependency installer again: `./bin/install-dependencies`
   - Test rhcase works: type `./rhcase/rhcase --version` in terminal
   - Try: `./rhcase/rhcase list [customer-name] --months 1` to see if it finds cases
-  - If rhcase doesn't work, ask your IT team for help
+  - If rhcase doesn't work, contact grimm (rhcase creator) via GitLab: https://gitlab.cee.redhat.com/gvaughn/rhcase/-/issues
 - **"Python packages missing"** → Install with: `pip3 install requests` or see: https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/installing_and_using_dynamic_programming_languages/installing-and-using-python
 - **"Git not configured"** → Set up with: `git config --global user.name "Your Name"` or see: https://source.redhat.com/groups/public/gitlabcee/user_documentation/getting_started_guide
 - **"I can't find customer account numbers"** → Check your customer portal or ask your manager
