@@ -41,6 +41,14 @@
 
 **Done! You'll get both copy/paste and auto-posting options.**
 
+### 💻 **Optional: Install Cursor IDE (Recommended)**
+
+**For the best experience with AI assistance:**
+1. Go to: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor#getting-started
+2. Follow the Red Hat internal setup instructions
+3. Install Cursor IDE for your platform
+4. Open this tool folder in Cursor for enhanced AI assistance
+
 ## 💡 Pro Tips
 
 - **The chat interface is like texting** - just type what you want

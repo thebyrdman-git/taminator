@@ -38,6 +38,7 @@
 - Your Red Hat login credentials
 - Access to customer portal
 - Git installed (usually already on RHEL/Fedora/Mac)
+- Cursor IDE with enterprise license (recommended for best experience)
 
 ### 📥 **Step 0: Get the Tool (One Time Only)**
 
@@ -55,6 +56,14 @@
 ./bin/install-dependencies
 ```
 *This automatically installs the rhcase tool and all other dependencies*
+
+### 💻 **Optional: Install Cursor IDE (Recommended)**
+
+**For the best experience, install Cursor IDE with Red Hat enterprise license:**
+1. Go to: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor#getting-started
+2. Follow the Red Hat internal setup instructions
+3. Install Cursor IDE for your platform (RHEL/Fedora/Mac)
+4. Open the RFE automation tool folder in Cursor for enhanced AI assistance
 
 ### 🎯 **First Time Setup (5 Minutes - One Time Only)**
 
