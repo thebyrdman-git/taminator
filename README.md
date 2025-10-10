@@ -79,6 +79,11 @@ curl -I https://source.redhat.com
 - **GitLab CLI (glab)**: https://source.redhat.com/groups/public/ccs/ccs_blog/installing_and_configuring_the_gitlab_cli_glab
 - **GitLab CEE FAQ**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/gitlabcee_faq
 
+**⚠️ IMPORTANT: GitLab CEE License Required**
+- **First-time access**: You have a 10-minute timer to request a license
+- **License request**: Must be completed during your first login session
+- **Getting access guide**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/getting_started_guide#getting-access
+
 ### 💻 **Optional: Install Cursor IDE (Recommended)**
 
 **For the best experience, install Cursor IDE with Red Hat enterprise license:**
