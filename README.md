@@ -32,11 +32,11 @@
 
 **Want to get started immediately?** → [**GETTING-STARTED.md**](GETTING-STARTED.md)
 
-### What You Need (Don't Worry - IT Can Help!)
+### What You Need
 - Red Hat laptop with internet connection
-- Red Hat VPN access (ask IT if you don't have it)
+- Red Hat VPN access
 - Your Red Hat login credentials
-- Access to customer portal (your manager can help with this)
+- Access to customer portal
 - `rhcase` tool installed (download from: https://access.redhat.com/solutions/2112)
 
 ### 🎯 **First Time Setup (5 Minutes - One Time Only)**
@@ -173,7 +173,7 @@ When you ask for reports, I'll give you **two options**:
 
 ## 🎉 Ready to Start?
 
-### For Everyone (Including Sales People!)
+### For All Users
 
 **Step 1: Open Terminal**
 - Windows: Press `Windows + R`, type `cmd`, press Enter
@@ -191,11 +191,11 @@ When you ask for reports, I'll give you **two options**:
 ```
 *Then just type: "Generate a report for [Customer Name]"*
 
-### For People Who Are Nervous About Technology
+### For First-Time Users
 - **The chat interface is like texting** - just type what you want
 - **The tool asks you questions** - just answer them
 - **If you get stuck, type "help"** - the tool will guide you
-- **Your IT team can help** with the initial setup if needed
+- **Contact support** if you need assistance with setup
 
 **That's it! The tool does all the hard work for you.**
 
