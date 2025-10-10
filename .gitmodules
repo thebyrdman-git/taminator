@@ -1,0 +1,3 @@
+[submodule "rhcase"]
+	path = rhcase
+	url = https://gitlab.cee.redhat.com/gvaughn/rhcase.git

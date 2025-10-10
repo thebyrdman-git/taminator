@@ -96,7 +96,10 @@ curl -I https://source.redhat.com
 8. **Download Cursor IDE**:
    - Click your **profile icon** (top right corner)
    - Select **"Download desktop client"** for your OS (RHEL/Fedora/Mac)
-9. **Install and open** the RFE automation tool folder in Cursor for enhanced AI assistance
+9. **Install Cursor IDE**:
+   - **For AppImage files** (Linux): Right-click the downloaded file → Properties → Permissions → Check "Execute" or run: `chmod +x cursor-*.AppImage`
+   - **For other formats**: Follow standard installation procedures for your OS
+10. **Open the RFE automation tool folder** in Cursor for enhanced AI assistance
 
 #### **Additional Resources:**
 - **Setup guide**: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor#getting-started
