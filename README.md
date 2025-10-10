@@ -100,6 +100,10 @@ curl -I https://source.redhat.com
    - **For AppImage files** (Linux): Right-click the downloaded file → Properties → Permissions → Check "Execute" or run: `chmod +x cursor-*.AppImage`
    - **For other formats**: Follow standard installation procedures for your OS
 10. **Open the RFE automation tool folder** in Cursor for enhanced AI assistance
+11. **Customize your experience** (optional):
+    - Install relevant Cursor extensions from the Extensions marketplace
+    - Popular extensions: Python, Git, Markdown, YAML, JSON formatters
+    - Feel free to install any extensions that enhance your developer workflow
 
 #### **Additional Resources:**
 - **Setup guide**: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor#getting-started
