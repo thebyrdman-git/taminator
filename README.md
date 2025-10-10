@@ -121,14 +121,18 @@ When you ask for reports, I'll give you **two options**:
 1. **Copy/Paste** - I show you the markdown, you paste it wherever you need it
 2. **Auto-Post** - I automatically post to the customer portal
 
-## 🏢 Supported Customers
+## 🏢 Example Customers
 
-| Customer | Group ID | Status | Account Number |
-|----------|----------|--------|----------------|
+The tool works with any Red Hat customer. Here are examples of how it's configured:
+
+| Customer Example | Group ID Example | Status | Account Number Example |
+|------------------|------------------|--------|------------------------|
 | Wells Fargo | 4357341 | ✅ Production Ready | 838043 |
 | TD Bank | 7028358 | ✅ Sandbox Ready | 1912101 |
 | JPMC | 6956770 | ✅ Production Ready | 334224 |
 | Fannie Mae | 7095107 | ✅ Production Ready | 1460290 |
+
+*Note: These are examples for demonstration purposes. You'll configure the tool with your own customers during setup.*
 
 ## 📊 Time Savings
 
