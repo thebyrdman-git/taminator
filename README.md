@@ -1,15 +1,15 @@
-# TAM RFE Automation Tool - Personal Development Fork
+# TAM RFE Automation Tool
 
 ## 🎯 Overview
 
-**This is my personal development fork of the TAM RFE Automation Tool, originally created by grimm. I'm developing this independently to create a standalone, self-contained solution that uses tools from grimm's PAI project but operates as my own independent project.**
+**This is the TAM RFE Automation Tool, developed by jbyrd as a standalone, self-contained solution that uses tools from grimm's PAI project. This IS the RFE automation tool itself.**
 
 **The tool automatically generates and posts professional RFE/Bug tracker reports to customer portal groups, saving TAMs 2-3 hours per customer per week.**
 
 ### 🔄 Project Status
-- **Original Author**: grimm (PAI framework tools)
-- **Personal Fork**: jbyrd - Independent development
-- **Development Approach**: Standalone, self-contained solution using PAI tools
+- **Developer**: jbyrd - Independent development
+- **Uses Tools From**: grimm's PAI framework
+- **Development Approach**: Standalone, self-contained solution
 - **Current Status**: Active development and enhancement
 
 ### What This Tool Does
@@ -208,10 +208,10 @@ When you ask for reports, I'll give you **two options**:
 
 ## 📞 Support & Contact
 
-### Personal Development Contact
+### Development Contact
 - **Developer**: jbyrd (jbyrd@redhat.com)
 - **GitLab Repository**: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation
-- **Original Author**: grimm (PAI framework tools)
+- **Uses Tools From**: grimm's PAI framework
 - **Documentation**: See `docs/` directory for detailed guides
 
 ### Community Support
@@ -234,9 +234,9 @@ When you ask for reports, I'll give you **two options**:
 
 ## 🚀 Development Philosophy
 
-This personal project is developed with the following principles:
+This tool is developed with the following principles:
 
-- **Independence**: My own standalone solution that uses PAI tools but operates independently
+- **Independence**: Standalone solution that uses PAI tools but operates independently
 - **Simplicity**: Easy to deploy and use without complex dependencies
 - **Reliability**: Focused on core functionality with robust error handling
 - **TAM-Focused**: Built specifically for TAM workflows and needs
@@ -244,13 +244,13 @@ This personal project is developed with the following principles:
 
 ## 🙏 Acknowledgments
 
-- **Original Creator**: grimm - PAI framework tools and initial RFE automation concept
-- **Development**: jbyrd - Personal project with independent development and enhancements
+- **PAI Framework**: grimm - PAI framework tools used by this tool
+- **Development**: jbyrd - Independent development and enhancements
 - **Community**: Red Hat TAM community for feedback and requirements
 
 ---
 
-**🤖 TAM Automation Assistant - Personal Development Edition**  
+**🤖 TAM Automation Assistant**  
 *Making your life easier, one report at a time*
 
-**💝 Built with passion for helping TAMs succeed, developed independently for maximum flexibility**
+**💝 Built with passion for helping TAMs succeed**
