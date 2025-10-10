@@ -37,35 +37,80 @@
 - Red Hat SSO credentials
 - Customer portal group access
 
-### Installation Options
-1. **Auto-Detection** (Recommended): `./bin/tam-rfe-auto-detect` - Detects your existing setup automatically
-2. **Interactive Setup**: `./bin/tam-rfe-onboard-intelligent` - Learn your preferences through questions
-3. **Template Customization**: `./bin/tam-rfe-template-customizer` - Create personalized report styles
-4. **Chat Interface**: `./bin/tam-rfe-chat` - Just ask me what you need
+### 🎯 **First Time Setup (Required)**
+
+**Run this ONCE to configure the tool:**
+```bash
+./bin/tam-rfe-onboard-intelligent
+```
+
+**What this does:**
+- Asks you about your customers (Wells Fargo, TD Bank, etc.)
+- Configures your preferences
+- Sets up the tool for your specific needs
+- **No Python knowledge required** - just answer the questions!
+
+### 📋 **After Setup, Choose Your Method**
+
+1. **Chat Interface (Easiest)**: `./bin/tam-rfe-chat`
+2. **Direct Commands**: `./bin/tam-rfe-monitor-simple [customer] --test`
+3. **Auto-Detection**: `./bin/tam-rfe-auto-detect` (if you have existing setup)
 
 ## 💬 How to Use
 
-### Start the Chat Interface
+### 🎯 **Simple 3-Step Process**
+
+#### Step 1: Run the Setup Script
+```bash
+./bin/tam-rfe-onboard-intelligent
+```
+*This configures your customer accounts and preferences - just answer the questions!*
+
+#### Step 2: Choose Your Method
+
+**Option A: Chat Interface (Easiest)**
 ```bash
 ./bin/tam-rfe-chat
 ```
+*Then just ask naturally: "Generate RFE report for Wells Fargo"*
 
-### Ask Me Anything
-- "Generate RFE report for Wells Fargo"
-- "Show me all Ansible cases for TD Bank"
-- "Prepare summary for JPMC quarterly meeting"
-
-### Direct Commands
+**Option B: Direct Commands**
 ```bash
-# Test with specific customer
+# Test with specific customer (no portal posting)
 ./bin/tam-rfe-monitor-simple wellsfargo --test
 
-# Run daily automation
+# Run daily automation (posts to portal)
 ./bin/tam-rfe-monitor-simple wellsfargo --daily
 
-# Run all customers
+# Run all customers at once
 ./bin/tam-rfe-monitor-simple --all
 ```
+
+#### Step 3: Get Your Reports
+- **Copy/Paste**: Tool shows you the markdown, you paste it where needed
+- **Auto-Post**: Tool automatically posts to customer portal
+
+### 🚀 **Quick Start Commands**
+
+```bash
+# 1. First time setup (run once)
+./bin/tam-rfe-onboard-intelligent
+
+# 2. Generate a report (choose one)
+./bin/tam-rfe-chat                    # Interactive chat
+./bin/tam-rfe-monitor-simple wellsfargo --test    # Test mode
+./bin/tam-rfe-monitor-simple wellsfargo --daily   # Production mode
+```
+
+### 📋 **What Each Script Does**
+
+| Script | Purpose | When to Use |
+|--------|---------|-------------|
+| `tam-rfe-onboard-intelligent` | Initial setup & configuration | First time only |
+| `tam-rfe-chat` | Interactive chat interface | Easiest way to use |
+| `tam-rfe-monitor-simple` | Direct command execution | Automation/scheduling |
+| `tam-rfe-verify` | System health check | Troubleshooting |
+| `tam-rfe-template-customizer` | Customize report styles | Optional customization |
 
 ## 📋 Report Options
 
