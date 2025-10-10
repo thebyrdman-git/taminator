@@ -84,7 +84,7 @@ curl -I https://source.redhat.com
 
 **⚠️ IMPORTANT: You must be connected to Red Hat VPN first!**
 
-#### **Step-by-Step Cursor License Process:**
+#### **Step-by-Step Cursor License and Installation Process:**
 
 1. **Connect to Red Hat VPN** (see VPN connection instructions above)
 2. **Submit license request**: https://devservices.dpp.openshift.com/support/cursor_license_request/
