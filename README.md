@@ -34,12 +34,37 @@
 
 ### What You Need
 - Red Hat laptop with internet connection
-- Red Hat VPN access
+- Red Hat VPN access (see connection instructions below)
 - Your Red Hat login credentials
 - Access to customer portal
 - Git installed and configured (usually already on RHEL/Fedora/Mac)
 - Python 3 with required packages (usually already installed)
 - Cursor IDE with enterprise license (recommended for best experience)
+
+### 🔐 **Connect to Red Hat VPN (Required)**
+
+**Before using the tool, you must be connected to Red Hat VPN:**
+
+#### **For RHEL/Fedora:**
+1. Open **Network Settings** (click network icon in top bar)
+2. Click **VPN** → **Add VPN Connection**
+3. Choose **OpenVPN** or **Cisco AnyConnect** (depending on your setup)
+4. Enter your Red Hat VPN credentials
+5. Connect and verify you can access Red Hat internal sites
+
+#### **For Mac:**
+1. Go to **System Preferences** → **Network**
+2. Click **+** to add a new connection
+3. Choose **VPN** → **Cisco AnyConnect** or **OpenVPN**
+4. Enter your Red Hat VPN server and credentials
+5. Connect and verify you can access Red Hat internal sites
+
+#### **Test VPN Connection:**
+```bash
+# Test if you can access Red Hat internal sites
+curl -I https://source.redhat.com
+```
+*Should return HTTP 200 or 302 (not connection refused)*
 
 ### 📥 **Step 0: Get the Tool (One Time Only)**
 
@@ -214,7 +239,8 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
 ### Common Questions
 - **"How do I add a new customer?"** → Run the setup wizard again: `./bin/tam-rfe-onboard-intelligent`
 - **"The tool isn't finding cases"** → Check these things:
-  - Make sure you're connected to Red Hat VPN
+  - Make sure you're connected to Red Hat VPN (see VPN connection instructions above)
+  - Test VPN connection: `curl -I https://source.redhat.com` (should return HTTP 200/302)
   - Run the dependency installer again: `./bin/install-dependencies`
   - Test rhcase works: type `./rhcase/rhcase --version` in terminal
   - Try: `./rhcase/rhcase list [customer-name] --months 1` to see if it finds cases
