@@ -272,19 +272,94 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
 - **[Ansible Deployment](ANSIBLE-DEPLOYMENT.md)**: Automated deployment options
 - **[Prerequisites Guide](docs/PREREQUISITES-GUIDE.md)**: Complete setup requirements
 
-## 🤝 Contributing
+## 🤝 Contributing to Improve Report Consistency
 
-### For TAMs
-- Report issues via GitLab issues
-- Suggest improvements via merge requests
-- Share customer-specific templates
-- Provide feedback on usability
+### 🎯 **Why Your Contribution Matters**
+This tool generates reports that represent Red Hat to customers. Your input helps ensure:
+- **Consistent formatting** across all TAM reports
+- **Professional presentation** that reflects well on Red Hat
+- **Accurate case information** and proper categorization
+- **Customer-appropriate content** for different audiences
 
-### For Developers
-- Follow Red Hat coding standards
-- Maintain comprehensive documentation
-- Include unit tests for all features
-- Ensure Red Hat compliance
+### 📋 **How TAMs Can Contribute**
+
+#### **Report Quality & Consistency**
+- **Test reports with your customers** and share feedback
+- **Report formatting issues** via GitLab issues
+- **Suggest improvements** to report templates and content
+- **Share successful customer feedback** about report quality
+
+#### **Customer-Specific Templates**
+- **Contribute customer templates** that work well for specific industries
+- **Share best practices** for different customer types (enterprise, government, etc.)
+- **Provide examples** of well-received reports
+
+#### **Case Categorization & Filtering**
+- **Report incorrect case categorization** (wrong SBR groups, status, etc.)
+- **Suggest better filtering options** for different report types
+- **Share insights** about which cases customers find most valuable
+
+#### **User Experience**
+- **Report usability issues** or confusing parts of the tool
+- **Suggest workflow improvements** based on your daily usage
+- **Share time-saving tips** with other TAMs
+
+### 🔧 **How to Contribute**
+
+#### **Quick Feedback (5 minutes)**
+```bash
+# After generating a report, provide feedback
+./bin/tam-rfe-feedback
+```
+*This opens a quick feedback form to report issues or suggestions*
+
+#### **Detailed Contributions**
+1. **Create GitLab Issue**: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/issues
+2. **Use issue templates** for:
+   - Report formatting problems
+   - Case categorization issues
+   - Customer feedback
+   - Feature requests
+
+#### **Share Success Stories**
+- **Email**: jbyrd@redhat.com with subject "RFE Tool Success Story"
+- **Include**: Customer name (anonymized), what worked well, time saved
+
+### 🎯 **Priority Contribution Areas**
+
+#### **High Priority (Report Quality)**
+- **Case status accuracy** - Are cases showing correct status?
+- **SBR group categorization** - Are cases in the right groups?
+- **Report formatting** - Does the output look professional?
+- **Customer feedback** - What do customers say about the reports?
+
+#### **Medium Priority (Usability)**
+- **Setup process** - Is the onboarding clear and easy?
+- **Error messages** - Are they helpful and actionable?
+- **Documentation** - What's missing or confusing?
+
+#### **Low Priority (Enhancements)**
+- **New report types** - What additional reports would be valuable?
+- **Integration ideas** - How could this work better with other tools?
+- **Automation opportunities** - What manual steps could be automated?
+
+### 📊 **Contribution Impact**
+
+**Your contributions directly improve:**
+- **Report consistency** across all TAMs
+- **Customer satisfaction** with Red Hat communication
+- **TAM productivity** and time savings
+- **Professional presentation** of Red Hat services
+
+### 🚀 **Getting Started with Contributions**
+
+1. **Use the tool** for a week with your customers
+2. **Note any issues** with report quality or formatting
+3. **Collect customer feedback** about the reports
+4. **Share your findings** via GitLab issues or email
+5. **Help other TAMs** by sharing successful approaches
+
+**Every contribution, no matter how small, helps make this tool better for all TAMs and ensures consistent, professional customer communication.**
 
 ## 📞 Support & Contact
 

@@ -1,0 +1,183 @@
+#!/bin/bash
+
+# TAM RFE Automation Tool - Quick Feedback Script
+# This script helps TAMs provide feedback to improve report consistency
+
+echo "🎯 TAM RFE Automation Tool - Quick Feedback"
+echo "=========================================="
+echo ""
+echo "Your feedback helps ensure consistent, professional reports for all TAMs!"
+echo ""
+
+# Check if we're in the right directory
+if [ ! -f "README.md" ] || [ ! -d "bin" ]; then
+    echo "❌ Error: Please run this script from the RFE automation tool directory"
+    exit 1
+fi
+
+echo "📋 What would you like to provide feedback on?"
+echo ""
+echo "1. Report formatting or quality issues"
+echo "2. Case categorization problems"
+echo "3. Customer feedback about reports"
+echo "4. Tool usability issues"
+echo "5. Feature requests or improvements"
+echo "6. Success story to share"
+echo ""
+
+read -p "Enter your choice (1-6): " choice
+
+case $choice in
+    1)
+        echo ""
+        echo "📝 Report Formatting/Quality Issues"
+        echo "=================================="
+        echo "Please describe the issue:"
+        read -p "> " issue
+        echo ""
+        echo "Which customer was this for? (optional, will be anonymized):"
+        read -p "> " customer
+        echo ""
+        echo "📧 Creating feedback email..."
+        echo ""
+        echo "To: jbyrd@redhat.com"
+        echo "Subject: RFE Tool - Report Formatting Issue"
+        echo ""
+        echo "Issue: $issue"
+        if [ ! -z "$customer" ]; then
+            echo "Customer: $customer (anonymized)"
+        fi
+        echo "Date: $(date)"
+        echo ""
+        echo "Copy the above and send via email, or create a GitLab issue:"
+        echo "https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/issues"
+        ;;
+    2)
+        echo ""
+        echo "📝 Case Categorization Problems"
+        echo "=============================="
+        echo "Describe the categorization issue:"
+        read -p "> " issue
+        echo ""
+        echo "Which SBR groups or case types were affected?"
+        read -p "> " categories
+        echo ""
+        echo "📧 Creating feedback email..."
+        echo ""
+        echo "To: jbyrd@redhat.com"
+        echo "Subject: RFE Tool - Case Categorization Issue"
+        echo ""
+        echo "Issue: $issue"
+        echo "Affected categories: $categories"
+        echo "Date: $(date)"
+        echo ""
+        echo "Copy the above and send via email, or create a GitLab issue:"
+        echo "https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/issues"
+        ;;
+    3)
+        echo ""
+        echo "📝 Customer Feedback About Reports"
+        echo "================================="
+        echo "What did the customer say about the reports?"
+        read -p "> " feedback
+        echo ""
+        echo "Was this positive or negative feedback?"
+        read -p "> " sentiment
+        echo ""
+        echo "Customer type (enterprise, government, etc.):"
+        read -p "> " customer_type
+        echo ""
+        echo "📧 Creating feedback email..."
+        echo ""
+        echo "To: jbyrd@redhat.com"
+        echo "Subject: RFE Tool - Customer Feedback"
+        echo ""
+        echo "Customer feedback: $feedback"
+        echo "Sentiment: $sentiment"
+        echo "Customer type: $customer_type"
+        echo "Date: $(date)"
+        echo ""
+        echo "Copy the above and send via email, or create a GitLab issue:"
+        echo "https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/issues"
+        ;;
+    4)
+        echo ""
+        echo "📝 Tool Usability Issues"
+        echo "======================"
+        echo "Describe the usability issue:"
+        read -p "> " issue
+        echo ""
+        echo "What were you trying to do when this happened?"
+        read -p "> " context
+        echo ""
+        echo "📧 Creating feedback email..."
+        echo ""
+        echo "To: jbyrd@redhat.com"
+        echo "Subject: RFE Tool - Usability Issue"
+        echo ""
+        echo "Issue: $issue"
+        echo "Context: $context"
+        echo "Date: $(date)"
+        echo ""
+        echo "Copy the above and send via email, or create a GitLab issue:"
+        echo "https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/issues"
+        ;;
+    5)
+        echo ""
+        echo "📝 Feature Requests or Improvements"
+        echo "=================================="
+        echo "Describe the feature or improvement you'd like:"
+        read -p "> " feature
+        echo ""
+        echo "How would this help you or your customers?"
+        read -p "> " benefit
+        echo ""
+        echo "📧 Creating feedback email..."
+        echo ""
+        echo "To: jbyrd@redhat.com"
+        echo "Subject: RFE Tool - Feature Request"
+        echo ""
+        echo "Feature request: $feature"
+        echo "Benefit: $benefit"
+        echo "Date: $(date)"
+        echo ""
+        echo "Copy the above and send via email, or create a GitLab issue:"
+        echo "https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/issues"
+        ;;
+    6)
+        echo ""
+        echo "📝 Success Story to Share"
+        echo "========================"
+        echo "What worked well?"
+        read -p "> " success
+        echo ""
+        echo "How much time did this save you?"
+        read -p "> " time_saved
+        echo ""
+        echo "Customer type (enterprise, government, etc.):"
+        read -p "> " customer_type
+        echo ""
+        echo "📧 Creating success story email..."
+        echo ""
+        echo "To: jbyrd@redhat.com"
+        echo "Subject: RFE Tool Success Story"
+        echo ""
+        echo "Success: $success"
+        echo "Time saved: $time_saved"
+        echo "Customer type: $customer_type"
+        echo "Date: $(date)"
+        echo ""
+        echo "Copy the above and send via email!"
+        ;;
+    *)
+        echo "❌ Invalid choice. Please run the script again and select 1-6."
+        exit 1
+        ;;
+esac
+
+echo ""
+echo "🎉 Thank you for your feedback!"
+echo "Your input helps make this tool better for all TAMs."
+echo ""
+echo "💡 Tip: You can also create GitLab issues directly at:"
+echo "https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/issues"
