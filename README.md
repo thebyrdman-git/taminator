@@ -84,11 +84,22 @@ curl -I https://source.redhat.com
 
 **⚠️ IMPORTANT: You must be connected to Red Hat VPN first!**
 
+#### **Step-by-Step Cursor License Process:**
+
 1. **Connect to Red Hat VPN** (see VPN connection instructions above)
-2. **Request Cursor license**: https://devservices.dpp.openshift.com/support/cursor_license_request/
-3. **Follow setup guide**: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor#getting-started
-4. **Install Cursor IDE** for your platform (RHEL/Fedora/Mac)
-5. **Open the RFE automation tool folder** in Cursor for enhanced AI assistance
+2. **Submit license request**: https://devservices.dpp.openshift.com/support/cursor_license_request/
+3. **Check your email** - You'll receive an email with a login link
+4. **Click the email link** - You'll be taken to a login page
+5. **Enter your Red Hat email address** (your @redhat.com email)
+6. **Complete SSO login** - You'll be redirected to Red Hat SSO for authentication
+7. **Accept the invitation** - You'll see a prompt to accept the Cursor license invitation
+8. **Download Cursor IDE**:
+   - Click your **profile icon** (top right corner)
+   - Select **"Download desktop client"** for your OS (RHEL/Fedora/Mac)
+9. **Install and open** the RFE automation tool folder in Cursor for enhanced AI assistance
+
+#### **Additional Resources:**
+- **Setup guide**: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor#getting-started
 
 ### 🎯 **First Time Setup (5 Minutes - One Time Only)**
 
