@@ -32,90 +32,86 @@
 
 **Want to get started immediately?** → [**GETTING-STARTED.md**](GETTING-STARTED.md)
 
-### Prerequisites
-- Red Hat VPN connection
-- `rhcase` tool installed and configured
-- Python 3.7+
-- Red Hat SSO credentials
-- Customer portal group access
+### What You Need (Don't Worry - IT Can Help!)
+- Red Hat laptop with internet connection
+- Red Hat VPN access (ask IT if you don't have it)
+- Your Red Hat login credentials
+- Access to customer portal (your manager can help with this)
 
-### 🎯 **First Time Setup (Required)**
+### 🎯 **First Time Setup (5 Minutes - One Time Only)**
 
-**Run this ONCE to configure the tool:**
+**Step 1: Open your terminal/command prompt**
+- On Windows: Press `Windows + R`, type `cmd`, press Enter
+- On Mac/Linux: Press `Ctrl + Alt + T` or find "Terminal" in applications
+
+**Step 2: Run the setup wizard**
 ```bash
 ./bin/tam-rfe-onboard-intelligent
 ```
+*Just copy and paste this line, then press Enter*
 
-**What this does:**
-- Asks you about your customers (Wells Fargo, TD Bank, etc.)
-- Configures your preferences
-- Sets up the tool for your specific needs
-- **No Python knowledge required** - just answer the questions!
+**What happens next:**
+- The tool asks you simple questions like "What customers do you work with?"
+- You type answers like "Wells Fargo" or "TD Bank"
+- The tool remembers your answers for next time
+- **No technical knowledge needed** - just answer the questions!
 
-### 📋 **After Setup, Choose Your Method**
+### 📋 **After Setup, You Have 2 Easy Options**
 
-1. **Chat Interface (Easiest)**: `./bin/tam-rfe-chat`
-2. **Direct Commands**: `./bin/tam-rfe-monitor-simple [customer] --test`
-3. **Auto-Detection**: `./bin/tam-rfe-auto-detect` (if you have existing setup)
-
-## 💬 How to Use
-
-### 🎯 **Simple 3-Step Process**
-
-#### Step 1: Run the Setup Script
-```bash
-./bin/tam-rfe-onboard-intelligent
-```
-*This configures your customer accounts and preferences - just answer the questions!*
-
-#### Step 2: Choose Your Method
-
-**Option A: Chat Interface (Easiest)**
+**Option 1: Talk to the Tool (Easiest)**
 ```bash
 ./bin/tam-rfe-chat
 ```
-*Then just ask naturally: "Generate RFE report for Wells Fargo" or "Create active case report for TD Bank"*
+*Then just type: "Generate a report for Wells Fargo"*
 
-**Option B: Direct Commands**
+**Option 2: Use Simple Commands**
 ```bash
-# Test with specific customer (no portal posting)
+./bin/tam-rfe-monitor-simple wellsfargo --test
+```
+*This creates a test report you can review before posting*
+
+## 💬 How to Use (Super Simple!)
+
+### 🎯 **The Easiest Way (Recommended for Everyone)**
+
+**1. Open Terminal** (see instructions above)
+
+**2. Start the Chat**
+```bash
+./bin/tam-rfe-chat
+```
+
+**3. Just Type What You Want**
+- "Generate a report for Wells Fargo"
+- "Show me TD Bank cases"
+- "Create active case report for JPMC"
+- "Help me with Wells Fargo"
+
+**That's it!** The tool does everything else.
+
+### 🚀 **Alternative: Simple Commands**
+
+If you prefer commands, here are the only ones you need:
+
+```bash
+# Create a test report (safe to try)
 ./bin/tam-rfe-monitor-simple wellsfargo --test
 
-# Run daily automation (posts to portal)
+# Create and post a real report
 ./bin/tam-rfe-monitor-simple wellsfargo --daily
-
-# Generate active case report
-./bin/tam-rfe-monitor-simple tdbank --active-cases
-
-# Run all customers at once
-./bin/tam-rfe-monitor-simple --all
 ```
 
-#### Step 3: Get Your Reports
-- **Copy/Paste**: Tool shows you the markdown, you paste it where needed
-- **Auto-Post**: Tool automatically posts to customer portal
+### 📋 **What You Get**
 
-### 🚀 **Quick Start Commands**
+**The tool creates professional reports with:**
+- List of all open cases for your customer
+- Case numbers, descriptions, and status
+- Recent case closures
+- Everything formatted nicely for customer meetings
 
-```bash
-# 1. First time setup (run once)
-./bin/tam-rfe-onboard-intelligent
-
-# 2. Generate a report (choose one)
-./bin/tam-rfe-chat                    # Interactive chat
-./bin/tam-rfe-monitor-simple wellsfargo --test    # Test mode
-./bin/tam-rfe-monitor-simple wellsfargo --daily   # Production mode
-```
-
-### 📋 **What Each Script Does**
-
-| Script | Purpose | When to Use |
-|--------|---------|-------------|
-| `tam-rfe-onboard-intelligent` | Initial setup & configuration | First time only |
-| `tam-rfe-chat` | Interactive chat interface | Easiest way to use |
-| `tam-rfe-monitor-simple` | Direct command execution | Automation/scheduling |
-| `tam-rfe-verify` | System health check | Troubleshooting |
-| `tam-rfe-template-customizer` | Customize report styles | Optional customization |
+**You get 2 options:**
+1. **Copy the report** - Tool shows you the text, you copy and paste it anywhere
+2. **Auto-post** - Tool automatically puts it on the customer portal (you get an email confirmation)
 
 ## 📋 Report Options
 
@@ -157,37 +153,50 @@ When you ask for reports, I'll give you **two options**:
 
 ## 🆘 Need Help?
 
-### Quick Commands
+### If Something Goes Wrong
 ```bash
-# Test the system
+# Check if everything is working
 ./bin/tam-rfe-verify --quick
-
-# Comprehensive verification
-./bin/tam-rfe-verify --full
-
-# Get help
-./bin/tam-rfe-chat --help
 ```
 
 ### Common Questions
-- **"How do I add a new customer?"** → Run `./bin/tam-rfe-onboard-intelligent`
-- **"The tool isn't finding cases"** → Check your `rhcase` configuration
-- **"I want to customize the reports"** → Use the chat interface and ask me to modify them
+- **"How do I add a new customer?"** → Run the setup wizard again: `./bin/tam-rfe-onboard-intelligent`
+- **"The tool isn't finding cases"** → Ask your IT team to check your `rhcase` setup
+- **"I want to change how reports look"** → Use the chat and ask: "Can you customize the report format?"
+- **"I'm stuck!"** → Use the chat and type: "Help me" or "I need assistance"
+
+### Getting Support
+- **Slack**: #tam-automation-tools
+- **Email**: tam-automation-team@redhat.com
+- **Developer**: jbyrd@redhat.com
 
 ## 🎉 Ready to Start?
 
-### For Brand New TAMs (Zero Experience)
-1. **Start chatting**: `./bin/tam-rfe-chat`
-2. **Tell the AI**: "I'm new to this" or "I need help getting started"
-3. **Follow the guided onboarding**: The AI will walk you through everything step by step
-4. **Complete setup**: From installation to your first report
+### For Everyone (Including Sales People!)
 
-### For Experienced TAMs
-1. **Run onboarding**: `./bin/tam-rfe-onboard-intelligent`
-2. **Start chatting**: `./bin/tam-rfe-chat`
-3. **Ask for reports**: "Generate RFE report for [Customer]"
+**Step 1: Open Terminal**
+- Windows: Press `Windows + R`, type `cmd`, press Enter
+- Mac/Linux: Press `Ctrl + Alt + T`
 
-**That's it! The tool will learn your preferences and get smarter over time.**
+**Step 2: Run Setup (One Time Only)**
+```bash
+./bin/tam-rfe-onboard-intelligent
+```
+*Answer the questions about your customers*
+
+**Step 3: Start Using It**
+```bash
+./bin/tam-rfe-chat
+```
+*Then just type: "Generate a report for [Customer Name]"*
+
+### For People Who Are Nervous About Technology
+- **The chat interface is like texting** - just type what you want
+- **The tool asks you questions** - just answer them
+- **If you get stuck, type "help"** - the tool will guide you
+- **Your IT team can help** with the initial setup if needed
+
+**That's it! The tool does all the hard work for you.**
 
 ## 📚 Documentation
 
