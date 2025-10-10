@@ -80,7 +80,7 @@ curl -I https://source.redhat.com
 - **GitLab CEE FAQ**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/gitlabcee_faq
 
 **⚠️ IMPORTANT: GitLab CEE License Required**
-- **First-time access**: You have a 10-minute timer to request a license
+- **First-time access**: You have a 10-minute timer for viewing the site before your non-licensed access is denied
 - **License request**: Must be completed during your first login session
 - **Getting access guide**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/getting_started_guide#getting-access
 
