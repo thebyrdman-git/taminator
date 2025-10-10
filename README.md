@@ -17,7 +17,7 @@
 - **Filters cases** by SBR Group (Ansible, OpenShift, etc.) and status (Active, Closed, etc.)
 - **Generates professional reports** including:
   - Active case reports (current open cases)
-  - RFE/Bug tracker reports (3-table format with Active RFE, Active Bug, and Closed case history)
+  - RFE/Bug tracker reports (3-table format with Active RFE, Active Bug, and Closed JIRA ticket history)
 - **Posts content directly** to customer portal groups via Red Hat API
 - **Sends email notifications** to TAMs with success/failure status
 
