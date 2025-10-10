@@ -45,19 +45,8 @@
 
 **Before using the tool, you must be connected to Red Hat VPN:**
 
-#### **For RHEL/Fedora:**
-1. Open **Network Settings** (click network icon in top bar)
-2. Click **VPN** → **Add VPN Connection**
-3. Choose **OpenVPN** or **Cisco AnyConnect** (depending on your setup)
-4. Enter your Red Hat VPN credentials
-5. Connect and verify you can access Red Hat internal sites
-
-#### **For Mac:**
-1. Go to **System Preferences** → **Network**
-2. Click **+** to add a new connection
-3. Choose **VPN** → **Cisco AnyConnect** or **OpenVPN**
-4. Enter your Red Hat VPN server and credentials
-5. Connect and verify you can access Red Hat internal sites
+**Follow the official Red Hat VPN setup instructions:**
+- **Red Hat VPN Setup Guide**: https://redhat.service-now.com/help?id=kb_article_view&sysparm_article=KB0005449&sys_kb_id=1125a41b136f6640daa77b304244b0e9
 
 #### **Test VPN Connection:**
 ```bash
