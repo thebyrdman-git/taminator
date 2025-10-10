@@ -77,6 +77,7 @@ curl -I https://source.redhat.com
 - **Python packages**: https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/installing_and_using_dynamic_programming_languages/installing-and-using-python
 - **GitLab setup**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/getting_started_guide
 - **GitLab CLI (glab)**: https://source.redhat.com/groups/public/ccs/ccs_blog/installing_and_configuring_the_gitlab_cli_glab
+- **GitLab CEE FAQ**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/gitlabcee_faq
 
 ### 💻 **Optional: Install Cursor IDE (Recommended)**
 
