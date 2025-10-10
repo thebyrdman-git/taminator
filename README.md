@@ -80,10 +80,14 @@ curl -I https://source.redhat.com
 ### 💻 **Optional: Install Cursor IDE (Recommended)**
 
 **For the best experience, install Cursor IDE with Red Hat enterprise license:**
-1. Go to: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor#getting-started
-2. Follow the Red Hat internal setup instructions
-3. Install Cursor IDE for your platform (RHEL/Fedora/Mac)
-4. Open the RFE automation tool folder in Cursor for enhanced AI assistance
+
+**⚠️ IMPORTANT: You must be connected to Red Hat VPN first!**
+
+1. **Connect to Red Hat VPN** (see VPN connection instructions above)
+2. **Request Cursor license**: https://devservices.dpp.openshift.com/support/cursor_license_request/
+3. **Follow setup guide**: https://source.redhat.com/projects_and_programs/ai/ai_tools/cursor#getting-started
+4. **Install Cursor IDE** for your platform (RHEL/Fedora/Mac)
+5. **Open the RFE automation tool folder** in Cursor for enhanced AI assistance
 
 ### 🎯 **First Time Setup (5 Minutes - One Time Only)**
 
@@ -239,6 +243,7 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
 - **"I can't find customer account numbers"** → Check your customer portal or ask your manager
 - **"I want to change how reports look"** → Use the chat and ask: "Can you customize the report format?"
 - **"I'm stuck!"** → Use the chat and type: "Help me" or "I need assistance"
+- **"Can't access Cursor license request page"** → Make sure you're connected to Red Hat VPN first, then try: https://devservices.dpp.openshift.com/support/cursor_license_request/ (if still having issues, contact jbyrd for troubleshooting)
 - **"RFE tool issues"** → Contact jbyrd (RFE tool developer) via GitLab: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/issues
 
 ### Getting Support
