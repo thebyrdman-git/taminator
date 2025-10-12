@@ -450,7 +450,7 @@ HOME_HTML = """
                     </div>
                 </a>
                 
-                <a href="https://miraclemax.duckdns.org" target="_blank" class="service-link">
+                <a href="https://traefik.jbyrd.org" target="_blank" class="service-link">
                     <div class="card">
                         <div class="card-content">
                             <div class="card-header">
@@ -468,7 +468,7 @@ HOME_HTML = """
                     </div>
                 </a>
                 
-                <a href="https://byrdhome.duckdns.org" target="_blank" class="service-link">
+                <a href="https://ha.jbyrd.org" target="_blank" class="service-link">
                     <div class="card">
                         <div class="card-content">
                             <div class="card-header">

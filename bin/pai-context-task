@@ -104,7 +104,7 @@ generate_energy_context() {
 - Context: home-automation active
 
 ## Current System State
-- 432-device smart home with Home Assistant at byrdhome.duckdns.org
+- 432-device smart home with Home Assistant at ha.jbyrd.org
 - Baseline: 53.3 kWh/day, rate: 14.2¢/kWh
 - Active optimizations: Xbox auto-shutdown, peak alerts, camera scheduling, load balancing
 - Monthly target savings: $54.50
@@ -178,7 +178,7 @@ generate_home_automation_context() {
 - Context: home-automation active
 
 ## Current System State
-- Home Assistant: byrdhome.duckdns.org (192.168.1.39)
+- Home Assistant: ha.jbyrd.org (192.168.1.39)
 - 286 HA entities, 432 network devices
 - Integration: Xbox, cameras, sensors, smart switches
 

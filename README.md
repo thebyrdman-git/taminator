@@ -77,7 +77,7 @@ pai-context-task plex-management
 miraclemax (HP Server - 192.168.1.34)
 ├── Home Assistant VM (192.168.1.39)  
 │   └── 432 smart home devices
-│   └── DuckDNS SSL: byrdhome.duckdns.org
+│   └── SSL: ha.jbyrd.org (via Traefik)
 └── Plex Media Server (192.168.1.17)
     └── Byrd Library media collection
 
@@ -124,6 +124,14 @@ Each context provides:
 - ✅ Relevant knowledge base  
 - ✅ Context-appropriate AI behavior
 - ✅ Reduced cognitive load
+
+## 🆘 Support & Resources
+
+### Internal Red Hat Resources
+- **GitLab CEE FAQ & Documentation**: [https://source.redhat.com/groups/public/gitlabcee/user_documentation/gitlabcee_faq](https://source.redhat.com/groups/public/gitlabcee/user_documentation/gitlabcee_faq)
+  - For questions about GitLab CEE usage
+  - Issue reporting and troubleshooting
+  - User documentation and best practices
 
 ---
 

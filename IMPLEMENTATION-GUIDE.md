@@ -5,7 +5,7 @@
 
 ### Step 1: Add Schedules to Home Assistant
 
-1. **Open Home Assistant**: https://byrdhome.duckdns.org
+1. **Open Home Assistant**: https://ha.jbyrd.org
 2. **Go to Settings** → Configuration → Automations & Scenes
 3. **Click "+" to create new automation**
 4. **Switch to YAML mode** (three dots → Edit in YAML)

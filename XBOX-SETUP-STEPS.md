@@ -10,7 +10,7 @@
 ## 📋 Step-by-Step Setup
 
 ### Step 1: Open Home Assistant
-1. Go to: **https://byrdhome.duckdns.org**
+1. Go to: **https://ha.jbyrd.org**
 2. Log in with your credentials
 
 ### Step 2: Navigate to Automations
