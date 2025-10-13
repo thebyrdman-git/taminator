@@ -75,8 +75,7 @@ http:
       service: authelia
       middlewares:
         - security-headers
-      tls:
-        certResolver: letsencrypt
+      # TLS removed - Cloudflare Tunnel handles SSL
     
     # Traefik Dashboard
     dashboard:
@@ -114,8 +113,7 @@ http:
       middlewares:
         - security-headers
         - rate-limit
-      tls:
-        certResolver: letsencrypt
+      # TLS removed - Cloudflare Tunnel handles SSL
     
     # n8n (Workflow Automation)
     n8n:
