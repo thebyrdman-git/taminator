@@ -118,6 +118,16 @@ http:
       tls:
         certResolver: letsencrypt
     
+    # Grafana (Monitoring Dashboards)
+    grafana:
+      rule: "Host(`grafana.jbyrd.org`)"
+      entryPoints:
+        - web
+      service: grafana
+      middlewares:
+        - security-headers
+        - rate-limit
+    
     # Prometheus Metrics (existing)
     prometheus:
       rule: "Host(`metrics.jbyrd.org`)"
@@ -127,7 +137,6 @@ http:
       middlewares:
         - security-headers
         - internal-only
-        - dashboard-auth
       tls:
         certResolver: letsencrypt
     
@@ -140,7 +149,6 @@ http:
       middlewares:
         - security-headers
         - internal-only
-        - dashboard-auth
       tls:
         certResolver: letsencrypt
 
@@ -186,6 +194,16 @@ http:
           interval: 30s
           timeout: 10s
     
+    # Grafana
+    grafana:
+      loadBalancer:
+        servers:
+          - url: "http://grafana:3000"
+        healthCheck:
+          path: /api/health
+          interval: 30s
+          timeout: 10s
+    
     # Prometheus
     prometheus:
       loadBalancer:
@@ -227,4 +245,3 @@ tls:
     default:
       minVersion: VersionTLS12
       sniStrict: true
-
