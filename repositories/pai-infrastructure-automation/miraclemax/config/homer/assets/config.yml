@@ -12,6 +12,13 @@ footer: '<p>Infrastructure as Code | MiracleMax @ 192.168.1.34 | <a href="https:
 # Search bar
 search: true
 
+# Custom stylesheets and scripts
+stylesheet:
+  - "assets/custom.css"
+
+script:
+  - "assets/custom.js"
+
 # Theme options - users can switch between these
 theme: default
 
