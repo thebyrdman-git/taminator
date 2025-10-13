@@ -12,8 +12,10 @@ footer: '<p>Infrastructure as Code | MiracleMax @ 192.168.1.34 | <a href="https:
 # Search bar
 search: true
 
-# Theme
+# Theme options - users can switch between these
 theme: default
+
+# Available themes (user can select from dropdown)
 colors:
   light:
     highlight-primary: "#ee0033"  # Red Hat red
@@ -41,6 +43,298 @@ colors:
     card-shadow: rgba(0, 0, 0, 0.5)
     link: "#0088ce"
     link-hover: "#ff3355"
+
+# Additional custom themes
+customThemes:
+  - name: "Red Hat Enterprise"
+    colors:
+      light:
+        highlight-primary: "#ee0033"
+        highlight-secondary: "#0088ce"
+        highlight-hover: "#cc0000"
+        background: "#f5f5f5"
+        card-background: "#ffffff"
+        text: "#363636"
+        text-header: "#ffffff"
+        text-title: "#303030"
+        text-subtitle: "#ee0033"
+        card-shadow: rgba(238, 0, 51, 0.1)
+        link: "#ee0033"
+        link-hover: "#cc0000"
+      dark:
+        highlight-primary: "#ee0033"
+        highlight-secondary: "#0088ce"
+        highlight-hover: "#ff3355"
+        background: "#1a1a1a"
+        card-background: "#2b2b2b"
+        text: "#eaeaea"
+        text-header: "#ffffff"
+        text-title: "#fafafa"
+        text-subtitle: "#ff3355"
+        card-shadow: rgba(238, 0, 51, 0.2)
+        link: "#ff3355"
+        link-hover: "#ff6677"
+
+  - name: "Ocean Blue"
+    colors:
+      light:
+        highlight-primary: "#0077be"
+        highlight-secondary: "#00aaff"
+        highlight-hover: "#005a8c"
+        background: "#e8f4f8"
+        card-background: "#ffffff"
+        text: "#2c3e50"
+        text-header: "#ffffff"
+        text-title: "#0077be"
+        text-subtitle: "#34495e"
+        card-shadow: rgba(0, 119, 190, 0.15)
+        link: "#0077be"
+        link-hover: "#005a8c"
+      dark:
+        highlight-primary: "#00aaff"
+        highlight-secondary: "#0088cc"
+        highlight-hover: "#00ccff"
+        background: "#0a1929"
+        card-background: "#1a2332"
+        text: "#b0c4de"
+        text-header: "#ffffff"
+        text-title: "#00aaff"
+        text-subtitle: "#87ceeb"
+        card-shadow: rgba(0, 170, 255, 0.2)
+        link: "#00aaff"
+        link-hover: "#00ccff"
+
+  - name: "Forest Green"
+    colors:
+      light:
+        highlight-primary: "#2d8659"
+        highlight-secondary: "#3eb573"
+        highlight-hover: "#226644"
+        background: "#f0f8f4"
+        card-background: "#ffffff"
+        text: "#2c3e2f"
+        text-header: "#ffffff"
+        text-title: "#2d8659"
+        text-subtitle: "#3eb573"
+        card-shadow: rgba(45, 134, 89, 0.15)
+        link: "#2d8659"
+        link-hover: "#226644"
+      dark:
+        highlight-primary: "#3eb573"
+        highlight-secondary: "#4caf50"
+        highlight-hover: "#5fd96e"
+        background: "#0d1f12"
+        card-background: "#1a2e1f"
+        text: "#b8d4c2"
+        text-header: "#ffffff"
+        text-title: "#3eb573"
+        text-subtitle: "#81c995"
+        card-shadow: rgba(62, 181, 115, 0.2)
+        link: "#3eb573"
+        link-hover: "#5fd96e"
+
+  - name: "Purple Haze"
+    colors:
+      light:
+        highlight-primary: "#7c3aed"
+        highlight-secondary: "#a78bfa"
+        highlight-hover: "#6d28d9"
+        background: "#f5f3ff"
+        card-background: "#ffffff"
+        text: "#3f3f46"
+        text-header: "#ffffff"
+        text-title: "#7c3aed"
+        text-subtitle: "#8b5cf6"
+        card-shadow: rgba(124, 58, 237, 0.15)
+        link: "#7c3aed"
+        link-hover: "#6d28d9"
+      dark:
+        highlight-primary: "#a78bfa"
+        highlight-secondary: "#8b5cf6"
+        highlight-hover: "#c4b5fd"
+        background: "#1a1625"
+        card-background: "#2a2438"
+        text: "#d8b4fe"
+        text-header: "#ffffff"
+        text-title: "#a78bfa"
+        text-subtitle: "#c4b5fd"
+        card-shadow: rgba(167, 139, 250, 0.2)
+        link: "#a78bfa"
+        link-hover: "#c4b5fd"
+
+  - name: "Sunset Orange"
+    colors:
+      light:
+        highlight-primary: "#ea580c"
+        highlight-secondary: "#fb923c"
+        highlight-hover: "#c2410c"
+        background: "#fff7ed"
+        card-background: "#ffffff"
+        text: "#431407"
+        text-header: "#ffffff"
+        text-title: "#ea580c"
+        text-subtitle: "#fb923c"
+        card-shadow: rgba(234, 88, 12, 0.15)
+        link: "#ea580c"
+        link-hover: "#c2410c"
+      dark:
+        highlight-primary: "#fb923c"
+        highlight-secondary: "#f97316"
+        highlight-hover: "#fdba74"
+        background: "#1f1108"
+        card-background: "#2f1f14"
+        text: "#fed7aa"
+        text-header: "#ffffff"
+        text-title: "#fb923c"
+        text-subtitle: "#fdba74"
+        card-shadow: rgba(251, 146, 60, 0.2)
+        link: "#fb923c"
+        link-hover: "#fdba74"
+
+  - name: "Slate Gray"
+    colors:
+      light:
+        highlight-primary: "#475569"
+        highlight-secondary: "#64748b"
+        highlight-hover: "#334155"
+        background: "#f8fafc"
+        card-background: "#ffffff"
+        text: "#1e293b"
+        text-header: "#ffffff"
+        text-title: "#475569"
+        text-subtitle: "#64748b"
+        card-shadow: rgba(71, 85, 105, 0.15)
+        link: "#475569"
+        link-hover: "#334155"
+      dark:
+        highlight-primary: "#94a3b8"
+        highlight-secondary: "#64748b"
+        highlight-hover: "#cbd5e1"
+        background: "#0f172a"
+        card-background: "#1e293b"
+        text: "#e2e8f0"
+        text-header: "#ffffff"
+        text-title: "#94a3b8"
+        text-subtitle: "#cbd5e1"
+        card-shadow: rgba(148, 163, 184, 0.2)
+        link: "#94a3b8"
+        link-hover: "#cbd5e1"
+
+  - name: "Cyberpunk"
+    colors:
+      light:
+        highlight-primary: "#ff00ff"
+        highlight-secondary: "#00ffff"
+        highlight-hover: "#cc00cc"
+        background: "#f5f0ff"
+        card-background: "#ffffff"
+        text: "#2d1b4e"
+        text-header: "#ffffff"
+        text-title: "#ff00ff"
+        text-subtitle: "#00ffff"
+        card-shadow: rgba(255, 0, 255, 0.2)
+        link: "#ff00ff"
+        link-hover: "#cc00cc"
+      dark:
+        highlight-primary: "#ff00ff"
+        highlight-secondary: "#00ffff"
+        highlight-hover: "#ff66ff"
+        background: "#0d0221"
+        card-background: "#1a0b3a"
+        text: "#e0b0ff"
+        text-header: "#ffffff"
+        text-title: "#ff00ff"
+        text-subtitle: "#00ffff"
+        card-shadow: rgba(255, 0, 255, 0.3)
+        link: "#ff00ff"
+        link-hover: "#ff66ff"
+
+  - name: "Amber Warmth"
+    colors:
+      light:
+        highlight-primary: "#d97706"
+        highlight-secondary: "#fbbf24"
+        highlight-hover: "#b45309"
+        background: "#fffbeb"
+        card-background: "#ffffff"
+        text: "#451a03"
+        text-header: "#ffffff"
+        text-title: "#d97706"
+        text-subtitle: "#f59e0b"
+        card-shadow: rgba(217, 119, 6, 0.15)
+        link: "#d97706"
+        link-hover: "#b45309"
+      dark:
+        highlight-primary: "#fbbf24"
+        highlight-secondary: "#f59e0b"
+        highlight-hover: "#fcd34d"
+        background: "#1f1508"
+        card-background: "#2f2314"
+        text: "#fef3c7"
+        text-header: "#ffffff"
+        text-title: "#fbbf24"
+        text-subtitle: "#fcd34d"
+        card-shadow: rgba(251, 191, 36, 0.2)
+        link: "#fbbf24"
+        link-hover: "#fcd34d"
+
+  - name: "Rose Pink"
+    colors:
+      light:
+        highlight-primary: "#e11d48"
+        highlight-secondary: "#fb7185"
+        highlight-hover: "#be123c"
+        background: "#fff1f2"
+        card-background: "#ffffff"
+        text: "#4c0519"
+        text-header: "#ffffff"
+        text-title: "#e11d48"
+        text-subtitle: "#fb7185"
+        card-shadow: rgba(225, 29, 72, 0.15)
+        link: "#e11d48"
+        link-hover: "#be123c"
+      dark:
+        highlight-primary: "#fb7185"
+        highlight-secondary: "#f43f5e"
+        highlight-hover: "#fda4af"
+        background: "#1f0811"
+        card-background: "#2f141d"
+        text: "#fecdd3"
+        text-header: "#ffffff"
+        text-title: "#fb7185"
+        text-subtitle: "#fda4af"
+        card-shadow: rgba(251, 113, 133, 0.2)
+        link: "#fb7185"
+        link-hover: "#fda4af"
+
+  - name: "Midnight"
+    colors:
+      light:
+        highlight-primary: "#1e40af"
+        highlight-secondary: "#3b82f6"
+        highlight-hover: "#1e3a8a"
+        background: "#eff6ff"
+        card-background: "#ffffff"
+        text: "#1e3a8a"
+        text-header: "#ffffff"
+        text-title: "#1e40af"
+        text-subtitle: "#3b82f6"
+        card-shadow: rgba(30, 64, 175, 0.15)
+        link: "#1e40af"
+        link-hover: "#1e3a8a"
+      dark:
+        highlight-primary: "#3b82f6"
+        highlight-secondary: "#60a5fa"
+        highlight-hover: "#93c5fd"
+        background: "#030712"
+        card-background: "#111827"
+        text: "#dbeafe"
+        text-header: "#ffffff"
+        text-title: "#3b82f6"
+        text-subtitle: "#93c5fd"
+        card-shadow: rgba(59, 130, 246, 0.2)
+        link: "#3b82f6"
+        link-hover: "#93c5fd"
 
 # Quick links
 links:
@@ -162,7 +456,7 @@ services:
 
 # Message (optional status banner)
 message:
-  style: "is-warning"
-  title: "🌐 Network Access"
-  icon: "fa fa-network-wired"
-  content: "External services accessible via Cloudflare Tunnel. Internal services require local network access (192.168.1.x)."
+  style: "is-info"
+  title: "🎨 Theme Switcher Available"
+  icon: "fa fa-palette"
+  content: "Click the theme icon in the top-right corner to choose from 10+ beautiful themes! Try Red Hat Enterprise, Ocean Blue, Cyberpunk, and more."
