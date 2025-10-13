@@ -1,6 +1,6 @@
 ---
 # MiracleMax System Administrator Dashboard
-# Intuitive, seamless navigation for infrastructure management
+# Showing only accessible services
 
 title: "MiracleMax"
 subtitle: "Infrastructure Control Panel"
@@ -77,30 +77,6 @@ services:
         tag: "monitoring"
         url: "https://netdata.jbyrd.org"
         target: "_blank"
-        
-      - name: "Prometheus"
-        icon: "fas fa-database"
-        subtitle: "Metrics Collection & Alerting"
-        keywords: "metrics time-series alerts"
-        tag: "monitoring"
-        url: "http://192.168.1.34:9090"
-        target: "_blank"
-        
-      - name: "Alertmanager"
-        icon: "fas fa-bell"
-        subtitle: "Alert Routing & Notifications"
-        keywords: "alerts email notifications"
-        tag: "monitoring"
-        url: "https://alerts.jbyrd.org"
-        target: "_blank"
-        
-      - name: "Node Exporter"
-        icon: "fas fa-microchip"
-        subtitle: "Host-level Metrics (Port 9100)"
-        keywords: "system metrics exporter"
-        tag: "monitoring"
-        url: "http://192.168.1.34:9100/metrics"
-        target: "_blank"
 
   # === CONTAINER MANAGEMENT ===
   - name: "📦 Container Management"
@@ -121,69 +97,49 @@ services:
         tag: "logs"
         url: "https://logs.jbyrd.org"
         target: "_blank"
-        
-      - name: "cAdvisor"
-        icon: "fas fa-tachometer-alt"
-        subtitle: "Container Resource Usage"
-        keywords: "container metrics cpu memory"
-        tag: "monitoring"
-        url: "https://cadvisor.jbyrd.org"
-        target: "_blank"
 
-  # === NETWORKING & ROUTING ===
-  - name: "🌐 Networking & Routing"
-    icon: "fas fa-network-wired"
-    items:
-      - name: "Traefik Dashboard"
-        icon: "fas fa-exchange-alt"
-        subtitle: "Reverse Proxy & SSL Management"
-        keywords: "proxy routing ssl certificates"
-        tag: "infrastructure"
-        url: "https://traefik.jbyrd.org"
-        target: "_blank"
-        
-      - name: "Authelia"
-        icon: "fas fa-shield-alt"
-        subtitle: "SSO & Multi-Factor Authentication"
-        keywords: "auth sso mfa security"
-        tag: "security"
-        url: "https://auth.jbyrd.org"
-        target: "_blank"
-
-  # === APPLICATIONS ===
-  - name: "🏠 Applications & Services"
-    icon: "fas fa-desktop"
+  # === INTERNAL SERVICES (Direct IP Access) ===
+  - name: "🏠 Internal Services"
+    icon: "fas fa-home-lg-alt"
     items:
       - name: "Home Assistant"
         icon: "fas fa-home"
         subtitle: "Smart Home Automation Hub"
         keywords: "home automation iot smart home"
-        tag: "application"
-        url: "https://ha.jbyrd.org"
+        tag: "internal"
+        url: "http://192.168.1.34:8123"
         target: "_blank"
         
       - name: "Actual Budget"
         icon: "fas fa-dollar-sign"
         subtitle: "Personal Finance Management"
         keywords: "budget finance money tracking"
-        tag: "application"
-        url: "https://budget.jbyrd.org"
+        tag: "internal"
+        url: "http://192.168.1.34:5006"
         target: "_blank"
         
       - name: "n8n"
         icon: "fas fa-project-diagram"
         subtitle: "Workflow Automation Platform"
         keywords: "automation workflows integration"
-        tag: "automation"
-        url: "https://n8n.jbyrd.org"
+        tag: "internal"
+        url: "http://192.168.1.34:5678"
         target: "_blank"
         
       - name: "Finance Dashboard"
         icon: "fas fa-chart-pie"
         subtitle: "Personal Finance Analytics"
         keywords: "finance analytics dashboard"
-        tag: "application"
+        tag: "internal"
         url: "http://192.168.1.34:5005"
+        target: "_blank"
+        
+      - name: "cAdvisor"
+        icon: "fas fa-tachometer-alt"
+        subtitle: "Container Resource Usage"
+        keywords: "container metrics cpu memory"
+        tag: "internal"
+        url: "http://192.168.1.34:8084"
         target: "_blank"
 
   # === SYSTEM INFORMATION ===
@@ -214,7 +170,7 @@ services:
 
 # Message (optional status banner)
 message:
-  style: "is-info"
-  title: "🎯 MiracleMax Infrastructure"
-  icon: "fa fa-server"
-  content: "Enterprise-grade monitoring active. All services operational. Click any card to access the service."
+  style: "is-warning"
+  title: "🌐 Network Access"
+  icon: "fa fa-network-wired"
+  content: "External services accessible via Cloudflare Tunnel. Internal services require local network access (192.168.1.x)."
