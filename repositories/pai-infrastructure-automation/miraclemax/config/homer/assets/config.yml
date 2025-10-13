@@ -1,0 +1,213 @@
+---
+# MiracleMax System Administrator Dashboard
+# Intuitive, seamless navigation for infrastructure management
+
+title: "MiracleMax"
+subtitle: "Infrastructure Control Panel"
+logo: "assets/logo.png"
+icon: "fas fa-server"
+header: true
+footer: '<p>Infrastructure as Code | MiracleMax @ 192.168.1.34 | <a href="https://github.com/jbyrd/pai-infrastructure-automation" target="_blank">GitHub</a></p>'
+
+# Search bar
+search: true
+
+# Theme
+theme: default
+colors:
+  light:
+    highlight-primary: "#ee0033"  # Red Hat red
+    highlight-secondary: "#0088ce"  # Blue
+    highlight-hover: "#cc0000"
+    background: "#f5f5f5"
+    card-background: "#ffffff"
+    text: "#363636"
+    text-header: "#ffffff"
+    text-title: "#303030"
+    text-subtitle: "#424242"
+    card-shadow: rgba(0, 0, 0, 0.15)
+    link: "#0088ce"
+    link-hover: "#cc0000"
+  dark:
+    highlight-primary: "#ee0033"
+    highlight-secondary: "#0088ce"
+    highlight-hover: "#ff3355"
+    background: "#1a1a1a"
+    card-background: "#2b2b2b"
+    text: "#eaeaea"
+    text-header: "#ffffff"
+    text-title: "#fafafa"
+    text-subtitle: "#f5f5f5"
+    card-shadow: rgba(0, 0, 0, 0.5)
+    link: "#0088ce"
+    link-hover: "#ff3355"
+
+# Quick links
+links:
+  - name: "Documentation"
+    icon: "fas fa-book"
+    url: "https://github.com/jbyrd/pai-infrastructure-automation/tree/main/miraclemax/docs"
+    target: "_blank"
+  - name: "Cloudflare"
+    icon: "fas fa-cloud"
+    url: "https://dash.cloudflare.com"
+    target: "_blank"
+  - name: "GitHub Repo"
+    icon: "fab fa-github"
+    url: "https://github.com/jbyrd/pai-infrastructure-automation"
+    target: "_blank"
+
+# Main service categories
+services:
+  # === MONITORING & OBSERVABILITY ===
+  - name: "🔍 Monitoring & Observability"
+    icon: "fas fa-chart-line"
+    items:
+      - name: "Grafana"
+        logo: "https://grafana.com/static/assets/img/fav32.png"
+        subtitle: "Metrics Dashboards & Visualization"
+        tag: "monitoring"
+        url: "https://grafana.jbyrd.org"
+        target: "_blank"
+        
+      - name: "Netdata"
+        logo: "https://www.netdata.cloud/img/favicon/favicon-32x32.png"
+        subtitle: "Real-time System Performance"
+        keywords: "cpu memory disk network performance"
+        tag: "monitoring"
+        url: "https://netdata.jbyrd.org"
+        target: "_blank"
+        
+      - name: "Prometheus"
+        logo: "https://prometheus.io/assets/favicons/favicon-32x32.png"
+        subtitle: "Metrics Collection & Alerting"
+        keywords: "metrics time-series alerts"
+        tag: "monitoring"
+        url: "http://192.168.1.34:9090"
+        target: "_blank"
+        
+      - name: "Alertmanager"
+        subtitle: "Alert Routing & Notifications"
+        keywords: "alerts email notifications"
+        tag: "monitoring"
+        url: "https://alerts.jbyrd.org"
+        target: "_blank"
+        
+      - name: "Node Exporter"
+        subtitle: "Host-level Metrics (Port 9100)"
+        keywords: "system metrics exporter"
+        tag: "monitoring"
+        url: "http://192.168.1.34:9100/metrics"
+        target: "_blank"
+
+  # === CONTAINER MANAGEMENT ===
+  - name: "📦 Container Management"
+    icon: "fas fa-box"
+    items:
+      - name: "Portainer"
+        logo: "https://www.portainer.io/hubfs/portainer-logo-black.svg"
+        subtitle: "Full Container Management UI"
+        keywords: "docker podman containers management"
+        tag: "management"
+        url: "https://portainer.jbyrd.org"
+        target: "_blank"
+        
+      - name: "Dozzle"
+        logo: "https://dozzle.dev/favicon.ico"
+        subtitle: "Real-time Container Logs"
+        keywords: "logs containers debugging"
+        tag: "logs"
+        url: "https://logs.jbyrd.org"
+        target: "_blank"
+        
+      - name: "cAdvisor"
+        subtitle: "Container Resource Usage"
+        keywords: "container metrics cpu memory"
+        tag: "monitoring"
+        url: "https://cadvisor.jbyrd.org"
+        target: "_blank"
+
+  # === NETWORKING & ROUTING ===
+  - name: "🌐 Networking & Routing"
+    icon: "fas fa-network-wired"
+    items:
+      - name: "Traefik Dashboard"
+        logo: "https://raw.githubusercontent.com/traefik/traefik/master/docs/content/assets/img/traefik.logo.png"
+        subtitle: "Reverse Proxy & SSL Management"
+        keywords: "proxy routing ssl certificates"
+        tag: "infrastructure"
+        url: "https://traefik.jbyrd.org"
+        target: "_blank"
+        
+      - name: "Authelia"
+        subtitle: "SSO & Multi-Factor Authentication"
+        keywords: "auth sso mfa security"
+        tag: "security"
+        url: "https://auth.jbyrd.org"
+        target: "_blank"
+
+  # === APPLICATIONS ===
+  - name: "🏠 Applications & Services"
+    icon: "fas fa-desktop"
+    items:
+      - name: "Home Assistant"
+        logo: "https://www.home-assistant.io/images/favicon-192x192-full.png"
+        subtitle: "Smart Home Automation Hub"
+        keywords: "home automation iot smart home"
+        tag: "application"
+        url: "https://ha.jbyrd.org"
+        target: "_blank"
+        
+      - name: "Actual Budget"
+        subtitle: "Personal Finance Management"
+        keywords: "budget finance money tracking"
+        tag: "application"
+        url: "https://budget.jbyrd.org"
+        target: "_blank"
+        
+      - name: "n8n"
+        logo: "https://n8n.io/favicon.ico"
+        subtitle: "Workflow Automation Platform"
+        keywords: "automation workflows integration"
+        tag: "automation"
+        url: "https://n8n.jbyrd.org"
+        target: "_blank"
+        
+      - name: "Finance Dashboard"
+        subtitle: "Personal Finance Analytics"
+        keywords: "finance analytics dashboard"
+        tag: "application"
+        url: "http://192.168.1.34:5005"
+        target: "_blank"
+
+  # === SYSTEM INFORMATION ===
+  - name: "⚙️ System Information"
+    icon: "fas fa-server"
+    items:
+      - name: "Server Stats"
+        subtitle: "miraclemax.local | 192.168.1.34"
+        tag: "info"
+        type: "text"
+        
+      - name: "Operating System"
+        subtitle: "RHEL 9.6 (Plow) | Podman 5.4.0"
+        tag: "info"
+        type: "text"
+        
+      - name: "Resources"
+        subtitle: "62GB RAM | 3.6TB Storage"
+        tag: "info"
+        type: "text"
+        
+      - name: "Services Status"
+        subtitle: "Check Netdata for real-time metrics"
+        tag: "info"
+        url: "https://netdata.jbyrd.org"
+        target: "_blank"
+
+# Message (optional status banner)
+message:
+  style: "is-info"
+  title: "🎯 MiracleMax Infrastructure"
+  icon: "fa fa-server"
+  content: "Enterprise-grade monitoring active. All services operational. Click any card to access the service."

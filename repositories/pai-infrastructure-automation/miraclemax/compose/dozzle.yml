@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  dozzle:
+    image: docker.io/amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+    volumes:
+      - /run/podman/podman.sock:/var/run/docker.sock:ro  # Root Podman socket
+    environment:
+      - DOZZLE_LEVEL=info
+      - DOZZLE_TAILSIZE=300
+      - DOZZLE_FILTER=status=running
+      - DOZZLE_NO_ANALYTICS=true
+    networks:
+      - traefik-network
+    labels:
+      - "traefik.enable=true"
+      
+      # HTTP/HTTPS routing
+      - "traefik.http.routers.dozzle.rule=Host(`logs.jbyrd.org`)"
+      - "traefik.http.routers.dozzle.entrypoints=web,websecure"
+      - "traefik.http.routers.dozzle.service=dozzle"
+      
+      # Middleware (authelia protection)
+      - "traefik.http.routers.dozzle.middlewares=authelia@file,security-headers@file,rate-limit@file"
+      
+      # Service
+      - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
+
+networks:
+  traefik-network:
+    external: true
+

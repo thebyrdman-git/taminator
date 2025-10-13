@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  netdata:
+    image: docker.io/netdata/netdata:latest
+    container_name: netdata
+    restart: unless-stopped
+    hostname: miraclemax
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - netdataconfig:/etc/netdata
+      - netdatalib:/var/lib/netdata
+      - netdatacache:/var/cache/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /run/podman/podman.sock:/var/run/docker.sock:ro  # Root Podman socket
+    environment:
+      - NETDATA_CLAIM_TOKEN=${NETDATA_CLAIM_TOKEN:-}
+      - NETDATA_CLAIM_URL=https://app.netdata.cloud
+      - NETDATA_CLAIM_ROOMS=${NETDATA_CLAIM_ROOMS:-}
+    networks:
+      - traefik-network
+    labels:
+      - "traefik.enable=true"
+      
+      # HTTP/HTTPS routing
+      - "traefik.http.routers.netdata.rule=Host(`netdata.jbyrd.org`)"
+      - "traefik.http.routers.netdata.entrypoints=web,websecure"
+      - "traefik.http.routers.netdata.service=netdata"
+      
+      # Middleware (authelia protection)
+      - "traefik.http.routers.netdata.middlewares=authelia@file,security-headers@file,rate-limit@file"
+      
+      # Service
+      - "traefik.http.services.netdata.loadbalancer.server.port=19999"
+
+volumes:
+  netdataconfig:
+  netdatalib:
+  netdatacache:
+
+networks:
+  traefik-network:
+    external: true
+

@@ -45,7 +45,7 @@ services:
       # Logs
       - traefik-logs:/var/log/traefik
       
-      # Podman socket for dynamic discovery
+      # Podman socket for dynamic discovery (root context)
       - /run/podman/podman.sock:/var/run/docker.sock:ro
     
     # Environment variables

@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  homer:
+    image: docker.io/b4bz/homer:latest
+    container_name: homer
+    restart: unless-stopped
+    volumes:
+      - ../config/homer/assets:/www/assets
+    environment:
+      - INIT_ASSETS=0  # Don't overwrite our config
+    networks:
+      - traefik-network
+    labels:
+      - "traefik.enable=true"
+      
+      # HTTP (redirects to HTTPS)
+      - "traefik.http.routers.homer.rule=Host(`dashboard.jbyrd.org`) || Host(`jbyrd.org`)"
+      - "traefik.http.routers.homer.entrypoints=web,websecure"
+      - "traefik.http.routers.homer.service=homer"
+      
+      # Middleware
+      - "traefik.http.routers.homer.middlewares=security-headers@file,rate-limit@file"
+      
+      # Service
+      - "traefik.http.services.homer.loadbalancer.server.port=8080"
+
+networks:
+  traefik-network:
+    external: true
+
