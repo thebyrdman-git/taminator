@@ -1,0 +1,13 @@
+# Authelia Users Database
+# Password hashes generated with: authelia crypto hash generate argon2
+
+---
+users:
+  jbyrd:
+    displayname: "Jason Byrd"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$w5+5N+LuCUrFcf5XQO2RGw$ECfHCzLmG0qUA3Wxd6ocDGZp5Z4olKKXCk5YldrUpKA"  # TempPass123!
+    email: "admin@jbyrd.org"
+    groups:
+      - admins
+      - users
+

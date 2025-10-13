@@ -1,0 +1,54 @@
+# Authelia - Multi-Factor Authentication & SSO
+# Version: 4.38.10
+# Purpose: Provide MFA (TOTP, WebAuthn) and SSO for all services
+
+services:
+  authelia:
+    image: docker.io/authelia/authelia:4.38.10
+    container_name: authelia
+    restart: unless-stopped
+    
+    networks:
+      - traefik-network
+    
+    volumes:
+      - ../config/authelia:/config:rw
+    
+    environment:
+      - TZ=America/New_York
+      - AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE=/config/secrets/jwt_secret
+      - AUTHELIA_SESSION_SECRET_FILE=/config/secrets/session_secret
+      - AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE=/config/secrets/storage_encryption_key
+    
+    labels:
+      # Traefik Configuration
+      - "traefik.enable=true"
+      - "traefik.http.routers.authelia.rule=Host(`auth.jbyrd.org`)"
+      - "traefik.http.routers.authelia.entrypoints=web,websecure"
+      - "traefik.http.routers.authelia.tls.certresolver=letsencrypt"
+      - "traefik.http.services.authelia.loadbalancer.server.port=9091"
+      
+      # Authelia Middleware for Forward Auth
+      - "traefik.http.middlewares.authelia.forwardAuth.address=http://authelia:9091/api/authz/forward-auth"
+      - "traefik.http.middlewares.authelia.forwardAuth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authelia.forwardAuth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Email,Remote-Name"
+      
+      # Monitoring & Backup
+      - "monitoring.enable=true"
+      - "backup.enable=true"
+      - "backup.path=/config"
+    
+    security_opt:
+      - no-new-privileges:true
+    
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9091/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  traefik-network:
+    external: true
+

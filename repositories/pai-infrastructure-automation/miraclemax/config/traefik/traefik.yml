@@ -1,0 +1,118 @@
+# Traefik v3.0 Configuration
+# Purpose: Secure reverse proxy with Let's Encrypt SSL for jbyrd.org domain
+# Philosophy: Defense in Depth, Zero Trust
+
+# Global configuration
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
+# API and Dashboard
+api:
+  dashboard: true
+  insecure: false  # Disable insecure dashboard (use auth middleware)
+
+# Entry Points
+entryPoints:
+  # HTTP (no redirect - Cloudflare Tunnel terminates SSL at edge)
+  web:
+    address: ":80"
+    # http:
+    #   redirections:
+    #     entryPoint:
+    #       to: websecure
+    #       scheme: https
+    #       permanent: true
+  
+  # HTTPS (main entry point)
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+        domains:
+          - main: jbyrd.org
+            sans:
+              - "*.jbyrd.org"
+      middlewares:
+        - security-headers@file
+  
+  # Traefik Dashboard (internal)
+  traefik:
+    address: ":8080"
+
+# Certificate Resolvers (Let's Encrypt)
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@jbyrd.org
+      storage: /acme/acme.json
+      # Use DNS challenge for wildcard certificates
+      # Option 1: Cloudflare DNS Challenge (recommended for *.jbyrd.org)
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
+        delayBeforeCheck: 30
+      # Option 2: HTTP Challenge (single domain only)
+      # httpChallenge:
+      #   entryPoint: web
+
+# Providers
+providers:
+  # Docker/Podman provider (dynamic discovery)
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: traefik-network
+    watch: true
+  
+  # File provider (static configuration)
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+# Logging
+log:
+  level: INFO
+  format: json
+  filePath: /var/log/traefik/traefik.log
+
+# Access Logs
+accessLog:
+  format: json
+  filePath: /var/log/traefik/access.log
+  filters:
+    statusCodes:
+      - "400-599"  # Log only errors
+  fields:
+    headers:
+      defaultMode: drop  # Don't log headers by default (security)
+      names:
+        User-Agent: keep
+        X-Real-Ip: keep
+
+# Metrics (Prometheus)
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addRoutersLabels: true
+    addServicesLabels: true
+    entryPoint: traefik
+    buckets:
+      - 0.1
+      - 0.3
+      - 1.2
+      - 5.0
+
+# Pilot (Traefik Hub - optional)
+# pilot:
+#   token: "YOUR_TRAEFIK_HUB_TOKEN"
+
+# Tracing (optional - for debugging)
+# tracing:
+#   jaeger:
+#     samplingServerURL: http://jaeger:5778/sampling
+#     localAgentHostPort: jaeger:6831
+

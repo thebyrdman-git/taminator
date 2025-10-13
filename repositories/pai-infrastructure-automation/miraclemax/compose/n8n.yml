@@ -1,0 +1,101 @@
+version: '3.8'
+
+# n8n Workflow Automation
+# Purpose: Workflow automation and integration platform
+# Documentation: https://docs.n8n.io/
+
+services:
+  n8n:
+    image: n8nio/n8n:1.60.1  # Pinned version
+    container_name: n8n
+    restart: unless-stopped
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Network configuration
+    ports:
+      - "5678:5678"
+    
+    # Volume mounts
+    volumes:
+      # Data directory (workflows, credentials, etc.)
+      - n8n-data:/home/node/.n8n
+      
+      # Optional: Local files for file operations
+      - /mnt/storage/n8n-files:/files
+    
+    # Environment variables
+    environment:
+      - TZ=America/New_York
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      # SECURITY: Set password via secrets
+      # - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      
+      # Webhook URL (adjust if using Traefik)
+      - WEBHOOK_URL=http://miraclemax.local:5678/
+      
+      # Execution mode
+      - EXECUTIONS_MODE=regular
+      - EXECUTIONS_TIMEOUT=300
+      - EXECUTIONS_TIMEOUT_MAX=600
+      
+      # Data retention
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - EXECUTIONS_DATA_MAX_AGE=168  # 7 days
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5678/healthz"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    
+    labels:
+      # Service identification
+      - "com.miraclemax.service=n8n"
+      - "com.miraclemax.version=1.60.1"
+      - "com.miraclemax.description=Workflow automation platform"
+      
+      # Backup configuration (IMPORTANT - contains workflows and credentials)
+      - "com.miraclemax.backup=important"
+      - "com.miraclemax.backup.path=/home/node/.n8n"
+      - "com.miraclemax.backup.frequency=daily"
+      - "com.miraclemax.backup.encryption=required"  # Contains credentials
+      
+      # Monitoring
+      - "com.miraclemax.monitor=true"
+      - "com.miraclemax.health.port=5678"
+      - "com.miraclemax.health.path=/healthz"
+      
+      # Traefik routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`n8n.miraclemax.local`)"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+      
+      # Security: Already has basic auth, but consider adding IP whitelist
+      # - "traefik.http.routers.n8n.middlewares=internal-only@file"
+
+# Named volumes
+volumes:
+  n8n-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/jbyrd/n8n-data
+

@@ -1,0 +1,115 @@
+# Authelia Configuration
+# Multi-Factor Authentication & SSO for miraclemax infrastructure
+
+---
+theme: dark
+
+server:
+  address: 'tcp://0.0.0.0:9091'
+  endpoints:
+    authz:
+      forward-auth:
+        implementation: 'ForwardAuth'
+
+log:
+  level: 'info'
+  format: 'json'
+  file_path: '/config/authelia.log'
+
+totp:
+  disable: false
+  issuer: 'miraclemax.jbyrd.org'
+  algorithm: 'sha1'  # SHA1 for maximum compatibility (Google Authenticator, FreeOTP, etc.)
+  digits: 6
+  period: 30
+  skew: 1  # Allow 1 time step before/after for clock drift
+  secret_size: 32
+
+webauthn:
+  disable: false
+  display_name: 'Miraclemax Infrastructure'
+  attestation_conveyance_preference: 'indirect'
+  user_verification: 'preferred'
+  timeout: 60s
+
+duo_api:
+  disable: true
+
+authentication_backend:
+  password_reset:
+    disable: false
+  refresh_interval: '5m'
+  
+  file:
+    path: '/config/users.yml'
+    password:
+      algorithm: 'argon2'
+      argon2:
+        variant: 'argon2id'
+        iterations: 3
+        memory: 65536
+        parallelism: 4
+        key_length: 32
+        salt_length: 16
+
+access_control:
+  default_policy: 'deny'
+  
+  rules:
+    # Authelia portal - always accessible
+    - domain:
+        - 'auth.jbyrd.org'
+      policy: 'bypass'
+    
+    # Traefik dashboard - two-factor required
+    - domain:
+        - 'traefik.jbyrd.org'
+      policy: 'two_factor'
+    
+    # Home Assistant - two-factor required
+    - domain:
+        - 'ha.jbyrd.org'
+      policy: 'two_factor'
+    
+    # Actual Budget - two-factor required
+    - domain:
+        - 'budget.jbyrd.org'
+      policy: 'two_factor'
+    
+    # n8n - two-factor required
+    - domain:
+        - 'n8n.jbyrd.org'
+      policy: 'two_factor'
+    
+    # Monitoring services - two-factor required
+    - domain:
+        - 'cadvisor.jbyrd.org'
+        - 'metrics.jbyrd.org'
+      policy: 'two_factor'
+
+session:
+  name: 'authelia_session'
+  cookies:
+    - domain: 'jbyrd.org'
+      authelia_url: 'https://auth.jbyrd.org'
+      default_redirection_url: 'https://ha.jbyrd.org'
+  same_site: 'lax'
+  expiration: '1h'
+  inactivity: '15m'
+  remember_me: '1M'
+
+regulation:
+  max_retries: 5
+  find_time: '10m'
+  ban_time: '15m'
+
+storage:
+  local:
+    path: '/config/db.sqlite3'
+
+notifier:
+  disable_startup_check: false
+  
+  filesystem:
+    filename: '/config/notifications.txt'
+

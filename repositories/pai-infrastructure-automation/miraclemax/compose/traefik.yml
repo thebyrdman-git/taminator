@@ -1,0 +1,116 @@
+version: '3.8'
+
+# Traefik Reverse Proxy with Let's Encrypt SSL
+# Purpose: Secure edge router for all services at jbyrd.org
+# Documentation: https://doc.traefik.io/traefik/
+
+services:
+  traefik:
+    image: traefik:v3.0.0  # Pinned version (IaC best practice)
+    container_name: traefik
+    restart: unless-stopped
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits (SRE capacity planning)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+    
+    # Network configuration
+    ports:
+      - "80:80"      # HTTP (redirects to HTTPS)
+      - "443:443"    # HTTPS (main entry point)
+      - "8080:8080"  # Dashboard (internal only)
+    
+    networks:
+      - traefik-network
+    
+    # Volume mounts
+    volumes:
+      # Traefik configuration files
+      - ../config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ../config/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      
+      # SSL certificates (Let's Encrypt)
+      - traefik-acme:/acme
+      
+      # Logs
+      - traefik-logs:/var/log/traefik
+      
+      # Podman socket for dynamic discovery
+      - /run/podman/podman.sock:/var/run/docker.sock:ro
+    
+    # Environment variables
+    environment:
+      - TZ=America/New_York
+      # Cloudflare API for DNS challenge (wildcard SSL)
+      # SECURITY: Load from secrets file
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_API_KEY=${CF_API_KEY}
+      # Alternative: CF_DNS_API_TOKEN (scoped API token - recommended)
+      # - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+    
+    # Health check (Four Golden Signals)
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    labels:
+      # Service identification
+      - "com.miraclemax.service=traefik"
+      - "com.miraclemax.version=3.0.0"
+      - "com.miraclemax.description=Reverse proxy with Let's Encrypt SSL"
+      
+      # Backup configuration (CRITICAL - contains SSL certificates)
+      - "com.miraclemax.backup=critical"
+      - "com.miraclemax.backup.path=/acme,/etc/traefik"
+      - "com.miraclemax.backup.frequency=daily"
+      
+      # Monitoring
+      - "com.miraclemax.monitor=true"
+      - "com.miraclemax.metrics.port=8080"
+      - "com.miraclemax.metrics.path=/metrics"
+      
+      # Traefik self-routing (dashboard)
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.jbyrd.org`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth@file"
+
+# Named volumes
+volumes:
+  traefik-acme:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/jbyrd/traefik-data/acme
+  
+  traefik-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/jbyrd/traefik-data/logs
+
+# Networks
+networks:
+  traefik-network:
+    driver: bridge
+    name: traefik-network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

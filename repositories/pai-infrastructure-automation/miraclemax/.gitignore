@@ -1,0 +1,29 @@
+# Secrets and sensitive data
+*.key
+*.pem
+secrets/
+.env
+acme.json
+
+# Backups
+backups/
+*.backup
+
+# Temporary files
+*.tmp
+*.swp
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# System
+Thumbs.db
+

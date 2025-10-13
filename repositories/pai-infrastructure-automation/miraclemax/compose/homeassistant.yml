@@ -1,0 +1,88 @@
+version: '3.8'
+
+# Home Assistant
+# Purpose: Home automation and IoT device management
+# Documentation: https://www.home-assistant.io/
+
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:2024.10.1  # Pinned version
+    container_name: homeassistant
+    restart: unless-stopped
+    
+    # Privileged mode required for USB device access
+    privileged: true
+    
+    # Resource limits (adjust based on device count)
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+    
+    # Network configuration
+    network_mode: host
+    # Required for: mDNS discovery, SSDP, direct device communication
+    
+    # Volume mounts
+    volumes:
+      # Configuration directory
+      - homeassistant-config:/config
+      
+      # Media directory (optional)
+      - /mnt/storage/media:/media:ro
+      
+      # Timezone
+      - /etc/localtime:/etc/localtime:ro
+    
+    # Environment variables
+    environment:
+      - TZ=America/New_York
+    
+    # Device access (USB Zigbee/Z-Wave sticks)
+    devices:
+      # Uncomment if using USB devices
+      # - /dev/ttyUSB0:/dev/ttyUSB0
+      # - /dev/ttyACM0:/dev/ttyACM0
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # First start can be slow
+    
+    labels:
+      # Service identification
+      - "com.miraclemax.service=homeassistant"
+      - "com.miraclemax.version=2024.10.1"
+      - "com.miraclemax.description=Home automation platform"
+      
+      # Backup configuration (CRITICAL)
+      - "com.miraclemax.backup=critical"
+      - "com.miraclemax.backup.path=/config"
+      - "com.miraclemax.backup.frequency=daily"
+      
+      # Monitoring
+      - "com.miraclemax.monitor=true"
+      - "com.miraclemax.metrics.port=8123"
+      - "com.miraclemax.metrics.path=/api/prometheus"
+      
+      # Traefik routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.homeassistant.rule=Host(`ha.miraclemax.local`)"
+      - "traefik.http.services.homeassistant.loadbalancer.server.port=8123"
+
+# Named volumes
+volumes:
+  homeassistant-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/jbyrd/homeassistant-config
+

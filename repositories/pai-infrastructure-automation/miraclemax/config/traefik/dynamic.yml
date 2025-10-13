@@ -1,0 +1,230 @@
+# Traefik Dynamic Configuration
+# Purpose: Middleware, routers, and service definitions
+# Updated automatically when this file changes (watch: true)
+
+http:
+  # Middlewares (Security & Functionality)
+  middlewares:
+    # Security Headers (Defense in Depth)
+    security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customResponseHeaders:
+          X-Robots-Tag: "noindex, nofollow"
+        customFrameOptionsValue: "SAMEORIGIN"
+    
+    # Basic Auth (for Traefik dashboard)
+    dashboard-auth:
+      basicAuth:
+        users:
+          # Generate with: echo $(htpasswd -nB admin) | sed -e s/\\$/\\$\\$/g
+          # Default: admin / changeme (CHANGE THIS!)
+          - "admin:$$2y$$05$$WvwLPbHQvGNwpD.C9.LR3OGNHjPvl0bIW8lKTxhFvZHMXQfpE4Hly"
+    
+    # IP Whitelist (internal services)
+    internal-only:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "192.168.1.0/24"
+          - "172.16.0.0/12"
+          - "10.0.0.0/8"
+    
+    # Rate Limiting (DDoS protection)
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 200
+        period: 1m
+    
+    # Compression
+    compress:
+      compress: {}
+    
+    # Redirect to HTTPS
+    https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+  # Routers (Service Access Rules)
+  routers:
+    # Authelia (MFA Portal)
+    authelia:
+      rule: "Host(`auth.jbyrd.org`)"
+      entryPoints:
+        - web
+        - websecure
+      service: authelia
+      middlewares:
+        - security-headers
+      tls:
+        certResolver: letsencrypt
+    
+    # Traefik Dashboard
+    dashboard:
+      rule: "Host(`traefik.jbyrd.org`)"
+      entryPoints:
+        - websecure
+      service: api@internal
+      middlewares:
+        - dashboard-auth
+        - security-headers
+        - internal-only
+      tls:
+        certResolver: letsencrypt
+    
+    # Home Assistant
+    homeassistant:
+      rule: "Host(`ha.jbyrd.org`)"
+      entryPoints:
+        - web
+        - websecure
+      service: homeassistant
+      middlewares:
+        - security-headers
+        - rate-limit
+      tls:
+        certResolver: letsencrypt
+    
+    # Actual Budget (Personal Finance)
+    actual-budget:
+      rule: "Host(`budget.jbyrd.org`)"
+      entryPoints:
+        - web
+        - websecure
+      service: actual-budget
+      middlewares:
+        - security-headers
+        - rate-limit
+      tls:
+        certResolver: letsencrypt
+    
+    # n8n (Workflow Automation)
+    n8n:
+      rule: "Host(`n8n.jbyrd.org`)"
+      entryPoints:
+        - websecure
+      service: n8n
+      middlewares:
+        - security-headers
+        - internal-only  # Only internal access
+      tls:
+        certResolver: letsencrypt
+    
+    # Prometheus Metrics (existing)
+    prometheus:
+      rule: "Host(`metrics.jbyrd.org`)"
+      entryPoints:
+        - websecure
+      service: prometheus
+      middlewares:
+        - security-headers
+        - internal-only
+        - dashboard-auth
+      tls:
+        certResolver: letsencrypt
+    
+    # cAdvisor (Container Metrics)
+    cadvisor:
+      rule: "Host(`cadvisor.jbyrd.org`)"
+      entryPoints:
+        - websecure
+      service: cadvisor
+      middlewares:
+        - security-headers
+        - internal-only
+        - dashboard-auth
+      tls:
+        certResolver: letsencrypt
+
+  # Services (Backend Definitions)
+  services:
+    # Authelia
+    authelia:
+      loadBalancer:
+        servers:
+          - url: "http://authelia:9091"
+        healthCheck:
+          path: /api/health
+          interval: 30s
+          timeout: 10s
+    
+    # Home Assistant
+    homeassistant:
+      loadBalancer:
+        servers:
+          - url: "http://homeassistant:8123"
+        healthCheck:
+          path: /
+          interval: 30s
+          timeout: 10s
+    
+    # Actual Budget
+    actual-budget:
+      loadBalancer:
+        servers:
+          - url: "http://actual-budget:5006"
+        healthCheck:
+          path: /
+          interval: 30s
+          timeout: 10s
+    
+    # n8n
+    n8n:
+      loadBalancer:
+        servers:
+          - url: "http://n8n:5678"
+        healthCheck:
+          path: /healthz
+          interval: 30s
+          timeout: 10s
+    
+    # Prometheus
+    prometheus:
+      loadBalancer:
+        servers:
+          - url: "http://192.168.1.34:9090"
+        healthCheck:
+          path: /-/healthy
+          interval: 30s
+          timeout: 10s
+    
+    # cAdvisor
+    cadvisor:
+      loadBalancer:
+        servers:
+          - url: "http://cadvisor:8080"
+        healthCheck:
+          path: /healthz
+          interval: 30s
+          timeout: 10s
+
+# TCP Configuration (if needed for non-HTTP services)
+# tcp:
+#   routers: {}
+#   services: {}
+
+# TLS Configuration
+tls:
+  options:
+    # Modern TLS configuration (security best practice)
+    modern:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+      sniStrict: true
+    
+    # Default TLS options
+    default:
+      minVersion: VersionTLS12
+      sniStrict: true
+
