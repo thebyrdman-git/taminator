@@ -126,14 +126,6 @@ services:
         url: "http://192.168.1.34:5678"
         target: "_blank"
         
-      - name: "Finance Dashboard"
-        icon: "fas fa-chart-pie"
-        subtitle: "Personal Finance Analytics"
-        keywords: "finance analytics dashboard"
-        tag: "internal"
-        url: "http://192.168.1.34:5005"
-        target: "_blank"
-        
       - name: "cAdvisor"
         icon: "fas fa-tachometer-alt"
         subtitle: "Container Resource Usage"
