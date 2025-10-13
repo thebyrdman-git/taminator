@@ -47,6 +47,17 @@ http:
     compress:
       compress: {}
     
+    # Authelia Forward Authentication (SSO & MFA)
+    authelia:
+      forwardAuth:
+        address: "http://authelia:9091/api/verify?rd=https://auth.jbyrd.org"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - "Remote-User"
+          - "Remote-Groups"
+          - "Remote-Name"
+          - "Remote-Email"
+    
     # Redirect to HTTPS
     https-redirect:
       redirectScheme:

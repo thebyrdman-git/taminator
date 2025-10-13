@@ -22,8 +22,8 @@ services:
       - "traefik.http.routers.dozzle.entrypoints=web,websecure"
       - "traefik.http.routers.dozzle.service=dozzle"
       
-      # Middleware (authelia protection)
-      - "traefik.http.routers.dozzle.middlewares=authelia@file,security-headers@file,rate-limit@file"
+      # Middleware (testing without authelia)
+      - "traefik.http.routers.dozzle.middlewares=security-headers@file,rate-limit@file"
       
       # Service
       - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
