@@ -98,10 +98,10 @@ http:
         - websecure
       service: homeassistant
       middlewares:
+        - authelia
         - security-headers
         - rate-limit
-      tls:
-        certResolver: letsencrypt
+      # TLS removed - Cloudflare Tunnel handles SSL
     
     # Actual Budget (Personal Finance)
     actual-budget:
@@ -111,6 +111,7 @@ http:
         - websecure
       service: actual-budget
       middlewares:
+        - authelia
         - security-headers
         - rate-limit
       # TLS removed - Cloudflare Tunnel handles SSL
@@ -122,6 +123,7 @@ http:
         - websecure
       service: n8n
       middlewares:
+        - authelia
         - security-headers
         - internal-only  # Only internal access
       tls:
@@ -134,6 +136,7 @@ http:
         - web
       service: grafana
       middlewares:
+        - authelia
         - security-headers
         - rate-limit
     
@@ -144,6 +147,7 @@ http:
         - websecure
       service: prometheus
       middlewares:
+        - authelia
         - security-headers
         - internal-only
       tls:
@@ -156,6 +160,7 @@ http:
         - websecure
       service: cadvisor
       middlewares:
+        - authelia
         - security-headers
         - internal-only
       tls:

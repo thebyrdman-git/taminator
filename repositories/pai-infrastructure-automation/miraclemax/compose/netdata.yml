@@ -35,8 +35,8 @@ services:
       - "traefik.http.routers.netdata.entrypoints=web,websecure"
       - "traefik.http.routers.netdata.service=netdata"
       
-      # Middleware (testing without authelia)
-      - "traefik.http.routers.netdata.middlewares=security-headers@file,rate-limit@file"
+      # Middleware
+      - "traefik.http.routers.netdata.middlewares=authelia@file,security-headers@file,rate-limit@file"
       
       # Service
       - "traefik.http.services.netdata.loadbalancer.server.port=19999"

@@ -85,6 +85,16 @@ access_control:
     - domain:
         - 'cadvisor.jbyrd.org'
         - 'metrics.jbyrd.org'
+        - 'grafana.jbyrd.org'
+        - 'netdata.jbyrd.org'
+      policy: 'two_factor'
+    
+    # Dashboard & Management - two-factor required
+    - domain:
+        - 'jbyrd.org'
+        - 'dashboard.jbyrd.org'
+        - 'portainer.jbyrd.org'
+        - 'logs.jbyrd.org'
       policy: 'two_factor'
 
 session:

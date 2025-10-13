@@ -19,8 +19,8 @@ services:
       - "traefik.http.routers.portainer.entrypoints=web,websecure"
       - "traefik.http.routers.portainer.service=portainer"
       
-      # Middleware (testing without authelia)
-      - "traefik.http.routers.portainer.middlewares=security-headers@file,rate-limit@file"
+      # Middleware
+      - "traefik.http.routers.portainer.middlewares=authelia@file,security-headers@file,rate-limit@file"
       
       # Service
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
