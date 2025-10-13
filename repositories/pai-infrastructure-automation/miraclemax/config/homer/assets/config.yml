@@ -4,7 +4,7 @@
 
 title: "MiracleMax"
 subtitle: "Infrastructure Control Panel"
-logo: "assets/logo.png"
+# logo: "assets/logo.png"  # Disabled - using icon instead
 icon: "fas fa-server"
 header: true
 footer: '<p>Infrastructure as Code | MiracleMax @ 192.168.1.34 | <a href="https://github.com/jbyrd/pai-infrastructure-automation" target="_blank">GitHub</a></p>'
@@ -64,14 +64,14 @@ services:
     icon: "fas fa-chart-line"
     items:
       - name: "Grafana"
-        logo: "https://grafana.com/static/assets/img/fav32.png"
+        icon: "fas fa-chart-area"
         subtitle: "Metrics Dashboards & Visualization"
         tag: "monitoring"
         url: "https://grafana.jbyrd.org"
         target: "_blank"
         
       - name: "Netdata"
-        logo: "https://www.netdata.cloud/img/favicon/favicon-32x32.png"
+        icon: "fas fa-chart-line"
         subtitle: "Real-time System Performance"
         keywords: "cpu memory disk network performance"
         tag: "monitoring"
@@ -79,7 +79,7 @@ services:
         target: "_blank"
         
       - name: "Prometheus"
-        logo: "https://prometheus.io/assets/favicons/favicon-32x32.png"
+        icon: "fas fa-database"
         subtitle: "Metrics Collection & Alerting"
         keywords: "metrics time-series alerts"
         tag: "monitoring"
@@ -87,6 +87,7 @@ services:
         target: "_blank"
         
       - name: "Alertmanager"
+        icon: "fas fa-bell"
         subtitle: "Alert Routing & Notifications"
         keywords: "alerts email notifications"
         tag: "monitoring"
@@ -94,6 +95,7 @@ services:
         target: "_blank"
         
       - name: "Node Exporter"
+        icon: "fas fa-microchip"
         subtitle: "Host-level Metrics (Port 9100)"
         keywords: "system metrics exporter"
         tag: "monitoring"
@@ -105,7 +107,7 @@ services:
     icon: "fas fa-box"
     items:
       - name: "Portainer"
-        logo: "https://www.portainer.io/hubfs/portainer-logo-black.svg"
+        icon: "fas fa-layer-group"
         subtitle: "Full Container Management UI"
         keywords: "docker podman containers management"
         tag: "management"
@@ -113,7 +115,7 @@ services:
         target: "_blank"
         
       - name: "Dozzle"
-        logo: "https://dozzle.dev/favicon.ico"
+        icon: "fas fa-file-alt"
         subtitle: "Real-time Container Logs"
         keywords: "logs containers debugging"
         tag: "logs"
@@ -121,6 +123,7 @@ services:
         target: "_blank"
         
       - name: "cAdvisor"
+        icon: "fas fa-tachometer-alt"
         subtitle: "Container Resource Usage"
         keywords: "container metrics cpu memory"
         tag: "monitoring"
@@ -132,7 +135,7 @@ services:
     icon: "fas fa-network-wired"
     items:
       - name: "Traefik Dashboard"
-        logo: "https://raw.githubusercontent.com/traefik/traefik/master/docs/content/assets/img/traefik.logo.png"
+        icon: "fas fa-exchange-alt"
         subtitle: "Reverse Proxy & SSL Management"
         keywords: "proxy routing ssl certificates"
         tag: "infrastructure"
@@ -140,6 +143,7 @@ services:
         target: "_blank"
         
       - name: "Authelia"
+        icon: "fas fa-shield-alt"
         subtitle: "SSO & Multi-Factor Authentication"
         keywords: "auth sso mfa security"
         tag: "security"
@@ -151,7 +155,7 @@ services:
     icon: "fas fa-desktop"
     items:
       - name: "Home Assistant"
-        logo: "https://www.home-assistant.io/images/favicon-192x192-full.png"
+        icon: "fas fa-home"
         subtitle: "Smart Home Automation Hub"
         keywords: "home automation iot smart home"
         tag: "application"
@@ -159,6 +163,7 @@ services:
         target: "_blank"
         
       - name: "Actual Budget"
+        icon: "fas fa-dollar-sign"
         subtitle: "Personal Finance Management"
         keywords: "budget finance money tracking"
         tag: "application"
@@ -166,7 +171,7 @@ services:
         target: "_blank"
         
       - name: "n8n"
-        logo: "https://n8n.io/favicon.ico"
+        icon: "fas fa-project-diagram"
         subtitle: "Workflow Automation Platform"
         keywords: "automation workflows integration"
         tag: "automation"
@@ -174,6 +179,7 @@ services:
         target: "_blank"
         
       - name: "Finance Dashboard"
+        icon: "fas fa-chart-pie"
         subtitle: "Personal Finance Analytics"
         keywords: "finance analytics dashboard"
         tag: "application"
@@ -185,21 +191,22 @@ services:
     icon: "fas fa-server"
     items:
       - name: "Server Stats"
+        icon: "fas fa-info-circle"
         subtitle: "miraclemax.local | 192.168.1.34"
         tag: "info"
-        type: "text"
         
       - name: "Operating System"
+        icon: "fab fa-redhat"
         subtitle: "RHEL 9.6 (Plow) | Podman 5.4.0"
         tag: "info"
-        type: "text"
         
       - name: "Resources"
+        icon: "fas fa-memory"
         subtitle: "62GB RAM | 3.6TB Storage"
         tag: "info"
-        type: "text"
         
       - name: "Services Status"
+        icon: "fas fa-heartbeat"
         subtitle: "Check Netdata for real-time metrics"
         tag: "info"
         url: "https://netdata.jbyrd.org"
