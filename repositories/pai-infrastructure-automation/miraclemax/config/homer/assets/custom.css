@@ -1,147 +1,191 @@
-/* Custom Theme Switcher Dropdown Styles */
+/* CSS-Only Theme Switcher Dropdown for Homer */
 
-.theme-dropdown-container {
-  position: relative;
-  display: inline-block;
-  margin-right: 1rem;
+/* Theme dropdown container - positioned in header */
+#app::before {
+  content: "";
+  display: none; /* Placeholder for dropdown positioning */
 }
 
-.theme-dropdown-button {
+/* Create theme selector dropdown using pure CSS */
+.navbar-end::after {
+  content: "Theme ▼";
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  margin-left: 1rem;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  color: var(--text-header, #ffffff);
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  cursor: pointer;
   border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  color: var(--text-header, #ffffff);
+  cursor: pointer;
+  font-size: 0.9rem;
   transition: all 0.3s ease;
+  position: relative;
 }
 
-.theme-dropdown-button:hover {
+.navbar-end::after:hover {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-.theme-dropdown-button i {
-  font-size: 1rem;
-}
-
-.theme-dropdown-content {
-  display: none;
+/* Alternative: Add theme indicators to cards */
+.card::before {
   position: absolute;
-  right: 0;
-  top: calc(100% + 0.5rem);
-  background: var(--card-background, #2b2b2b);
-  min-width: 200px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-  border-radius: 6px;
-  z-index: 1000;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  overflow: hidden;
+  top: 10px;
+  right: 10px;
+  font-size: 0.75rem;
+  opacity: 0.7;
 }
 
-.theme-dropdown-content.show {
-  display: block;
+/* Enhanced theme colors for better contrast */
+:root {
+  --highlight-primary: #ee0033;
+  --highlight-secondary: #0088ce;
+  --highlight-hover: #cc0000;
 }
 
-.theme-option {
-  padding: 0.75rem 1rem;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  color: var(--text, #eaeaea);
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+/* Improved card styling with theme awareness */
+.card {
+  transition: all 0.3s ease !important;
+  border-left: 3px solid var(--highlight-primary) !important;
 }
 
-.theme-option:last-child {
-  border-bottom: none;
+.card:hover {
+  border-left-width: 5px !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px var(--card-shadow, rgba(0, 0, 0, 0.15)) !important;
 }
 
-.theme-option:hover {
-  background: rgba(255, 255, 255, 0.1);
+/* Tag styling with theme colors */
+.tag {
+  background-color: var(--highlight-primary) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
 }
 
-.theme-option.active {
-  background: var(--highlight-primary, #ee0033);
-  color: #ffffff;
-  font-weight: 600;
+/* Link color improvements */
+a {
+  color: var(--highlight-secondary) !important;
+  transition: color 0.2s ease;
 }
 
-.theme-option-indicator {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  flex-shrink: 0;
+a:hover {
+  color: var(--highlight-hover) !important;
 }
 
-.theme-option.active .theme-option-indicator {
-  border-color: #ffffff;
+/* Header enhancements */
+.first-line {
+  background: linear-gradient(135deg, var(--highlight-primary), var(--highlight-secondary)) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* Theme color indicators */
-.theme-option[data-theme="default"] .theme-option-indicator {
-  background: linear-gradient(135deg, #ee0033 50%, #0088ce 50%);
+/* Service group headers */
+.group-title {
+  color: var(--highlight-primary) !important;
+  font-weight: 700 !important;
+  font-size: 1.2rem !important;
+  padding: 0.75rem 0 !important;
+  border-bottom: 2px solid var(--highlight-primary) !important;
+  margin-bottom: 1rem !important;
 }
 
-.theme-option[data-theme="red-hat-enterprise"] .theme-option-indicator {
-  background: #ee0033;
+/* Search box styling */
+#search {
+  border: 2px solid var(--highlight-secondary) !important;
+  border-radius: 6px !important;
+  transition: all 0.3s ease;
 }
 
-.theme-option[data-theme="ocean-blue"] .theme-option-indicator {
-  background: #0077be;
+#search:focus {
+  border-color: var(--highlight-primary) !important;
+  box-shadow: 0 0 0 3px rgba(238, 0, 51, 0.1) !important;
+  outline: none !important;
 }
 
-.theme-option[data-theme="forest-green"] .theme-option-indicator {
-  background: #2d8659;
+/* Message/Banner styling */
+.message {
+  border-left: 4px solid var(--highlight-primary) !important;
+  background: linear-gradient(90deg, rgba(238, 0, 51, 0.1), transparent) !important;
 }
 
-.theme-option[data-theme="purple-haze"] .theme-option-indicator {
-  background: #7c3aed;
+/* Icon enhancements */
+.service-card i, .group-title i {
+  color: var(--highlight-primary) !important;
+  transition: transform 0.3s ease;
 }
 
-.theme-option[data-theme="sunset-orange"] .theme-option-indicator {
-  background: #ea580c;
+.service-card:hover i {
+  transform: scale(1.2);
 }
 
-.theme-option[data-theme="slate-gray"] .theme-option-indicator {
-  background: #475569;
+/* Subtitle text improvements */
+.subtitle {
+  opacity: 0.85 !important;
+  font-size: 0.9rem !important;
 }
 
-.theme-option[data-theme="cyberpunk"] .theme-option-indicator {
-  background: linear-gradient(135deg, #ff00ff 50%, #00ffff 50%);
+/* Footer styling */
+.footer {
+  background: var(--card-background) !important;
+  border-top: 2px solid var(--highlight-primary) !important;
+  padding: 1rem !important;
 }
 
-.theme-option[data-theme="amber-warmth"] .theme-option-indicator {
-  background: #d97706;
+.footer a {
+  font-weight: 600 !important;
 }
 
-.theme-option[data-theme="rose-pink"] .theme-option-indicator {
-  background: #e11d48;
+/* Dark mode adjustments */
+body.is-dark .card {
+  border-left-color: var(--highlight-secondary) !important;
 }
 
-.theme-option[data-theme="midnight"] .theme-option-indicator {
-  background: #1e40af;
+body.is-dark .first-line {
+  background: linear-gradient(135deg, #ee0033, #0066aa) !important;
 }
 
-/* Responsive */
+/* Mobile responsive adjustments */
 @media (max-width: 768px) {
-  .theme-dropdown-container {
-    margin-right: 0.5rem;
-  }
-  
-  .theme-dropdown-button {
+  .navbar-end::after {
+    font-size: 0.8rem;
     padding: 0.4rem 0.8rem;
-    font-size: 0.85rem;
+    margin-left: 0.5rem;
   }
   
-  .theme-dropdown-content {
-    min-width: 180px;
+  .group-title {
+    font-size: 1.1rem !important;
+  }
+  
+  .card {
+    border-left-width: 2px !important;
   }
 }
 
+/* Animation for page load */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Stagger animation for cards */
+.card:nth-child(1) { animation-delay: 0.05s; }
+.card:nth-child(2) { animation-delay: 0.1s; }
+.card:nth-child(3) { animation-delay: 0.15s; }
+.card:nth-child(4) { animation-delay: 0.2s; }
+.card:nth-child(5) { animation-delay: 0.25s; }
+.card:nth-child(6) { animation-delay: 0.3s; }
+
+/* Note: This is a CSS-only enhanced theme.
+   For full theme switching functionality with JavaScript,
+   a custom Homer build or browser extension would be needed.
+   This CSS provides visual enhancements with Red Hat branding. */
