@@ -1,0 +1,183 @@
+# Prometheus Configuration - Enterprise-Grade Monitoring
+# Four Golden Signals: Latency, Traffic, Errors, Saturation
+# SRE Best Practices for Production Infrastructure
+
+global:
+  scrape_interval: 15s        # Collect metrics every 15 seconds
+  scrape_timeout: 10s         # Timeout for scrapes
+  evaluation_interval: 15s     # Evaluate rules every 15 seconds
+  
+  external_labels:
+    cluster: 'miraclemax'
+    environment: 'production'
+    datacenter: 'home'
+    region: 'us-east'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+      timeout: 10s
+      api_version: v2
+
+# Rule files
+rule_files:
+  - '/etc/prometheus/rules/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'prometheus_.*'
+        action: keep
+  
+  # Node Exporter - Host Metrics (Saturation Signals)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          instance: 'miraclemax'
+          role: 'infrastructure'
+    scrape_interval: 15s
+    metric_relabel_configs:
+      # Keep only relevant metrics for performance
+      - source_labels: [__name__]
+        regex: 'node_(cpu|memory|disk|filesystem|network|load|time).*'
+        action: keep
+  
+  # cAdvisor - Container Metrics (Saturation + Errors)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          cluster: 'miraclemax'
+    scrape_interval: 15s
+    metric_relabel_configs:
+      # Drop unnecessary cAdvisor metrics
+      - source_labels: [__name__]
+        regex: 'container_(network_tcp_usage_total|tasks_state|memory_failcnt)'
+        action: drop
+  
+  # Traefik - Reverse Proxy Metrics (Latency, Traffic, Errors)
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['traefik:8080']
+        labels:
+          service: 'traefik'
+          role: 'edge-router'
+    scrape_interval: 10s  # More frequent for edge metrics
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'traefik_(entrypoint|router|service).*'
+        action: keep
+  
+  # Alertmanager - Alert System Metrics
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+        labels:
+          service: 'alertmanager'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'alertmanager_.*'
+        action: keep
+  
+  # Grafana - Dashboard Metrics
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+        labels:
+          service: 'grafana'
+    metrics_path: '/metrics'
+  
+  # Authelia - MFA Service Metrics
+  - job_name: 'authelia'
+    static_configs:
+      - targets: ['authelia:9091']
+        labels:
+          service: 'authelia'
+          role: 'authentication'
+    metrics_path: '/api/metrics'
+    scrape_interval: 15s
+  
+  # Blackbox Exporter - External Endpoint Monitoring (Traffic, Latency, Errors)
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://auth.jbyrd.org
+          - https://ha.jbyrd.org
+          - https://budget.jbyrd.org
+          - https://n8n.jbyrd.org
+          - https://grafana.jbyrd.org
+          - https://traefik.jbyrd.org
+        labels:
+          probe_type: 'http'
+          external: 'true'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+  
+  # Blackbox Exporter - SSL Certificate Expiry
+  - job_name: 'blackbox-ssl'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://jbyrd.org
+          - https://auth.jbyrd.org
+        labels:
+          probe_type: 'ssl'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+  
+  # Process Exporter - Critical Process Monitoring
+  - job_name: 'process-exporter'
+    static_configs:
+      - targets: ['process-exporter:9256']
+        labels:
+          role: 'process-monitoring'
+  
+  # Podman/Docker Metrics via Unix Socket (if available)
+  - job_name: 'podman'
+    static_configs:
+      - targets: ['localhost:9090']  # Placeholder - would need podman metrics endpoint
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'engine_.*'
+        action: keep
+
+# Storage configuration - Enterprise retention
+storage:
+  tsdb:
+    path: /prometheus
+    retention.time: 90d           # 90 days retention (enterprise standard)
+    retention.size: 50GB          # Max 50GB storage
+    wal_compression: true         # Compress WAL for efficiency
+  
+# Remote write for long-term storage (optional - for future)
+# remote_write:
+#   - url: "http://victoriametrics:8428/api/v1/write"
+#     queue_config:
+#       capacity: 10000
+#       max_shards: 5
+#       min_shards: 1
+

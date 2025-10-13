@@ -1,0 +1,47 @@
+process_names:
+  # System critical processes
+  - name: "{{.Comm}}"
+    cmdline:
+      - 'systemd'
+      - 'dbus-daemon'
+      - 'firewalld'
+      - 'auditd'
+      - 'chronyd'
+      - 'sshd'
+      - 'rsyslog'
+  
+  # Podman/Container processes
+  - name: "podman-{{.Matches.container}}"
+    cmdline:
+      - 'podman'
+    comm:
+      - 'podman'
+  
+  # Conmon (container monitor)
+  - name: "conmon-{{.Matches.container}}"
+    cmdline:
+      - 'conmon'
+  
+  # Critical infrastructure containers
+  - name: "traefik"
+    comm:
+      - 'traefik'
+  
+  - name: "authelia"
+    comm:
+      - 'authelia'
+  
+  - name: "prometheus"
+    comm:
+      - 'prometheus'
+  
+  # Cloudflare tunnel
+  - name: "cloudflared"
+    cmdline:
+      - 'cloudflared'
+  
+  # Node exporter itself
+  - name: "node_exporter"
+    comm:
+      - 'node_exporter'
+

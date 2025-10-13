@@ -1,0 +1,93 @@
+version: '3.8'
+
+# Alertmanager - Alert Routing & Notifications
+# Purpose: Handle alerts from Prometheus, send notifications
+# Documentation: https://prometheus.io/docs/alerting/latest/alertmanager/
+
+services:
+  alertmanager:
+    image: prom/alertmanager:v0.27.0  # Pinned version
+    container_name: alertmanager
+    restart: unless-stopped
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    
+    # Network
+    networks:
+      - traefik-network
+    
+    ports:
+      - "9093:9093"
+    
+    # Command
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=https://alerts.jbyrd.org'
+    
+    # Volume mounts
+    volumes:
+      - ../config/alertmanager/config.yml:/etc/alertmanager/config.yml:ro
+      - ../config/alertmanager/secrets:/etc/alertmanager/secrets:ro
+      - alertmanager-data:/alertmanager
+    
+    environment:
+      - TZ=America/New_York
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    labels:
+      # Service identification
+      - "com.miraclemax.service=alertmanager"
+      - "com.miraclemax.version=0.27.0"
+      - "com.miraclemax.description=Alert routing and notifications"
+      
+      # Backup configuration
+      - "com.miraclemax.backup=important"
+      - "com.miraclemax.backup.path=/alertmanager"
+      - "com.miraclemax.backup.frequency=daily"
+      
+      # Monitoring
+      - "com.miraclemax.monitor=true"
+      - "com.miraclemax.metrics.port=9093"
+      
+      # Traefik routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.alertmanager.rule=Host(`alerts.jbyrd.org`)"
+      - "traefik.http.routers.alertmanager.entrypoints=web,websecure"
+      - "traefik.http.routers.alertmanager.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
+      - "traefik.http.services.alertmanager.loadbalancer.healthcheck.path=/-/healthy"
+      - "traefik.http.services.alertmanager.loadbalancer.healthcheck.interval=30s"
+      - "traefik.http.routers.alertmanager.middlewares=security-headers@file,rate-limit@file,authelia@docker"
+
+volumes:
+  alertmanager-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/jbyrd/alertmanager-data
+
+networks:
+  traefik-network:
+    external: true
+

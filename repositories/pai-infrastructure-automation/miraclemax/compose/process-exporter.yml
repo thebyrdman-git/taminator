@@ -1,0 +1,62 @@
+version: '3.8'
+
+# Process Exporter - Critical Process Monitoring
+# Purpose: Monitor specific system processes (podman, systemd, etc.)
+# Enterprise Use: Process-level resource tracking, critical service monitoring
+
+services:
+  process-exporter:
+    image: ncabatoff/process-exporter:0.7.10
+    container_name: process-exporter
+    restart: unless-stopped
+    
+    security_opt:
+      - no-new-privileges:true
+    privileged: true  # Required for process monitoring
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+    
+    networks:
+      - traefik-network
+    
+    ports:
+      - "9256:9256"
+    
+    volumes:
+      - /proc:/host/proc:ro
+      - ../config/process-exporter/config.yml:/config/config.yml:ro
+    
+    command:
+      - '--procfs=/host/proc'
+      - '--config.path=/config/config.yml'
+      - '--web.listen-address=:9256'
+    
+    environment:
+      - TZ=America/New_York
+    
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9256/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    labels:
+      - "com.miraclemax.service=process-exporter"
+      - "com.miraclemax.version=0.7.10"
+      - "com.miraclemax.description=Process-level monitoring"
+      - "com.miraclemax.monitor=true"
+      - "prometheus.scrape=true"
+      - "prometheus.port=9256"
+
+networks:
+  traefik-network:
+    external: true
+

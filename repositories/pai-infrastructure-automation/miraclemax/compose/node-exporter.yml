@@ -1,0 +1,79 @@
+version: '3.8'
+
+# Node Exporter - Host Metrics Collection
+# Purpose: Collect system-level metrics (CPU, memory, disk, network)
+# Documentation: https://github.com/prometheus/node_exporter
+
+services:
+  node-exporter:
+    image: prom/node-exporter:v1.7.0  # Pinned version
+    container_name: node-exporter
+    restart: unless-stopped
+    
+    # Security - requires host access for metrics
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+    
+    # Network
+    networks:
+      - traefik-network
+    
+    ports:
+      - "9100:9100"
+    
+    # Command flags for additional collectors
+    command:
+      - '--path.rootfs=/host'
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.netdev.device-exclude=^(veth.*|br.*|docker.*|virbr.*)'
+    
+    # Volume mounts for host metrics
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro,rslave
+    
+    environment:
+      - TZ=America/New_York
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    labels:
+      # Service identification
+      - "com.miraclemax.service=node-exporter"
+      - "com.miraclemax.version=1.7.0"
+      - "com.miraclemax.description=Host system metrics exporter"
+      
+      # Monitoring
+      - "com.miraclemax.monitor=true"
+      - "com.miraclemax.metrics.port=9100"
+      - "com.miraclemax.metrics.path=/metrics"
+      
+      # Prometheus scraping
+      - "prometheus.scrape=true"
+      - "prometheus.port=9100"
+      - "prometheus.path=/metrics"
+      - "prometheus.interval=15s"
+
+networks:
+  traefik-network:
+    external: true
+

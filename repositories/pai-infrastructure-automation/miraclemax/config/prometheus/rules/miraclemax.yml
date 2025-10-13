@@ -1,0 +1,189 @@
+groups:
+  - name: miraclemax_host
+    interval: 30s
+    rules:
+      # CPU Alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 75
+        for: 5m
+        labels:
+          severity: warning
+          component: host
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanize }}% (threshold: 75%)"
+          runbook: "Check top processes: ssh miraclemax 'top -b -n 1 | head -20'"
+      
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 2m
+        labels:
+          severity: critical
+          component: host
+        annotations:
+          summary: "CRITICAL: CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanize }}% (threshold: 90%)"
+          runbook: "Immediate action required. Check processes and consider restarting services."
+      
+      # Memory Alerts
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: host
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanize }}% (threshold: 80%)"
+          runbook: "Check memory-hungry containers: podman stats --no-stream"
+      
+      - alert: CriticalMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+          component: host
+        annotations:
+          summary: "CRITICAL: Memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanize }}% (threshold: 90%)"
+          runbook: "OOM risk. Consider restarting non-critical containers immediately."
+      
+      # Disk Alerts
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.*"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: host
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+          description: "Disk usage is {{ $value | humanize }}% (threshold: 85%)"
+          runbook: "Run cleanup: docker system prune -af; check logs in /var/log"
+      
+      - alert: CriticalDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.*"})) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: host
+        annotations:
+          summary: "CRITICAL: Disk usage on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+          description: "Disk usage is {{ $value | humanize }}% (threshold: 95%)"
+          runbook: "Emergency cleanup required. Service failures imminent."
+      
+      # Network Alerts
+      - alert: HighNetworkErrors
+        expr: rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: network
+        annotations:
+          summary: "High network errors on {{ $labels.instance }}"
+          description: "Network error rate: {{ $value | humanize }} errors/sec"
+          runbook: "Check network interface health: ip link show; dmesg | grep eth"
+      
+      # Host Down
+      - alert: HostDown
+        expr: up{job="node-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: host
+        annotations:
+          summary: "Host {{ $labels.instance }} is down"
+          description: "Node exporter has been unreachable for 1 minute"
+          runbook: "Check host connectivity. Physical access may be required."
+
+  - name: miraclemax_containers
+    interval: 30s
+    rules:
+      # Container Down
+      - alert: ContainerDown
+        expr: up{job="cadvisor"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: container
+        annotations:
+          summary: "Container monitoring down"
+          description: "cAdvisor has been unreachable for 2 minutes"
+          runbook: "Check cAdvisor container: podman ps -a | grep cadvisor"
+      
+      # Container Restarts
+      - alert: FrequentContainerRestarts
+        expr: rate(container_last_seen{name!=""}[10m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "Container {{ $labels.name }} restarting frequently"
+          description: "Container has restarted {{ $value | humanize }} times in 10 minutes"
+          runbook: "Check logs: podman logs {{ $labels.name }}; check OOM or crash"
+      
+      # Container CPU
+      - alert: ContainerHighCPU
+        expr: rate(container_cpu_usage_seconds_total{name!=""}[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "Container {{ $labels.name }} high CPU usage"
+          description: "Container CPU usage: {{ $value | humanize }}"
+          runbook: "Check container resource limits and application performance"
+      
+      # Container Memory
+      - alert: ContainerHighMemory
+        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""}) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "Container {{ $labels.name }} high memory usage"
+          description: "Container memory usage: {{ $value | humanizePercentage }}"
+          runbook: "Check for memory leaks or increase container limits"
+
+  - name: miraclemax_services
+    interval: 30s
+    rules:
+      # Traefik Down
+      - alert: TraefikDown
+        expr: absent(up{job="traefik"})
+        for: 1m
+        labels:
+          severity: critical
+          component: service
+          service: traefik
+        annotations:
+          summary: "Traefik reverse proxy is down"
+          description: "All external services are unreachable"
+          runbook: "Restart Traefik immediately: podman restart traefik"
+      
+      # Authelia Down
+      - alert: AutheliaDown
+        expr: absent(up{job="authelia"})
+        for: 2m
+        labels:
+          severity: critical
+          component: service
+          service: authelia
+        annotations:
+          summary: "Authelia MFA service is down"
+          description: "Authentication unavailable for all services"
+          runbook: "Restart Authelia: podman restart authelia; check logs"
+      
+      # Prometheus Down (self-monitoring)
+      - alert: PrometheusDown
+        expr: absent(up{job="prometheus"})
+        for: 1m
+        labels:
+          severity: critical
+          component: monitoring
+        annotations:
+          summary: "Prometheus is down"
+          description: "Monitoring and alerting system is offline"
+          runbook: "Restart Prometheus immediately"
+

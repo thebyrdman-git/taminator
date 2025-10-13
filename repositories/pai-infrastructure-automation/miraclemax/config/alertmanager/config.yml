@@ -1,0 +1,205 @@
+global:
+  resolve_timeout: 5m
+  smtp_from: 'miraclemax-alerts@jbyrd.org'
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_auth_username: 'jimmykbyrd@gmail.com'
+  smtp_auth_password_file: '/etc/alertmanager/secrets/smtp_password'
+  smtp_require_tls: true
+
+# Template customization
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree for alert distribution
+route:
+  receiver: 'email-default'
+  group_by: ['alertname', 'cluster', 'service', 'severity']
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 4h
+  
+  routes:
+    # CRITICAL: Immediate email
+    - receiver: 'email-critical'
+      match:
+        severity: critical
+      group_wait: 0s
+      repeat_interval: 30m
+      continue: false
+    
+    # WARNING: Batched email
+    - receiver: 'email-warning'
+      match:
+        severity: warning
+      group_wait: 2m
+      repeat_interval: 2h
+      continue: false
+    
+    # INFO: Daily digest
+    - receiver: 'email-info'
+      match:
+        severity: info
+      group_wait: 5m
+      repeat_interval: 24h
+      continue: false
+
+receivers:
+  # Critical alerts - Immediate notification with pager-style subject
+  - name: 'email-critical'
+    email_configs:
+      - to: 'jimmykbyrd@gmail.com'
+        send_resolved: true
+        headers:
+          Subject: '🚨 CRITICAL: {{ .GroupLabels.alertname }} on miraclemax'
+          X-Priority: '1'
+        html: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .critical { background-color: #d32f2f; color: white; padding: 15px; border-radius: 5px; }
+              .alert-details { background-color: #f5f5f5; padding: 15px; margin: 10px 0; border-left: 4px solid #d32f2f; }
+              .label { font-weight: bold; color: #d32f2f; }
+              .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+              code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+            </style>
+          </head>
+          <body>
+            <div class="critical">
+              <h2>🚨 CRITICAL ALERT</h2>
+              <p><strong>Environment:</strong> miraclemax production</p>
+              <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+              <p><strong>Time:</strong> {{ .CommonAnnotations.startsAt }}</p>
+            </div>
+            
+            {{ range .Alerts }}
+            <div class="alert-details">
+              <h3>{{ .Labels.alertname }}</h3>
+              <p><span class="label">Summary:</span> {{ .Annotations.summary }}</p>
+              <p><span class="label">Description:</span> {{ .Annotations.description }}</p>
+              <p><span class="label">Severity:</span> {{ .Labels.severity }}</p>
+              <p><span class="label">Component:</span> {{ .Labels.component }}</p>
+              {{ if .Annotations.runbook }}
+              <p><span class="label">Runbook:</span> <code>{{ .Annotations.runbook }}</code></p>
+              {{ end }}
+              <p><span class="label">Status:</span> {{ .Status }}</p>
+            </div>
+            {{ end }}
+            
+            <div class="footer">
+              <p>Alertmanager: https://alerts.jbyrd.org</p>
+              <p>Grafana Dashboards: https://grafana.jbyrd.org</p>
+              <p>Prometheus: https://metrics.jbyrd.org</p>
+              <p><em>This is an automated alert from miraclemax monitoring system</em></p>
+            </div>
+          </body>
+          </html>
+  
+  # Warning alerts - Less urgent, batched
+  - name: 'email-warning'
+    email_configs:
+      - to: 'jimmykbyrd@gmail.com'
+        send_resolved: true
+        headers:
+          Subject: '⚠️  WARNING: {{ .GroupLabels.alertname }} on miraclemax'
+        html: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .warning { background-color: #f57c00; color: white; padding: 15px; border-radius: 5px; }
+              .alert-details { background-color: #fff3e0; padding: 15px; margin: 10px 0; border-left: 4px solid #f57c00; }
+              .label { font-weight: bold; color: #f57c00; }
+              .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+              code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+            </style>
+          </head>
+          <body>
+            <div class="warning">
+              <h2>⚠️  WARNING ALERT</h2>
+              <p><strong>Environment:</strong> miraclemax production</p>
+              <p><strong>Alerts:</strong> {{ .Alerts | len }} warning(s)</p>
+            </div>
+            
+            {{ range .Alerts }}
+            <div class="alert-details">
+              <h3>{{ .Labels.alertname }}</h3>
+              <p><span class="label">Summary:</span> {{ .Annotations.summary }}</p>
+              <p><span class="label">Description:</span> {{ .Annotations.description }}</p>
+              {{ if .Annotations.runbook }}
+              <p><span class="label">Runbook:</span> <code>{{ .Annotations.runbook }}</code></p>
+              {{ end }}
+            </div>
+            {{ end }}
+            
+            <div class="footer">
+              <p>Review alerts: https://alerts.jbyrd.org</p>
+              <p><em>This is an automated warning from miraclemax monitoring system</em></p>
+            </div>
+          </body>
+          </html>
+  
+  # Info alerts - Daily digest
+  - name: 'email-info'
+    email_configs:
+      - to: 'jimmykbyrd@gmail.com'
+        send_resolved: true
+        headers:
+          Subject: 'ℹ️  Daily Digest: miraclemax monitoring summary'
+        html: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .info { background-color: #1976d2; color: white; padding: 15px; border-radius: 5px; }
+              .summary { background-color: #e3f2fd; padding: 15px; margin: 10px 0; border-left: 4px solid #1976d2; }
+              .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+            </style>
+          </head>
+          <body>
+            <div class="info">
+              <h2>ℹ️  Daily Monitoring Digest</h2>
+              <p><strong>Date:</strong> {{ .CommonAnnotations.startsAt }}</p>
+              <p><strong>Total Alerts:</strong> {{ .Alerts | len }}</p>
+            </div>
+            
+            <div class="summary">
+              <h3>Summary</h3>
+              <ul>
+              {{ range .Alerts }}
+                <li><strong>{{ .Labels.alertname }}:</strong> {{ .Annotations.summary }}</li>
+              {{ end }}
+              </ul>
+            </div>
+            
+            <div class="footer">
+              <p>View dashboards: https://grafana.jbyrd.org</p>
+            </div>
+          </body>
+          </html>
+  
+  # Default receiver (fallback)
+  - name: 'email-default'
+    email_configs:
+      - to: 'jimmykbyrd@gmail.com'
+        send_resolved: true
+        headers:
+          Subject: '📊 Alert: {{ .GroupLabels.alertname }} on miraclemax'
+
+inhibit_rules:
+  # Don't send warning if critical is firing for same alert
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service', 'instance']
+  
+  # Don't send info if warning is firing
+  - source_match:
+      severity: 'warning'
+    target_match:
+      severity: 'info'
+    equal: ['alertname', 'cluster', 'service', 'instance']
