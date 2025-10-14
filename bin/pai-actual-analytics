@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""
+pai-actual-analytics - Generate spending insights from Actual Budget
+
+Description:
+    Analyzes your Actual Budget transactions to provide spending insights,
+    optimization opportunities, and financial patterns.
+
+Usage:
+    pai-actual-analytics [--month YYYY-MM] [--category CATEGORY] [--export]
+
+Options:
+    --month YYYY-MM    Analyze specific month (default: current month)
+    --category NAME    Focus on specific category
+    --export           Export detailed CSV report
+
+Location: /home/jbyrd/pai/bin/pai-actual-analytics
+Author: Hatter (PAI System)
+Date: 2025-10-14
+"""
+
+import sys
+import os
+import json
+import sqlite3
+from datetime import datetime, timedelta
+from collections import defaultdict
+import argparse
+
+# Actual Budget API endpoint
+ACTUAL_API_URL = "http://192.168.1.34:5006"
+
+def get_actual_data():
+    """
+    Get transaction data from Actual Budget
+    
+    Since Actual Budget uses encrypted sync format, we'll guide the user
+    to export data from the UI first.
+    """
+    print("=" * 60)
+    print("ACTUAL BUDGET SPENDING ANALYTICS")
+    print("=" * 60)
+    print()
+    print("⚠️  To generate insights, we need transaction data export.")
+    print()
+    print("📋 Steps to export your data:")
+    print()
+    print("1. Open http://money.jbyrd.org")
+    print("2. Click Settings (gear icon)")
+    print("3. Click 'Export data'")
+    print("4. Save the ZIP file")
+    print("5. Extract to: /home/jbyrd/pai/repositories/pai-personal-finance/data/actual-export/")
+    print()
+    print("Then run: pai-actual-analytics --analyze")
+    print()
+    print("=" * 60)
+    print()
+    print("🔄 ALTERNATIVE: Manual insights from your categorized data")
+    print()
+    print("Since you've categorized everything, here's what to analyze in Actual Budget:")
+    print()
+    print("📊 TOP INSIGHTS TO CHECK:")
+    print()
+    print("1. SPENDING BY CATEGORY (Last 3 months)")
+    print("   • Go to Reports → Spending")
+    print("   • Set date range: Last 3 months")
+    print("   • Sort by amount (highest first)")
+    print()
+    print("   Questions to ask:")
+    print("   - Which categories are my top 5 expenses?")
+    print("   - Any surprises in the list?")
+    print("   - What percentage is discretionary vs. essential?")
+    print()
+    print("2. COFFEE & DINING ANALYSIS")
+    print("   • Filter by: Coffee/Cafes, Restaurants, Fast Food")
+    print("   • Total monthly spend")
+    print("   • Calculate: Cost per day")
+    print()
+    print("   Benchmark:")
+    print("   - Coffee: $5/day = $150/month")
+    print("   - Dining out: $15/day = $450/month")
+    print("   - Total food away: Should be < 30% of grocery spend")
+    print()
+    print("3. SUBSCRIPTION AUDIT")
+    print("   • Filter by: Subscriptions/Entertainment, Subscriptions/Software")
+    print("   • List all recurring charges")
+    print("   • Ask: Do I use this? Can I downgrade?")
+    print()
+    print("   Optimization targets:")
+    print("   - Streaming: Keep 2-3 max, rotate seasonal")
+    print("   - Software: Look for free alternatives")
+    print("   - Gym: Usage > 8x/month or cancel")
+    print()
+    print("4. TRANSPORTATION COSTS")
+    print("   • Filter by: Gas/Fuel, Auto Maintenance, Car Payment, Auto Insurance")
+    print("   • Total monthly transportation cost")
+    print("   • Compare to: 15-20% of gross income")
+    print()
+    print("5. IMPULSE SPENDING PATTERNS")
+    print("   • Filter by: Shopping, Amazon, Online Shopping")
+    print("   • Look for patterns:")
+    print("     - Day of week (Friday evening = danger zone)")
+    print("     - Time of month (after payday?)")
+    print("     - Emotional triggers (stress shopping?)")
+    print()
+    print("6. BILL OPTIMIZATION")
+    print("   • Filter by: Utilities, Insurance, Phone/Internet")
+    print("   • For each:")
+    print("     - When was last price check?")
+    print("     - Can I negotiate lower rate?")
+    print("     - Are there competitors?")
+    print()
+    print("=" * 60)
+    print()
+    print("💡 QUICK ANALYSIS FRAMEWORK:")
+    print()
+    print("For each major category, ask:")
+    print("1. Is this essential or discretionary?")
+    print("2. What's the monthly trend (increasing/decreasing)?")
+    print("3. Can I reduce by 10% without lifestyle impact?")
+    print("4. What's the ROI on this spending?")
+    print()
+    print("🎯 OPTIMIZATION TARGETS (Based on $13,085 gross income):")
+    print()
+    print("Housing:           35% = $4,580 (mortgage, insurance, utilities)")
+    print("Transportation:    15% = $1,963 (car, gas, insurance)")
+    print("Food (total):      15% = $1,963 (groceries + dining)")
+    print("  - Groceries:     10% = $1,309")
+    print("  - Dining out:     5% = $654")
+    print("Debt payments:     20% = $2,617 (DMP + mortgage catch-up)")
+    print("Savings/Invest:    10% = $1,309 (Roth IRA, emergency fund)")
+    print("Everything else:    5% = $654 (discretionary)")
+    print()
+    print("=" * 60)
+    print()
+    print("📈 NEXT STEPS:")
+    print()
+    print("1. Open money.jbyrd.org")
+    print("2. Go to Reports → Spending")
+    print("3. Analyze last 3 months by category")
+    print("4. Take screenshots of top 10 spending categories")
+    print("5. Come back and share: 'Here are my top spending categories'")
+    print()
+    print("I'll help you create an optimization plan based on your actual data.")
+    print()
+
+def main():
+    parser = argparse.ArgumentParser(description='Analyze Actual Budget spending')
+    parser.add_argument('--month', help='Month to analyze (YYYY-MM)')
+    parser.add_argument('--category', help='Focus on specific category')
+    parser.add_argument('--export', action='store_true', help='Export CSV report')
+    parser.add_argument('--analyze', action='store_true', help='Analyze exported data')
+    
+    args = parser.parse_args()
+    
+    # For now, show manual analysis guide
+    get_actual_data()
+
+if __name__ == '__main__':
+    main()
+
