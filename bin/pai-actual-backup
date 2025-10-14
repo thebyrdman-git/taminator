@@ -1,0 +1,166 @@
+#!/bin/bash
+#
+# pai-actual-backup - Backup Actual Budget data from miraclemax
+#
+# Description:
+#   Backs up Actual Budget SQLite databases and blobs from miraclemax
+#   to local storage and Git repository for redundant protection
+#
+# Usage:
+#   pai-actual-backup [--no-git] [--force]
+#
+# Options:
+#   --no-git    Skip Git commit/push after backup
+#   --force     Force backup even if no changes detected
+#
+# Location: /home/jbyrd/pai/bin/pai-actual-backup
+# Author: Hatter (PAI System)
+# Date: 2025-10-14
+
+set -euo pipefail
+
+# Configuration
+MIRACLEMAX_HOST="jbyrd@192.168.1.34"
+VOLUME_PATH="/home/jbyrd/.local/share/containers/storage/volumes/compose_actual-budget-data/_data"
+BACKUP_DIR="/home/jbyrd/pai/repositories/pai-personal-finance/backups/actual-budget"
+GIT_REPO="/home/jbyrd/pai/repositories/pai-personal-finance"
+LOG_FILE="/home/jbyrd/.local/share/pai/logs/actual-backup.log"
+
+# Options
+DO_GIT_COMMIT=true
+FORCE_BACKUP=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --no-git)
+            DO_GIT_COMMIT=false
+            shift
+            ;;
+        --force)
+            FORCE_BACKUP=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: pai-actual-backup [--no-git] [--force]"
+            exit 1
+            ;;
+    esac
+done
+
+# Logging
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+# Create log directory if needed
+mkdir -p "$(dirname "$LOG_FILE")"
+
+log "=== Starting Actual Budget Backup ==="
+
+# Check if miraclemax is reachable
+if ! ssh -o ConnectTimeout=5 "$MIRACLEMAX_HOST" "echo 'Connection OK'" &>/dev/null; then
+    log "ERROR: Cannot reach miraclemax at $MIRACLEMAX_HOST"
+    exit 1
+fi
+
+# Check if Actual Budget is running
+if ! ssh "$MIRACLEMAX_HOST" "podman ps --filter name=actual-budget --format '{{.Names}}'" | grep -q "actual-budget"; then
+    log "WARNING: Actual Budget container is not running on miraclemax"
+fi
+
+# Create backup directories
+mkdir -p "$BACKUP_DIR"/{server-files,user-files}
+
+# Backup server-files (account.sqlite)
+log "Backing up server-files..."
+if ssh "$MIRACLEMAX_HOST" "test -d $VOLUME_PATH/server-files"; then
+    scp -q "$MIRACLEMAX_HOST:$VOLUME_PATH/server-files/"* "$BACKUP_DIR/server-files/" || {
+        log "ERROR: Failed to backup server-files"
+        exit 1
+    }
+    log "✅ Server files backed up"
+else
+    log "WARNING: server-files directory not found on miraclemax"
+fi
+
+# Backup user-files (budget databases and blobs)
+log "Backing up user-files..."
+if ssh "$MIRACLEMAX_HOST" "test -d $VOLUME_PATH/user-files"; then
+    scp -q "$MIRACLEMAX_HOST:$VOLUME_PATH/user-files/"* "$BACKUP_DIR/user-files/" || {
+        log "ERROR: Failed to backup user-files"
+        exit 1
+    }
+    log "✅ User files backed up"
+else
+    log "WARNING: user-files directory not found on miraclemax"
+fi
+
+# Backup .migrate file
+log "Backing up .migrate file..."
+if ssh "$MIRACLEMAX_HOST" "test -f $VOLUME_PATH/.migrate"; then
+    scp -q "$MIRACLEMAX_HOST:$VOLUME_PATH/.migrate" "$BACKUP_DIR/.migrate" || {
+        log "WARNING: Failed to backup .migrate file"
+    }
+    log "✅ Migration file backed up"
+fi
+
+# Calculate backup size
+BACKUP_SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
+log "Backup size: $BACKUP_SIZE"
+
+# List backed up files
+log "Backed up files:"
+ssh "$MIRACLEMAX_HOST" "ls -lh $VOLUME_PATH/server-files/" 2>/dev/null | tail -n +2 | while read -r line; do
+    log "  server-files: $line"
+done
+ssh "$MIRACLEMAX_HOST" "ls -lh $VOLUME_PATH/user-files/" 2>/dev/null | tail -n +2 | while read -r line; do
+    log "  user-files: $line"
+done
+
+# Git commit and push (if enabled)
+if [ "$DO_GIT_COMMIT" = true ]; then
+    log "Committing to Git..."
+    cd "$GIT_REPO"
+    
+    # Add all backup files
+    git add backups/actual-budget/
+    
+    # Check if there are changes
+    if git diff --cached --quiet && [ "$FORCE_BACKUP" = false ]; then
+        log "ℹ️  No changes to commit (backup identical to previous)"
+    else
+        # Create commit with timestamp and file sizes
+        COMMIT_MSG="Automatic Actual Budget backup - $(date '+%Y-%m-%d %H:%M:%S')
+
+Backup size: $BACKUP_SIZE
+Files backed up:
+- account.sqlite (server authentication)
+- budget database (SQLite)
+- budget blob files
+
+Source: miraclemax://$VOLUME_PATH"
+        
+        git commit -m "$COMMIT_MSG"
+        log "✅ Git commit created"
+        
+        # Push to remote
+        if git push origin master; then
+            log "✅ Pushed to GitHub"
+        else
+            log "WARNING: Failed to push to GitHub (will retry next backup)"
+        fi
+    fi
+fi
+
+log "=== Backup Complete ==="
+echo ""
+echo "✅ Actual Budget data backed up successfully"
+echo "📁 Local backup: $BACKUP_DIR"
+echo "📦 Backup size: $BACKUP_SIZE"
+if [ "$DO_GIT_COMMIT" = true ]; then
+    echo "🔄 Git: Committed and pushed to GitHub"
+fi
+echo "📝 Log: $LOG_FILE"
+
