@@ -1,0 +1,98 @@
+---
+# Test installation on a single platform using Podman
+
+- name: "{{ platform.name }}: Create test workspace"
+  set_fact:
+    test_id: "{{ ansible_date_time.epoch }}"
+    test_dir: "{{ test_base_dir }}/{{ platform.name | regex_replace(' ', '_') }}_{{ ansible_date_time.epoch }}"
+
+- name: "{{ platform.name }}: Create test directory"
+  file:
+    path: "{{ test_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: "{{ platform.name }}: Copy project files (excluding build artifacts)"
+  synchronize:
+    src: "{{ project_dir }}/"
+    dest: "{{ test_dir }}/rfe-automation/"
+    rsync_opts:
+      - "--exclude=.venv"
+      - "--exclude=output/"
+      - "--exclude=logs/"
+      - "--exclude=__pycache__"
+      - "--exclude=*.pyc"
+      - "--exclude=.git"
+      - "--exclude=rhcase"  # Will be cloned fresh from GitLab
+
+- name: "{{ platform.name }}: Run installation test in container"
+  shell: |
+    podman run --rm \
+      -v "{{ test_dir }}/rfe-automation:/test:Z" \
+      "{{ platform.image }}" \
+      bash -c '
+        set -e
+        
+        echo "=== Installing base prerequisites ==="
+        dnf install -y {{ platform.base_packages | join(" ") }}
+        
+        echo ""
+        echo "=== Running install-improved.sh ==="
+        cd /test
+        ./install-improved.sh
+        
+        echo ""
+        echo "=== Verifying installation ==="
+        if command -v rhcase &> /dev/null; then
+            echo "✅ rhcase installed globally"
+            rhcase --version
+            exit 0
+        elif [ -f .venv/bin/rhcase ]; then
+            echo "✅ rhcase installed in venv"
+            .venv/bin/rhcase --version
+            exit 0
+        elif [ -f "$HOME/.local/bin/rhcase" ]; then
+            echo "✅ rhcase installed in ~/.local/bin"
+            ~/.local/bin/rhcase --version
+            exit 0
+        else
+            echo "❌ rhcase not found"
+            exit 1
+        fi
+      '
+  register: test_result
+  ignore_errors: true
+  changed_when: false
+
+- name: "{{ platform.name }}: Record test result"
+  set_fact:
+    test_results: "{{ test_results | default([]) + [result] }}"
+  vars:
+    result:
+      platform: "{{ platform.name }}"
+      status: "{{ 'PASSED' if test_result.rc == 0 else 'FAILED' }}"
+      rc: "{{ test_result.rc }}"
+      output_file: "{{ test_dir }}/test.log"
+
+- name: "{{ platform.name }}: Save test output"
+  copy:
+    content: "{{ test_result.stdout }}\n{{ test_result.stderr }}"
+    dest: "{{ test_dir }}/test.log"
+
+- name: "{{ platform.name }}: Display result"
+  debug:
+    msg: "{{ '✅ PASSED' if test_result.rc == 0 else '❌ FAILED' }}: {{ platform.name }}"
+
+- name: "{{ platform.name }}: Show failure details"
+  debug:
+    msg: |
+      Last 30 lines of output:
+      {{ test_result.stdout_lines[-30:] | join('\n') }}
+  when: test_result.rc != 0
+
+- name: "{{ platform.name }}: Clean up test directory"
+  file:
+    path: "{{ test_dir }}"
+    state: absent
+  when: test_result.rc == 0  # Only clean up on success
+

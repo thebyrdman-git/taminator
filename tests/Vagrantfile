@@ -1,0 +1,104 @@
+# Vagrantfile for RFE Automation Testing
+# Creates vanilla RHEL/Fedora environments for installation testing
+
+Vagrant.configure("2") do |config|
+  # Common configuration
+  config.vm.synced_folder "../", "/rfe-automation"
+  config.vm.provider "libvirt" do |v|
+    v.memory = 2048
+    v.cpus = 2
+  end
+
+  # RHEL 9.5 Test Environment
+  config.vm.define "rhel9" do |rhel9|
+    rhel9.vm.box = "generic/rhel9"
+    rhel9.vm.hostname = "rfe-test-rhel9"
+    
+    rhel9.vm.provision "shell", inline: <<-SHELL
+      echo "🔴 RHEL 9.5 Test Environment"
+      echo "Testing RFE Automation Installation"
+      
+      # Simulate fresh CSB laptop - minimal packages only
+      # NO developer tools pre-installed
+      
+      # Register system (if needed)
+      # subscription-manager register --auto-attach
+      
+      # Update system
+      dnf update -y
+      
+      # Only install absolute minimum
+      dnf install -y git curl
+      
+      echo "✅ Base system ready for testing"
+      echo "Run: vagrant ssh rhel9"
+      echo "Then: cd /rfe-automation && ./install.sh"
+    SHELL
+  end
+
+  # RHEL 8.10 Test Environment (Legacy)
+  config.vm.define "rhel8" do |rhel8|
+    rhel8.vm.box = "generic/rhel8"
+    rhel8.vm.hostname = "rfe-test-rhel8"
+    
+    rhel8.vm.provision "shell", inline: <<-SHELL
+      echo "🔴 RHEL 8.10 Test Environment"
+      echo "Testing RFE Automation Installation"
+      
+      # Update system
+      dnf update -y
+      
+      # Only install absolute minimum
+      dnf install -y git curl
+      
+      echo "✅ Base system ready for testing"
+      echo "⚠️  Note: Python 3.6 may need upgrade"
+      echo "Run: vagrant ssh rhel8"
+      echo "Then: cd /rfe-automation && ./install.sh"
+    SHELL
+  end
+
+  # Fedora 41 Test Environment
+  config.vm.define "fedora41" do |fedora41|
+    fedora41.vm.box = "fedora/41-cloud-base"
+    fedora41.vm.hostname = "rfe-test-fedora41"
+    
+    fedora41.vm.provision "shell", inline: <<-SHELL
+      echo "🔵 Fedora 41 Test Environment"
+      echo "Testing RFE Automation Installation"
+      
+      # Update system
+      dnf update -y
+      
+      # Install minimal packages
+      dnf install -y git curl
+      
+      echo "✅ Base system ready for testing"
+      echo "Run: vagrant ssh fedora41"
+      echo "Then: cd /rfe-automation && ./install.sh"
+    SHELL
+  end
+
+  # Fedora 40 Test Environment
+  config.vm.define "fedora40" do |fedora40|
+    fedora40.vm.box = "fedora/40-cloud-base"
+    fedora40.vm.hostname = "rfe-test-fedora40"
+    
+    fedora40.vm.provision "shell", inline: <<-SHELL
+      echo "🔵 Fedora 40 Test Environment"
+      echo "Testing RFE Automation Installation"
+      
+      # Update system
+      dnf update -y
+      
+      # Install minimal packages
+      dnf install -y git curl
+      
+      echo "✅ Base system ready for testing"
+      echo "Run: vagrant ssh fedora40"
+      echo "Then: cd /rfe-automation && ./install.sh"
+    SHELL
+  end
+end
+
+
