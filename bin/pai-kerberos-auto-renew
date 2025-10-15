@@ -1,0 +1,44 @@
+#!/bin/bash
+# PAI Kerberos Auto-Renewal Script
+# Automatically renews existing Kerberos tickets
+
+set -euo pipefail
+
+LOGFILE="${HOME}/.local/log/pai-kerberos-renewal.log"
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOGFILE")"
+
+log() {
+    echo "[$TIMESTAMP] $1" >> "$LOGFILE"
+}
+
+# Check if klist and kinit are available
+if ! command -v klist &> /dev/null || ! command -v kinit &> /dev/null; then
+    log "ERROR: klist or kinit not found in PATH"
+    exit 1
+fi
+
+# Check for existing ticket
+if ! klist -s 2>/dev/null; then
+    log "WARN: No existing Kerberos ticket found - skipping renewal"
+    exit 0
+fi
+
+# Get current ticket info
+PRINCIPAL=$(klist 2>/dev/null | grep "Default principal:" | awk '{print $3}')
+EXPIRES=$(klist 2>/dev/null | grep "krbtgt" | head -1 | awk '{print $2, $3}')
+
+log "INFO: Current ticket for $PRINCIPAL expires: $EXPIRES"
+
+# Attempt renewal
+if kinit -R 2>&1 >> "$LOGFILE"; then
+    NEW_EXPIRES=$(klist 2>/dev/null | grep "krbtgt" | head -1 | awk '{print $2, $3}')
+    log "SUCCESS: Ticket renewed - new expiration: $NEW_EXPIRES"
+    exit 0
+else
+    log "ERROR: Failed to renew ticket - manual kinit required"
+    exit 1
+fi
+

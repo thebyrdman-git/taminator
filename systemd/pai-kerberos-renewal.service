@@ -1,0 +1,11 @@
+[Unit]
+Description=PAI Kerberos Ticket Auto-Renewal
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/jbyrd/.local/bin/pai-kerberos-auto-renew --renew
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=default.target
