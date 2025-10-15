@@ -12,19 +12,24 @@ git checkout -b feature/update-readme-automated-installer
 git add README.md
 git add README-UPDATES.md
 git add MERGE-REQUEST-README-UPDATE.md
+git add ISSUE-RESPONSE-DAVE-UPDATED.md
+git add REPO-PERMISSIONS-CHECK.md
 git add GIT-COMMANDS-README.sh
 
 # Commit with descriptive message
 git commit -m "docs: Update README to reflect automated installer
 
-- Update Quick Start with 3-command installation
+- Update Quick Start with clean 3-command installation
 - Simplify requirements to minimal essentials (git + python3)
 - Replace install-dependencies with install-improved.sh
 - Highlight automation features (no sudo, smart fallback, auto-clones rhcase)
 - Modernize Get the Tool section (git clone primary, ZIP alternative)
 - Add installation time estimate (2-5 minutes)
 - Emphasize 'no dependency hell' approach
+- Remove confusing GitLab CEE license instructions (repo is Internal visibility)
+- Add simple note about repository accessibility
 
+Based on user feedback from dcarmich (Dave Carmichael).
 Related to automated installer implementation.
 "
 

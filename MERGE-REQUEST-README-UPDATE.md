@@ -13,7 +13,7 @@ Update README.md to accurately reflect the new automated installation process an
 ## Changes Made
 
 ### 1. Quick Start Section
-**Updated** to show complete 3-command installation:
+**Cleaned up** to show straightforward 3-command installation:
 ```bash
 git clone https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation.git
 cd rfe-and-bug-tracker-automation
@@ -48,6 +48,12 @@ cd rfe-and-bug-tracker-automation
 **Modernized** with git clone as primary method:
 - Git clone shown first (developer-friendly)
 - ZIP download as alternative (less technical users)
+
+### 5. Repository Visibility Note
+**Simplified** GitLab access information:
+- Removed lengthy GitLab CEE license instructions (not required for Internal repos)
+- Added simple note about Internal visibility
+- Repository is accessible to all Red Hat employees with GitLab access
 
 ## Files Changed
 
@@ -94,7 +100,11 @@ Updates README.md to reflect the new automated installer (`install-improved.sh`)
 
 ## Why This Matters
 
-The old README referenced `./bin/install-dependencies` which no longer exists. New users would be confused. This update ensures documentation matches the actual installation process.
+1. **Old installer reference**: README referenced `./bin/install-dependencies` which no longer exists
+2. **Simplified access info**: Removed confusing GitLab CEE license instructions that weren't necessary (repo is Internal visibility)
+3. **User feedback**: Simplified based on issue reported by Dave Carmichael (dcarmich) - actual issue was repository visibility, not licensing
+
+This update ensures documentation matches the actual installation process with clear, simple instructions.
 
 ## Testing
 

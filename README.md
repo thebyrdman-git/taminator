@@ -44,6 +44,10 @@ cd rfe-and-bug-tracker-automation
 ./bin/tam-rfe-chat
 ```
 
+**Can't clone?** Download ZIP instead:
+- Go to: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation
+- Click "Clone" → "Download ZIP"
+
 **For detailed setup:** → [**GETTING-STARTED.md**](GETTING-STARTED.md)
 
 ### What You Need (Minimal!)
@@ -111,18 +115,7 @@ cd rfe-and-bug-tracker-automation
 
 **For more details**: See [INSTALLATION-REQUIREMENTS.md](INSTALLATION-REQUIREMENTS.md)
 
-**⚠️ IMPORTANT: GitLab CEE License Required**
-- **First-time access**: You have a 10-minute timer for viewing the site before your non-licensed access is denied
-- **License request**: Must be completed during your first login session
-- **Getting access guide**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/getting_started_guide#getting-access
-
-**GitLab.cee License Request Form Information:**
-When filling out the license request form, you'll need to provide:
-- **# licenses requested**: 1
-- **Username / Full name**: Your Red Hat username and full name
-- **Projects to collaborate on**: rfe-and-bug-tracker-automation
-- **Why access is required**: Collaborating with group and need ability to update GitLab repos
-- **How long you need access**: Permanent access
+**Note**: Repository is set to **Internal** visibility - all Red Hat employees with GitLab access can clone it. If you have trouble cloning, use the ZIP download option above.
 
 ### 💻 **Optional: Install Cursor IDE (Recommended)**
 
