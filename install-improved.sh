@@ -166,28 +166,61 @@ main() {
     log_success "Git is installed"
     
     # Clone/update rhcase from GitLab
-    RHCASE_DIR="./rhcase"
-    RHCASE_REPO="https://gitlab.cee.redhat.com/gvaughn/rhcase.git"
+RHCASE_DIR="./rhcase"
+RHCASE_REPO="https://gitlab.cee.redhat.com/gvaughn/rhcase.git"
+
+log_info "Getting latest rhcase from GitLab..."
+
+# Robust git repository detection (handles submodules, regular repos, and non-repos)
+if [ -d "$RHCASE_DIR" ] && git -C "$RHCASE_DIR" rev-parse --git-dir &> /dev/null; then
+    log_info "Updating existing rhcase..."
     
-    log_info "Getting latest rhcase from GitLab..."
-    if [ -d "$RHCASE_DIR/.git" ]; then
-        log_info "Updating existing rhcase..."
-        if (cd "$RHCASE_DIR" && git pull origin main &> /tmp/rhcase-update.log); then
+    # Handle detached HEAD state (common in submodules)
+    if (cd "$RHCASE_DIR" && git symbolic-ref -q HEAD &> /dev/null); then
+        # Normal branch state - safe to pull
+        if git -C "$RHCASE_DIR" pull origin main &> /tmp/rhcase-update.log; then
             log_success "rhcase updated to latest version"
         else
             log_warning "rhcase update failed, using existing version"
         fi
     else
-        log_info "Cloning rhcase from GitLab..."
-        if git clone "$RHCASE_REPO" "$RHCASE_DIR" &> /tmp/rhcase-clone.log; then
-            log_success "rhcase cloned successfully"
+        # Detached HEAD (submodule) - fetch and reset to latest
+        log_info "Detached HEAD detected (submodule), fetching latest..."
+        if (cd "$RHCASE_DIR" && git fetch origin main &> /tmp/rhcase-fetch.log && git reset --hard origin/main &> /tmp/rhcase-reset.log); then
+            log_success "rhcase updated to latest version"
         else
-            log_error "Failed to clone rhcase from GitLab"
-            log_info "This requires Red Hat VPN access"
-            log_info "Check: https://gitlab.cee.redhat.com/gvaughn/rhcase"
-            exit 1
+            log_warning "rhcase update failed, using existing version"
         fi
     fi
+elif [ -d "$RHCASE_DIR" ]; then
+    # Directory exists but isn't a git repo - remove and clone fresh
+    log_warning "rhcase directory exists but isn't a valid git repository"
+    log_info "Removing and cloning fresh..."
+    rm -rf "$RHCASE_DIR"
+    if git clone "$RHCASE_REPO" "$RHCASE_DIR" &> /tmp/rhcase-clone.log; then
+        log_success "rhcase cloned successfully"
+    else
+        log_error "Failed to clone rhcase from GitLab"
+        log_info "This requires Red Hat VPN access"
+        log_info "Check: https://gitlab.cee.redhat.com/gvaughn/rhcase"
+        cat /tmp/rhcase-clone.log
+        exit 1
+    fi
+else
+    # Directory doesn't exist - clone fresh
+    log_info "Cloning rhcase from GitLab..."
+    if git clone "$RHCASE_REPO" "$RHCASE_DIR" &> /tmp/rhcase-clone.log; then
+        log_success "rhcase cloned successfully"
+    else
+        log_error "Failed to clone rhcase from GitLab"
+        log_info "This requires Red Hat VPN access"
+        log_info "Check: https://gitlab.cee.redhat.com/gvaughn/rhcase"
+        log_info ""
+        log_info "Clone output:"
+        cat /tmp/rhcase-clone.log
+        exit 1
+    fi
+fi
     
     # Try installation methods in order of preference
     echo ""
