@@ -30,16 +30,33 @@
 
 ## 🚀 Quick Start
 
-**Want to get started immediately?** → [**GETTING-STARTED.md**](GETTING-STARTED.md)
+**Complete installation in under 5 minutes:**
 
-### What You Need
+```bash
+# 1. Clone the repository
+git clone https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation.git
+cd rfe-and-bug-tracker-automation
+
+# 2. Run the automated installer (no sudo needed!)
+./install-improved.sh
+
+# 3. Start using the tool
+./bin/tam-rfe-chat
+```
+
+**For detailed setup:** → [**GETTING-STARTED.md**](GETTING-STARTED.md)
+
+### What You Need (Minimal!)
 - Red Hat laptop with internet connection
 - Red Hat VPN access (see connection instructions below)
-- Your Red Hat login credentials
-- Access to customer portal
-- Git installed and configured (usually already on RHEL/Fedora/Mac)
-- Python 3 with required packages (usually already installed)
-- Cursor IDE with enterprise license (recommended for best experience)
+- `git` (usually pre-installed on RHEL/Fedora)
+- `python3` 3.8+ (usually pre-installed on RHEL/Fedora)
+- Your Red Hat login credentials for GitLab
+
+**That's it!** No sudo, no build tools, no system packages required.
+
+**Optional (Recommended)**:
+- Cursor IDE with enterprise license (for best experience)
 
 ### 🔐 **Connect to Red Hat VPN (Required)**
 
@@ -56,28 +73,43 @@ curl -I https://source.redhat.com
 ```
 *Should return HTTP 200 or 302 (not connection refused)*
 
-### 📥 **Step 0: Get the Tool (One Time Only)**
+### 📥 **Step 1: Get the Tool**
 
-**Download the RFE Automation Tool:**
-1. Go to: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation
-2. Click the green "Clone" button
-3. Click "Download ZIP"
-4. Extract the ZIP file to a folder on your computer (like `~/rfe-automation` or `/home/username/rfe-automation`)
-5. Remember where you put it - you'll need to go there to run the commands
-
-### 🔧 **Install Dependencies (One Time Only)**
-
-**The tool includes everything you need! Just run:**
+**Clone from GitLab:**
 ```bash
-./bin/install-dependencies
+git clone https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation.git
+cd rfe-and-bug-tracker-automation
 ```
-*This automatically installs the rhcase tool and all other dependencies*
 
-**If you need to install Python packages or configure Git:**
-- **Python packages**: https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/installing_and_using_dynamic_programming_languages/installing-and-using-python
-- **GitLab setup**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/getting_started_guide
-- **GitLab CLI (glab)**: https://source.redhat.com/groups/public/ccs/ccs_blog/installing_and_configuring_the_gitlab_cli_glab
-- **GitLab CEE FAQ**: https://source.redhat.com/groups/public/gitlabcee/user_documentation/gitlabcee_faq
+**Or download ZIP:**
+1. Go to: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation
+2. Click the green "Clone" button → "Download ZIP"
+3. Extract to a folder (like `~/rfe-automation`)
+4. `cd` into that folder
+
+### 🔧 **Installation (One Command - Fully Automated)**
+
+**Zero-dependency-hell installation. Just run:**
+```bash
+./install-improved.sh
+```
+
+**That's it!** The installer:
+- ✅ **Fully automated** - No user interaction required
+- ✅ **No sudo needed** - Works on locked-down laptops
+- ✅ **User-space only** - No system packages touched
+- ✅ **Smart fallback** - Tries UV (fast), falls back to pip+venv
+- ✅ **Auto-clones rhcase** - Gets latest from GitLab
+- ✅ **Clear errors** - Helpful messages if something goes wrong
+
+**Requirements** (usually already installed):
+- `git` - For cloning repositories
+- `python3` (3.8+) - Runtime environment
+- Red Hat VPN - For accessing internal GitLab
+
+**Installation time**: 2-5 minutes
+
+**For more details**: See [INSTALLATION-REQUIREMENTS.md](INSTALLATION-REQUIREMENTS.md)
 
 **⚠️ IMPORTANT: GitLab CEE License Required**
 - **First-time access**: You have a 10-minute timer for viewing the site before your non-licensed access is denied
