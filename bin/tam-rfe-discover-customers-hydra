@@ -1,0 +1,334 @@
+#!/bin/bash
+
+# TAM RFE Customer Discovery - Hydra API Enhanced Version
+# Uses rhcase's Hydra API backend for organizational discovery
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+print_header() {
+    echo -e "${CYAN}$1${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+# Get rhcase path
+get_rhcase() {
+    local rhcase_path="$PROJECT_ROOT/rhcase/.venv/bin/rhcase"
+    if [[ ! -f "$rhcase_path" ]]; then
+        rhcase_path="rhcase"
+    fi
+    
+    if ! command -v "$rhcase_path" &> /dev/null && ! command -v rhcase &> /dev/null; then
+        print_error "rhcase not found"
+        exit 1
+    fi
+    
+    echo "$rhcase_path"
+}
+
+# List customers by organization
+list_by_org() {
+    local org="$1"
+    
+    print_header "🏢 Discovering Customers in Organization: $org"
+    echo ""
+    
+    local rhcase=$(get_rhcase)
+    
+    print_info "Querying Red Hat Hydra API via rhcase..."
+    echo ""
+    
+    # Get all cases and filter by organization indicators
+    # Note: Direct org field not available in case data, using heuristics
+    local cases=$($rhcase list --all --months 6 --format json 2>/dev/null || echo "[]")
+    
+    if [[ "$cases" == "[]" ]]; then
+        print_warning "No case data available"
+        return 1
+    fi
+    
+    # For NAPS, we need to identify public sector customers
+    # This is a limitation - case data doesn't have org field
+    print_warning "Organization field not directly available in case API"
+    print_info "Showing all accessible customers (org filtering requires Hydra direct access)"
+    echo ""
+    
+    # Extract unique customers
+    local customers=$(echo "$cases" | jq -r \
+        '.[] | "\(.accountNumber)|\(.account.name)|\(.account.vertical // "Unknown")|\(.caseOwnerSuperRegion // "Unknown")"' \
+        | sort -u)
+    
+    local count=$(echo "$customers" | wc -l)
+    print_success "Found $count unique customer account(s)"
+    echo ""
+    
+    echo "$customers" | while IFS='|' read -r acct_num acct_name vertical region; do
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "🏢 Customer: $acct_name"
+        echo "   Account #: $acct_num"
+        echo "   Vertical: $vertical"
+        echo "   Region: $region"
+        echo ""
+    done
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    print_info "Note: Organization filtering (NAPS, Commercial, etc.) requires direct Hydra API access"
+    print_info "Current implementation uses case-based discovery via rhcase"
+}
+
+# List customers by geographic region
+list_by_geo() {
+    local geo="$1"
+    
+    print_header "🌍 Discovering Customers in Region: $geo"
+    echo ""
+    
+    local rhcase=$(get_rhcase)
+    
+    print_info "Querying Red Hat case system..."
+    echo ""
+    
+    # Get all cases and filter by caseOwnerSuperRegion
+    local cases=$($rhcase list --all --months 6 --format json 2>/dev/null || echo "[]")
+    
+    if [[ "$cases" == "[]" ]]; then
+        print_warning "No case data available"
+        return 1
+    fi
+    
+    # Map common geo names
+    local geo_filter="$geo"
+    case "${geo^^}" in
+        NAMER|NORTH*AMERICA*|NA)
+            geo_filter="NA"
+            ;;
+        EMEA|EUROPE*|MIDDLE*EAST*)
+            geo_filter="EMEA"
+            ;;
+        APAC|ASIA*PACIFIC*|ASIA*)
+            geo_filter="APAC"
+            ;;
+        LATAM|LATIN*AMERICA*|SOUTH*AMERICA*)
+            geo_filter="LATAM"
+            ;;
+        INDIA)
+            geo_filter="India"
+            ;;
+    esac
+    
+    print_info "Filtering for region: $geo_filter"
+    echo ""
+    
+    # Filter by region and extract unique customers
+    local customers=$(echo "$cases" | jq -r --arg region "$geo_filter" \
+        '.[] | select(.caseOwnerSuperRegion == $region) | 
+        "\(.accountNumber)|\(.account.name)|\(.account.vertical // "Unknown")|\(.account.csmUser.name // "Unknown")"' \
+        | sort -u)
+    
+    if [[ -z "$customers" ]]; then
+        print_warning "No customers found in region: $geo"
+        return 1
+    fi
+    
+    local count=$(echo "$customers" | wc -l)
+    print_success "Found $count unique customer(s) in $geo_filter"
+    echo ""
+    
+    echo "$customers" | while IFS='|' read -r acct_num acct_name vertical csm; do
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "🏢 Customer: $acct_name"
+        echo "   Account #: $acct_num"
+        echo "   Vertical: $vertical"
+        echo "   CSM: $csm"
+        echo ""
+    done
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+# Get my portfolio (all configured accounts)
+my_portfolio() {
+    print_header "👤 Your Customer Portfolio"
+    echo ""
+    
+    local rhcase=$(get_rhcase)
+    
+    print_info "Fetching your assigned customers..."
+    echo ""
+    
+    # Get all configured accounts from tamscripts.config
+    local configured=$(grep "^- name:" ~/.config/tamscripts/tamscripts.config 2>/dev/null | awk '{print $3}' | sort)
+    
+    if [[ -z "$configured" ]]; then
+        print_warning "No customers configured in tamscripts.config"
+        return 1
+    fi
+    
+    local count=$(echo "$configured" | wc -l)
+    print_success "Found $count configured customer(s)"
+    echo ""
+    
+    # Get details for each from case system
+    for customer_key in $configured; do
+        local account_num=$(grep -A 2 "^- name: ${customer_key}$" ~/.config/tamscripts/tamscripts.config | grep "account_numbers:" -A 1 | tail -1 | tr -d " -'\"")
+        
+        # Get recent case count
+        local cases=$($rhcase list "$customer_key" --months 3 --format json 2>/dev/null || echo "[]")
+        local case_count=$(echo "$cases" | jq '. | length' 2>/dev/null || echo "0")
+        
+        # Get customer details from first case
+        if [[ "$case_count" -gt 0 ]]; then
+            local details=$(echo "$cases" | jq -r '.[0] | "\(.account.name)|\(.account.vertical // "Unknown")|\(.account.csmUser.name // "Unknown")"')
+            IFS='|' read -r cust_name vertical csm <<< "$details"
+        else
+            cust_name="$customer_key"
+            vertical="Unknown"
+            csm="Unknown"
+        fi
+        
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "🏢 Customer: $cust_name"
+        echo "   Key: $customer_key"
+        echo "   Account #: $account_num"
+        echo "   Vertical: $vertical"
+        echo "   CSM: $csm"
+        echo "   Cases (3 months): $case_count"
+        echo ""
+    done
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+# Show help
+show_help() {
+    cat << EOF
+TAM RFE Customer Discovery - Hydra API Enhanced
+
+Organizational customer discovery using Red Hat Hydra API (via rhcase backend)
+
+Usage: $0 <command> [arguments]
+
+Commands:
+  my-portfolio          Show your configured customer portfolio
+  org <name>            List customers by organization (NAPS, Commercial, etc.)
+  geo <region>          List customers by geographic region
+  regions               Show available geographic regions
+  help                  Show this help message
+
+Geographic Regions:
+  NAMER / NA           North America
+  EMEA                 Europe, Middle East, Africa
+  APAC                 Asia Pacific
+  LATAM                Latin America
+  India                India
+
+Examples:
+  $0 my-portfolio                    # Your assigned customers
+  $0 org NAPS                        # NAPS organization customers
+  $0 geo NAMER                       # North America customers
+  $0 geo EMEA                        # EMEA customers
+  $0 regions                         # List all regions
+
+Integration:
+  After discovering customers, add to automation:
+    ./bin/tam-rfe-onboard-intelligent
+
+Limitations:
+  - Organization filtering (NAPS, etc.) not directly available in case API
+  - Uses case activity to discover customers (6 month window)
+  - For complete org discovery, requires direct Hydra API access
+
+Note: Requires Red Hat VPN connection
+EOF
+}
+
+# List regions
+show_regions() {
+    print_header "🌍 Geographic Regions Available"
+    echo ""
+    
+    local rhcase=$(get_rhcase)
+    local cases=$($rhcase list --all --months 6 --format json 2>/dev/null || echo "[]")
+    
+    if [[ "$cases" == "[]" ]]; then
+        print_warning "No case data available"
+        return 1
+    fi
+    
+    print_info "Regions with customer activity:"
+    echo ""
+    
+    echo "$cases" | jq -r '.[].caseOwnerSuperRegion' | sort | uniq -c | sort -rn | while read count region; do
+        echo "  • $region: $count cases"
+    done
+    
+    echo ""
+    print_info "Use: $0 geo <region> to see customers in that region"
+}
+
+# Main
+if [[ $# -eq 0 ]]; then
+    show_help
+    exit 0
+fi
+
+case "$1" in
+    my-portfolio|portfolio)
+        my_portfolio
+        ;;
+    org)
+        if [[ $# -lt 2 ]]; then
+            print_error "Organization name required"
+            echo "Example: $0 org NAPS"
+            exit 1
+        fi
+        list_by_org "$2"
+        ;;
+    geo|region)
+        if [[ $# -lt 2 ]]; then
+            print_error "Geographic region required"
+            echo "Example: $0 geo NAMER"
+            exit 1
+        fi
+        list_by_geo "$2"
+        ;;
+    regions|geos)
+        show_regions
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        print_error "Unknown command: $1"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac
+
