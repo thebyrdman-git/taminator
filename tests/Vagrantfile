@@ -99,6 +99,45 @@ Vagrant.configure("2") do |config|
       echo "Then: cd /rfe-automation && ./install.sh"
     SHELL
   end
+
+  # Alma Linux 9 Test Environment with VPN
+  config.vm.define "alma9" do |alma9|
+    alma9.vm.box = "almalinux/9"
+    alma9.vm.hostname = "rfe-test-alma9"
+    
+    alma9.vm.provision "shell", inline: <<-SHELL
+      echo "🟦 Alma Linux 9 Test Environment (VPN-Ready)"
+      echo "Testing RFE Automation Installation with GitLab Access"
+      
+      # Update system
+      dnf update -y
+      
+      # Install VPN and development packages
+      dnf install -y \
+        git curl jq \
+        NetworkManager-openvpn \
+        NetworkManager-openvpn-gnome \
+        openvpn \
+        krb5-workstation \
+        ca-certificates
+      
+      # Trust Red Hat internal certificates
+      update-ca-trust
+      
+      echo "✅ Base system ready with VPN support"
+      echo ""
+      echo "📋 Next Steps:"
+      echo "1. vagrant ssh alma9"
+      echo "2. Copy your Red Hat VPN config: scp jbyrd@workstation:/path/to/redhat.ovpn /tmp/"
+      echo "3. Import VPN: sudo nmcli connection import type openvpn file /tmp/redhat.ovpn"
+      echo "4. Connect VPN: sudo nmcli connection up redhat-vpn"
+      echo "5. Test: kinit jbyrd@REDHAT.COM"
+      echo "6. Clone: git clone https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation.git"
+      echo "7. Run: cd rfe-and-bug-tracker-automation && ./install.sh"
+      echo ""
+      echo "⚠️  VPN connection required for GitLab CEE access"
+    SHELL
+  end
 end
 
 

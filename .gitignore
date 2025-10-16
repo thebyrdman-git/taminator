@@ -4,3 +4,5 @@ output/
 logs/*.log
 logs/JP_Morgan_Chase/
 logs/jpmorgan*
+*.pyc
+__pycache__/
