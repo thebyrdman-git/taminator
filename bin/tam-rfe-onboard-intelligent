@@ -10,6 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 CONFIG_DIR="$PROJECT_ROOT/config"
 LEARNING_DIR="$PROJECT_ROOT/learning"
+TAMSCRIPTS_CONFIG="$HOME/.config/tamscripts/tamscripts.config"
+CUSTOMERS_CONF="$CONFIG_DIR/customers.conf"
 
 # Colors
 RED='\033[0;31m'
@@ -59,6 +61,132 @@ print_ai_response() {
 
 print_user_prompt() {
     echo -e "${YELLOW}👤 Your response: ${NC}"
+}
+
+# Add customer to customers.conf (simple format for tam-rfe-chat)
+add_customer_to_conf() {
+    local customer_name="$1"
+    local account_number="$2"
+    local group_id="$3"
+    
+    # Create a safe key from customer name
+    local customer_key=$(echo "$customer_name" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
+    
+    # Create config dir if needed
+    mkdir -p "$CONFIG_DIR"
+    
+    # Check if customer already exists
+    if grep -q "^${customer_key}:" "$CUSTOMERS_CONF" 2>/dev/null; then
+        print_info "Customer $customer_key already exists in customers.conf, updating..."
+        sed -i "/^${customer_key}:/d" "$CUSTOMERS_CONF"
+    fi
+    
+    # Add to customers.conf
+    echo "${customer_key}:${customer_name}:${account_number}:${group_id:-unknown}" >> "$CUSTOMERS_CONF"
+    print_success "Added $customer_name to customers.conf"
+}
+
+# Add customer to tamscripts.config (YAML format for rhcase)
+add_customer_to_tamscripts() {
+    local customer_name="$1"
+    local account_number="$2"
+    local sbr_groups="$3"
+    
+    # Create a safe key from customer name
+    local customer_key=$(echo "$customer_name" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
+    
+    # Parse SBR groups (comma-separated to YAML list)
+    local sbr_yaml=""
+    if [[ -n "$sbr_groups" ]]; then
+        IFS=',' read -ra SBR_ARRAY <<< "$sbr_groups"
+        for sbr in "${SBR_ARRAY[@]}"; do
+            sbr=$(echo "$sbr" | xargs)  # trim whitespace
+            sbr_yaml="$sbr_yaml
+    - $sbr"
+        done
+    else
+        sbr_yaml="
+    - Ansible"
+    fi
+    
+    # Check if customer already exists
+    if grep -q "^- name: $customer_key\$" "$TAMSCRIPTS_CONFIG" 2>/dev/null; then
+        print_info "Customer $customer_key already exists in tamscripts.config, skipping..."
+        return
+    fi
+    
+    # Backup tamscripts.config
+    cp "$TAMSCRIPTS_CONFIG" "${TAMSCRIPTS_CONFIG}.bak.$(date +%s)"
+    
+    # Create customer YAML block
+    local customer_yaml="- name: $customer_key
+  account_numbers:
+  - '$account_number'
+  filters:
+    include_sbr_groups:$sbr_yaml
+    exclude_internal_status:
+    - Closed
+  display:
+    fields:
+    - field: caseNumber
+      header: 'Case #'
+      style: cyan
+      width: 10
+    - field: severity
+      header: Sev
+      style: magenta
+      width: 8
+    - field: sbt
+      header: SBT
+      style: green
+      width: 6
+    - field: status
+      header: Status
+      style: white
+      width: 8
+      transform: abbreviate_status
+    - field: ownerDisplayName
+      header: Owner
+      style: blue
+      width: 12
+      fallback: ownerId
+    - field: product
+      header: Product
+      style: yellow
+      width: 15
+    - field: summary
+      header: Subject
+      style: white
+      width: auto
+      min_width: 20
+      max_width: 40
+      overflow: ellipsis
+    - field: lastModifiedDate
+      header: Modified
+      style: dim
+      width: 10
+      transform: date_only
+    sorting:
+    - field: severity
+      order: asc
+      priority: 1
+      custom_sort: severity_order
+    - field: sbt
+      order: asc
+      priority: 2
+      custom_sort: sbt_order"
+    
+    # Insert before the "username:" line at the end
+    awk -v customer="$customer_yaml" '
+        /^username:/ {
+            print customer
+            print ""
+        }
+        { print }
+    ' "$TAMSCRIPTS_CONFIG" > "${TAMSCRIPTS_CONFIG}.tmp"
+    
+    mv "${TAMSCRIPTS_CONFIG}.tmp" "$TAMSCRIPTS_CONFIG"
+    print_success "Added $customer_name to tamscripts.config (rhcase can now access this account)"
 }
 
 # Learning system functions
@@ -260,6 +388,13 @@ Customer_$customer_count:
   case_statuses: $case_statuses
   reporting_frequency: $customer_reporting_frequency
   special_requirements: $special_requirements"
+        
+        # Immediately add customer to both config files
+        echo ""
+        print_info "Configuring system access for $customer_name..."
+        add_customer_to_conf "$customer_name" "$account_number" "$group_id"
+        add_customer_to_tamscripts "$customer_name" "$account_number" "$customer_sbr_groups"
+        echo ""
         
         ((customer_count++))
         
