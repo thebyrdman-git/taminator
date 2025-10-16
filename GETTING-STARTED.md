@@ -34,10 +34,17 @@
 ./bin/tam-rfe-chat
 ```
 
-**Then just type what you want:**
-- "Generate a report for Wells Fargo"
-- "Show me TD Bank cases"
-- "Create active case report for JPMC"
+**Common commands that work:**
+```
+show cases for Wells Fargo
+show open cases for Westpac
+generate report for TD Bank
+find similar cases to 04244831
+prepare meeting for JPMC
+help
+```
+
+**📝 Type `help` anytime to see all available commands with examples.**
 
 **Done! You'll get both copy/paste and auto-posting options.**
 

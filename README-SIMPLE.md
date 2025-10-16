@@ -32,10 +32,17 @@ cd rfe-bug-tracker
 ```bash
 ./bin/tam-rfe-chat
 ```
-**Ask me anything:**
-- "Generate RFE report for Wells Fargo"
-- "Show me all Ansible cases for TD Bank"
-- "Prepare summary for JPMC quarterly meeting"
+**Common commands that work:**
+```
+show cases for Wells Fargo
+show open cases for Westpac
+generate report for TD Bank
+find similar cases to 04244831
+prepare meeting for JPMC
+help
+```
+
+**📝 Type `help` anytime to see all available commands with examples.**
 
 ### 🎯 Comprehensive Multiple Choice System
 **When you ask for reports, I'll guide you through 9 simple choices:**

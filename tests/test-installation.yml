@@ -1,0 +1,47 @@
+---
+# Ansible playbook to test RFE automation installation across platforms
+# Tests that install-improved.sh handles all dependencies correctly
+
+- name: Test RFE Automation Installation
+  hosts: localhost
+  gather_facts: false
+  vars:
+    test_platforms:
+      - name: "RHEL 9 (AlmaLinux)"
+        image: "almalinux:9"
+        base_packages:
+          - git
+          - python3
+      - name: "RHEL 8 (AlmaLinux)"
+        image: "almalinux:8"
+        base_packages:
+          - git
+          - python3
+      - name: "Fedora 41"
+        image: "fedora:41"
+        base_packages:
+          - git
+          - python3
+      - name: "Fedora 40"
+        image: "fedora:40"
+        base_packages:
+          - git
+          - python3
+    
+    project_dir: "{{ playbook_dir | dirname }}"
+    test_base_dir: "{{ lookup('env', 'HOME') }}/.cache/rfe-tests"
+  
+  tasks:
+    - name: Create test directory
+      file:
+        path: "{{ test_base_dir }}"
+        state: directory
+        mode: '0755'
+    
+    - name: Test installation on each platform
+      include_tasks: test-platform.yml
+      loop: "{{ test_platforms }}"
+      loop_control:
+        loop_var: platform
+        label: "{{ platform.name }}"
+
