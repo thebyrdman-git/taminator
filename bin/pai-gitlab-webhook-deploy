@@ -1,0 +1,235 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI GitLab Webhook Deployment to miraclemax
+# Part of the Personal AI Infrastructure (PAI)
+
+# Configuration
+MIRACLEMAX_HOST="192.168.1.34"
+MIRACLEMAX_USER="jbyrd"
+REMOTE_PATH="~/miraclemax-infrastructure"
+LOCAL_REPO="/home/jbyrd/pai/repositories/pai-infrastructure-automation/miraclemax"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_success() { echo -e "${GREEN}✅ $1${NC}"; }
+print_error() { echo -e "${RED}❌ $1${NC}"; }
+print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+
+# Check connectivity
+check_miraclemax() {
+    print_info "Checking miraclemax connectivity..."
+    if ! ping -c 1 -W 2 "$MIRACLEMAX_HOST" &>/dev/null; then
+        print_error "Cannot reach miraclemax at $MIRACLEMAX_HOST"
+        exit 1
+    fi
+    
+    if ! ssh -o ConnectTimeout=5 "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "echo test" &>/dev/null; then
+        print_error "SSH access failed to $MIRACLEMAX_USER@$MIRACLEMAX_HOST"
+        exit 1
+    fi
+    
+    print_success "Connected to miraclemax"
+}
+
+# Sync files to miraclemax
+sync_files() {
+    print_info "Syncing files to miraclemax..."
+    
+    # Create docker directory if it doesn't exist
+    ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "mkdir -p $REMOTE_PATH/docker/gitlab-webhook"
+    
+    # Sync compose file
+    rsync -avz \
+        "$LOCAL_REPO/compose/gitlab-webhook.yml" \
+        "$MIRACLEMAX_USER@$MIRACLEMAX_HOST:$REMOTE_PATH/compose/" \
+        || {
+            print_error "Failed to sync compose file"
+            exit 1
+        }
+    
+    # Sync docker build files
+    rsync -avz \
+        "$LOCAL_REPO/docker/gitlab-webhook/" \
+        "$MIRACLEMAX_USER@$MIRACLEMAX_HOST:$REMOTE_PATH/docker/gitlab-webhook/" \
+        || {
+            print_error "Failed to sync docker files"
+            exit 1
+        }
+    
+    # Sync traefik config
+    rsync -avz \
+        "$LOCAL_REPO/config/traefik/dynamic.yml" \
+        "$MIRACLEMAX_USER@$MIRACLEMAX_HOST:$REMOTE_PATH/config/traefik/" \
+        || {
+            print_error "Failed to sync traefik config"
+            exit 1
+        }
+    
+    print_success "Files synced"
+}
+
+# Build and deploy
+deploy() {
+    print_info "Building and deploying GitLab webhook receiver..."
+    
+    ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" << 'EOF'
+        set -e
+        cd ~/miraclemax-infrastructure
+        
+        echo "Building container image..."
+        podman build -t gitlab-webhook-receiver:latest docker/gitlab-webhook/
+        
+        echo "Stopping existing container (if running)..."
+        podman stop gitlab-webhook 2>/dev/null || true
+        podman rm gitlab-webhook 2>/dev/null || true
+        
+        echo "Creating networks if they don't exist..."
+        podman network exists traefik-network || podman network create traefik-network
+        podman network exists monitoring-network || podman network create monitoring-network
+        
+        echo "Deploying container..."
+        podman run -d \
+            --name gitlab-webhook \
+            --network traefik-network \
+            --add-host=host.containers.internal:host-gateway \
+            -p 3002:3002 \
+            -v gitlab-webhook-logs:/app/logs:z \
+            -e TZ=America/New_York \
+            -e GITLAB_WEBHOOK_PORT=3002 \
+            -e GITLAB_WEBHOOK_EMAIL=jbyrd@redhat.com \
+                -e GITLAB_WEBHOOK_FROM=jbyrd@redhat.com \
+            -e SMTP_SERVER=host.containers.internal \
+            -e SMTP_PORT=25 \
+            --restart=unless-stopped \
+            --security-opt=no-new-privileges:true \
+            --label "com.miraclemax.service=gitlab-webhook" \
+            --label "traefik.enable=true" \
+            --label "traefik.http.routers.gitlab-webhook.rule=Host(\`gitlab-webhook.jbyrd.org\`)" \
+            --label "traefik.http.routers.gitlab-webhook.entrypoints=web,websecure" \
+            --label "traefik.http.services.gitlab-webhook.loadbalancer.server.port=3002" \
+            gitlab-webhook-receiver:latest
+        
+        echo "Waiting for container to start..."
+        sleep 5
+        
+        echo "Testing health endpoint..."
+        curl -f http://localhost:3002/health || exit 1
+        
+        echo "Deployment complete!"
+EOF
+    
+    if [ $? -eq 0 ]; then
+        print_success "GitLab webhook receiver deployed successfully"
+    else
+        print_error "Deployment failed"
+        exit 1
+    fi
+}
+
+# Show status
+show_status() {
+    print_info "Checking service status on miraclemax..."
+    
+    ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" << 'EOF'
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "GitLab Webhook Receiver Status"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        if docker ps | grep -q gitlab-webhook; then
+            echo "✅ Status: Running"
+            echo ""
+            docker ps --filter name=gitlab-webhook --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            echo ""
+            echo "Health Check:"
+            curl -s http://localhost:3002/health | python3 -m json.tool || echo "Health check failed"
+            echo ""
+            echo "Access URLs:"
+            echo "  • Internal: http://miraclemax:3002/webhook/gitlab"
+            echo "  • External: https://gitlab-webhook.jbyrd.org/webhook/gitlab"
+            echo ""
+            echo "Recent Logs:"
+            docker logs --tail 10 gitlab-webhook
+        else
+            echo "❌ Status: Not running"
+            echo ""
+            echo "Deploy with: pai-gitlab-webhook-deploy"
+        fi
+        
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+EOF
+}
+
+# Main
+main() {
+    case "${1:-deploy}" in
+        deploy)
+            check_miraclemax
+            sync_files
+            deploy
+            echo ""
+            print_success "Deployment complete!"
+            echo ""
+            print_info "Next steps:"
+            echo "1. Configure GitLab webhook: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation/-/settings/webhooks"
+            echo "2. Webhook URL: https://gitlab-webhook.jbyrd.org/webhook/gitlab"
+            echo "3. Enable 'Issues events' trigger"
+            echo ""
+            print_info "Check status with: pai-gitlab-webhook-deploy status"
+            ;;
+        status)
+            check_miraclemax
+            show_status
+            ;;
+        logs)
+            check_miraclemax
+            ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "docker logs -f gitlab-webhook"
+            ;;
+        restart)
+            check_miraclemax
+            print_info "Restarting GitLab webhook receiver..."
+            ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "docker restart gitlab-webhook"
+            print_success "Service restarted"
+            ;;
+        stop)
+            check_miraclemax
+            print_info "Stopping GitLab webhook receiver..."
+            ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "docker-compose -f ~/pai-infrastructure-automation/miraclemax/compose/gitlab-webhook.yml down"
+            print_success "Service stopped"
+            ;;
+        help|--help|-h)
+            cat << 'HELP'
+PAI GitLab Webhook Deployment to miraclemax
+
+Usage: pai-gitlab-webhook-deploy <command>
+
+Commands:
+  deploy      Deploy/update GitLab webhook receiver (default)
+  status      Show service status on miraclemax
+  logs        Follow service logs
+  restart     Restart the service
+  stop        Stop the service
+  help        Show this help
+
+Examples:
+  pai-gitlab-webhook-deploy
+  pai-gitlab-webhook-deploy status
+  pai-gitlab-webhook-deploy logs
+HELP
+            ;;
+        *)
+            print_error "Unknown command: $1"
+            echo "Run 'pai-gitlab-webhook-deploy help' for usage"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
+

@@ -128,7 +128,6 @@ http:
         - websecure
       service: homeassistant
       middlewares:
-        - authelia
         - security-headers
         - rate-limit
       # TLS removed - Cloudflare Tunnel handles SSL
@@ -152,7 +151,6 @@ http:
         - websecure
       service: n8n
       middlewares:
-        - authelia
         - security-headers
         - internal-only  # Only internal access
       tls:
@@ -165,7 +163,6 @@ http:
         - web
       service: grafana
       middlewares:
-        - authelia
         - security-headers
         - rate-limit
     
@@ -176,7 +173,6 @@ http:
         - websecure
       service: prometheus
       middlewares:
-        - authelia
         - security-headers
         - internal-only
       tls:
@@ -189,11 +185,21 @@ http:
         - websecure
       service: cadvisor
       middlewares:
-        - authelia
         - security-headers
         - internal-only
       tls:
         certResolver: letsencrypt
+    
+    # GitLab Webhook Receiver (RFE & Bug Tracker)
+    gitlab-webhook:
+      rule: "Host(`gitlab-webhook.jbyrd.org`)"
+      entryPoints:
+        - web
+        - websecure
+      service: gitlab-webhook
+      middlewares:
+        - security-headers
+        - rate-limit
 
   # Services (Backend Definitions)
   services:
@@ -241,7 +247,7 @@ http:
     homeassistant:
       loadBalancer:
         servers:
-          - url: "http://homeassistant:8123"
+          - url: "http://192.168.1.39:8123"
         healthCheck:
           path: /
           interval: 30s
@@ -268,7 +274,7 @@ http:
     grafana:
       loadBalancer:
         servers:
-          - url: "http://grafana:3000"
+          - url: "http://192.168.1.34:3000"
         healthCheck:
           path: /api/health
           interval: 30s
@@ -291,6 +297,16 @@ http:
           - url: "http://cadvisor:8080"
         healthCheck:
           path: /healthz
+          interval: 30s
+          timeout: 10s
+    
+    # GitLab Webhook Receiver
+    gitlab-webhook:
+      loadBalancer:
+        servers:
+          - url: "http://192.168.1.34:3002"
+        healthCheck:
+          path: /health
           interval: 30s
           timeout: 10s
 

@@ -1,0 +1,398 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PAI GitLab Issues Email Summary
+# Send email summary of open issues from RFE & Bug Tracker
+
+# Configuration
+GITLAB_URL="https://gitlab.cee.redhat.com"
+PROJECT_ID="jbyrd/rfe-and-bug-tracker-automation"
+EMAIL_TO="${GITLAB_ISSUES_EMAIL:-jbyrd@redhat.com}"
+EMAIL_FROM="${GITLAB_ISSUES_FROM:-hatter@$(hostname)}"
+SMTP_SERVER="${SMTP_SERVER:-localhost}"
+SMTP_PORT="${SMTP_PORT:-25}"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_success() { echo -e "${GREEN}✅ $1${NC}"; }
+print_error() { echo -e "${RED}❌ $1${NC}"; }
+print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+
+# Check if running on miraclemax or workstation
+if [[ "$(hostname)" == "miraclemax"* ]] || [[ "$(hostname -f)" == "miraclemax"* ]]; then
+    ON_MIRACLEMAX=true
+else
+    ON_MIRACLEMAX=false
+fi
+
+# Get GitLab token
+get_gitlab_token() {
+    local token=""
+    
+    # Try environment variable first
+    if [[ -n "${GITLAB_TOKEN:-}" ]]; then
+        echo "$GITLAB_TOKEN"
+        return 0
+    fi
+    
+    # Try secrets file
+    if [[ -f ~/.config/pai/secrets/gitlab-token ]]; then
+        token=$(cat ~/.config/pai/secrets/gitlab-token)
+        echo "$token"
+        return 0
+    fi
+    
+    print_error "GitLab token not found"
+    echo ""
+    echo "Set your GitLab personal access token:"
+    echo "  export GITLAB_TOKEN='your-token-here'"
+    echo ""
+    echo "Or save it to: ~/.config/pai/secrets/gitlab-token"
+    echo ""
+    echo "Create token at: $GITLAB_URL/-/profile/personal_access_tokens"
+    echo "Required scopes: read_api"
+    exit 1
+}
+
+# Fetch open issues from GitLab
+fetch_open_issues() {
+    local token="$1"
+    local project_encoded=$(echo "$PROJECT_ID" | sed 's/\//%2F/g')
+    
+    print_info "Fetching open issues from GitLab..."
+    
+    local response=$(curl -s --header "PRIVATE-TOKEN: $token" \
+        "$GITLAB_URL/api/v4/projects/$project_encoded/issues?state=opened&per_page=100")
+    
+    if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
+        print_info "No open issues found"
+        return 1
+    fi
+    
+    echo "$response"
+}
+
+# Format issues as HTML email
+format_html_email() {
+    local issues="$1"
+    local count=$(echo "$issues" | jq '. | length')
+    
+    cat << EOF
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header { 
+            background: #dc143c; 
+            color: white; 
+            padding: 20px; 
+            border-radius: 5px 5px 0 0; 
+            margin-bottom: 0;
+        }
+        .header h1 { margin: 0; }
+        .summary {
+            background: #f9f9f9;
+            padding: 15px;
+            border-left: 4px solid #dc143c;
+            margin: 0 0 20px 0;
+        }
+        .issue { 
+            background: white; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+            padding: 15px; 
+            margin-bottom: 15px;
+        }
+        .issue-title { 
+            font-size: 18px; 
+            font-weight: bold; 
+            margin-bottom: 10px;
+            color: #dc143c;
+        }
+        .issue-meta { 
+            color: #666; 
+            font-size: 14px; 
+            margin-bottom: 10px;
+        }
+        .issue-description { 
+            margin: 10px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-left: 3px solid #dc143c;
+        }
+        .label { 
+            display: inline-block; 
+            background: #eee; 
+            padding: 3px 10px; 
+            border-radius: 3px; 
+            font-size: 12px; 
+            margin: 2px;
+        }
+        .button { 
+            display: inline-block; 
+            background: #dc143c; 
+            color: white; 
+            padding: 8px 16px; 
+            text-decoration: none; 
+            border-radius: 3px;
+            margin-top: 10px;
+        }
+        .footer { 
+            text-align: center; 
+            color: #999; 
+            font-size: 12px; 
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔴 Open Issues Summary</h1>
+        <p style="margin: 5px 0 0 0;">RFE & Bug Tracker Automation</p>
+    </div>
+    
+    <div class="summary">
+        <strong>Total Open Issues:</strong> $count<br>
+        <strong>Generated:</strong> $(date '+%Y-%m-%d %H:%M:%S %Z')<br>
+        <strong>Project:</strong> <a href="$GITLAB_URL/$PROJECT_ID">$PROJECT_ID</a>
+    </div>
+EOF
+
+    echo "$issues" | jq -r '.[] | @json' | while IFS= read -r issue; do
+        local iid=$(echo "$issue" | jq -r '.iid')
+        local title=$(echo "$issue" | jq -r '.title')
+        local description=$(echo "$issue" | jq -r '.description // "No description provided"' | head -c 500)
+        local author=$(echo "$issue" | jq -r '.author.name')
+        local author_username=$(echo "$issue" | jq -r '.author.username')
+        local created_at=$(echo "$issue" | jq -r '.created_at')
+        local updated_at=$(echo "$issue" | jq -r '.updated_at')
+        local web_url=$(echo "$issue" | jq -r '.web_url')
+        local labels=$(echo "$issue" | jq -r '.labels[]?' | tr '\n' ' ')
+        
+        cat << ISSUE
+    <div class="issue">
+        <div class="issue-title">Issue #$iid: $title</div>
+        <div class="issue-meta">
+            <strong>Author:</strong> $author (@$author_username)<br>
+            <strong>Created:</strong> $created_at<br>
+            <strong>Updated:</strong> $updated_at
+ISSUE
+        
+        if [[ -n "$labels" ]]; then
+            echo "            <br><strong>Labels:</strong> "
+            for label in $labels; do
+                echo "<span class=\"label\">$label</span> "
+            done
+        fi
+        
+        cat << ISSUE
+        </div>
+        <div class="issue-description">
+            <strong>Description:</strong><br>
+            $description
+        </div>
+        <a href="$web_url" class="button">View Issue on GitLab</a>
+    </div>
+ISSUE
+    done
+
+    cat << EOF
+    
+    <div class="footer">
+        Generated by PAI GitLab Issues Email Tool<br>
+        Hatter - Red Hat Digital Assistant
+    </div>
+</body>
+</html>
+EOF
+}
+
+# Format issues as plain text
+format_text_email() {
+    local issues="$1"
+    local count=$(echo "$issues" | jq '. | length')
+    
+    cat << EOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Open Issues Summary - RFE & Bug Tracker Automation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Open Issues: $count
+Generated: $(date '+%Y-%m-%d %H:%M:%S %Z')
+Project: $GITLAB_URL/$PROJECT_ID
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EOF
+
+    echo "$issues" | jq -r '.[] | @json' | while IFS= read -r issue; do
+        local iid=$(echo "$issue" | jq -r '.iid')
+        local title=$(echo "$issue" | jq -r '.title')
+        local description=$(echo "$issue" | jq -r '.description // "No description provided"' | head -c 300)
+        local author=$(echo "$issue" | jq -r '.author.name')
+        local author_username=$(echo "$issue" | jq -r '.author.username')
+        local created_at=$(echo "$issue" | jq -r '.created_at')
+        local web_url=$(echo "$issue" | jq -r '.web_url')
+        local labels=$(echo "$issue" | jq -r '.labels | join(", ")')
+        
+        cat << ISSUE
+
+Issue #$iid: $title
+
+Author: $author (@$author_username)
+Created: $created_at
+Labels: ${labels:-None}
+
+Description:
+$description
+
+View: $web_url
+
+────────────────────────────────────────────────────
+
+ISSUE
+    done
+
+    cat << EOF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Generated by PAI GitLab Issues Email Tool
+Hatter - Red Hat Digital Assistant
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EOF
+}
+
+# Send email via SMTP
+send_email() {
+    local subject="$1"
+    local text_body="$2"
+    local html_body="$3"
+    
+    print_info "Sending email to $EMAIL_TO..."
+    
+    python3 << PYTHON
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+try:
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "$subject"
+    msg["From"] = "$EMAIL_FROM"
+    msg["To"] = "$EMAIL_TO"
+    
+    # Attach plain text
+    text_part = MIMEText("""$text_body""", "plain")
+    msg.attach(text_part)
+    
+    # Attach HTML
+    html_part = MIMEText("""$html_body""", "html")
+    msg.attach(html_part)
+    
+    # Send via SMTP
+    with smtplib.SMTP("$SMTP_SERVER", $SMTP_PORT, timeout=10) as server:
+        server.send_message(msg)
+    
+    print("✅ Email sent successfully")
+except Exception as e:
+    print(f"❌ Failed to send email: {e}")
+    exit(1)
+PYTHON
+}
+
+# Send email via miraclemax container
+send_email_via_miraclemax() {
+    local subject="$1"
+    local text_body="$2"
+    local html_body="$3"
+    
+    print_info "Sending email via miraclemax gitlab-webhook container..."
+    
+    # Save email content to temp files
+    local tmpdir=$(mktemp -d)
+    echo "$text_body" > "$tmpdir/text.txt"
+    echo "$html_body" > "$tmpdir/html.html"
+    
+    # Send via SSH to miraclemax
+    ssh jbyrd@192.168.1.34 bash << EOF
+python3 << PYTHON
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+try:
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "$subject"
+    msg["From"] = "$EMAIL_FROM"
+    msg["To"] = "$EMAIL_TO"
+    
+    # Read text body from stdin
+    text_body = """$text_body"""
+    html_body = """$html_body"""
+    
+    msg.attach(MIMEText(text_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+    
+    with smtplib.SMTP("localhost", 25, timeout=10) as server:
+        server.send_message(msg)
+    
+    print("✅ Email sent successfully")
+except Exception as e:
+    print(f"❌ Failed to send email: {e}")
+    exit(1)
+PYTHON
+EOF
+    
+    rm -rf "$tmpdir"
+}
+
+# Main function
+main() {
+    print_info "GitLab Open Issues Email Summary"
+    echo ""
+    
+    # Get GitLab token
+    local token=$(get_gitlab_token)
+    
+    # Fetch open issues
+    local issues=$(fetch_open_issues "$token")
+    if [[ $? -ne 0 ]]; then
+        print_info "No email sent (no open issues)"
+        exit 0
+    fi
+    
+    local count=$(echo "$issues" | jq '. | length')
+    print_success "Found $count open issue(s)"
+    
+    # Format email content
+    local subject="[GitLab] $count Open Issue(s) - RFE & Bug Tracker"
+    local text_body=$(format_text_email "$issues")
+    local html_body=$(format_html_email "$issues")
+    
+    # Send email
+    if [[ "$ON_MIRACLEMAX" == "true" ]] || command -v python3 &>/dev/null; then
+        send_email "$subject" "$text_body" "$html_body"
+    else
+        send_email_via_miraclemax "$subject" "$text_body" "$html_body"
+    fi
+    
+    echo ""
+    print_success "Open issues summary sent to $EMAIL_TO"
+}
+
+main "$@"
+

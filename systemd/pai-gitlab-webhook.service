@@ -1,0 +1,36 @@
+[Unit]
+Description=PAI GitLab Webhook Receiver
+After=network.target
+Documentation=https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation
+
+[Service]
+Type=simple
+User=%u
+WorkingDirectory=%h/pai
+Environment="PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="GITLAB_WEBHOOK_PORT=3002"
+Environment="GITLAB_WEBHOOK_EMAIL=%u@redhat.com"
+Environment="GITLAB_WEBHOOK_FROM=hatter@localhost"
+Environment="SMTP_SERVER=localhost"
+Environment="SMTP_PORT=25"
+# Optional: Set webhook secret for security
+# Environment="GITLAB_WEBHOOK_SECRET=your-secret-token-here"
+
+ExecStart=/usr/bin/python3 %h/pai/src/gitlab_webhook_receiver.py
+ExecStop=/bin/kill -TERM $MAINPID
+
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:%h/.config/pai/logs/gitlab-webhook.log
+StandardError=append:%h/.config/pai/logs/gitlab-webhook.log
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.config/pai
+
+[Install]
+WantedBy=default.target
+
