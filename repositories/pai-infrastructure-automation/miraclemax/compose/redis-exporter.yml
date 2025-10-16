@@ -1,0 +1,56 @@
+version: '3.8'
+
+# Redis Exporter - Prometheus Metrics
+# Purpose: Export Redis metrics for Prometheus monitoring
+# Documentation: https://github.com/oliver006/redis_exporter
+
+services:
+  redis-exporter:
+    image: docker.io/oliver006/redis_exporter:v1.55.0-alpine
+    container_name: redis-exporter
+    restart: unless-stopped
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    user: "59000:59000"  # Non-root user
+    
+    # Network configuration
+    networks:
+      - monitoring-network
+    
+    ports:
+      - "9121:9121"  # Metrics port
+    
+    # Environment variables
+    environment:
+      - TZ=America/New_York
+      - REDIS_ADDR=redis:6379
+      - REDIS_USER=default
+      # - REDIS_PASSWORD=  # Set if Redis has password
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9121/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    
+    labels:
+      # Service identification
+      - "com.miraclemax.service=redis-exporter"
+      - "com.miraclemax.version=1.55.0"
+      - "com.miraclemax.description=Redis metrics exporter for Prometheus"
+      
+      # Monitoring
+      - "com.miraclemax.monitor=true"
+      - "com.miraclemax.metrics.port=9121"
+      - "com.miraclemax.metrics.path=/metrics"
+
+# Networks
+networks:
+  monitoring-network:
+    external: true
+

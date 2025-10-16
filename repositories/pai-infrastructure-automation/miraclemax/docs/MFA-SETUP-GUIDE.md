@@ -24,7 +24,7 @@ Authelia provides multi-factor authentication for all miraclemax services includ
 All services require two-factor authentication:
 - **Traefik Dashboard**: https://traefik.jbyrd.org
 - **Home Assistant**: https://ha.jbyrd.org
-- **Actual Budget**: https://budget.jbyrd.org
+- **Actual Budget**: https://money.jbyrd.org
 - **n8n Workflows**: https://n8n.jbyrd.org
 - **cAdvisor**: https://cadvisor.jbyrd.org
 - **Prometheus**: https://metrics.jbyrd.org
@@ -60,7 +60,7 @@ All services require two-factor authentication:
 
 ### 🔄 **Authentication Flow**
 
-1. Visit protected service (e.g., https://budget.jbyrd.org)
+1. Visit protected service (e.g., https://money.jbyrd.org)
 2. Redirected to Authelia login portal
 3. Enter username and password
 4. Provide second factor (TOTP or WebAuthn)

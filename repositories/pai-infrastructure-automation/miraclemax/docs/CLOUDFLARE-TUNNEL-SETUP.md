@@ -39,7 +39,7 @@ In the Cloudflare dashboard, add these public hostnames:
 | Public Hostname | Service | URL |
 |----------------|---------|-----|
 | ha.jbyrd.org | HTTP | http://localhost:80 |
-| budget.jbyrd.org | HTTP | http://localhost:80 |
+| money.jbyrd.org | HTTP | http://localhost:80 |
 | n8n.jbyrd.org | HTTP | http://localhost:80 |
 | cadvisor.jbyrd.org | HTTP | http://localhost:80 |
 | traefik.jbyrd.org | HTTP | http://localhost:80 |

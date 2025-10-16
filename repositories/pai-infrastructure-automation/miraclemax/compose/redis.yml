@@ -1,0 +1,79 @@
+version: '3.8'
+
+# Redis - In-Memory Data Store
+# Purpose: Cache and queue backend for n8n workflow automation
+# Documentation: https://redis.io/docs/
+
+services:
+  redis:
+    image: docker.io/redis:7.2-alpine  # Alpine for minimal footprint
+    container_name: redis
+    restart: unless-stopped
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    read_only: true  # Redis runs fine read-only with proper volumes
+    
+    # Network configuration
+    networks:
+      - monitoring-network
+      - traefik-network
+    
+    ports:
+      - "6379:6379"  # Redis default port
+    
+    # Volume mounts
+    volumes:
+      # Data persistence
+      - redis-data:/data
+      
+      # Redis configuration
+      - ../config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      
+      # Tmpfs for temporary files (read-only filesystem workaround)
+      - type: tmpfs
+        target: /tmp
+    
+    # Command - load custom config
+    command: redis-server /usr/local/etc/redis/redis.conf
+    
+    # Environment variables
+    environment:
+      - TZ=America/New_York
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    
+    labels:
+      # Service identification
+      - "com.miraclemax.service=redis"
+      - "com.miraclemax.version=7.2"
+      - "com.miraclemax.description=In-memory cache and queue"
+      
+      # Backup configuration
+      - "com.miraclemax.backup=important"
+      - "com.miraclemax.backup.path=/data"
+      - "com.miraclemax.backup.frequency=daily"
+      
+      # Monitoring
+      - "com.miraclemax.monitor=true"
+      - "com.miraclemax.metrics.port=6379"
+
+# Named volumes
+volumes:
+  redis-data:
+    driver: local
+
+# Networks
+networks:
+  monitoring-network:
+    external: true
+  traefik-network:
+    external: true
+

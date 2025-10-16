@@ -15,7 +15,7 @@ jbyrd.org (Cloudflare DNS)
     ↓
 Traefik (miraclemax:80/443)
     ├→ ha.jbyrd.org → Home Assistant :8123
-    ├→ budget.jbyrd.org → Actual Budget :5006
+    ├→ money.jbyrd.org → Actual Budget :5006
     ├→ n8n.jbyrd.org → n8n :5678 (internal only)
     ├→ metrics.jbyrd.org → Prometheus :9090 (auth required)
     └→ traefik.jbyrd.org → Traefik Dashboard :8080 (auth required)
@@ -199,7 +199,7 @@ podman-compose -f compose/n8n.yml up -d
 ```bash
 # Test from external network (use phone data or different network)
 curl -I https://ha.jbyrd.org
-curl -I https://budget.jbyrd.org
+curl -I https://money.jbyrd.org
 curl -I https://traefik.jbyrd.org
 
 # Should return HTTP 200 or 401 (if auth required)
@@ -213,7 +213,7 @@ curl -I https://traefik.jbyrd.org
 After setup, services available at:
 
 - **Home Assistant**: https://ha.jbyrd.org
-- **Actual Budget**: https://budget.jbyrd.org
+- **Actual Budget**: https://money.jbyrd.org
 - **n8n**: https://n8n.jbyrd.org (internal network only)
 - **Prometheus**: https://metrics.jbyrd.org (auth required)
 - **Traefik Dashboard**: https://traefik.jbyrd.org (auth required)
