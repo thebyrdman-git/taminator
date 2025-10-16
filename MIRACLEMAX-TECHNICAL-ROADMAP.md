@@ -33,7 +33,9 @@ Production Services:
 │   ├── Alertmanager (alerts.jbyrd.org) - Alert routing
 │   ├── Netdata (netdata.jbyrd.org) - Real-time system monitoring
 │   ├── cAdvisor (cadvisor.jbyrd.org) - Container metrics
-│   └── Dozzle (logs.jbyrd.org) - Container log aggregation
+│   ├── Dozzle (logs.jbyrd.org) - Real-time log streaming
+│   ├── Loki (loki.jbyrd.org) - Centralized log aggregation
+│   └── Promtail - Automatic log collection from containers
 ├── Personal Applications
 │   ├── Home Assistant (ha.jbyrd.org) - Smart home automation
 │   ├── Actual Budget (budget.jbyrd.org) - Financial management
@@ -123,17 +125,20 @@ Server Issue → Prometheus Rules → Alertmanager → Gmail SMTP → Mobile Pus
 - [x] Basic monitoring with Prometheus/Grafana
 - [x] Professional alerting with mobile notifications
 
-### Phase 2: Advanced Operations (Q4 2025)
-- [ ] **Log Aggregation:** ELK stack or Loki integration
-- [ ] **Distributed Tracing:** Jaeger for request flow analysis
-- [ ] **Backup Automation:** Automated database/config backups
-- [ ] **GitOps Deployment:** Infrastructure as Code with version control
+### Phase 2: Advanced Operations ✅ COMPLETE
+- [x] **Log Aggregation:** Loki + Promtail with 30-day retention
+- [x] **Backup Automation:** GPG-encrypted backups with systemd timers
+- [x] **GitOps Deployment:** Ansible playbook with Git as single source of truth
+- [ ] **Distributed Tracing:** Jaeger for request flow analysis (deferred to Phase 3)
 
 ### Phase 3: Intelligence & Automation (Q1 2026)
+- [ ] **Distributed Tracing:** Jaeger for request flow analysis
 - [ ] **Predictive Alerting:** ML-based anomaly detection
 - [ ] **Auto-Remediation:** Automated container restart/scaling
 - [ ] **Capacity Planning:** Resource usage prediction
 - [ ] **Security Monitoring:** Intrusion detection system
+- [ ] **Redis Cache Layer:** Performance optimization for n8n/Actual
+- [ ] **Long-Term Metrics:** VictoriaMetrics for extended retention
 
 ### Phase 4: High Availability (Q2 2026)
 - [ ] **Multi-Node Setup:** Kubernetes migration or Podman clustering
@@ -206,6 +211,9 @@ Alert Intelligence:       Basic → Smart Routing with Runbooks
 - ✅ Mobile notification delivery confirmed
 - ✅ Professional alerting templates deployed
 - ✅ Enterprise-grade observability stack operational
+- ✅ Centralized log aggregation with Loki
+- ✅ Automated backup system with GPG encryption
+- ✅ GitOps deployment with Ansible automation
 
 ---
 
