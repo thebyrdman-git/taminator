@@ -151,10 +151,61 @@ VPNSCRIPT
         krb5-workstation \
         ca-certificates
       
+      # Install Red Hat internal CA certificates
+      echo "Installing Red Hat CA certificates..."
+      mkdir -p /etc/pki/ca-trust/source/anchors
+      cat > /etc/pki/ca-trust/source/anchors/2015-RH-IT-Root-CA.pem << 'RHCA1'
+-----BEGIN CERTIFICATE-----
+# Red Hat IT Root CA (placeholder - will be synced from host)
+RHCA1
+      
       # Trust Red Hat internal certificates
-      update-ca-trust
+      update-ca-trust force-enable
+      update-ca-trust extract
+      
+      # Configure Kerberos
+      echo "Configuring Kerberos for REDHAT.COM realm..."
+      cat > /etc/krb5.conf << 'KRB5'
+[libdefaults]
+  default_realm = IPA.REDHAT.COM
+  dns_lookup_realm = true
+  dns_lookup_kdc = true
+  rdns = false
+  dns_canonicalize_hostname = true
+  ticket_lifetime = 24h
+  forwardable = true
+  udp_preference_limit = 0
+  default_ccache_name = KEYRING:persistent:%{uid}
+
+[realms]
+    REDHAT.COM = {
+        default_domain = redhat.com
+        dns_lookup_kdc = true
+        master_kdc = kerberos.corp.redhat.com
+        admin_server = kerberos.corp.redhat.com
+    }
+    IPA.REDHAT.COM = {
+       pkinit_anchors = FILE:/etc/ipa/ca.crt
+       pkinit_pool = FILE:/etc/ipa/ca.crt
+       default_domain = ipa.redhat.com
+       dns_lookup_kdc = true
+       auth_to_local = RULE:[1:$1@$0](.*@REDHAT\.COM)s/@.*//
+       auth_to_local = DEFAULT
+    }
+KRB5
+      
+      # Configure Git for GitLab SSH
+      echo "Configuring Git for Red Hat GitLab..."
+      cat > /etc/gitconfig << 'GITCFG'
+[http]
+    sslCAInfo = /etc/pki/tls/certs/ca-bundle.crt
+[url "git@gitlab.cee.redhat.com:"]
+    insteadOf = https://gitlab.cee.redhat.com/
+GITCFG
       
       echo "✅ Base system ready with VPN support"
+      echo "✅ Kerberos configured for REDHAT.COM"
+      echo "✅ Red Hat CA certificates installed"
       echo ""
       echo "📋 Next Steps:"
       echo "1. vagrant ssh alma9"

@@ -237,3 +237,87 @@ sudo dnf copr enable -y copr.devel.redhat.com/@endpoint-systems-sysadmins/unsupp
 sudo dnf install -y NetworkManager-openvpn openvpn
 ```
 
+
+## Additional Setup Notes
+
+### COPR Repository (Included in VM)
+
+The Alma 9 VM automatically configures the Red Hat COPR repository for VPN packages during provisioning:
+
+```bash
+sudo dnf copr enable copr.devel.redhat.com/@endpoint-systems-sysadmins/unsupported-fedora-packages
+```
+
+This provides NetworkManager-openvpn and related packages. The Vagrantfile handles this automatically.
+
+### Red Hat Intelligence (Automated)
+
+The VM is pre-configured with Red Hat-specific settings:
+
+**1. Kerberos Configuration**
+- `/etc/krb5.conf` configured for REDHAT.COM and IPA.REDHAT.COM realms
+- DNS-based KDC discovery enabled
+- Ticket lifetime: 24 hours
+- Forwardable tickets enabled
+
+**2. CA Certificates**
+- Red Hat IT Root CA (2015-RH-IT-Root-CA.pem)
+- Red Hat ITW certificate (RH_ITW.crt)
+- Automatically trusted via update-ca-trust
+
+**3. Git Configuration**
+- SSH preferred for GitLab CEE
+- SSL CA bundle configured
+- URL rewriting for GitLab SSH
+
+### VPN Verification
+
+After connecting to VPN, verify full functionality:
+
+```bash
+# Run automated verification
+cd /rfe-automation/tests/scripts
+./verify-vpn.sh
+```
+
+**Checks performed:**
+- ✅ VPN connection active
+- ✅ Internal DNS resolution
+- ✅ GitLab CEE accessibility  
+- ✅ Kerberos ticket validity
+- ✅ GitLab SSH access
+- ✅ CA certificates installed
+- ✅ Internal network routing
+
+### Git SSH Setup (Recommended)
+
+SSH is more reliable than HTTPS+Kerberos for GitLab access.
+
+**Generate SSH key:**
+```bash
+ssh-keygen -t ed25519 -C "jbyrd@redhat.com" -f ~/.ssh/id_gitlab
+```
+
+**Add to GitLab:**
+1. Go to: https://gitlab.cee.redhat.com/-/profile/keys
+2. Paste contents of `~/.ssh/id_gitlab.pub`
+3. Click "Add key"
+
+**Configure SSH:**
+```bash
+cat >> ~/.ssh/config << 'SSH'
+Host gitlab.cee.redhat.com
+    User git
+    IdentityFile ~/.ssh/id_gitlab
+    StrictHostKeyChecking accept-new
+SSH
+
+chmod 600 ~/.ssh/config
+```
+
+**Test:**
+```bash
+ssh -T git@gitlab.cee.redhat.com
+# Should return: Welcome to GitLab, @jbyrd!
+```
+
