@@ -112,16 +112,42 @@ Vagrant.configure("2") do |config|
       # Update system
       dnf update -y
       
-      # Install COPR plugin and enable VPN packages repo
-      dnf install -y 'dnf-command(copr)'
-      dnf copr enable -y copr.devel.redhat.com/@endpoint-systems-sysadmins/unsupported-fedora-packages
+      # Dynamic VPN package installation (detects OS version)
+      cat > /tmp/setup-vpn.sh << 'VPNSCRIPT'
+#!/bin/bash
+set -e
+if [ -f /etc/os-release ]; then . /etc/os-release; fi
+echo "📦 Detected: $NAME $VERSION_ID"
+
+# Determine COPR release name
+case "$ID" in
+  rhel|almalinux|rocky) COPR_RELEASE="epel-${VERSION_ID%%.*}" ;;
+  fedora) COPR_RELEASE="fedora-${VERSION_ID}" ;;
+  *) echo "⚠️  Unsupported OS"; COPR_RELEASE="unsupported" ;;
+esac
+echo "   COPR release: $COPR_RELEASE"
+
+# Install COPR and enable repo
+dnf install -y 'dnf-command(copr)' 2>/dev/null || true
+dnf copr enable -y copr.devel.redhat.com/@endpoint-systems-sysadmins/unsupported-fedora-packages || {
+  echo "⚠️  COPR repo not available for $COPR_RELEASE"
+  echo "   Attempting standard package installation..."
+}
+
+# Install VPN packages (try COPR, fallback to standard repos)
+dnf install -y NetworkManager-openvpn openvpn || {
+  echo "❌ VPN packages not available"
+  exit 1
+}
+echo "✅ VPN packages installed"
+VPNSCRIPT
+      chmod +x /tmp/setup-vpn.sh
+      /tmp/setup-vpn.sh
       
-      # Install VPN and development packages
+      # Install remaining packages
       dnf install -y \
         git curl jq unzip \
-        NetworkManager-openvpn \
         NetworkManager-openvpn-gnome \
-        openvpn \
         krb5-workstation \
         ca-certificates
       
