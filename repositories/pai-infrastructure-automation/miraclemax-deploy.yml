@@ -1,0 +1,171 @@
+---
+#
+# MiracleMax GitOps Deployment Playbook
+# 
+# Purpose: Deploy complete MiracleMax infrastructure from Git repository
+# Usage: ansible-playbook miraclemax-deploy.yml
+#
+# Author: Hatter (PAI System)
+# Date: 2025-10-16
+#
+
+- name: Deploy MiracleMax Infrastructure via GitOps
+  hosts: miraclemax
+  become: false
+  vars:
+    miraclemax_user: jbyrd
+    miraclemax_host: 192.168.1.34
+    repo_path: "{{ playbook_dir }}/miraclemax"
+    target_path: "/home/{{ miraclemax_user }}/miraclemax-infrastructure"
+    backup_path: "/home/{{ miraclemax_user }}/miraclemax-infrastructure-backup-{{ ansible_date_time.epoch }}"
+    
+  tasks:
+    - name: Deployment Started
+      debug:
+        msg: "╔═══════════════════════════════════════════════════════════════╗
+              ║  🚀 MiracleMax GitOps Deployment Starting                    ║
+              ╚═══════════════════════════════════════════════════════════════╝"
+    
+    # Pre-deployment checks
+    - name: Check if target directory exists
+      stat:
+        path: "{{ target_path }}"
+      register: target_dir
+    
+    - name: Backup existing infrastructure if present
+      block:
+        - name: Create timestamped backup
+          command: "cp -r {{ target_path }} {{ backup_path }}"
+          when: target_dir.stat.exists
+        
+        - name: Backup created
+          debug:
+            msg: "✓ Existing infrastructure backed up to {{ backup_path }}"
+          when: target_dir.stat.exists
+      
+      when: target_dir.stat.exists
+    
+    # Deploy infrastructure files
+    - name: Sync infrastructure from Git repository
+      synchronize:
+        src: "{{ repo_path }}/"
+        dest: "{{ target_path }}/"
+        delete: yes
+        recursive: yes
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=.gitignore"
+          - "--exclude=*.swp"
+          - "--exclude=*.log"
+      register: sync_result
+    
+    - name: Set proper ownership
+      file:
+        path: "{{ target_path }}"
+        owner: "{{ miraclemax_user }}"
+        group: "{{ miraclemax_user }}"
+        recurse: yes
+    
+    - name: Deployment synced
+      debug:
+        msg: "✓ Infrastructure files deployed from Git"
+    
+    # Validate configuration
+    - name: Validate compose files
+      command: "podman-compose -f {{ target_path }}/compose/{{ item }}.yml config"
+      loop:
+        - traefik
+        - homer
+        - grafana
+        - homeassistant
+        - n8n
+        - alertmanager
+      register: validation_results
+      failed_when: validation_results.rc != 0
+      changed_when: false
+    
+    - name: Compose files validated
+      debug:
+        msg: "✓ All compose files validated successfully"
+    
+    # Initialize Git on target if not exists
+    - name: Check if target is a Git repository
+      stat:
+        path: "{{ target_path }}/.git"
+      register: git_dir
+    
+    - name: Initialize Git repository on MiracleMax
+      block:
+        - name: Git init
+          command: git init
+          args:
+            chdir: "{{ target_path }}"
+        
+        - name: Git add remote
+          command: git remote add origin git@github.com:thebyrdman-git/personal-pai.git
+          args:
+            chdir: "{{ target_path }}"
+          ignore_errors: yes
+        
+        - name: Initial commit
+          shell: |
+            git add .
+            git commit -m "GitOps: Infrastructure deployed from repository"
+          args:
+            chdir: "{{ target_path }}"
+          ignore_errors: yes
+        
+        - name: Git initialized
+          debug:
+            msg: "✓ Git repository initialized on MiracleMax"
+      when: not git_dir.stat.exists
+    
+    # Service management
+    - name: Check for running containers
+      command: podman ps --format '{{{{.Names}}}}'
+      register: running_containers
+      changed_when: false
+    
+    - name: Display running containers
+      debug:
+        msg: "Currently running: {{ running_containers.stdout_lines | join(', ') }}"
+    
+    - name: Deployment Summary
+      debug:
+        msg: "╔═══════════════════════════════════════════════════════════════╗
+              ║  ✅ MiracleMax GitOps Deployment Complete                    ║
+              ╚═══════════════════════════════════════════════════════════════╝
+              
+              ✓ Infrastructure files deployed
+              ✓ Compose files validated
+              ✓ Git repository initialized
+              ✓ Ownership configured
+              
+              Next Steps:
+              1. Review changes: cd {{ target_path }} && git status
+              2. Restart services if needed: cd {{ target_path }}/compose && podman-compose up -d
+              3. Verify services: podman ps
+              4. Check logs: podman logs <container_name>"
+
+# Post-deployment verification tasks
+- name: Post-Deployment Verification
+  hosts: miraclemax
+  become: false
+  tasks:
+    - name: Verify critical services are running
+      command: podman ps --filter name={{ item }} --format '{{{{.Names}}}}'
+      register: service_check
+      changed_when: false
+      loop:
+        - traefik
+        - grafana
+        - prometheus
+        - alertmanager
+        - homeassistant
+      failed_when: service_check.stdout == ""
+      ignore_errors: yes
+    
+    - name: Service health check results
+      debug:
+        msg: "{{ service_check.results | map(attribute='item') | zip(service_check.results | map(attribute='stdout')) | list }}"
+

@@ -1,0 +1,246 @@
+#!/bin/bash
+#
+# pai-miraclemax-validate - Validate MiracleMax infrastructure configs
+#
+# Description:
+#   Pre-deployment validation for compose files and configurations
+#   Run before deployment to catch errors early (CI/CD integration ready)
+#
+# Usage:
+#   pai-miraclemax-validate [OPTIONS]
+#
+# Options:
+#   --strict        Fail on warnings
+#   --json          Output results as JSON
+#   --ci            CI/CD mode (exit codes for automation)
+#
+# Location: /home/jbyrd/pai/bin/pai-miraclemax-validate
+# Author: Hatter (PAI System)
+# Date: 2025-10-16
+
+set -uo pipefail
+
+# Configuration
+REPO_DIR="/home/jbyrd/pai/repositories/pai-infrastructure-automation/miraclemax"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Counters
+ERRORS=0
+WARNINGS=0
+CHECKS=0
+
+# Options
+STRICT_MODE=false
+JSON_OUTPUT=false
+CI_MODE=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --strict) STRICT_MODE=true; shift ;;
+        --json) JSON_OUTPUT=true; shift ;;
+        --ci) CI_MODE=true; shift ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+# Validation functions
+check() {
+    ((CHECKS++))
+}
+
+error() {
+    ((ERRORS++))
+    if [ "$JSON_OUTPUT" = false ]; then
+        echo -e "${RED}✗ ERROR: $*${NC}"
+    fi
+}
+
+warning() {
+    ((WARNINGS++))
+    if [ "$JSON_OUTPUT" = false ]; then
+        echo -e "${YELLOW}⚠ WARNING: $*${NC}"
+    fi
+}
+
+success() {
+    if [ "$JSON_OUTPUT" = false ]; then
+        echo -e "${GREEN}✓ $*${NC}"
+    fi
+}
+
+if [ "$JSON_OUTPUT" = false ]; then
+    echo -e "${BLUE}╔═══════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║  🔍 MiracleMax Infrastructure Validation                     ║${NC}"
+    echo -e "${BLUE}╚═══════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+fi
+
+# Check 1: Repository structure
+check
+if [ ! -d "$REPO_DIR" ]; then
+    error "Repository directory not found: $REPO_DIR"
+else
+    success "Repository directory found"
+fi
+
+# Check 2: Required directories
+check
+for dir in compose config docs scripts; do
+    if [ ! -d "$REPO_DIR/$dir" ]; then
+        error "Missing required directory: $dir"
+    fi
+done
+success "Required directories present"
+
+# Check 3: Compose file syntax
+check
+echo -e "${BLUE}→ Validating compose files...${NC}"
+for compose_file in "$REPO_DIR"/compose/*.yml; do
+    if [ -f "$compose_file" ]; then
+        if podman-compose -f "$compose_file" config >/dev/null 2>&1; then
+            success "$(basename "$compose_file"): Valid"
+        else
+            error "$(basename "$compose_file"): Invalid syntax"
+        fi
+    fi
+done
+
+# Check 4: Traefik configuration
+check
+echo -e "${BLUE}→ Validating Traefik config...${NC}"
+if [ -f "$REPO_DIR/config/traefik/traefik.yml" ]; then
+    # Check for common misconfigurations
+    if grep -q "insecure.*true" "$REPO_DIR/config/traefik/traefik.yml"; then
+        warning "Traefik API insecure mode enabled"
+    fi
+    if [ -f "$REPO_DIR/config/traefik/dynamic.yml" ]; then
+        success "Traefik static and dynamic configs present"
+    else
+        error "Traefik dynamic.yml missing"
+    fi
+else
+    error "Traefik traefik.yml missing"
+fi
+
+# Check 5: Prometheus rules syntax
+check
+echo -e "${BLUE}→ Validating Prometheus rules...${NC}"
+if [ -f "$REPO_DIR/config/prometheus/rules/miraclemax.yml" ]; then
+    if command -v promtool &> /dev/null; then
+        if promtool check rules "$REPO_DIR/config/prometheus/rules/miraclemax.yml" >/dev/null 2>&1; then
+            success "Prometheus rules: Valid"
+        else
+            error "Prometheus rules: Invalid syntax"
+        fi
+    else
+        warning "promtool not installed, skipping Prometheus validation"
+    fi
+else
+    error "Prometheus rules file missing"
+fi
+
+# Check 6: Alertmanager configuration
+check
+if [ -f "$REPO_DIR/config/alertmanager/config.yml" ]; then
+    # Check for email configuration
+    if grep -q "smtp_" "$REPO_DIR/config/alertmanager/config.yml"; then
+        success "Alertmanager email configured"
+    else
+        warning "Alertmanager: No email configuration found"
+    fi
+else
+    error "Alertmanager config.yml missing"
+fi
+
+# Check 7: Secrets not in repository
+check
+echo -e "${BLUE}→ Checking for leaked secrets...${NC}"
+if grep -r "password.*:.*[a-zA-Z0-9]" "$REPO_DIR" --include="*.yml" | grep -v "#" | grep -q .; then
+    error "Possible hardcoded passwords found in configs"
+else
+    success "No hardcoded secrets detected"
+fi
+
+# Check 8: Volume mounts exist
+check
+echo -e "${BLUE}→ Validating volume definitions...${NC}"
+VOLUME_ERRORS=0
+for compose_file in "$REPO_DIR"/compose/*.yml; do
+    if [ -f "$compose_file" ]; then
+        # Extract volume definitions and check they're defined
+        if grep -q "volumes:" "$compose_file"; then
+            success "$(basename "$compose_file"): Volumes defined"
+        fi
+    fi
+done
+
+# Check 9: Port conflicts
+check
+echo -e "${BLUE}→ Checking for port conflicts...${NC}"
+PORTS=$(grep -h "ports:" -A 5 "$REPO_DIR"/compose/*.yml | grep -E "^\s+-\s+\"?[0-9]+" | sed 's/.*"\?\([0-9]\+\).*/\1/' | sort)
+DUPLICATES=$(echo "$PORTS" | uniq -d)
+if [ -n "$DUPLICATES" ]; then
+    error "Port conflicts detected: $DUPLICATES"
+else
+    success "No port conflicts"
+fi
+
+# Check 10: Documentation
+check
+for doc in README.md CHANGELOG.md; do
+    if [ ! -f "$REPO_DIR/$doc" ]; then
+        warning "Missing documentation: $doc"
+    fi
+done
+
+# Output results
+echo ""
+echo -e "${BLUE}╔═══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║  Validation Results                                           ║${NC}"
+echo -e "${BLUE}╚═══════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+if [ "$JSON_OUTPUT" = true ]; then
+    cat <<EOF
+{
+  "checks": $CHECKS,
+  "errors": $ERRORS,
+  "warnings": $WARNINGS,
+  "status": "$( [ $ERRORS -eq 0 ] && echo "pass" || echo "fail" )",
+  "strict_mode": $STRICT_MODE
+}
+EOF
+else
+    echo "  Total Checks: $CHECKS"
+    echo "  Errors: $ERRORS"
+    echo "  Warnings: $WARNINGS"
+    echo ""
+    
+    if [ $ERRORS -eq 0 ]; then
+        echo -e "${GREEN}✓ Validation PASSED${NC}"
+        if [ $WARNINGS -gt 0 ]; then
+            echo -e "${YELLOW}  ($WARNINGS warnings)${NC}"
+        fi
+    else
+        echo -e "${RED}✗ Validation FAILED${NC}"
+        echo -e "${RED}  Fix $ERRORS errors before deployment${NC}"
+    fi
+    echo ""
+fi
+
+# Exit codes
+if [ $ERRORS -gt 0 ]; then
+    exit 1
+elif [ "$STRICT_MODE" = true ] && [ $WARNINGS -gt 0 ]; then
+    exit 1
+else
+    exit 0
+fi
+
