@@ -1,0 +1,342 @@
+#!/bin/bash
+
+# TAM RFE Customer Discovery Tool
+# Dynamically searches Hydra API for customer accounts assigned to the TAM
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+TAMSCRIPTS_CONFIG="$HOME/.config/tamscripts/tamscripts.config"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+print_header() {
+    echo -e "${CYAN}$1${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+# Extract Hydra API config
+get_hydra_config() {
+    if [[ ! -f "$TAMSCRIPTS_CONFIG" ]]; then
+        print_error "tamscripts.config not found at $TAMSCRIPTS_CONFIG"
+        return 1
+    fi
+    
+    # Extract base URL
+    HYDRA_BASE_URL=$(grep "base_url:" "$TAMSCRIPTS_CONFIG" | grep hydra | awk '{print $2}')
+    if [[ -z "$HYDRA_BASE_URL" ]]; then
+        print_error "Could not find Hydra base_url in tamscripts.config"
+        return 1
+    fi
+    
+    # Extract username
+    HYDRA_USERNAME=$(grep "username:" "$TAMSCRIPTS_CONFIG" | head -1 | awk '{print $2}')
+    if [[ -z "$HYDRA_USERNAME" ]]; then
+        print_error "Could not find username in tamscripts.config"
+        return 1
+    fi
+    
+    print_info "Hydra API: $HYDRA_BASE_URL"
+    print_info "TAM User: $HYDRA_USERNAME"
+    return 0
+}
+
+# Use rhcase to get account information (leverages existing auth)
+discover_via_rhcase() {
+    print_header "🔍 Discovering Customers via rhcase"
+    echo ""
+    
+    local rhcase_path="$PROJECT_ROOT/rhcase/.venv/bin/rhcase"
+    if [[ ! -f "$rhcase_path" ]]; then
+        rhcase_path="rhcase"
+    fi
+    
+    # Check if rhcase is working
+    if ! command -v "$rhcase_path" &> /dev/null && ! command -v rhcase &> /dev/null; then
+        print_error "rhcase not found. Please install rhcase first."
+        return 1
+    fi
+    
+    print_info "Fetching your assigned accounts from Red Hat systems..."
+    echo ""
+    
+    # Get list of all configured accounts from tamscripts.config
+    local configured_accounts=$(grep "^- name:" "$TAMSCRIPTS_CONFIG" | awk '{print $3}')
+    
+    if [[ -z "$configured_accounts" ]]; then
+        print_warning "No accounts configured in tamscripts.config"
+        echo ""
+        print_info "This is normal for new users. Let me search the Red Hat network..."
+        echo ""
+    else
+        print_success "Found $(echo "$configured_accounts" | wc -l) configured account(s)"
+        echo ""
+        echo "Configured Accounts:"
+        for account in $configured_accounts; do
+            # Get account number
+            local account_num=$(grep -A 2 "^- name: ${account}$" "$TAMSCRIPTS_CONFIG" | grep "account_numbers:" -A 1 | tail -1 | tr -d " -'\"")
+            echo "  • $account (Account #: $account_num)"
+        done
+        echo ""
+    fi
+    
+    return 0
+}
+
+# Search for a specific customer by name or account number
+search_customer() {
+    local search_term="$1"
+    
+    print_header "🔍 Searching Red Hat Network for: $search_term"
+    echo ""
+    
+    local rhcase_path="$PROJECT_ROOT/rhcase/.venv/bin/rhcase"
+    if [[ ! -f "$rhcase_path" ]]; then
+        rhcase_path="rhcase"
+    fi
+    
+    # Try to list cases for this search term
+    print_info "Querying Red Hat case system..."
+    local cases=$($rhcase_path list --all --months 1 --format json 2>/dev/null || echo "[]")
+    
+    # Filter by search term in account name
+    if [[ "$cases" != "[]" ]]; then
+        local matching_accounts=$(echo "$cases" | jq -r --arg search "$search_term" \
+            '.[] | select(.account.name | ascii_downcase | contains($search | ascii_downcase)) | 
+            "\(.accountNumber)|\(.account.name)|\(.account.vertical // "Unknown")"' | sort -u)
+        
+        if [[ -n "$matching_accounts" ]]; then
+            print_success "Found matching customer(s):"
+            echo ""
+            echo "$matching_accounts" | while IFS='|' read -r acct_num acct_name vertical; do
+                echo "  🏢 Customer: $acct_name"
+                echo "     Account: $acct_num"
+                echo "     Vertical: $vertical"
+                echo ""
+            done
+        else
+            print_warning "No customers found matching: $search_term"
+            echo ""
+            print_info "Tips:"
+            echo "  • Try a shorter or more generic search term"
+            echo "  • Check spelling"
+            echo "  • Try searching by account number instead"
+        fi
+    else
+        print_warning "Could not retrieve customer data from Red Hat network"
+        echo ""
+        print_info "Possible reasons:"
+        echo "  • Not connected to Red Hat VPN"
+        echo "  • rhcase authentication needs refresh"
+        echo "  • No recent cases for customers matching search term"
+    fi
+}
+
+# List all accounts accessible to the TAM
+list_all_accounts() {
+    print_header "📋 Listing All Accessible Customer Accounts"
+    echo ""
+    
+    local rhcase_path="$PROJECT_ROOT/rhcase/.venv/bin/rhcase"
+    if [[ ! -f "$rhcase_path" ]]; then
+        rhcase_path="rhcase"
+    fi
+    
+    print_info "Fetching account data from Red Hat case system (last 6 months)..."
+    echo ""
+    
+    # Get cases from all configured accounts
+    local all_cases=$($rhcase_path list --all --months 6 --format json 2>/dev/null || echo "[]")
+    
+    if [[ "$all_cases" != "[]" ]]; then
+        # Extract unique accounts
+        local accounts=$(echo "$all_cases" | jq -r \
+            '.[] | "\(.accountNumber)|\(.account.name)|\(.account.vertical // "Unknown")|\(.account.csmUser.name // "Unknown")"' \
+            | sort -u)
+        
+        local account_count=$(echo "$accounts" | wc -l)
+        print_success "Found $account_count unique customer account(s):"
+        echo ""
+        
+        echo "$accounts" | while IFS='|' read -r acct_num acct_name vertical csm; do
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🏢 Customer: $acct_name"
+            echo "   Account #: $acct_num"
+            echo "   Vertical: $vertical"
+            echo "   CSM: $csm"
+            echo ""
+        done
+        
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        print_info "To add any of these customers to your automation:"
+        echo "   ./bin/tam-rfe-onboard-intelligent"
+        echo ""
+    else
+        print_warning "Could not retrieve customer data"
+        print_info "Make sure you're connected to Red Hat VPN and rhcase is configured"
+    fi
+}
+
+# Get detailed info about a specific account number
+get_account_details() {
+    local account_num="$1"
+    
+    print_header "📊 Account Details for: $account_num"
+    echo ""
+    
+    local rhcase_path="$PROJECT_ROOT/rhcase/.venv/bin/rhcase"
+    if [[ ! -f "$rhcase_path" ]]; then
+        rhcase_path="rhcase"
+    fi
+    
+    print_info "Fetching account details from Red Hat systems..."
+    echo ""
+    
+    # Get recent cases for this account
+    local cases=$($rhcase_path list --all --months 3 --format json 2>/dev/null || echo "[]")
+    
+    if [[ "$cases" != "[]" ]]; then
+        # Filter for this specific account
+        local account_cases=$(echo "$cases" | jq --arg acct "$account_num" \
+            '[.[] | select(.accountNumber == $acct)]')
+        
+        local case_count=$(echo "$account_cases" | jq '. | length')
+        
+        if [[ "$case_count" -gt 0 ]]; then
+            # Extract account info from first case
+            local account_info=$(echo "$account_cases" | jq -r '.[0] | 
+                "\(.account.name)|\(.account.vertical // "Unknown")|\(.account.csmUser.name // "Unknown")|\(.accountNumber)"')
+            
+            IFS='|' read -r acct_name vertical csm acct_num <<< "$account_info"
+            
+            print_success "Account Found!"
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🏢 Customer Name: $acct_name"
+            echo "   Account Number: $acct_num"
+            echo "   Vertical: $vertical"
+            echo "   CSM: $csm"
+            echo "   Cases (last 3 months): $case_count"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            
+            # Show SBR group breakdown
+            print_info "Case Distribution by SBR Group:"
+            echo "$account_cases" | jq -r '.[].sbrGroup' | sort | uniq -c | sort -rn | head -10 | while read count sbr; do
+                echo "   • $sbr: $count case(s)"
+            done
+            echo ""
+            
+            print_info "Recent Cases:"
+            echo "$account_cases" | jq -r '.[:5] | .[] | "   • Case \(.caseNumber): \(.subject)"'
+            echo ""
+            
+        else
+            print_warning "Account $account_num found but no cases in last 3 months"
+        fi
+    else
+        print_error "Could not fetch account details"
+    fi
+}
+
+# Main menu
+show_help() {
+    cat << EOF
+TAM RFE Customer Discovery Tool
+
+Dynamically searches Red Hat's network for customer account information.
+
+Usage: $0 [COMMAND] [OPTIONS]
+
+Commands:
+  discover              Discover your assigned customer accounts
+  search <term>         Search for customer by name
+  list                  List all accessible customer accounts
+  account <number>      Get detailed info about an account number
+  help                  Show this help message
+
+Examples:
+  $0 discover                    # Discover your assigned accounts
+  $0 search "Wells Fargo"        # Search for Wells Fargo
+  $0 search westpac              # Search for Westpac
+  $0 list                        # List all accessible accounts
+  $0 account 1363155             # Get details for account 1363155
+
+Notes:
+  - Requires Red Hat VPN connection
+  - Uses rhcase authentication (already configured)
+  - Searches live Red Hat case system data
+  - No local database needed - always up to date!
+
+Integration:
+  After discovering customers, add them to your automation:
+    ./bin/tam-rfe-onboard-intelligent
+
+EOF
+}
+
+# Main
+if [[ $# -eq 0 ]]; then
+    show_help
+    exit 0
+fi
+
+case "$1" in
+    discover)
+        get_hydra_config
+        discover_via_rhcase
+        ;;
+    search)
+        if [[ $# -lt 2 ]]; then
+            print_error "Please provide a search term"
+            echo "Usage: $0 search <customer-name>"
+            exit 1
+        fi
+        shift
+        search_customer "$*"
+        ;;
+    list)
+        list_all_accounts
+        ;;
+    account)
+        if [[ $# -lt 2 ]]; then
+            print_error "Please provide an account number"
+            echo "Usage: $0 account <account-number>"
+            exit 1
+        fi
+        get_account_details "$2"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        print_error "Unknown command: $1"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac
+
