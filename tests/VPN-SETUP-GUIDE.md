@@ -209,3 +209,31 @@ vagrant destroy alma9
 *VPN Setup Guide for RFE Bug Tracker Automation*  
 *Testing Online Installation with GitLab CEE Access*
 
+
+## Additional Setup Notes
+
+### COPR Repository (Included in VM)
+
+The Alma 9 VM automatically configures the Red Hat COPR repository for VPN packages during provisioning:
+
+```bash
+sudo dnf copr enable copr.devel.redhat.com/@endpoint-systems-sysadmins/unsupported-fedora-packages
+```
+
+This provides NetworkManager-openvpn and related packages. The Vagrantfile handles this automatically, but if you're setting up VPN on a different system, you'll need to enable this repo first.
+
+### Manual COPR Setup (if needed)
+
+If setting up VPN on a non-VM system:
+
+```bash
+# Install COPR plugin
+sudo dnf install -y 'dnf-command(copr)'
+
+# Enable VPN packages repo
+sudo dnf copr enable -y copr.devel.redhat.com/@endpoint-systems-sysadmins/unsupported-fedora-packages
+
+# Install VPN tools
+sudo dnf install -y NetworkManager-openvpn openvpn
+```
+
