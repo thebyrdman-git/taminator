@@ -1,54 +1,62 @@
-# TAM RFE Report Scheduler - Example Schedules
-# Copy this to ~/.config/tam-rfe-scheduler/schedules.yaml
-
 schedules:
-  # Morning briefing - All TAM assignments
-  - id: morning-tam-brief
-    name: "Morning TAM Brief"
-    command: "tam-rfe-hydra-api my-assignments"
-    frequency: "0 8 * * 1-5"  # Weekdays at 8am
-    email: jbyrd@redhat.com
-    format: text
-    enabled: true
-    created: 2025-10-16T12:00:00Z
-
-  # Weekly customer review
+  # Basic Example: Weekly report
   - id: westpac-weekly
-    name: "Westpac Weekly Summary"
-    command: "tam-rfe-chat 'Show Westpac cases from last 7 days, grouped by SBR'"
-    frequency: "0 16 * * 5"  # Friday at 4pm
-    email: jbyrd@redhat.com
-    format: text
+    name: "Westpac Weekly Report"
+    command: "tam-rfe-chat 'Show Westpac cases from last 7 days'"
+    frequency: "0 8 * * 1"  # Cron format: minute hour day month weekday
+    email: "jbyrd@redhat.com"
+    format: "text"
+    template: "plain"
+    condition: "always"
     enabled: true
-    created: 2025-10-16T12:00:00Z
-
-  # Daily intelligence validation
-  - id: config-health-check
-    name: "Intelligence Health Check"
-    command: "tam-rfe-validate-intelligence"
-    frequency: "0 0 * * *"  # Daily at midnight
-    email: jbyrd@redhat.com
-    format: text
+    created: "2025-10-16T12:00:00"
+  
+  # Phase 3: Template Example - Beautiful HTML digest
+  - id: weekly-digest
+    name: "Weekly Customer Digest"
+    command: "tam-rfe-chat 'Westpac and Alma weekly summary'"
+    frequency: "0 16 * * 5"  # Friday at 4 PM
+    email: "jbyrd@redhat.com"
+    format: "text"
+    template: "weekly_digest"  # Uses professional HTML template
+    condition: "always"
     enabled: true
-    created: 2025-10-16T12:00:00Z
-
-  # Geographic portfolio review
-  - id: apac-portfolio
-    name: "APAC Portfolio Review"
-    command: "tam-rfe-discover-customers-hydra geo APAC"
-    frequency: "0 9 * * 1"  # Monday at 9am
-    email: jbyrd@redhat.com
-    format: text
+    created: "2025-10-16T15:00:00"
+  
+  # Phase 3: Conditional Example - Only send if Sev 1 cases exist
+  - id: sev1-alert
+    name: "Sev 1 Alert"
+    command: "tam-rfe-chat 'Show all Sev 1 cases with details'"
+    frequency: "0 * * * *"  # Every hour
+    email: "jbyrd@redhat.com"
+    format: "text"
+    template: "plain"
+    condition: "sev1_count > 0"  # Only execute if Sev 1 cases found
+    pre_check_command: "tam-rfe-chat 'Count Sev 1 cases'"
     enabled: true
-    created: 2025-10-16T12:00:00Z
-
-  # NAPS organization review
-  - id: naps-review
-    name: "NAPS Organization Review"
-    command: "tam-rfe-hydra-api org NAPS"
-    frequency: "0 10 * * 3"  # Wednesday at 10am
-    email: jbyrd@redhat.com
-    format: text
-    enabled: false  # Disabled example
-    created: 2025-10-16T12:00:00Z
-
+    created: "2025-10-16T15:00:00"
+  
+  # Phase 3: Slack Integration - Post to team channel
+  - id: daily-standup
+    name: "Daily Team Standup Data"
+    command: "tam-rfe-hydra-api my-assignments"
+    frequency: "0 9 * * 1-5"  # Weekdays at 9 AM
+    email: "jbyrd@redhat.com"
+    format: "text"
+    template: "plain"
+    condition: "weekday"  # Only on weekdays
+    slack_webhook: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    enabled: true
+    created: "2025-10-16T15:00:00"
+  
+  # Phase 3: Executive Brief - Professional Red Hat report
+  - id: executive-brief
+    name: "Executive Brief"
+    command: "tam-rfe-discover-customers-hydra my-portfolio"
+    frequency: "0 17 * * *"  # Daily at 5 PM
+    email: "leadership@redhat.com"
+    format: "text"
+    template: "executive_brief"  # Red Hat branded template
+    condition: "weekday"
+    enabled: true
+    created: "2025-10-16T15:00:00"

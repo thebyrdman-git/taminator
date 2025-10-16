@@ -2,7 +2,7 @@
 
 """
 TAM RFE Report Scheduler Daemon
-Automatic execution of scheduled reports
+Automatic execution of scheduled reports with Phase 3 features
 """
 
 import os
@@ -17,6 +17,26 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 from croniter import croniter
+
+# Add lib directory to path for Phase 3 modules
+SCHEDULER_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(SCHEDULER_ROOT / "lib"))
+
+try:
+    from template_engine import (
+        ReportTemplate, 
+        WEEKLY_DIGEST_HTML, 
+        EXECUTIVE_BRIEF_HTML,
+        create_weekly_digest_context,
+        create_executive_brief_context
+    )
+    from conditional_executor import ConditionalExecutor
+    from slack_notifier import SlackNotifier, create_success_blocks, create_failure_blocks
+    PHASE3_AVAILABLE = True
+except ImportError:
+    PHASE3_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("Phase 3 modules not available - advanced features disabled")
 
 # Configuration
 CONFIG_DIR = Path.home() / ".config" / "tam-rfe-scheduler"
@@ -97,11 +117,23 @@ class SchedulerDaemon:
             return False
     
     def execute_command(self, schedule):
-        """Execute scheduled command"""
+        """Execute scheduled command with Phase 3 features"""
         schedule_id = schedule.get('id', 'unknown')
+        schedule_name = schedule.get('name', schedule_id)
         command = schedule.get('command', '')
         
         logger.info(f"Executing schedule: {schedule_id}")
+        
+        # Phase 3: Check condition before execution
+        if PHASE3_AVAILABLE:
+            condition = schedule.get('condition')
+            if condition and condition != 'always':
+                should_run, reason = ConditionalExecutor.should_execute(schedule)
+                logger.info(f"Condition check: {reason}")
+                if not should_run:
+                    logger.info(f"⏭️  Skipping execution - condition not met")
+                    return True  # Not a failure, just skipped
+        
         logger.info(f"Command: {command}")
         
         try:
@@ -116,6 +148,7 @@ class SchedulerDaemon:
                 cwd=str(Path.home())
             )
             duration = time.time() - start_time
+            output = result.stdout if result.returncode == 0 else (result.stderr or result.stdout)
             
             # Log execution
             log_entry = {
@@ -127,27 +160,95 @@ class SchedulerDaemon:
             }
             self.log_execution(log_entry)
             
-            # Send email
-            if result.returncode == 0:
+            # Phase 3: Render template if specified
+            template_name = schedule.get('template', 'plain')
+            if PHASE3_AVAILABLE and template_name != 'plain':
+                output = self.render_template(template_name, output, schedule)
+            
+            # Send notifications
+            success = result.returncode == 0
+            if success:
                 logger.info(f"✅ Command completed successfully ({duration:.1f}s)")
-                self.send_email(schedule, result.stdout, success=True, duration=duration)
             else:
                 logger.error(f"❌ Command failed with exit code {result.returncode}")
-                self.send_email(schedule, result.stderr or result.stdout, success=False, duration=duration)
+            
+            # Email notification
+            self.send_email(schedule, output, success=success, duration=duration)
+            
+            # Phase 3: Slack notification
+            if PHASE3_AVAILABLE:
+                slack_webhook = schedule.get('slack_webhook')
+                if slack_webhook:
+                    self.send_slack_notification(schedule, output, success, duration)
             
             # Update last_run in config
             self.update_last_run(schedule_id)
             
-            return result.returncode == 0
+            return success
             
         except subprocess.TimeoutExpired:
             logger.error(f"⏱️  Command timed out after 5 minutes")
-            self.send_email(schedule, "Command execution timed out (>5 minutes)", success=False, duration=300)
+            error_msg = "Command execution timed out (>5 minutes)"
+            self.send_email(schedule, error_msg, success=False, duration=300)
+            if PHASE3_AVAILABLE and schedule.get('slack_webhook'):
+                self.send_slack_notification(schedule, error_msg, False, 300)
             return False
         except Exception as e:
             logger.error(f"❌ Execution failed: {e}")
-            self.send_email(schedule, f"Execution error: {e}", success=False, duration=0)
+            error_msg = f"Execution error: {e}"
+            self.send_email(schedule, error_msg, success=False, duration=0)
+            if PHASE3_AVAILABLE and schedule.get('slack_webhook'):
+                self.send_slack_notification(schedule, error_msg, False, 0)
             return False
+    
+    def render_template(self, template_name: str, output: str, schedule: dict) -> str:
+        """Render output using specified template"""
+        try:
+            if template_name == 'weekly_digest':
+                context = create_weekly_digest_context(output)
+                template = ReportTemplate(template_string=WEEKLY_DIGEST_HTML)
+                return template.render(context)
+            elif template_name == 'executive_brief':
+                context = create_executive_brief_context(output)
+                template = ReportTemplate(template_string=EXECUTIVE_BRIEF_HTML)
+                return template.render(context)
+            else:
+                # Custom template from file
+                if template_name.startswith('custom:'):
+                    template_path = template_name.split(':', 1)[1]
+                    template = ReportTemplate(template_path=template_path)
+                    context = {'output': output, 'schedule_name': schedule.get('name')}
+                    return template.render(context)
+            return output
+        except Exception as e:
+            logger.error(f"Template rendering failed: {e}")
+            return output  # Fallback to plain output
+    
+    def send_slack_notification(self, schedule: dict, output: str, success: bool, duration: float):
+        """Send notification to Slack"""
+        webhook_url = schedule.get('slack_webhook')
+        if not webhook_url:
+            return
+        
+        try:
+            notifier = SlackNotifier(webhook_url)
+            schedule_name = schedule.get('name', schedule.get('id'))
+            status = "success" if success else "failed"
+            
+            sent = notifier.send_message(
+                title=schedule_name,
+                output=output,
+                status=status,
+                duration=duration,
+                schedule_name=schedule_name
+            )
+            
+            if sent:
+                logger.info(f"📱 Slack notification sent")
+            else:
+                logger.warning(f"⚠️  Slack notification failed to send")
+        except Exception as e:
+            logger.error(f"❌ Slack notification error: {e}")
     
     def send_email(self, schedule, output, success=True, duration=0):
         """Send email notification"""

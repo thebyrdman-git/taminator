@@ -50,12 +50,30 @@ show_help() {
     echo "  logs [id]    View execution history"
     echo "  help         Show this help"
     echo ""
-    echo "Examples:"
+    echo "Basic Example:"
     echo "  tam-rfe-schedule add \"Westpac Weekly\" \\"
     echo "    --command \"tam-rfe-chat 'Westpac summary'\" \\"
     echo "    --frequency \"0 8 * * 1\" \\"
     echo "    --email jbyrd@redhat.com"
     echo ""
+    echo "Advanced Examples (Phase 3):"
+    echo "  # With template"
+    echo "  tam-rfe-schedule add \"Weekly Digest\" \\"
+    echo "    --command \"...\" --frequency \"0 8 * * 1\" \\"
+    echo "    --email you@redhat.com --template weekly_digest"
+    echo ""
+    echo "  # With condition"
+    echo "  tam-rfe-schedule add \"Sev 1 Alert\" \\"
+    echo "    --command \"...\" --frequency \"0 * * * *\" \\"
+    echo "    --email you@redhat.com --condition \"sev1_count > 0\" \\"
+    echo "    --pre-check \"tam-rfe-chat 'Count Sev 1'\""
+    echo ""
+    echo "  # With Slack"
+    echo "  tam-rfe-schedule add \"Team Update\" \\"
+    echo "    --command \"...\" --frequency \"0 9 * * 1\" \\"
+    echo "    --slack-webhook \"https://hooks.slack.com/...\""
+    echo ""
+    echo "Commands:"
     echo "  tam-rfe-schedule start        # Start automatic execution"
     echo "  tam-rfe-schedule list"
     echo "  tam-rfe-schedule run westpac-weekly"
@@ -69,6 +87,10 @@ cmd_add() {
     local frequency=""
     local email=""
     local format="text"
+    local template="plain"
+    local condition="always"
+    local pre_check=""
+    local slack_webhook=""
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -87,6 +109,22 @@ cmd_add() {
                 ;;
             --format)
                 format="$2"
+                shift 2
+                ;;
+            --template)
+                template="$2"
+                shift 2
+                ;;
+            --condition)
+                condition="$2"
+                shift 2
+                ;;
+            --pre-check)
+                pre_check="$2"
+                shift 2
+                ;;
+            --slack-webhook)
+                slack_webhook="$2"
                 shift 2
                 ;;
             *)
@@ -120,7 +158,7 @@ cmd_add() {
         echo "schedules:" > "$SCHEDULES_FILE"
     fi
     
-    # Add schedule to YAML file (proper indent)
+    # Add schedule to YAML file (proper indent) with Phase 3 fields
     cat >> "$SCHEDULES_FILE" <<EOF
   - id: $schedule_id
     name: "$name"
@@ -128,6 +166,20 @@ cmd_add() {
     frequency: "$frequency"
     email: "$email"
     format: "$format"
+    template: "$template"
+    condition: "$condition"
+EOF
+    
+    # Add optional fields if provided
+    if [[ -n "$pre_check" ]]; then
+        echo "    pre_check_command: \"$pre_check\"" >> "$SCHEDULES_FILE"
+    fi
+    if [[ -n "$slack_webhook" ]]; then
+        echo "    slack_webhook: \"$slack_webhook\"" >> "$SCHEDULES_FILE"
+    fi
+    
+    # Add standard fields
+    cat >> "$SCHEDULES_FILE" <<EOF
     enabled: true
     created: $(date -Iseconds)
 EOF
@@ -137,6 +189,21 @@ EOF
     echo "Command: $command"
     echo "Frequency: $frequency (cron format)"
     echo "Email: $email"
+    
+    # Show Phase 3 features if configured
+    if [[ "$template" != "plain" ]]; then
+        echo "Template: $template"
+    fi
+    if [[ "$condition" != "always" ]]; then
+        echo "Condition: $condition"
+    fi
+    if [[ -n "$pre_check" ]]; then
+        echo "Pre-check: $pre_check"
+    fi
+    if [[ -n "$slack_webhook" ]]; then
+        echo "Slack: configured"
+    fi
+    
     echo ""
     echo "Next: tam-rfe-schedule run $schedule_id  # Test it"
 }
