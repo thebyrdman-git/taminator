@@ -1,0 +1,172 @@
+#!/bin/bash
+
+# TAM RFE Intelligence Engine Validator
+# Tests dynamic onboarding, config sync, and rhcase integration
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_header() {
+    echo -e "${BLUE}$1${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+validate_customer_config() {
+    local customer_key="$1"
+    local has_errors=0
+    
+    print_header "🔍 Validating intelligence engine for: $customer_key"
+    echo ""
+    
+    # Check customers.conf
+    echo "1️⃣ Checking customers.conf..."
+    if grep -q "^${customer_key}:" "$PROJECT_ROOT/config/customers.conf" 2>/dev/null; then
+        print_success "Found in customers.conf"
+        local conf_line=$(grep "^${customer_key}:" "$PROJECT_ROOT/config/customers.conf")
+        echo "   Entry: $conf_line"
+    else
+        print_error "Missing from customers.conf"
+        ((has_errors++))
+    fi
+    echo ""
+    
+    # Check tamscripts.config
+    echo "2️⃣ Checking tamscripts.config..."
+    if grep -q "^- name: ${customer_key}$" ~/.config/tamscripts/tamscripts.config 2>/dev/null; then
+        print_success "Found in tamscripts.config"
+        local account=$(grep -A 2 "^- name: ${customer_key}$" ~/.config/tamscripts/tamscripts.config | grep "account_numbers:" -A 1 | tail -1 | tr -d " -'\"")
+        echo "   Account: $account"
+    else
+        print_error "Missing from tamscripts.config"
+        ((has_errors++))
+    fi
+    echo ""
+    
+    # Test rhcase access
+    echo "3️⃣ Testing rhcase access..."
+    local rhcase_path="$PROJECT_ROOT/rhcase/.venv/bin/rhcase"
+    if [[ ! -f "$rhcase_path" ]]; then
+        rhcase_path="rhcase"
+    fi
+    
+    local cases=$($rhcase_path list "$customer_key" --months 1 --format json 2>/dev/null || echo "[]")
+    if [[ -n "$cases" ]] && [[ "$cases" != "[]" ]]; then
+        local case_count=$(echo "$cases" | jq '. | length' 2>/dev/null || echo "0")
+        print_success "rhcase found $case_count case(s)"
+        
+        # Show sample cases
+        if [[ "$case_count" -gt 0 ]]; then
+            echo "   Sample cases:"
+            echo "$cases" | jq -r '.[:3] | .[] | "      • Case \(.caseNumber): \(.subject)"' 2>/dev/null || true
+        fi
+    else
+        print_warning "rhcase returned no cases (might be expected)"
+    fi
+    echo ""
+    
+    # Test case search performance
+    echo "4️⃣ Testing case search performance..."
+    local start_time=$(date +%s%N)
+    $rhcase_path list "$customer_key" --months 1 --format json > /dev/null 2>&1 || true
+    local end_time=$(date +%s%N)
+    local duration=$((($end_time - $start_time) / 1000000))  # milliseconds
+    
+    if [[ $duration -lt 5000 ]]; then
+        print_success "Response time: ${duration}ms (Good)"
+    else
+        print_warning "Response time: ${duration}ms (Slow)"
+    fi
+    echo ""
+    
+    # Summary
+    if [[ $has_errors -eq 0 ]]; then
+        print_success "Validation complete: All checks passed!"
+        return 0
+    else
+        print_error "Validation complete: $has_errors error(s) found"
+        return 1
+    fi
+}
+
+validate_all_customers() {
+    print_header "🔍 Validating all configured customers"
+    echo ""
+    
+    local total=0
+    local passed=0
+    local failed=0
+    
+    # Get all customers from customers.conf
+    while IFS=':' read -r customer_key _rest; do
+        [[ -z "$customer_key" ]] && continue
+        [[ "$customer_key" =~ ^# ]] && continue
+        
+        ((total++))
+        
+        if validate_customer_config "$customer_key"; then
+            ((passed++))
+        else
+            ((failed++))
+        fi
+        echo ""
+        echo "════════════════════════════════════"
+        echo ""
+    done < "$PROJECT_ROOT/config/customers.conf"
+    
+    # Summary
+    print_header "📊 Validation Summary"
+    echo "Total customers: $total"
+    echo "Passed: $passed"
+    echo "Failed: $failed"
+    
+    if [[ $failed -eq 0 ]]; then
+        print_success "All customers validated successfully!"
+        return 0
+    else
+        print_error "$failed customer(s) failed validation"
+        return 1
+    fi
+}
+
+# Main
+if [[ $# -eq 0 ]]; then
+    # Validate all customers
+    validate_all_customers
+elif [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+    echo "Usage: $0 [customer-key]"
+    echo ""
+    echo "Validates the intelligence engine configuration and functionality."
+    echo ""
+    echo "Options:"
+    echo "  (no args)         Validate all configured customers"
+    echo "  <customer-key>    Validate specific customer"
+    echo "  --help, -h        Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0                  # Validate all customers"
+    echo "  $0 westpac          # Validate westpac only"
+else
+    # Validate specific customer
+    validate_customer_config "$1"
+fi
+
