@@ -129,16 +129,14 @@ Server Issue → Prometheus Rules → Alertmanager → Gmail SMTP → Mobile Pus
 - [x] **Log Aggregation:** Loki + Promtail with 30-day retention
 - [x] **Backup Automation:** GPG-encrypted backups with systemd timers
 - [x] **GitOps Deployment:** Ansible playbook with Git as single source of truth
-- [ ] **Distributed Tracing:** Jaeger for request flow analysis (deferred to Phase 3)
 
-### Phase 3: Intelligence & Automation (Q1 2026)
-- [ ] **Distributed Tracing:** Jaeger for request flow analysis
-- [ ] **Predictive Alerting:** ML-based anomaly detection
-- [ ] **Auto-Remediation:** Automated container restart/scaling
-- [ ] **Capacity Planning:** Resource usage prediction
-- [ ] **Security Monitoring:** Intrusion detection system
-- [ ] **Redis Cache Layer:** Performance optimization for n8n/Actual
-- [ ] **Long-Term Metrics:** VictoriaMetrics for extended retention
+### Phase 3: Optimization & Intelligence (Q1 2026)
+- [ ] **Redis Cache Layer:** Performance optimization for n8n/Actual Budget
+- [ ] **Long-Term Metrics:** VictoriaMetrics for extended retention beyond 90 days
+- [ ] **Auto-Remediation:** Automated container restart on failure
+- [ ] **Capacity Planning:** Resource usage trends and predictions
+- [ ] **Security Hardening:** Fail2ban, intrusion detection, audit logging
+- [ ] **Advanced Alerting:** Context-aware alert routing and suppression
 
 ### Phase 4: High Availability (Q2 2026)
 - [ ] **Multi-Node Setup:** Kubernetes migration or Podman clustering
