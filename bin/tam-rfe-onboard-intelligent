@@ -450,7 +450,17 @@ generate_intelligent_configuration() {
     echo ""
     
     print_section "🏢 CUSTOMER CONFIGURATIONS"
-    echo "$customer_data"
+    if [[ -f "$CUSTOMERS_CONF" ]] && [[ -s "$CUSTOMERS_CONF" ]]; then
+        echo "Configured customers:"
+        while IFS=: read -r key name account group; do
+            echo "  • $name (Account: $account)"
+            if [[ -n "$group" ]] && [[ "$group" != "unknown" ]]; then
+                echo "    Group ID: $group"
+            fi
+        done < "$CUSTOMERS_CONF"
+    else
+        echo "No customer configurations saved yet."
+    fi
     echo ""
     
     # Ask for confirmation
@@ -515,11 +525,11 @@ main() {
     
     print_success "I've learned your preferences and created personalized automation!"
     print_info "Next steps:"
-    echo "  1. Run: tam-rfe-monitor --intelligent"
-    echo "  2. I'll provide feedback-based learning as you use the system"
-    echo "  3. I'll adapt and improve based on your corrections"
+    echo "  1. Run: tam-rfe-chat"
+    echo "  2. Ask natural language questions about your customers"
+    echo "  3. Run: tam-rfe-validate-intelligence"
     echo ""
-    print_info "I'm now ready to provide personalized, predictive automation for your TAM workflow!"
+    print_info "Your personalized TAM workflow is ready!"
 }
 
 # Show help
