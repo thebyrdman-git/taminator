@@ -1,0 +1,336 @@
+#!/bin/bash
+
+# TAM RFE Report Scheduler
+# Schedule automated reports and case summaries
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCHEDULER_ROOT="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$HOME/.config/tam-rfe-scheduler"
+SCHEDULES_FILE="$CONFIG_DIR/schedules.yaml"
+
+# Colors (Sys Admin style - minimal)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Ensure config directory exists
+mkdir -p "$CONFIG_DIR"
+
+# Initialize schedules file if it doesn't exist
+if [[ ! -f "$SCHEDULES_FILE" ]]; then
+    cat > "$SCHEDULES_FILE" <<EOF
+# TAM RFE Report Schedules
+# Format: YAML
+schedules: []
+EOF
+fi
+
+show_help() {
+    echo "TAM RFE Report Scheduler"
+    echo "========================"
+    echo "Schedule automated reports and case summaries."
+    echo ""
+    echo "Aliases: tam-rfe-schedule, tam-rfe-scheduler, active-case-report-scheduler"
+    echo ""
+    echo "Usage: tam-rfe-schedule <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  add          Add new scheduled report"
+    echo "  list         Show all schedules"
+    echo "  remove <id>  Remove schedule"
+    echo "  run <id>     Execute schedule now (testing)"
+    echo "  status       Show daemon status"
+    echo "  logs [id]    View execution history"
+    echo "  help         Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  tam-rfe-schedule add \"Westpac Weekly\" \\"
+    echo "    --command \"tam-rfe-chat 'Westpac summary'\" \\"
+    echo "    --frequency \"0 8 * * 1\" \\"
+    echo "    --email jbyrd@redhat.com"
+    echo ""
+    echo "  tam-rfe-schedule list"
+    echo "  tam-rfe-schedule run westpac-weekly"
+    echo "  tam-rfe-schedule logs westpac-weekly"
+    echo ""
+}
+
+cmd_add() {
+    local name=""
+    local command=""
+    local frequency=""
+    local email=""
+    local format="text"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --command)
+                command="$2"
+                shift 2
+                ;;
+            --frequency)
+                frequency="$2"
+                shift 2
+                ;;
+            --email)
+                email="$2"
+                shift 2
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$name" ]]; then
+                    name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Validate required fields
+    if [[ -z "$name" ]] || [[ -z "$command" ]] || [[ -z "$frequency" ]] || [[ -z "$email" ]]; then
+        echo -e "${RED}❌ Missing required fields${NC}"
+        echo "Required: name, --command, --frequency, --email"
+        return 1
+    fi
+    
+    # Generate schedule ID from name
+    local schedule_id=$(echo "$name" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
+    
+    # Check if schedule already exists
+    if grep -q "id: $schedule_id" "$SCHEDULES_FILE" 2>/dev/null; then
+        echo -e "${RED}❌ Schedule '$schedule_id' already exists${NC}"
+        echo "Use: tam-rfe-schedule remove $schedule_id"
+        return 1
+    fi
+    
+    # Add schedule to YAML file
+    cat >> "$SCHEDULES_FILE" <<EOF
+
+  - id: $schedule_id
+    name: "$name"
+    command: "$command"
+    frequency: "$frequency"
+    email: "$email"
+    format: "$format"
+    enabled: true
+    created: $(date -Iseconds)
+EOF
+    
+    echo -e "${GREEN}✅ Schedule added${NC}"
+    echo "ID: $schedule_id"
+    echo "Command: $command"
+    echo "Frequency: $frequency (cron format)"
+    echo "Email: $email"
+    echo ""
+    echo "Next: tam-rfe-schedule run $schedule_id  # Test it"
+}
+
+cmd_list() {
+    if [[ ! -f "$SCHEDULES_FILE" ]] || ! grep -q "id:" "$SCHEDULES_FILE" 2>/dev/null; then
+        echo "No schedules configured"
+        echo ""
+        echo "Add one: tam-rfe-schedule add \"Report Name\" --command \"...\" --frequency \"0 8 * * 1\" --email you@redhat.com"
+        return 0
+    fi
+    
+    echo "Scheduled Reports"
+    echo "================="
+    echo ""
+    
+    # Parse and display schedules
+    local in_schedule=false
+    local id="" name="" command="" frequency="" email="" enabled=""
+    
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*id:[[:space:]]*(.*) ]]; then
+            # Print previous schedule if exists
+            if [[ -n "$id" ]]; then
+                local status_icon="✅"
+                [[ "$enabled" != "true" ]] && status_icon="⏸️ "
+                echo "$status_icon $id: $name"
+                echo "   Command: $command"
+                echo "   Schedule: $frequency"
+                echo "   Email: $email"
+                echo ""
+            fi
+            # Start new schedule
+            id="${BASH_REMATCH[1]}"
+            name="" command="" frequency="" email="" enabled="true"
+        elif [[ "$line" =~ ^[[:space:]]*name:[[:space:]]*(.*) ]]; then
+            name="${BASH_REMATCH[1]}"
+            name="${name//\"/}"  # Remove quotes
+        elif [[ "$line" =~ ^[[:space:]]*command:[[:space:]]*(.*) ]]; then
+            command="${BASH_REMATCH[1]}"
+            command="${command//\"/}"
+        elif [[ "$line" =~ ^[[:space:]]*frequency:[[:space:]]*(.*) ]]; then
+            frequency="${BASH_REMATCH[1]}"
+            frequency="${frequency//\"/}"
+        elif [[ "$line" =~ ^[[:space:]]*email:[[:space:]]*(.*) ]]; then
+            email="${BASH_REMATCH[1]}"
+            email="${email//\"/}"
+        elif [[ "$line" =~ ^[[:space:]]*enabled:[[:space:]]*(.*) ]]; then
+            enabled="${BASH_REMATCH[1]}"
+        fi
+    done < "$SCHEDULES_FILE"
+    
+    # Print last schedule
+    if [[ -n "$id" ]]; then
+        local status_icon="✅"
+        [[ "$enabled" != "true" ]] && status_icon="⏸️ "
+        echo "$status_icon $id: $name"
+        echo "   Command: $command"
+        echo "   Schedule: $frequency"
+        echo "   Email: $email"
+        echo ""
+    fi
+}
+
+cmd_remove() {
+    local schedule_id="$1"
+    
+    if [[ -z "$schedule_id" ]]; then
+        echo -e "${RED}❌ Schedule ID required${NC}"
+        echo "Usage: tam-rfe-schedule remove <id>"
+        return 1
+    fi
+    
+    if ! grep -q "id: $schedule_id" "$SCHEDULES_FILE" 2>/dev/null; then
+        echo -e "${RED}❌ Schedule '$schedule_id' not found${NC}"
+        echo "Run: tam-rfe-schedule list"
+        return 1
+    fi
+    
+    # Remove schedule (simple approach: filter out the schedule block)
+    # This is a basic implementation - could be improved with proper YAML parsing
+    local temp_file=$(mktemp)
+    awk -v id="$schedule_id" '
+        /^  - id:/ { in_block = ($0 ~ id) }
+        !in_block { print }
+        /^  - id:/ && !($0 ~ id) { in_block = 0 }
+    ' "$SCHEDULES_FILE" > "$temp_file"
+    
+    mv "$temp_file" "$SCHEDULES_FILE"
+    
+    echo -e "${GREEN}✅ Schedule removed: $schedule_id${NC}"
+}
+
+cmd_run() {
+    local schedule_id="$1"
+    
+    if [[ -z "$schedule_id" ]]; then
+        echo -e "${RED}❌ Schedule ID required${NC}"
+        echo "Usage: tam-rfe-schedule run <id>"
+        return 1
+    fi
+    
+    # Extract command from schedule
+    local command=$(awk -v id="$schedule_id" '
+        /^  - id:/ { current = ($0 ~ id) }
+        current && /command:/ { 
+            sub(/.*command: *"?/, "")
+            sub(/"?$/, "")
+            print
+            exit
+        }
+    ' "$SCHEDULES_FILE")
+    
+    if [[ -z "$command" ]]; then
+        echo -e "${RED}❌ Schedule '$schedule_id' not found${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}ℹ️  Executing: $command${NC}"
+    echo ""
+    
+    # Execute command and capture output
+    local output_file=$(mktemp)
+    local start_time=$(date +%s)
+    
+    if bash -c "cd $HOME && $command" > "$output_file" 2>&1; then
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        
+        echo -e "${GREEN}✅ Command completed (${duration}s)${NC}"
+        echo ""
+        echo "Output:"
+        cat "$output_file"
+        
+        # TODO: Send email with output
+        echo ""
+        echo "Note: Email delivery not yet implemented"
+    else
+        echo -e "${RED}❌ Command failed${NC}"
+        cat "$output_file"
+        rm "$output_file"
+        return 1
+    fi
+    
+    rm "$output_file"
+}
+
+cmd_status() {
+    echo "TAM RFE Scheduler Status"
+    echo "========================"
+    echo ""
+    
+    # Check if daemon is running (placeholder)
+    echo "Daemon: Not implemented yet"
+    echo "Use: tam-rfe-schedule run <id>  # Manual execution"
+    echo ""
+    
+    # Show schedule count
+    local count=$(grep -c "id:" "$SCHEDULES_FILE" 2>/dev/null || echo 0)
+    echo "Schedules configured: $count"
+}
+
+cmd_logs() {
+    local schedule_id="$1"
+    
+    echo "Execution logs: Not implemented yet"
+    echo ""
+    echo "For now, use: tam-rfe-schedule run <id>"
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    add)
+        shift
+        cmd_add "$@"
+        ;;
+    list|ls)
+        cmd_list
+        ;;
+    remove|rm|delete)
+        shift
+        cmd_remove "$@"
+        ;;
+    run|execute)
+        shift
+        cmd_run "$@"
+        ;;
+    status)
+        cmd_status
+        ;;
+    logs)
+        shift
+        cmd_logs "$@"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo -e "${RED}❌ Unknown command: $1${NC}"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac
+

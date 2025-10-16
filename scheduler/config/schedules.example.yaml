@@ -1,0 +1,54 @@
+# TAM RFE Report Scheduler - Example Schedules
+# Copy this to ~/.config/tam-rfe-scheduler/schedules.yaml
+
+schedules:
+  # Morning briefing - All TAM assignments
+  - id: morning-tam-brief
+    name: "Morning TAM Brief"
+    command: "tam-rfe-hydra-api my-assignments"
+    frequency: "0 8 * * 1-5"  # Weekdays at 8am
+    email: jbyrd@redhat.com
+    format: text
+    enabled: true
+    created: 2025-10-16T12:00:00Z
+
+  # Weekly customer review
+  - id: westpac-weekly
+    name: "Westpac Weekly Summary"
+    command: "tam-rfe-chat 'Show Westpac cases from last 7 days, grouped by SBR'"
+    frequency: "0 16 * * 5"  # Friday at 4pm
+    email: jbyrd@redhat.com
+    format: text
+    enabled: true
+    created: 2025-10-16T12:00:00Z
+
+  # Daily intelligence validation
+  - id: config-health-check
+    name: "Intelligence Health Check"
+    command: "tam-rfe-validate-intelligence"
+    frequency: "0 0 * * *"  # Daily at midnight
+    email: jbyrd@redhat.com
+    format: text
+    enabled: true
+    created: 2025-10-16T12:00:00Z
+
+  # Geographic portfolio review
+  - id: apac-portfolio
+    name: "APAC Portfolio Review"
+    command: "tam-rfe-discover-customers-hydra geo APAC"
+    frequency: "0 9 * * 1"  # Monday at 9am
+    email: jbyrd@redhat.com
+    format: text
+    enabled: true
+    created: 2025-10-16T12:00:00Z
+
+  # NAPS organization review
+  - id: naps-review
+    name: "NAPS Organization Review"
+    command: "tam-rfe-hydra-api org NAPS"
+    frequency: "0 10 * * 3"  # Wednesday at 10am
+    email: jbyrd@redhat.com
+    format: text
+    enabled: false  # Disabled example
+    created: 2025-10-16T12:00:00Z
+
