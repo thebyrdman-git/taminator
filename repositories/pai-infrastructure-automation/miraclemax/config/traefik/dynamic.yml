@@ -138,12 +138,12 @@ http:
       rule: "Host(`money.jbyrd.org`)"
       entryPoints:
         - web
+        - websecure
       service: actual-budget
       middlewares:
         - security-headers
         - rate-limit
-      # TLS removed - Cloudflare Tunnel handles SSL
-      # Authelia temporarily disabled until SSO is deployed
+      # Authelia: Enable when SSO is deployed
     
     # n8n (Workflow Automation)
     n8n:
