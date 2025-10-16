@@ -1,0 +1,356 @@
+#!/usr/bin/env python3
+
+"""
+TAM RFE Report Scheduler Daemon
+Automatic execution of scheduled reports
+"""
+
+import os
+import sys
+import time
+import yaml
+import subprocess
+import smtplib
+import logging
+from datetime import datetime
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from pathlib import Path
+from croniter import croniter
+
+# Configuration
+CONFIG_DIR = Path.home() / ".config" / "tam-rfe-scheduler"
+SCHEDULES_FILE = CONFIG_DIR / "schedules.yaml"
+LOG_DIR = CONFIG_DIR / "logs"
+PID_FILE = CONFIG_DIR / "daemon.pid"
+
+# SMTP Configuration (using host's Postfix)
+SMTP_SERVER = "localhost"
+SMTP_PORT = 25
+
+# Logging setup
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_DIR / "daemon.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
+class SchedulerDaemon:
+    def __init__(self):
+        self.schedules = []
+        self.running = True
+        
+    def load_schedules(self):
+        """Load schedules from YAML config"""
+        if not SCHEDULES_FILE.exists():
+            logger.warning(f"Schedules file not found: {SCHEDULES_FILE}")
+            return []
+        
+        try:
+            with open(SCHEDULES_FILE, 'r') as f:
+                config = yaml.safe_load(f)
+                schedules = config.get('schedules', [])
+                
+                # Filter enabled schedules
+                enabled = [s for s in schedules if s.get('enabled', True)]
+                logger.info(f"Loaded {len(enabled)} enabled schedule(s)")
+                return enabled
+        except Exception as e:
+            logger.error(f"Failed to load schedules: {e}")
+            return []
+    
+    def should_run(self, schedule):
+        """Check if schedule should run now"""
+        frequency = schedule.get('frequency', '')
+        last_run = schedule.get('last_run')
+        
+        if not frequency:
+            return False
+        
+        try:
+            # Parse cron expression
+            cron = croniter(frequency, datetime.now())
+            next_run = cron.get_prev(datetime)
+            
+            # Check if we should run (within last minute)
+            now = datetime.now()
+            time_diff = (now - next_run).total_seconds()
+            
+            # Run if within 60 seconds of scheduled time and not run recently
+            if 0 <= time_diff < 60:
+                if last_run:
+                    last_run_time = datetime.fromisoformat(last_run)
+                    since_last = (now - last_run_time).total_seconds()
+                    # Don't run if ran in last 60 seconds
+                    if since_last < 60:
+                        return False
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error checking schedule {schedule.get('id')}: {e}")
+            return False
+    
+    def execute_command(self, schedule):
+        """Execute scheduled command"""
+        schedule_id = schedule.get('id', 'unknown')
+        command = schedule.get('command', '')
+        
+        logger.info(f"Executing schedule: {schedule_id}")
+        logger.info(f"Command: {command}")
+        
+        try:
+            # Execute command
+            start_time = time.time()
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout
+                cwd=str(Path.home())
+            )
+            duration = time.time() - start_time
+            
+            # Log execution
+            log_entry = {
+                'schedule_id': schedule_id,
+                'timestamp': datetime.now().isoformat(),
+                'duration': duration,
+                'exit_code': result.returncode,
+                'success': result.returncode == 0
+            }
+            self.log_execution(log_entry)
+            
+            # Send email
+            if result.returncode == 0:
+                logger.info(f"✅ Command completed successfully ({duration:.1f}s)")
+                self.send_email(schedule, result.stdout, success=True, duration=duration)
+            else:
+                logger.error(f"❌ Command failed with exit code {result.returncode}")
+                self.send_email(schedule, result.stderr or result.stdout, success=False, duration=duration)
+            
+            # Update last_run in config
+            self.update_last_run(schedule_id)
+            
+            return result.returncode == 0
+            
+        except subprocess.TimeoutExpired:
+            logger.error(f"⏱️  Command timed out after 5 minutes")
+            self.send_email(schedule, "Command execution timed out (>5 minutes)", success=False, duration=300)
+            return False
+        except Exception as e:
+            logger.error(f"❌ Execution failed: {e}")
+            self.send_email(schedule, f"Execution error: {e}", success=False, duration=0)
+            return False
+    
+    def send_email(self, schedule, output, success=True, duration=0):
+        """Send email notification"""
+        email_to = schedule.get('email')
+        schedule_name = schedule.get('name', schedule.get('id'))
+        
+        if not email_to:
+            logger.warning("No email address configured for schedule")
+            return
+        
+        try:
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['From'] = os.environ.get('USER', 'tam-scheduler') + '@' + os.uname().nodename
+            msg['To'] = email_to
+            
+            if success:
+                msg['Subject'] = f"✅ {schedule_name} - Success"
+                status_emoji = "✅"
+                status_text = "Success"
+            else:
+                msg['Subject'] = f"❌ {schedule_name} - Failed"
+                status_emoji = "❌"
+                status_text = "Failed"
+            
+            # Plain text version
+            text = f"""
+TAM RFE Report Scheduler
+========================
+
+Schedule: {schedule_name}
+Status: {status_emoji} {status_text}
+Duration: {duration:.1f}s
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+Output:
+-------
+{output}
+
+---
+Automated by TAM RFE Scheduler
+"""
+            
+            # HTML version
+            html = f"""
+<html>
+<head>
+<style>
+body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; }}
+.header {{ background-color: {'#d4edda' if success else '#f8d7da'}; padding: 15px; border-radius: 5px; }}
+.info {{ margin: 20px 0; }}
+.output {{ background-color: #f8f9fa; padding: 15px; border-left: 4px solid {'#28a745' if success else '#dc3545'}; font-family: monospace; white-space: pre-wrap; }}
+.footer {{ margin-top: 20px; color: #6c757d; font-size: 0.9em; }}
+</style>
+</head>
+<body>
+<div class="header">
+<h2>{status_emoji} {schedule_name}</h2>
+<p><strong>Status:</strong> {status_text}</p>
+</div>
+
+<div class="info">
+<p><strong>Duration:</strong> {duration:.1f}s</p>
+<p><strong>Timestamp:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+</div>
+
+<div class="output">
+<h3>Output:</h3>
+<pre>{output}</pre>
+</div>
+
+<div class="footer">
+<p>Automated by TAM RFE Report Scheduler</p>
+</div>
+</body>
+</html>
+"""
+            
+            # Attach both versions
+            part1 = MIMEText(text, 'plain')
+            part2 = MIMEText(html, 'html')
+            msg.attach(part1)
+            msg.attach(part2)
+            
+            # Send email
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.send_message(msg)
+            
+            logger.info(f"📧 Email sent to {email_to}")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to send email: {e}")
+    
+    def log_execution(self, log_entry):
+        """Log execution to history file"""
+        log_file = LOG_DIR / "execution_history.jsonl"
+        
+        try:
+            import json
+            with open(log_file, 'a') as f:
+                f.write(json.dumps(log_entry) + '\n')
+        except Exception as e:
+            logger.error(f"Failed to log execution: {e}")
+    
+    def update_last_run(self, schedule_id):
+        """Update last_run timestamp in config"""
+        try:
+            with open(SCHEDULES_FILE, 'r') as f:
+                config = yaml.safe_load(f)
+            
+            schedules = config.get('schedules', [])
+            for schedule in schedules:
+                if schedule.get('id') == schedule_id:
+                    schedule['last_run'] = datetime.now().isoformat()
+            
+            with open(SCHEDULES_FILE, 'w') as f:
+                yaml.dump(config, f, default_flow_style=False)
+                
+        except Exception as e:
+            logger.error(f"Failed to update last_run: {e}")
+    
+    def write_pid(self):
+        """Write PID file"""
+        try:
+            with open(PID_FILE, 'w') as f:
+                f.write(str(os.getpid()))
+            logger.info(f"PID file created: {PID_FILE}")
+        except Exception as e:
+            logger.error(f"Failed to write PID file: {e}")
+    
+    def remove_pid(self):
+        """Remove PID file"""
+        try:
+            if PID_FILE.exists():
+                PID_FILE.unlink()
+                logger.info("PID file removed")
+        except Exception as e:
+            logger.error(f"Failed to remove PID file: {e}")
+    
+    def run(self):
+        """Main daemon loop"""
+        logger.info("=" * 60)
+        logger.info("TAM RFE Report Scheduler Daemon Starting")
+        logger.info("=" * 60)
+        
+        self.write_pid()
+        
+        try:
+            while self.running:
+                # Reload schedules every iteration (allows dynamic updates)
+                self.schedules = self.load_schedules()
+                
+                # Check each schedule
+                for schedule in self.schedules:
+                    if self.should_run(schedule):
+                        self.execute_command(schedule)
+                
+                # Sleep for 30 seconds before next check
+                time.sleep(30)
+                
+        except KeyboardInterrupt:
+            logger.info("Received interrupt signal")
+        finally:
+            self.remove_pid()
+            logger.info("Daemon stopped")
+
+
+def check_dependencies():
+    """Check if required dependencies are available"""
+    try:
+        import croniter
+        import yaml
+        return True
+    except ImportError as e:
+        print(f"❌ Missing dependency: {e}")
+        print("")
+        print("Install with:")
+        print("  pip install croniter pyyaml")
+        return False
+
+
+def main():
+    if not check_dependencies():
+        sys.exit(1)
+    
+    # Check if already running
+    if PID_FILE.exists():
+        try:
+            with open(PID_FILE, 'r') as f:
+                pid = int(f.read().strip())
+            # Check if process is actually running
+            os.kill(pid, 0)
+            print(f"❌ Daemon already running (PID: {pid})")
+            print(f"Stop it with: kill {pid}")
+            sys.exit(1)
+        except (OSError, ProcessLookupError):
+            # Process not running, remove stale PID file
+            PID_FILE.unlink()
+    
+    daemon = SchedulerDaemon()
+    daemon.run()
+
+
+if __name__ == '__main__':
+    main()
+

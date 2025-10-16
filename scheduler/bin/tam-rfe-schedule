@@ -25,7 +25,7 @@ if [[ ! -f "$SCHEDULES_FILE" ]]; then
     cat > "$SCHEDULES_FILE" <<EOF
 # TAM RFE Report Schedules
 # Format: YAML
-schedules: []
+schedules:
 EOF
 fi
 
@@ -43,6 +43,9 @@ show_help() {
     echo "  list         Show all schedules"
     echo "  remove <id>  Remove schedule"
     echo "  run <id>     Execute schedule now (testing)"
+    echo "  start        Start scheduler daemon (automatic execution)"
+    echo "  stop         Stop scheduler daemon"
+    echo "  restart      Restart scheduler daemon"
     echo "  status       Show daemon status"
     echo "  logs [id]    View execution history"
     echo "  help         Show this help"
@@ -53,6 +56,7 @@ show_help() {
     echo "    --frequency \"0 8 * * 1\" \\"
     echo "    --email jbyrd@redhat.com"
     echo ""
+    echo "  tam-rfe-schedule start        # Start automatic execution"
     echo "  tam-rfe-schedule list"
     echo "  tam-rfe-schedule run westpac-weekly"
     echo "  tam-rfe-schedule logs westpac-weekly"
@@ -111,9 +115,13 @@ cmd_add() {
         return 1
     fi
     
-    # Add schedule to YAML file
+    # Ensure schedules file has proper structure
+    if ! grep -q "^schedules:" "$SCHEDULES_FILE"; then
+        echo "schedules:" > "$SCHEDULES_FILE"
+    fi
+    
+    # Add schedule to YAML file (proper indent)
     cat >> "$SCHEDULES_FILE" <<EOF
-
   - id: $schedule_id
     name: "$name"
     command: "$command"
@@ -276,27 +284,193 @@ cmd_run() {
     rm "$output_file"
 }
 
+cmd_start() {
+    local pid_file="$CONFIG_DIR/daemon.pid"
+    
+    # Check if already running
+    if [[ -f "$pid_file" ]]; then
+        local pid=$(cat "$pid_file" 2>/dev/null)
+        if kill -0 "$pid" 2>/dev/null; then
+            echo -e "${YELLOW}⚠️  Daemon already running (PID: $pid)${NC}"
+            return 1
+        else
+            # Stale PID file
+            rm -f "$pid_file"
+        fi
+    fi
+    
+    # Find daemon script
+    local daemon_script="$SCRIPT_DIR/tam-rfe-scheduler-daemon"
+    if [[ ! -f "$daemon_script" ]]; then
+        daemon_script="$(which tam-rfe-scheduler-daemon 2>/dev/null)"
+    fi
+    
+    if [[ ! -f "$daemon_script" ]]; then
+        echo -e "${RED}❌ Daemon script not found${NC}"
+        echo "Expected: $SCRIPT_DIR/tam-rfe-scheduler-daemon"
+        return 1
+    fi
+    
+    echo -e "${BLUE}ℹ️  Starting scheduler daemon...${NC}"
+    
+    # Ensure logs directory exists
+    mkdir -p "$CONFIG_DIR/logs"
+    
+    # Start daemon in background
+    nohup "$daemon_script" > "$CONFIG_DIR/logs/daemon.out" 2>&1 &
+    local daemon_pid=$!
+    
+    # Wait a moment and verify it's running
+    sleep 2
+    if kill -0 "$daemon_pid" 2>/dev/null; then
+        echo -e "${GREEN}✅ Daemon started (PID: $daemon_pid)${NC}"
+        echo "Log: $CONFIG_DIR/logs/daemon.log"
+        echo ""
+        echo "Commands:"
+        echo "  tam-rfe-schedule status   # Check status"
+        echo "  tam-rfe-schedule stop     # Stop daemon"
+        echo "  tam-rfe-schedule logs     # View execution history"
+    else
+        echo -e "${RED}❌ Daemon failed to start${NC}"
+        echo "Check: $CONFIG_DIR/logs/daemon.out"
+        return 1
+    fi
+}
+
+cmd_stop() {
+    local pid_file="$CONFIG_DIR/daemon.pid"
+    
+    if [[ ! -f "$pid_file" ]]; then
+        echo -e "${YELLOW}⚠️  Daemon not running${NC}"
+        return 0
+    fi
+    
+    local pid=$(cat "$pid_file" 2>/dev/null)
+    
+    if ! kill -0 "$pid" 2>/dev/null; then
+        echo -e "${YELLOW}⚠️  Daemon not running (stale PID file)${NC}"
+        rm -f "$pid_file"
+        return 0
+    fi
+    
+    echo -e "${BLUE}ℹ️  Stopping daemon (PID: $pid)...${NC}"
+    
+    # Send SIGTERM
+    kill "$pid"
+    
+    # Wait for graceful shutdown (max 5 seconds)
+    local count=0
+    while kill -0 "$pid" 2>/dev/null && [[ $count -lt 10 ]]; do
+        sleep 0.5
+        ((count++))
+    done
+    
+    # Force kill if still running
+    if kill -0 "$pid" 2>/dev/null; then
+        echo -e "${YELLOW}⚠️  Daemon not responding, forcing shutdown${NC}"
+        kill -9 "$pid" 2>/dev/null || true
+    fi
+    
+    # Clean up PID file
+    rm -f "$pid_file"
+    
+    echo -e "${GREEN}✅ Daemon stopped${NC}"
+}
+
+cmd_restart() {
+    echo "Restarting daemon..."
+    cmd_stop
+    sleep 1
+    cmd_start
+}
+
 cmd_status() {
     echo "TAM RFE Scheduler Status"
     echo "========================"
     echo ""
     
-    # Check if daemon is running (placeholder)
-    echo "Daemon: Not implemented yet"
-    echo "Use: tam-rfe-schedule run <id>  # Manual execution"
+    # Check daemon status
+    local pid_file="$CONFIG_DIR/daemon.pid"
+    if [[ -f "$pid_file" ]]; then
+        local pid=$(cat "$pid_file" 2>/dev/null)
+        if kill -0 "$pid" 2>/dev/null; then
+            echo -e "${GREEN}✅ Daemon: Running (PID: $pid)${NC}"
+            echo "Log: $CONFIG_DIR/logs/daemon.log"
+        else
+            echo -e "${RED}❌ Daemon: Not running (stale PID file)${NC}"
+            rm -f "$pid_file"
+        fi
+    else
+        echo -e "${YELLOW}⏸️  Daemon: Not running${NC}"
+        echo "Start with: tam-rfe-schedule start"
+    fi
     echo ""
     
     # Show schedule count
-    local count=$(grep -c "id:" "$SCHEDULES_FILE" 2>/dev/null || echo 0)
+    local count=$(grep -c "id:" "$SCHEDULES_FILE" 2>/dev/null || echo "0")
+    count=$(echo "$count" | tr -d '\n' | xargs)
     echo "Schedules configured: $count"
+    
+    if [[ $count -gt 0 ]]; then
+        echo ""
+        echo "Next execution times:"
+        # TODO: Calculate next execution times from cron expressions
+        grep -A 2 "id:" "$SCHEDULES_FILE" 2>/dev/null | grep -E "(id:|frequency:)" | paste - - | head -5
+    fi
 }
 
 cmd_logs() {
-    local schedule_id="$1"
+    local schedule_id="${1:-}"
+    local log_file="$CONFIG_DIR/logs/execution_history.jsonl"
     
-    echo "Execution logs: Not implemented yet"
+    if [[ ! -f "$log_file" ]]; then
+        echo "No execution history yet"
+        echo ""
+        echo "Logs will appear here after:"
+        echo "  tam-rfe-schedule start  # Start daemon"
+        echo "  # Wait for scheduled execution"
+        return 0
+    fi
+    
+    echo "Execution History"
+    echo "================="
     echo ""
-    echo "For now, use: tam-rfe-schedule run <id>"
+    
+    if [[ -n "$schedule_id" ]]; then
+        # Show logs for specific schedule
+        echo "Schedule: $schedule_id"
+        echo ""
+        grep "\"schedule_id\":\"$schedule_id\"" "$log_file" | tail -10 | while IFS= read -r line; do
+            # Parse JSON and display
+            local timestamp=$(echo "$line" | grep -o '"timestamp":"[^"]*"' | cut -d'"' -f4)
+            local duration=$(echo "$line" | grep -o '"duration":[0-9.]*' | cut -d':' -f2)
+            local success=$(echo "$line" | grep -o '"success":[^,}]*' | cut -d':' -f2)
+            
+            if [[ "$success" == "true" ]]; then
+                echo -e "${GREEN}✅${NC} $timestamp (${duration}s)"
+            else
+                echo -e "${RED}❌${NC} $timestamp (${duration}s)"
+            fi
+        done
+    else
+        # Show recent logs for all schedules
+        tail -20 "$log_file" | while IFS= read -r line; do
+            local schedule=$(echo "$line" | grep -o '"schedule_id":"[^"]*"' | cut -d'"' -f4)
+            local timestamp=$(echo "$line" | grep -o '"timestamp":"[^"]*"' | cut -d'"' -f4 | sed 's/T/ /' | cut -d'.' -f1)
+            local duration=$(echo "$line" | grep -o '"duration":[0-9.]*' | cut -d':' -f2 | xargs printf "%.1f")
+            local success=$(echo "$line" | grep -o '"success":[^,}]*' | cut -d':' -f2)
+            
+            if [[ "$success" == "true" ]]; then
+                echo -e "${GREEN}✅${NC} $schedule ($timestamp) ${duration}s"
+            else
+                echo -e "${RED}❌${NC} $schedule ($timestamp) ${duration}s"
+            fi
+        done
+    fi
+    
+    echo ""
+    echo "Full log: $log_file"
+    echo "Daemon log: $CONFIG_DIR/logs/daemon.log"
 }
 
 # Main command dispatch
@@ -315,6 +489,15 @@ case "${1:-help}" in
     run|execute)
         shift
         cmd_run "$@"
+        ;;
+    start)
+        cmd_start
+        ;;
+    stop)
+        cmd_stop
+        ;;
+    restart)
+        cmd_restart
         ;;
     status)
         cmd_status
