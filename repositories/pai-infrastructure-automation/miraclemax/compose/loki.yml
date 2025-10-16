@@ -1,0 +1,82 @@
+version: '3.8'
+
+# Loki - Log Aggregation System
+# Purpose: Centralized log storage and querying (like Prometheus for logs)
+# Documentation: https://grafana.com/docs/loki/latest/
+
+services:
+  loki:
+    image: docker.io/grafana/loki:2.9.3  # Pinned version for stability
+    container_name: loki
+    restart: unless-stopped
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    user: "10001"  # Run as non-root
+    
+    # Network configuration
+    networks:
+      - traefik-network
+      - monitoring-network
+    
+    ports:
+      - "3100:3100"  # HTTP API and query interface
+    
+    # Volume mounts
+    volumes:
+      - loki-data:/loki
+      - ../config/loki:/etc/loki
+    
+    # Command - reference config file
+    command: -config.file=/etc/loki/loki-config.yml
+    
+    # Environment variables
+    environment:
+      - TZ=America/New_York
+    
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    labels:
+      # Service identification
+      - "com.miraclemax.service=loki"
+      - "com.miraclemax.version=2.9.3"
+      - "com.miraclemax.description=Log aggregation system"
+      
+      # Backup configuration
+      - "com.miraclemax.backup=important"
+      - "com.miraclemax.backup.path=/loki"
+      - "com.miraclemax.backup.frequency=weekly"
+      
+      # Monitoring
+      - "com.miraclemax.monitor=true"
+      - "com.miraclemax.metrics.port=3100"
+      - "com.miraclemax.metrics.path=/metrics"
+      
+      # Traefik routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.loki.rule=Host(`loki.jbyrd.org`)"
+      - "traefik.http.routers.loki.entrypoints=web,websecure"
+      - "traefik.http.services.loki.loadbalancer.server.port=3100"
+      
+      # Security: Require authentication
+      - "traefik.http.routers.loki.middlewares=authelia@file,security-headers@file"
+
+# Named volumes
+volumes:
+  loki-data:
+    driver: local
+
+# Networks
+networks:
+  traefik-network:
+    external: true
+  monitoring-network:
+    external: true
+

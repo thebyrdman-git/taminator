@@ -73,7 +73,7 @@ access_control:
     
     # Actual Budget - two-factor required
     - domain:
-        - 'budget.jbyrd.org'
+        - 'money.jbyrd.org'
       policy: 'two_factor'
     
     # n8n - two-factor required

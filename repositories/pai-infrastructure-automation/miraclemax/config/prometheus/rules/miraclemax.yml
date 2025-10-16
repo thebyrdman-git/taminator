@@ -273,3 +273,91 @@ groups:
           description: "Backup took {{ $value | humanizeDuration }} (threshold: 1 hour). Performance issue detected."
           runbook: "Check network connectivity to miraclemax; check disk I/O: iostat -x 1 5"
 
+  # Log Aggregation Group (Loki + Promtail)
+  - name: miraclemax_logs
+    interval: 60s
+    rules:
+      # Loki Service Down
+      - alert: LokiDown
+        expr: up{job="loki"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: logging
+        annotations:
+          summary: "Loki log aggregation service is down"
+          description: "Loki has been down for more than 2 minutes. Log collection is stopped."
+          runbook: "Check Loki status: ssh miraclemax 'podman logs loki --tail 50'"
+      
+      # Promtail Service Down
+      - alert: PromtailDown
+        expr: up{job="promtail"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: logging
+        annotations:
+          summary: "Promtail log collection agent is down"
+          description: "Promtail has been down for more than 2 minutes. Logs are not being collected."
+          runbook: "Check Promtail status: ssh miraclemax 'podman logs promtail --tail 50'"
+      
+      # Loki Storage Space Warning
+      - alert: LokiHighDiskUsage
+        expr: (loki_storage_bucket_files_total / 100000) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "Loki disk usage approaching limit"
+          description: "Loki storage is {{ $value | humanizePercentage }} full. Consider increasing retention or storage."
+          runbook: "Check Loki storage: ssh miraclemax 'du -sh /var/lib/containers/storage/volumes/loki-data'"
+      
+      # High Log Ingestion Rate
+      - alert: HighLogIngestionRate
+        expr: rate(loki_distributor_bytes_received_total[5m]) > 10485760
+        for: 10m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "Unusually high log ingestion rate"
+          description: "Loki is ingesting {{ $value | humanize1024 }}B/s of logs (threshold: 10MB/s). Check for log spam."
+          runbook: "Check which containers are logging heavily via Grafana Explore"
+      
+      # Promtail Read Errors
+      - alert: PromtailReadErrors
+        expr: rate(promtail_read_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "Promtail experiencing read errors"
+          description: "Promtail has {{ $value }} read errors per second. Check container log permissions."
+          runbook: "Check Promtail logs: ssh miraclemax 'podman logs promtail --tail 100 | grep -i error'"
+      
+      # Loki Query Performance
+      - alert: SlowLogQueries
+        expr: histogram_quantile(0.99, rate(loki_request_duration_seconds_bucket{route="loki_api_v1_query_range"}[5m])) > 30
+        for: 10m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "Loki queries are slow"
+          description: "99th percentile query latency is {{ $value | humanizeDuration }}. Performance degraded."
+          runbook: "Check Loki resource usage and query patterns in Grafana"
+      
+      # No Logs Being Received
+      - alert: NoLogsReceived
+        expr: rate(loki_distributor_bytes_received_total[10m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "Loki is not receiving any logs"
+          description: "No logs have been received for 10 minutes. Check Promtail and container logs."
+          runbook: "Verify Promtail is running and containers are logging: ssh miraclemax 'podman ps'"
+

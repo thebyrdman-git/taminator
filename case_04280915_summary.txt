@@ -1,0 +1,51 @@
+==============================================================================
+CASE 04280915 - ANALYSIS COMPLETE
+==============================================================================
+
+Account: Wells Fargo (Strategic)
+Product: Red Hat Ansible Automation Platform 2.4
+Status: ROOT CAUSE IDENTIFIED
+
+ROOT CAUSE:
+-----------
+KCS 7014326: awx-manage command run as root user created log files with
+root:root ownership, preventing AAP service startup.
+
+TIMELINE:
+---------
+- Oct 1, 2025: Log file permissions changed (10 of 13 UAT controllers)
+- Oct 2, 2025: First occurrence in Dev
+- Oct 14, 2025: Production impact in UAT
+
+RESOLUTION:
+-----------
+✅ Immediate: chown awx:awx /var/log/tower/*.log && restart services
+✅ Prevention: Always run awx-manage as 'awx' user (sudo -u awx)
+✅ Monitoring: Add checks for root-owned files in /var/log/tower/
+
+INVESTIGATION NEEDED:
+--------------------
+⏳ What triggered awx-manage to run as root on Oct 1?
+   - System updates/patches?
+   - Cron jobs?
+   - Custom automation?
+
+DELIVERABLES:
+-------------
+✅ case_04280915_analysis.md - Technical analysis
+✅ case_04280915_customer_response.md - Draft customer communication
+✅ KCS 7014326 fetched and reviewed
+
+NEXT ACTIONS:
+-------------
+1. Send customer response requesting Oct 1 activity information
+2. Follow up on sosreport analysis (requires SupportShell OIDC auth)
+3. Monitor for recurrence across all WF environments
+
+COMPLIANCE:
+-----------
+✅ Red Hat context active
+✅ Customer data processed via approved methods
+✅ Audit trail maintained
+
+==============================================================================

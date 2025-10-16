@@ -135,7 +135,7 @@ http:
     
     # Actual Budget (Personal Finance)
     actual-budget:
-      rule: "Host(`money.jbyrd.org`) || Host(`budget.jbyrd.org`)"
+      rule: "Host(`money.jbyrd.org`)"
       entryPoints:
         - web
       service: actual-budget

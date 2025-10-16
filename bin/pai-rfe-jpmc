@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# JPMC RFE automation with enhanced external tracker extraction
+echo "🚀 Running JPMC RFE Automation with Enhanced Accuracy..."
+cd /home/jbyrd/Documents/rh/projects/automation/rfe-bug-tracker-automation/src
+python3 jpmc_rfe_enhanced.py "$@"
+
+
+
+
+

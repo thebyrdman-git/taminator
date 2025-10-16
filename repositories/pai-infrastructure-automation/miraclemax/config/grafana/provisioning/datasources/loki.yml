@@ -1,0 +1,31 @@
+# Grafana Datasource: Loki
+# Automatically provisions Loki as a datasource in Grafana
+
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    uid: loki-miraclemax
+    url: http://loki:3100
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        # Extract trace IDs for linking to traces (if using Jaeger in future)
+        - datasourceUid: 'jaeger'
+          matcherRegex: 'trace_id=(\w+)'
+          name: 'TraceID'
+          url: '$${__value.raw}'
+      
+      # Timeout for queries
+      timeout: 60
+      
+      # Query split interval
+      splitInterval: '5m'
+    
+    # Default editor mode
+    editable: true
+    isDefault: false
+    version: 1
+

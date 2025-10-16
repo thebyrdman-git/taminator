@@ -115,7 +115,7 @@ scrape_configs:
       - targets:
           - https://auth.jbyrd.org
           - https://ha.jbyrd.org
-          - https://budget.jbyrd.org
+          - https://money.jbyrd.org
           - https://n8n.jbyrd.org
           - https://grafana.jbyrd.org
           - https://traefik.jbyrd.org
@@ -155,6 +155,24 @@ scrape_configs:
       - targets: ['process-exporter:9256']
         labels:
           role: 'process-monitoring'
+  
+  # Loki - Log Aggregation Metrics
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+        labels:
+          service: 'loki'
+          role: 'log-aggregation'
+    scrape_interval: 15s
+  
+  # Promtail - Log Collection Agent Metrics
+  - job_name: 'promtail'
+    static_configs:
+      - targets: ['promtail:9080']
+        labels:
+          service: 'promtail'
+          role: 'log-collection'
+    scrape_interval: 15s
   
   # Podman/Docker Metrics via Unix Socket (if available)
   - job_name: 'podman'

@@ -1,0 +1,293 @@
+#!/usr/bin/env bash
+##############################################################################
+# PAI Finance Dashboard Backup System
+# 
+# Backs up Finance Dashboard configs from miraclemax to /mnt/backup
+#
+# Usage:
+#   pai-finance-dashboard-backup          # Full backup
+#   pai-finance-dashboard-backup verify   # Verify backups exist
+##############################################################################
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+NC='\033[0m'
+
+# Configuration
+MIRACLEMAX_HOST="192.168.1.34"
+MIRACLEMAX_USER="jbyrd"
+FINANCE_DIR="/home/jbyrd/pai-finance-dashboard"
+BACKUP_BASE_DIR="/home/jbyrd/backups/pai-finance-dashboard"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+print_header() {
+    echo -e "${RED}╔═══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║${WHITE}              💰 PAI FINANCE DASHBOARD BACKUP SYSTEM 💰                      ${RED}║${NC}"
+    echo -e "${RED}║${CYAN}                'Protect your financial dashboard configs'                    ${RED}║${NC}"
+    echo -e "${RED}╚═══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo
+}
+
+check_miraclemax() {
+    echo -e "${CYAN}🔍 Checking connection to miraclemax...${NC}"
+    
+    if ! ping -c 1 -W 2 "$MIRACLEMAX_HOST" >/dev/null 2>&1; then
+        echo -e "${RED}✗ Cannot reach miraclemax ($MIRACLEMAX_HOST)${NC}"
+        return 1
+    fi
+    
+    if ! ssh -o ConnectTimeout=5 "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "echo connected" >/dev/null 2>&1; then
+        echo -e "${RED}✗ Cannot SSH to miraclemax${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}✓ Connection to miraclemax verified${NC}"
+    return 0
+}
+
+backup_dashboard() {
+    echo
+    echo -e "${CYAN}📦 Backing up Finance Dashboard from miraclemax...${NC}"
+    echo
+    
+    # Create backup directory structure on miraclemax
+    ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "mkdir -p $BACKUP_BASE_DIR/{configs,container-info}"
+    
+    # Backup all dashboard files
+    echo -e "${CYAN}→ Backing up dashboard configuration...${NC}"
+    ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "
+        cd && \
+        tar czf $BACKUP_BASE_DIR/configs/finance-dashboard-configs_${TIMESTAMP}.tar.gz \
+            -C /home/jbyrd pai-finance-dashboard 2>/dev/null || true
+    "
+    
+    if ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "test -f $BACKUP_BASE_DIR/configs/finance-dashboard-configs_${TIMESTAMP}.tar.gz"; then
+        echo -e "${GREEN}✓ Configuration backup created${NC}"
+        
+        # Create symlink to latest
+        ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "
+            cd $BACKUP_BASE_DIR/configs && \
+            ln -sf finance-dashboard-configs_${TIMESTAMP}.tar.gz finance-dashboard-configs_latest.tar.gz
+        "
+    else
+        echo -e "${YELLOW}⚠ Configuration backup may be incomplete${NC}"
+    fi
+    
+    # Backup .env file separately (encrypted)
+    echo -e "${CYAN}→ Backing up .env file (contains password)...${NC}"
+    ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "
+        if [ -f $FINANCE_DIR/.env ]; then
+            cp $FINANCE_DIR/.env $BACKUP_BASE_DIR/configs/env_${TIMESTAMP}.backup
+            echo -e '${GREEN}✓ .env backed up${NC}'
+        else
+            echo -e '${YELLOW}⚠ .env file not found${NC}'
+        fi
+    "
+    
+    # Backup container info
+    echo -e "${CYAN}→ Saving container configuration...${NC}"
+    ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "
+        sudo podman inspect pai-finance-dashboard > $BACKUP_BASE_DIR/container-info/container-config_${TIMESTAMP}.json 2>/dev/null || \
+        echo '{\"error\": \"Container not running\"}' > $BACKUP_BASE_DIR/container-info/container-config_${TIMESTAMP}.json
+    "
+    
+    # Save deployment information
+    echo -e "${CYAN}→ Saving deployment documentation...${NC}"
+    cat > /tmp/finance-dashboard-deploy-info.txt <<EOF
+# PAI Finance Dashboard Deployment Info
+# Backup created: ${TIMESTAMP}
+
+## Container Details
+Name: pai-finance-dashboard
+Image: localhost/pai-finance-dashboard_pai-finance-dashboard:latest
+Port: 5005 (internal, accessed via Traefik)
+Networks: traefik-network
+Restart: unless-stopped
+
+## Deployment Location
+Directory: /home/jbyrd/pai-finance-dashboard/
+Files:
+  - app.py (Flask application)
+  - docker-compose.yml (Container config)
+  - Dockerfile (Image build)
+  - .env (Credentials - CRITICAL)
+  - requirements.txt (Python deps)
+  - templates/ (HTML templates)
+
+## Restoration Steps
+1. Copy backup to miraclemax:
+   scp finance-dashboard-configs_${TIMESTAMP}.tar.gz jbyrd@192.168.1.34:/tmp/
+
+2. Extract on miraclemax:
+   ssh jbyrd@192.168.1.34
+   cd /home/jbyrd
+   tar xzf /tmp/finance-dashboard-configs_${TIMESTAMP}.tar.gz
+
+3. Deploy:
+   cd /home/jbyrd/pai-finance-dashboard
+   sudo podman-compose up -d
+
+## Access URLs
+Primary: https://finance.jbyrd.org
+Alias: https://money.jbyrd.org
+Authentication: HTTP Basic Auth (credentials in .env)
+
+## Dependencies
+- Traefik reverse proxy (must be running)
+- traefik-network (podman network)
+- PAI config data at ~/.config/pai/
+- Actual Budget server at http://192.168.1.34:5006
+
+## Credentials
+Username: (see .env DASHBOARD_USER)
+Password: (see .env DASHBOARD_PASSWORD)
+Secret Key: (see .env SECRET_KEY)
+
+## Health Check
+curl http://localhost:5005/health
+EOF
+    
+    scp /tmp/finance-dashboard-deploy-info.txt "$MIRACLEMAX_USER@$MIRACLEMAX_HOST:$BACKUP_BASE_DIR/deployment-info_${TIMESTAMP}.txt"
+    ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "
+        cd $BACKUP_BASE_DIR && \
+        ln -sf deployment-info_${TIMESTAMP}.txt deployment-info_latest.txt
+    "
+    rm /tmp/finance-dashboard-deploy-info.txt
+    
+    echo -e "${GREEN}✓ Deployment documentation saved${NC}"
+    echo
+    
+    # Show backup summary
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}Backup Location (on miraclemax):${NC} $BACKUP_BASE_DIR"
+    echo
+    ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "
+        echo -e '${CYAN}Configuration backup:${NC}'
+        ls -lh $BACKUP_BASE_DIR/configs/finance-dashboard-configs_${TIMESTAMP}.tar.gz 2>/dev/null || echo 'Not found'
+        echo
+        echo -e '${CYAN}.env backup:${NC}'
+        ls -lh $BACKUP_BASE_DIR/configs/env_${TIMESTAMP}.backup 2>/dev/null || echo 'Not found'
+        echo
+        echo -e '${CYAN}Total backups available:${NC}'
+        ls -1 $BACKUP_BASE_DIR/configs/*.tar.gz 2>/dev/null | wc -l
+    "
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+verify_backups() {
+    echo
+    echo -e "${CYAN}🔍 Verifying Finance Dashboard backups...${NC}"
+    echo
+    
+    if ! check_miraclemax; then
+        echo -e "${RED}✗ Cannot verify - miraclemax unreachable${NC}"
+        return 1
+    fi
+    
+    local backup_count=$(ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "ls -1 $BACKUP_BASE_DIR/configs/*.tar.gz 2>/dev/null | wc -l" || echo "0")
+    
+    if [ "$backup_count" -gt 0 ]; then
+        echo -e "${GREEN}✓ Found $backup_count configuration backup(s)${NC}"
+        echo
+        echo -e "${CYAN}Recent backups:${NC}"
+        ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "ls -lht $BACKUP_BASE_DIR/configs/*.tar.gz 2>/dev/null | head -5"
+        echo
+        
+        # Check latest backup
+        echo -e "${CYAN}Latest backup:${NC}"
+        ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "
+            if [ -L $BACKUP_BASE_DIR/configs/finance-dashboard-configs_latest.tar.gz ]; then
+                ls -l $BACKUP_BASE_DIR/configs/finance-dashboard-configs_latest.tar.gz
+            else
+                echo 'No latest symlink found'
+            fi
+        "
+        echo
+        
+        # Test backup integrity
+        echo -e "${CYAN}Testing latest backup integrity...${NC}"
+        if ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "tar tzf $BACKUP_BASE_DIR/configs/finance-dashboard-configs_latest.tar.gz >/dev/null 2>&1"; then
+            echo -e "${GREEN}✓ Latest backup is valid${NC}"
+        else
+            echo -e "${RED}✗ Latest backup appears corrupted${NC}"
+        fi
+        
+    else
+        echo -e "${YELLOW}⚠ No backups found${NC}"
+        echo -e "${WHITE}Run 'pai-finance-dashboard-backup' to create first backup${NC}"
+    fi
+    echo
+}
+
+cleanup_old_backups() {
+    echo -e "${CYAN}🧹 Cleaning up old backups (keeping last 30 days)...${NC}"
+    
+    ssh "$MIRACLEMAX_USER@$MIRACLEMAX_HOST" "
+        find $BACKUP_BASE_DIR/configs -name 'finance-dashboard-configs_*.tar.gz' -mtime +30 -delete 2>/dev/null || true
+        find $BACKUP_BASE_DIR/configs -name 'env_*.backup' -mtime +30 -delete 2>/dev/null || true
+        find $BACKUP_BASE_DIR/container-info -name '*.json' -mtime +30 -delete 2>/dev/null || true
+        find $BACKUP_BASE_DIR -name 'deployment-info_*.txt' -mtime +30 -delete 2>/dev/null || true
+    "
+    
+    echo -e "${GREEN}✓ Cleanup complete${NC}"
+    echo
+}
+
+show_usage() {
+    echo "Usage: pai-finance-dashboard-backup [command]"
+    echo
+    echo "Commands:"
+    echo "  (none)    - Run full backup (default)"
+    echo "  verify    - Verify existing backups"
+    echo "  cleanup   - Remove backups older than 30 days"
+    echo "  help      - Show this message"
+    echo
+}
+
+main() {
+    local command="${1:-backup}"
+    
+    case "$command" in
+        backup|"")
+            print_header
+            if ! check_miraclemax; then
+                echo -e "${RED}✗ Backup failed - miraclemax unreachable${NC}"
+                exit 1
+            fi
+            backup_dashboard
+            cleanup_old_backups
+            echo -e "${GREEN}✅ Finance Dashboard backup complete!${NC}"
+            echo
+            ;;
+        verify)
+            print_header
+            verify_backups
+            ;;
+        cleanup)
+            print_header
+            if ! check_miraclemax; then
+                echo -e "${RED}✗ Cleanup failed - miraclemax unreachable${NC}"
+                exit 1
+            fi
+            cleanup_old_backups
+            ;;
+        help|--help|-h)
+            show_usage
+            ;;
+        *)
+            echo -e "${RED}✗ Unknown command: $command${NC}"
+            echo
+            show_usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
+

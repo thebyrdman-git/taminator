@@ -1,0 +1,67 @@
+version: '3.8'
+
+# Promtail - Log Collection Agent
+# Purpose: Collects logs from containers and sends to Loki
+# Documentation: https://grafana.com/docs/loki/latest/clients/promtail/
+
+services:
+  promtail:
+    image: docker.io/grafana/promtail:2.9.3  # Match Loki version
+    container_name: promtail
+    restart: unless-stopped
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    
+    # Network configuration
+    networks:
+      - monitoring-network
+    
+    # Volume mounts
+    volumes:
+      # Promtail configuration
+      - ../config/promtail:/etc/promtail
+      
+      # Podman socket to discover containers (rootless mode)
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:ro
+      
+      # Promtail positions file (tracks what's been read)
+      - promtail-positions:/tmp/positions
+    
+    # Command - reference config file
+    command: -config.file=/etc/promtail/promtail-config.yml
+    
+    # Environment variables
+    environment:
+      - TZ=America/New_York
+    
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9080/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    
+    labels:
+      # Service identification
+      - "com.miraclemax.service=promtail"
+      - "com.miraclemax.version=2.9.3"
+      - "com.miraclemax.description=Log collection agent"
+      
+      # Monitoring
+      - "com.miraclemax.monitor=true"
+      - "com.miraclemax.metrics.port=9080"
+      - "com.miraclemax.metrics.path=/metrics"
+
+# Named volumes
+volumes:
+  promtail-positions:
+    driver: local
+
+# Networks
+networks:
+  monitoring-network:
+    external: true
+
