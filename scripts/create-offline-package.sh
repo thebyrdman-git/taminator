@@ -9,7 +9,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PACKAGE_NAME="rfe-bug-tracker-automation-offline"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 PACKAGE_DIR="/tmp/${PACKAGE_NAME}_${TIMESTAMP}"
-TARBALL="${PACKAGE_NAME}_${TIMESTAMP}.tar.gz"
+ZIPFILE="${PACKAGE_NAME}_${TIMESTAMP}.zip"
 
 echo "🎁 Creating Offline Installation Package"
 echo "========================================="
@@ -296,15 +296,15 @@ cd "$PACKAGE_DIR"
 find . -type f -exec sha256sum {} \; > CHECKSUMS.txt
 log_success "Checksums created"
 
-# Create tarball
-log_info "Creating compressed tarball..."
+# Create zip file
+log_info "Creating compressed zip file..."
 cd /tmp
-tar -czf "$TARBALL" "${PACKAGE_NAME}_${TIMESTAMP}/"
-TARBALL_SIZE=$(du -h "$TARBALL" | cut -f1)
-log_success "Tarball created: $TARBALL ($TARBALL_SIZE)"
+zip -r -q "$ZIPFILE" "${PACKAGE_NAME}_${TIMESTAMP}/"
+ZIPFILE_SIZE=$(du -h "$ZIPFILE" | cut -f1)
+log_success "Zip file created: $ZIPFILE ($ZIPFILE_SIZE)"
 
 # Calculate final checksum
-TARBALL_SHA=$(sha256sum "$TARBALL" | cut -d' ' -f1)
+ZIPFILE_SHA=$(sha256sum "$ZIPFILE" | cut -d' ' -f1)
 
 # Create transfer instructions
 cat > "/tmp/${PACKAGE_NAME}_${TIMESTAMP}_TRANSFER.txt" << EOF
@@ -312,20 +312,20 @@ RFE Bug Tracker Automation - Offline Package Transfer Instructions
 ====================================================================
 
 PACKAGE INFORMATION:
-  File: $TARBALL
-  Size: $TARBALL_SIZE
-  SHA256: $TARBALL_SHA
+  File: $ZIPFILE
+  Size: $ZIPFILE_SIZE
+  SHA256: $ZIPFILE_SHA
   Created: $(date)
 
 TRANSFER OPTIONS:
 
 1. USB Drive (Recommended for large files)
-   - Copy $TARBALL to USB drive
+   - Copy $ZIPFILE to USB drive
    - Verify checksum on target system:
-     sha256sum $TARBALL
+     sha256sum $ZIPFILE
 
 2. SCP (if limited network access)
-   scp $TARBALL user@target-host:/tmp/
+   scp $ZIPFILE user@target-host:/tmp/
 
 3. Shared Network Drive
    - Copy to shared location
@@ -334,10 +334,10 @@ TRANSFER OPTIONS:
 INSTALLATION ON TARGET SYSTEM:
 
 1. Verify checksum:
-   echo "$TARBALL_SHA  $TARBALL" | sha256sum -c
+   echo "$ZIPFILE_SHA  $ZIPFILE" | sha256sum -c
 
 2. Extract:
-   tar -xzf $TARBALL
+   unzip $ZIPFILE
    cd ${PACKAGE_NAME}_${TIMESTAMP}/
 
 3. Read instructions:
@@ -368,12 +368,12 @@ echo "================================================"
 echo ""
 echo "Package Details:"
 echo "  📁 Directory: ${PACKAGE_NAME}_${TIMESTAMP}/"
-echo "  📦 Tarball: $TARBALL"
-echo "  📊 Size: $TARBALL_SIZE"
-echo "  🔐 SHA256: $TARBALL_SHA"
+echo "  📦 Zip File: $ZIPFILE"
+echo "  📊 Size: $ZIPFILE_SIZE"
+echo "  🔐 SHA256: $ZIPFILE_SHA"
 echo ""
 echo "Files Created:"
-echo "  ✅ /tmp/$TARBALL"
+echo "  ✅ /tmp/$ZIPFILE"
 echo "  ✅ /tmp/${PACKAGE_NAME}_${TIMESTAMP}_TRANSFER.txt"
 echo ""
 echo "Next Steps:"
@@ -383,10 +383,10 @@ echo ""
 echo "  2. Transfer to colleague via USB/SCP/Network"
 echo ""
 echo "  3. Colleague extracts and runs:"
-echo "     tar -xzf $TARBALL"
+echo "     unzip $ZIPFILE"
 echo "     cd ${PACKAGE_NAME}_${TIMESTAMP}/"
 echo "     ./scripts/installation/install-offline.sh"
 echo ""
-echo "Package Location: /tmp/$TARBALL"
+echo "Package Location: /tmp/$ZIPFILE"
 echo ""
 
