@@ -50,6 +50,28 @@ cd rfe-and-bug-tracker-automation
 
 **For detailed setup:** → [**GETTING-STARTED.md**](GETTING-STARTED.md)
 
+### 💬 Common Commands (What Actually Works)
+
+Once installed, here are the exact commands users type most often:
+
+| Command | What It Does |
+|---------|--------------|
+| `show cases for [customer]` | View all cases for a customer |
+| `show open cases for [customer]` | View only active cases |
+| `generate report for [customer]` | Create RFE/Bug report |
+| `find similar cases to [case#]` | Find related cases |
+| `prepare meeting for [customer]` | Generate meeting materials |
+| `help` | See all available commands |
+
+**Examples:**
+```
+show cases for Westpac
+show open cases for Wells Fargo  
+generate report for TD Bank
+```
+
+**Full command reference:** → [**COMMANDS.md**](COMMANDS.md)
+
 ### What You Need (Minimal!)
 - Red Hat laptop with internet connection
 - Red Hat VPN access (see connection instructions below)
@@ -212,12 +234,20 @@ cd ~/rfe-automation
 ```
 
 **3. Just Type What You Want**
-- "Generate a report for Wells Fargo"
-- "Show me TD Bank cases"
-- "Create active case report for JPMC"
-- "Help me with Wells Fargo"
+
+Common commands that work:
+```
+show cases for Wells Fargo
+show open cases for Westpac
+generate report for TD Bank
+find similar cases to 04244831
+prepare meeting for JPMC
+help
+```
 
 **That's it!** The tool does everything else.
+
+**📝 Pro Tip**: Type `help` anytime to see all available commands with examples.
 
 ### 🚀 **Alternative: Simple Commands**
 
@@ -423,6 +453,7 @@ The tool works with any Red Hat customer. Here are examples of how it's configur
 
 ## 📚 Documentation
 
+- **[Command Reference (COMMANDS.md)](COMMANDS.md)**: Complete list of working commands with examples
 - **[Getting Started Guide](GETTING-STARTED.md)**: Quick 5-minute setup
 - **[Purpose Statement](PURPOSE.md)**: Detailed functionality overview
 - **[TAM Community Guide](README-TAM-COMMUNITY.md)**: Comprehensive community documentation

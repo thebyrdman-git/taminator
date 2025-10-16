@@ -315,7 +315,7 @@ generate_intelligent_configuration() {
     echo ""
     
     print_section "🏢 CUSTOMER CONFIGURATIONS"
-    echo "$customer_configs"
+    echo "$customer_data"
     echo ""
     
     # Ask for confirmation
@@ -337,14 +337,20 @@ generate_intelligent_configuration() {
 
 generate_configuration_files() {
     # Generate customer configuration file
+    mkdir -p "$CONFIG_DIR"
     local config_file="$CONFIG_DIR/intelligent_customer_config.yaml"
+    
+    # Load learning data
+    local profile_data=$(load_learning_data "tam_profile")
+    local sbr_data=$(load_learning_data "sbr_preferences")
+    local customer_data=$(load_learning_data "customer_configurations")
     
     cat > "$config_file" <<EOF
 # Intelligent Customer Configuration - Generated from TAM Learning
 # Generated: $(date -Iseconds)
 
 customers:
-$customer_configs
+$customer_data
 
 # Learning Data
 learning:
