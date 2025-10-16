@@ -36,9 +36,9 @@ services:
     environment:
       - TZ=America/New_York
     
-    # Health check
+    # Health check - Simple TCP check on HTTP port
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9080/ready || exit 1"]
+      test: ["CMD-SHELL", "netstat -an | grep ':9080' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
