@@ -1,0 +1,35 @@
+[Unit]
+Description=MiracleMax Infrastructure Backup
+Documentation=file:///home/jbyrd/pai/bin/pai-miraclemax-backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=jbyrd
+Group=jbyrd
+
+# Environment
+Environment="PATH=/usr/local/bin:/usr/bin:/bin:/home/jbyrd/.local/bin:/home/jbyrd/pai/bin"
+Environment="HOME=/home/jbyrd"
+
+# Execution
+ExecStart=/home/jbyrd/pai/bin/pai-miraclemax-backup
+TimeoutStartSec=3600
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+PrivateTmp=yes
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/jbyrd/backups /home/jbyrd/.local/share/pai /var/lib/node_exporter/textfile_collector
+
+# Resource limits
+CPUQuota=50%
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target
+

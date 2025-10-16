@@ -61,12 +61,12 @@ certificatesResolvers:
 
 # Providers
 providers:
-  # Docker/Podman provider (dynamic discovery)
-  docker:
-    endpoint: "unix:///var/run/docker.sock"
-    exposedByDefault: false
-    network: traefik-network
-    watch: true
+  # Docker/Podman provider disabled (using file-based config instead)
+  # docker:
+  #   endpoint: "unix:///var/run/docker.sock"
+  #   exposedByDefault: false
+  #   network: traefik-network
+  #   watch: true
   
   # File provider (static configuration)
   file:
@@ -77,12 +77,12 @@ providers:
 log:
   level: INFO
   format: json
-  filePath: /var/log/traefik/traefik.log
+  # filePath: /var/log/traefik/traefik.log  # Disabled - use podman logs instead
 
 # Access Logs
 accessLog:
   format: json
-  filePath: /var/log/traefik/access.log
+  # filePath: /var/log/traefik/access.log  # Disabled - use podman logs instead
   filters:
     statusCodes:
       - "400-599"  # Log only errors

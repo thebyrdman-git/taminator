@@ -26,9 +26,9 @@ services:
     
     # Network configuration
     ports:
-      - "80:80"      # HTTP (redirects to HTTPS)
-      - "443:443"    # HTTPS (main entry point)
-      - "8080:8080"  # Dashboard (internal only)
+      - "8000:80"    # HTTP (Cloudflare Tunnel → here)
+      - "8443:443"   # HTTPS (internal, Cloudflare terminates SSL)
+      - "8081:8080"  # Dashboard (internal only, mapped to avoid conflict)
     
     networks:
       - traefik-network
@@ -45,8 +45,8 @@ services:
       # Logs
       - traefik-logs:/var/log/traefik
       
-      # Podman socket for dynamic discovery (root context)
-      - /run/podman/podman.sock:/var/run/docker.sock:ro
+      # Podman socket for dynamic discovery (rootless context)
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:ro,z
     
     # Environment variables
     environment:
@@ -109,8 +109,5 @@ volumes:
 # Networks
 networks:
   traefik-network:
-    driver: bridge
+    external: true
     name: traefik-network
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16

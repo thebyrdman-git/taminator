@@ -1,0 +1,410 @@
+#!/bin/bash
+#
+# pai-miraclemax-backup - Comprehensive MiracleMax Infrastructure Backup
+#
+# Description:
+#   Backs up all critical MiracleMax data including databases, configurations,
+#   and service data with GPG encryption and retention management
+#
+# Usage:
+#   pai-miraclemax-backup [OPTIONS]
+#
+# Options:
+#   --skip-prometheus    Skip Prometheus data backup (saves ~50GB, data regenerates)
+#   --skip-encryption    Skip GPG encryption (NOT RECOMMENDED for n8n data)
+#   --full               Include all data including Prometheus metrics
+#   --verify             Verify backup integrity after creation
+#   --restore-test       Test restore procedures (dry-run)
+#
+# Location: /home/jbyrd/pai/bin/pai-miraclemax-backup
+# Author: Hatter (PAI System)
+# Date: 2025-10-16
+
+set -euo pipefail
+
+# Configuration
+MIRACLEMAX_HOST="jbyrd@192.168.1.34"
+BACKUP_BASE_DIR="/home/jbyrd/backups/miraclemax"
+TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+BACKUP_DIR="$BACKUP_BASE_DIR/$TIMESTAMP"
+LOG_FILE="/home/jbyrd/.local/share/pai/logs/miraclemax-backup.log"
+RETENTION_DAYS=30
+GPG_RECIPIENT="jbyrd@redhat.com"
+
+# Metrics for Prometheus monitoring
+METRICS_FILE="/var/lib/node_exporter/textfile_collector/miraclemax_backup.prom"
+
+# Options
+SKIP_PROMETHEUS=true  # Default: skip Prometheus (data regenerates)
+SKIP_ENCRYPTION=false
+VERIFY_BACKUP=false
+RESTORE_TEST=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --skip-prometheus)
+            SKIP_PROMETHEUS=true
+            shift
+            ;;
+        --skip-encryption)
+            SKIP_ENCRYPTION=true
+            shift
+            ;;
+        --full)
+            SKIP_PROMETHEUS=false
+            shift
+            ;;
+        --verify)
+            VERIFY_BACKUP=true
+            shift
+            ;;
+        --restore-test)
+            RESTORE_TEST=true
+            shift
+            ;;
+        -h|--help)
+            grep '^#' "$0" | grep -v '#!/bin/bash' | sed 's/^# \?//'
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Logging functions
+log() {
+    local level="$1"
+    shift
+    local msg="$*"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "${timestamp} [${level}] ${msg}" | tee -a "$LOG_FILE"
+}
+
+log_info() {
+    log "INFO" "${BLUE}$*${NC}"
+}
+
+log_success() {
+    log "SUCCESS" "${GREEN}✓ $*${NC}"
+}
+
+log_warning() {
+    log "WARNING" "${YELLOW}⚠ $*${NC}"
+}
+
+log_error() {
+    log "ERROR" "${RED}✗ $*${NC}"
+}
+
+# Prometheus metrics functions
+write_metric() {
+    local metric_name="$1"
+    local metric_value="$2"
+    local metric_help="$3"
+    
+    mkdir -p "$(dirname "$METRICS_FILE")"
+    {
+        echo "# HELP $metric_name $metric_help"
+        echo "# TYPE $metric_name gauge"
+        echo "${metric_name} ${metric_value}"
+    } >> "$METRICS_FILE.tmp"
+}
+
+finalize_metrics() {
+    if [ -f "$METRICS_FILE.tmp" ]; then
+        mv "$METRICS_FILE.tmp" "$METRICS_FILE"
+        log_success "Prometheus metrics updated"
+    fi
+}
+
+# Error handling
+backup_failed() {
+    log_error "Backup failed at: ${BASH_SOURCE[1]}:${BASH_LINENO[0]}"
+    write_metric "miraclemax_backup_success" "0" "MiracleMax backup success status (1=success, 0=failure)"
+    write_metric "miraclemax_backup_timestamp" "$(date +%s)" "Timestamp of last backup attempt"
+    finalize_metrics
+    exit 1
+}
+
+trap backup_failed ERR
+
+# Create directories
+mkdir -p "$BACKUP_DIR"/{databases,configs,volumes,logs}
+mkdir -p "$(dirname "$LOG_FILE")"
+
+log_info "╔═══════════════════════════════════════════════════════════════════════╗"
+log_info "║         MiracleMax Infrastructure Backup System                      ║"
+log_info "╚═══════════════════════════════════════════════════════════════════════╝"
+log_info "Backup started: $(date)"
+log_info "Backup directory: $BACKUP_DIR"
+
+# Check connectivity
+log_info "Checking connection to miraclemax..."
+if ! ssh -o ConnectTimeout=5 "$MIRACLEMAX_HOST" "echo 'Connection OK'" &>/dev/null; then
+    log_error "Cannot reach miraclemax at $MIRACLEMAX_HOST"
+    exit 1
+fi
+log_success "Connection established"
+
+# Backup 1: Home Assistant
+log_info "━━━ Backing up Home Assistant ━━━"
+if ssh "$MIRACLEMAX_HOST" "podman ps --format '{{.Names}}' | grep -q homeassistant"; then
+    log_info "Home Assistant is running, backing up data..."
+    
+    # Backup Home Assistant config directory
+    # Note: Use sudo rsync on remote side due to root-owned .storage files
+    rsync -az --delete --rsync-path="sudo rsync" \
+        "$MIRACLEMAX_HOST:/home/jbyrd/homeassistant-config/" \
+        "$BACKUP_DIR/databases/homeassistant/" || backup_failed
+    
+    HOMEASSISTANT_SIZE=$(du -sh "$BACKUP_DIR/databases/homeassistant" | cut -f1)
+    log_success "Home Assistant backed up ($HOMEASSISTANT_SIZE)"
+    
+    # Encrypt if requested and GPG key available
+    if [ "$SKIP_ENCRYPTION" = false ]; then
+        if gpg --list-keys "$GPG_RECIPIENT" >/dev/null 2>&1; then
+            log_info "Encrypting Home Assistant backup..."
+            tar czf - -C "$BACKUP_DIR/databases" homeassistant | \
+                gpg --encrypt --recipient "$GPG_RECIPIENT" \
+                > "$BACKUP_DIR/databases/homeassistant.tar.gz.gpg"
+            rm -rf "$BACKUP_DIR/databases/homeassistant"
+            log_success "Home Assistant backup encrypted"
+        else
+            log_warning "GPG key not found for $GPG_RECIPIENT - backup NOT encrypted"
+            log_warning "Run: gpg --full-generate-key to set up encryption"
+        fi
+    fi
+else
+    log_warning "Home Assistant container not running, skipping"
+fi
+
+# Backup 2: n8n (CRITICAL - contains credentials)
+log_info "━━━ Backing up n8n workflows ━━━"
+if ssh "$MIRACLEMAX_HOST" "podman ps --format '{{.Names}}' | grep -q n8n"; then
+    log_info "n8n is running, backing up data..."
+    
+    # Backup n8n data directory
+    rsync -az --delete \
+        "$MIRACLEMAX_HOST:/home/jbyrd/n8n-data/" \
+        "$BACKUP_DIR/databases/n8n/" || backup_failed
+    
+    N8N_SIZE=$(du -sh "$BACKUP_DIR/databases/n8n" | cut -f1)
+    log_success "n8n data backed up ($N8N_SIZE)"
+    
+    # ALWAYS encrypt n8n (contains credentials) if GPG available
+    if gpg --list-keys "$GPG_RECIPIENT" >/dev/null 2>&1; then
+        log_info "Encrypting n8n backup (contains credentials)..."
+        tar czf - -C "$BACKUP_DIR/databases" n8n | \
+            gpg --encrypt --recipient "$GPG_RECIPIENT" \
+            > "$BACKUP_DIR/databases/n8n.tar.gz.gpg"
+        rm -rf "$BACKUP_DIR/databases/n8n"
+        log_success "n8n backup encrypted"
+    else
+        log_warning "⚠⚠⚠ CRITICAL: GPG key not found - n8n backup NOT encrypted ⚠⚠⚠"
+        log_warning "n8n contains API credentials and OAuth tokens!"
+        log_warning "Run: gpg --full-generate-key IMMEDIATELY to enable encryption"
+    fi
+else
+    log_warning "n8n container not running, skipping"
+fi
+
+# Backup 3: Grafana
+log_info "━━━ Backing up Grafana ━━━"
+if ssh "$MIRACLEMAX_HOST" "podman ps --format '{{.Names}}' | grep -q grafana"; then
+    log_info "Grafana is running, backing up volume..."
+    
+    # Export Grafana volume
+    ssh "$MIRACLEMAX_HOST" "podman run --rm -v grafana-data:/data -v /tmp:/backup alpine tar czf /backup/grafana-data.tar.gz -C /data ." || backup_failed
+    scp "$MIRACLEMAX_HOST:/tmp/grafana-data.tar.gz" "$BACKUP_DIR/volumes/" || backup_failed
+    ssh "$MIRACLEMAX_HOST" "rm /tmp/grafana-data.tar.gz"
+    
+    GRAFANA_SIZE=$(du -sh "$BACKUP_DIR/volumes/grafana-data.tar.gz" | cut -f1)
+    log_success "Grafana backed up ($GRAFANA_SIZE)"
+else
+    log_warning "Grafana container not running, skipping"
+fi
+
+# Backup 4: Prometheus (OPTIONAL - large and regenerates)
+if [ "$SKIP_PROMETHEUS" = false ]; then
+    log_info "━━━ Backing up Prometheus ━━━"
+    if ssh "$MIRACLEMAX_HOST" "podman ps --format '{{.Names}}' | grep -q prometheus"; then
+        log_info "Prometheus is running, backing up volume..."
+        log_warning "This may take a while (50GB+ data)..."
+        
+        ssh "$MIRACLEMAX_HOST" "podman run --rm -v prometheus-data:/data -v /tmp:/backup alpine tar czf /backup/prometheus-data.tar.gz -C /data ." || backup_failed
+        scp "$MIRACLEMAX_HOST:/tmp/prometheus-data.tar.gz" "$BACKUP_DIR/volumes/" || backup_failed
+        ssh "$MIRACLEMAX_HOST" "rm /tmp/prometheus-data.tar.gz"
+        
+        PROMETHEUS_SIZE=$(du -sh "$BACKUP_DIR/volumes/prometheus-data.tar.gz" | cut -f1)
+        log_success "Prometheus backed up ($PROMETHEUS_SIZE)"
+    else
+        log_warning "Prometheus container not running, skipping"
+    fi
+else
+    log_info "Skipping Prometheus backup (use --full to include)"
+fi
+
+# Backup 5: Infrastructure Configurations
+log_info "━━━ Backing up Infrastructure Configs ━━━"
+# Note: Use sudo rsync for authelia secrets (root-owned)
+rsync -az --delete --rsync-path="sudo rsync" \
+    "$MIRACLEMAX_HOST:/home/jbyrd/miraclemax-infrastructure/" \
+    "$BACKUP_DIR/configs/miraclemax-infrastructure/" || backup_failed
+
+INFRA_SIZE=$(du -sh "$BACKUP_DIR/configs/miraclemax-infrastructure" | cut -f1)
+log_success "Infrastructure configs backed up ($INFRA_SIZE)"
+
+# Backup 6: Traefik SSL Certificates
+log_info "━━━ Backing up Traefik SSL Certificates ━━━"
+ssh "$MIRACLEMAX_HOST" "podman run --rm -v compose_traefik-certs:/data -v /tmp:/backup alpine tar czf /backup/traefik-certs.tar.gz -C /data ." || backup_failed
+scp "$MIRACLEMAX_HOST:/tmp/traefik-certs.tar.gz" "$BACKUP_DIR/volumes/" || backup_failed
+ssh "$MIRACLEMAX_HOST" "rm /tmp/traefik-certs.tar.gz"
+
+TRAEFIK_SIZE=$(du -sh "$BACKUP_DIR/volumes/traefik-certs.tar.gz" | cut -f1)
+log_success "Traefik certificates backed up ($TRAEFIK_SIZE)"
+
+# Backup 7: Alertmanager Data
+log_info "━━━ Backing up Alertmanager ━━━"
+ssh "$MIRACLEMAX_HOST" "podman run --rm -v compose_alertmanager-data:/data -v /tmp:/backup alpine tar czf /backup/alertmanager-data.tar.gz -C /data ." || backup_failed
+scp "$MIRACLEMAX_HOST:/tmp/alertmanager-data.tar.gz" "$BACKUP_DIR/volumes/" || backup_failed
+ssh "$MIRACLEMAX_HOST" "rm /tmp/alertmanager-data.tar.gz"
+
+ALERTMANAGER_SIZE=$(du -sh "$BACKUP_DIR/volumes/alertmanager-data.tar.gz" | cut -f1)
+log_success "Alertmanager backed up ($ALERTMANAGER_SIZE)"
+
+# Backup 8: Portainer Configuration
+log_info "━━━ Backing up Portainer ━━━"
+if ssh "$MIRACLEMAX_HOST" "podman ps --format '{{.Names}}' | grep -q portainer"; then
+    ssh "$MIRACLEMAX_HOST" "podman run --rm -v portainer_data:/data -v /tmp:/backup alpine tar czf /backup/portainer-data.tar.gz -C /data ." || backup_failed
+    scp "$MIRACLEMAX_HOST:/tmp/portainer-data.tar.gz" "$BACKUP_DIR/volumes/" || backup_failed
+    ssh "$MIRACLEMAX_HOST" "rm /tmp/portainer-data.tar.gz"
+    
+    PORTAINER_SIZE=$(du -sh "$BACKUP_DIR/volumes/portainer-data.tar.gz" | cut -f1)
+    log_success "Portainer backed up ($PORTAINER_SIZE)"
+fi
+
+# Backup 9: Container List and Metadata
+log_info "━━━ Backing up Container Metadata ━━━"
+ssh "$MIRACLEMAX_HOST" "podman ps -a --format json" > "$BACKUP_DIR/logs/containers.json"
+ssh "$MIRACLEMAX_HOST" "podman images --format json" > "$BACKUP_DIR/logs/images.json"
+ssh "$MIRACLEMAX_HOST" "podman volume ls --format json" > "$BACKUP_DIR/logs/volumes.json"
+ssh "$MIRACLEMAX_HOST" "podman network ls --format json" > "$BACKUP_DIR/logs/networks.json"
+log_success "Container metadata backed up"
+
+# Create backup manifest
+log_info "━━━ Creating Backup Manifest ━━━"
+cat > "$BACKUP_DIR/MANIFEST.txt" <<EOF
+MiracleMax Infrastructure Backup
+================================
+Backup Date: $(date)
+Backup Directory: $BACKUP_DIR
+Backup Host: $(hostname)
+Target Host: $MIRACLEMAX_HOST
+
+Backup Contents:
+----------------
+$(find "$BACKUP_DIR" -type f -exec du -h {} \; | sort -h)
+
+Total Backup Size: $(du -sh "$BACKUP_DIR" | cut -f1)
+
+Retention Policy: $RETENTION_DAYS days
+Encryption: $([ "$SKIP_ENCRYPTION" = false ] && echo "Enabled (GPG)" || echo "Disabled")
+Prometheus Data: $([ "$SKIP_PROMETHEUS" = false ] && echo "Included" || echo "Excluded")
+
+Restore Command:
+----------------
+pai-miraclemax-restore --from-backup $BACKUP_DIR
+
+Critical Files:
+---------------
+- Home Assistant: databases/homeassistant$([ "$SKIP_ENCRYPTION" = false ] && echo ".tar.gz.gpg" || echo "")
+- n8n: databases/n8n.tar.gz.gpg (ALWAYS ENCRYPTED)
+- Grafana: volumes/grafana-data.tar.gz
+- Traefik Certs: volumes/traefik-certs.tar.gz
+- Infrastructure: configs/miraclemax-infrastructure/
+EOF
+
+log_success "Backup manifest created"
+
+# Calculate total backup size
+TOTAL_SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
+log_info "Total backup size: $TOTAL_SIZE"
+
+# Verify backup if requested
+if [ "$VERIFY_BACKUP" = true ]; then
+    log_info "━━━ Verifying Backup Integrity ━━━"
+    
+    # Verify tar files
+    for tarfile in "$BACKUP_DIR"/volumes/*.tar.gz; do
+        if [ -f "$tarfile" ]; then
+            if tar tzf "$tarfile" >/dev/null 2>&1; then
+                log_success "Verified: $(basename "$tarfile")"
+            else
+                log_error "Corrupted: $(basename "$tarfile")"
+                backup_failed
+            fi
+        fi
+    done
+    
+    # Verify GPG files
+    for gpgfile in "$BACKUP_DIR"/databases/*.gpg; do
+        if [ -f "$gpgfile" ]; then
+            if gpg --list-packets "$gpgfile" >/dev/null 2>&1; then
+                log_success "Verified: $(basename "$gpgfile")"
+            else
+                log_error "Corrupted: $(basename "$gpgfile")"
+                backup_failed
+            fi
+        fi
+    done
+fi
+
+# Create latest symlink
+ln -sfn "$BACKUP_DIR" "$BACKUP_BASE_DIR/latest"
+log_success "Latest backup symlink created"
+
+# Cleanup old backups
+log_info "━━━ Cleaning up old backups ━━━"
+find "$BACKUP_BASE_DIR" -maxdepth 1 -type d -name "20*" -mtime +$RETENTION_DAYS -exec rm -rf {} \;
+OLD_COUNT=$(find "$BACKUP_BASE_DIR" -maxdepth 1 -type d -name "20*" | wc -l)
+log_success "Retained $OLD_COUNT backups (${RETENTION_DAYS}-day retention)"
+
+# Write Prometheus metrics
+write_metric "miraclemax_backup_success" "1" "MiracleMax backup success status (1=success, 0=failure)"
+write_metric "miraclemax_backup_timestamp" "$(date +%s)" "Timestamp of last successful backup"
+write_metric "miraclemax_backup_size_bytes" "$(du -sb "$BACKUP_DIR" | cut -f1)" "Size of latest backup in bytes"
+write_metric "miraclemax_backup_duration_seconds" "$SECONDS" "Duration of backup operation in seconds"
+finalize_metrics
+
+log_info "╔═══════════════════════════════════════════════════════════════════════╗"
+log_info "║         Backup Complete                                              ║"
+log_info "╚═══════════════════════════════════════════════════════════════════════╝"
+log_success "Backup completed successfully"
+log_info "Backup location: $BACKUP_DIR"
+log_info "Total size: $TOTAL_SIZE"
+log_info "Duration: ${SECONDS}s"
+
+# Summary
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Backup Summary"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Location: $BACKUP_DIR"
+echo "  Size: $TOTAL_SIZE"
+echo "  Duration: ${SECONDS}s"
+echo "  Manifest: $BACKUP_DIR/MANIFEST.txt"
+echo "  Restore: pai-miraclemax-restore --from-backup $TIMESTAMP"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+

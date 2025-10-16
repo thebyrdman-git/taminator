@@ -6,7 +6,7 @@ services:
     container_name: homer
     restart: unless-stopped
     volumes:
-      - ../config/homer/assets:/www/assets
+      - ../config/homer/assets:/www/assets:z
     environment:
       - INIT_ASSETS=0  # Don't overwrite our config
     networks:
@@ -19,8 +19,8 @@ services:
       - "traefik.http.routers.homer.entrypoints=web,websecure"
       - "traefik.http.routers.homer.service=homer"
       
-      # Middleware
-      - "traefik.http.routers.homer.middlewares=authelia@file,security-headers@file,rate-limit@file"
+      # Middleware (public access, no auth required)
+      - "traefik.http.routers.homer.middlewares=security-headers@file,rate-limit@file"
       
       # Service
       - "traefik.http.services.homer.loadbalancer.server.port=8080"

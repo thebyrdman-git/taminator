@@ -71,6 +71,29 @@ groups:
           description: "Disk usage is {{ $value | humanize }}% (threshold: 95%)"
           runbook: "Emergency cleanup required. Service failures imminent."
       
+      # Tmpfs Alerts (separate monitoring for /tmp and other tmpfs mounts)
+      - alert: HighTmpfsUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype="tmpfs"} / node_filesystem_size_bytes{fstype="tmpfs"})) * 100 > 80
+        for: 3m
+        labels:
+          severity: warning
+          component: host
+        annotations:
+          summary: "High tmpfs usage on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+          description: "Tmpfs usage is {{ $value | humanize }}% (threshold: 80%)"
+          runbook: "Clean temp files: find {{ $labels.mountpoint }} -type f -atime +7 -delete"
+      
+      - alert: CriticalTmpfsUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype="tmpfs"} / node_filesystem_size_bytes{fstype="tmpfs"})) * 100 > 90
+        for: 1m
+        labels:
+          severity: critical
+          component: host
+        annotations:
+          summary: "CRITICAL: Tmpfs usage on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+          description: "Tmpfs usage is {{ $value | humanize }}% (threshold: 90%)"
+          runbook: "Emergency cleanup required. Check largest files: du -sh {{ $labels.mountpoint }}/* | sort -h"
+      
       # Network Alerts
       - alert: HighNetworkErrors
         expr: rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 10
@@ -186,4 +209,67 @@ groups:
           summary: "Prometheus is down"
           description: "Monitoring and alerting system is offline"
           runbook: "Restart Prometheus immediately"
+
+  - name: miraclemax_backups
+    interval: 60s
+    rules:
+      # Backup Failure
+      - alert: BackupFailed
+        expr: miraclemax_backup_success == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: backup
+        annotations:
+          summary: "MiracleMax backup failed"
+          description: "Last backup attempt failed. Data protection compromised."
+          runbook: "Check logs: journalctl -u pai-miraclemax-backup.service -n 50"
+      
+      # Backup Age (stale backups)
+      - alert: BackupStale
+        expr: (time() - miraclemax_backup_timestamp) > 86400 * 2
+        for: 1h
+        labels:
+          severity: warning
+          component: backup
+        annotations:
+          summary: "MiracleMax backup is stale"
+          description: "Last successful backup was {{ $value | humanizeDuration }} ago (threshold: 2 days)"
+          runbook: "Check backup timer: systemctl status pai-miraclemax-backup.timer; run manual backup: pai-miraclemax-backup"
+      
+      # Backup Missing (no backup metrics)
+      - alert: BackupMetricsMissing
+        expr: absent(miraclemax_backup_timestamp)
+        for: 2h
+        labels:
+          severity: warning
+          component: backup
+        annotations:
+          summary: "MiracleMax backup metrics missing"
+          description: "No backup metrics found. Backup system may not be running."
+          runbook: "Verify backup timer: systemctl list-timers pai-miraclemax-backup.timer"
+      
+      # Backup Size Anomaly (backup too small - might indicate incomplete backup)
+      - alert: BackupSizeAnomaly
+        expr: miraclemax_backup_size_bytes < 100000000
+        for: 5m
+        labels:
+          severity: warning
+          component: backup
+        annotations:
+          summary: "MiracleMax backup size anomaly"
+          description: "Backup size is {{ $value | humanize1024 }}B (expected >100MB). May be incomplete."
+          runbook: "Verify backup contents: ls -lh /home/jbyrd/backups/miraclemax/latest/"
+      
+      # Backup Duration Anomaly (taking too long)
+      - alert: BackupDurationAnomaly
+        expr: miraclemax_backup_duration_seconds > 3600
+        for: 5m
+        labels:
+          severity: warning
+          component: backup
+        annotations:
+          summary: "MiracleMax backup taking too long"
+          description: "Backup took {{ $value | humanizeDuration }} (threshold: 1 hour). Performance issue detected."
+          runbook: "Check network connectivity to miraclemax; check disk I/O: iostat -x 1 5"
 

@@ -1,0 +1,417 @@
+#!/bin/bash
+#
+# pai-miraclemax-restore - Restore MiracleMax Infrastructure from Backup
+#
+# Description:
+#   Restores MiracleMax data from backup with safety checks and verification
+#   WARNING: This is a DESTRUCTIVE operation that will overwrite existing data
+#
+# Usage:
+#   pai-miraclemax-restore [OPTIONS]
+#
+# Options:
+#   --from-backup DIR    Restore from specific backup directory/timestamp
+#   --latest             Restore from latest backup
+#   --dry-run            Show what would be restored without making changes
+#   --component NAME     Restore only specific component (homeassistant, n8n, grafana, etc.)
+#   --verify-only        Only verify backup integrity
+#   --force              Skip safety confirmations (DANGEROUS)
+#
+# Components:
+#   homeassistant  Home automation config and database
+#   n8n            Workflow automation data
+#   grafana        Dashboards and datasources
+#   prometheus     Metrics data (if backed up)
+#   traefik        SSL certificates
+#   alertmanager   Alert state
+#   portainer      Container management config
+#   configs        Infrastructure configuration files
+#   all            Restore everything (default)
+#
+# Location: /home/jbyrd/pai/bin/pai-miraclemax-restore
+# Author: Hatter (PAI System)
+# Date: 2025-10-16
+
+set -euo pipefail
+
+# Configuration
+MIRACLEMAX_HOST="jbyrd@192.168.1.34"
+BACKUP_BASE_DIR="/home/jbyrd/backups/miraclemax"
+LOG_FILE="/home/jbyrd/.local/share/pai/logs/miraclemax-restore.log"
+
+# Options
+BACKUP_DIR=""
+USE_LATEST=false
+DRY_RUN=false
+COMPONENT="all"
+VERIFY_ONLY=false
+FORCE=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --from-backup)
+            BACKUP_DIR="$2"
+            shift 2
+            ;;
+        --latest)
+            USE_LATEST=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --component)
+            COMPONENT="$2"
+            shift 2
+            ;;
+        --verify-only)
+            VERIFY_ONLY=true
+            shift
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        -h|--help)
+            grep '^#' "$0" | grep -v '#!/bin/bash' | sed 's/^# \?//'
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+NC='\033[0m'
+
+# Logging functions
+log() {
+    local level="$1"
+    shift
+    local msg="$*"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "${timestamp} [${level}] ${msg}" | tee -a "$LOG_FILE"
+}
+
+log_info() {
+    log "INFO" "${BLUE}$*${NC}"
+}
+
+log_success() {
+    log "SUCCESS" "${GREEN}✓ $*${NC}"
+}
+
+log_warning() {
+    log "WARNING" "${YELLOW}⚠ $*${NC}"
+}
+
+log_error() {
+    log "ERROR" "${RED}✗ $*${NC}"
+}
+
+log_critical() {
+    log "CRITICAL" "${RED}${MAGENTA}⚠⚠⚠ $* ⚠⚠⚠${NC}"
+}
+
+# Create log directory
+mkdir -p "$(dirname "$LOG_FILE")"
+
+log_info "╔═══════════════════════════════════════════════════════════════════════╗"
+log_info "║         MiracleMax Infrastructure Restore System                     ║"
+log_info "╚═══════════════════════════════════════════════════════════════════════╝"
+
+# Determine backup directory
+if [ "$USE_LATEST" = true ]; then
+    BACKUP_DIR="$BACKUP_BASE_DIR/latest"
+    log_info "Using latest backup"
+elif [ -z "$BACKUP_DIR" ]; then
+    log_error "No backup specified. Use --latest or --from-backup DIR"
+    exit 1
+elif [[ ! "$BACKUP_DIR" =~ ^/ ]]; then
+    # If not absolute path, treat as timestamp
+    BACKUP_DIR="$BACKUP_BASE_DIR/$BACKUP_DIR"
+fi
+
+# Verify backup directory exists
+if [ ! -d "$BACKUP_DIR" ]; then
+    log_error "Backup directory not found: $BACKUP_DIR"
+    log_info "Available backups:"
+    ls -lh "$BACKUP_BASE_DIR" | grep "^d" | tail -10
+    exit 1
+fi
+
+log_success "Backup found: $BACKUP_DIR"
+
+# Show backup manifest
+if [ -f "$BACKUP_DIR/MANIFEST.txt" ]; then
+    log_info "━━━ Backup Manifest ━━━"
+    cat "$BACKUP_DIR/MANIFEST.txt"
+    echo ""
+fi
+
+# Verify backup integrity
+log_info "━━━ Verifying Backup Integrity ━━━"
+
+VERIFICATION_FAILED=false
+
+# Verify tar files
+shopt -s nullglob
+for tarfile in "$BACKUP_DIR"/volumes/*.tar.gz; do
+    if [ -f "$tarfile" ]; then
+        if tar tzf "$tarfile" >/dev/null 2>&1; then
+            log_success "Valid: $(basename "$tarfile")"
+        else
+            log_error "Corrupted: $(basename "$tarfile")"
+            VERIFICATION_FAILED=true
+        fi
+    fi
+done
+
+# Verify GPG files
+for gpgfile in "$BACKUP_DIR"/databases/*.gpg; do
+    if [ -f "$gpgfile" ]; then
+        if gpg --list-packets "$gpgfile" >/dev/null 2>&1; then
+            log_success "Valid: $(basename "$gpgfile")"
+        else
+            log_error "Corrupted: $(basename "$gpgfile")"
+            VERIFICATION_FAILED=true
+        fi
+    fi
+done
+shopt -u nullglob
+
+if [ "$VERIFICATION_FAILED" = true ]; then
+    log_error "Backup verification failed. Aborting."
+    exit 1
+fi
+
+log_success "Backup integrity verified"
+
+if [ "$VERIFY_ONLY" = true ]; then
+    log_success "Verification complete (--verify-only mode)"
+    exit 0
+fi
+
+# Safety confirmation
+if [ "$FORCE" = false ] && [ "$DRY_RUN" = false ]; then
+    log_critical "WARNING: This will OVERWRITE existing data on miraclemax!"
+    log_warning "Component to restore: $COMPONENT"
+    log_warning "Backup date: $(stat -c %y "$BACKUP_DIR" | cut -d' ' -f1)"
+    echo ""
+    read -p "Type 'RESTORE' to continue: " confirmation
+    
+    if [ "$confirmation" != "RESTORE" ]; then
+        log_info "Restore cancelled by user"
+        exit 0
+    fi
+fi
+
+# Check connectivity
+log_info "Checking connection to miraclemax..."
+if ! ssh -o ConnectTimeout=5 "$MIRACLEMAX_HOST" "echo 'Connection OK'" &>/dev/null; then
+    log_error "Cannot reach miraclemax at $MIRACLEMAX_HOST"
+    exit 1
+fi
+log_success "Connection established"
+
+# Restore function
+restore_component() {
+    local component="$1"
+    local description="$2"
+    local restore_cmd="$3"
+    
+    if [ "$COMPONENT" != "all" ] && [ "$COMPONENT" != "$component" ]; then
+        return 0
+    fi
+    
+    log_info "━━━ Restoring: $description ━━━"
+    
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[DRY-RUN] Would execute: $restore_cmd"
+        return 0
+    fi
+    
+    eval "$restore_cmd" || {
+        log_error "Failed to restore $component"
+        return 1
+    }
+    
+    log_success "$description restored"
+}
+
+# Restore Home Assistant
+if [ -f "$BACKUP_DIR/databases/homeassistant.tar.gz.gpg" ]; then
+    restore_component "homeassistant" "Home Assistant" "
+        log_info 'Decrypting and extracting Home Assistant backup...'
+        TMP_DIR=\$(mktemp -d)
+        gpg --decrypt '$BACKUP_DIR/databases/homeassistant.tar.gz.gpg' | tar xzf - -C \$TMP_DIR
+        log_info 'Stopping Home Assistant container...'
+        ssh '$MIRACLEMAX_HOST' 'podman stop homeassistant 2>/dev/null || true'
+        log_info 'Restoring data...'
+        rsync -az --delete \$TMP_DIR/homeassistant/ '$MIRACLEMAX_HOST:/home/jbyrd/homeassistant-config/'
+        rm -rf \$TMP_DIR
+        log_info 'Starting Home Assistant container...'
+        ssh '$MIRACLEMAX_HOST' 'cd ~/miraclemax-infrastructure && podman-compose -f compose/homeassistant.yml up -d'
+    "
+elif [ -d "$BACKUP_DIR/databases/homeassistant" ]; then
+    restore_component "homeassistant" "Home Assistant" "
+        log_info 'Stopping Home Assistant container...'
+        ssh '$MIRACLEMAX_HOST' 'podman stop homeassistant 2>/dev/null || true'
+        log_info 'Restoring data...'
+        rsync -az --delete '$BACKUP_DIR/databases/homeassistant/' '$MIRACLEMAX_HOST:/home/jbyrd/homeassistant-config/'
+        log_info 'Starting Home Assistant container...'
+        ssh '$MIRACLEMAX_HOST' 'cd ~/miraclemax-infrastructure && podman-compose -f compose/homeassistant.yml up -d'
+    "
+fi
+
+# Restore n8n
+if [ -f "$BACKUP_DIR/databases/n8n.tar.gz.gpg" ]; then
+    restore_component "n8n" "n8n Workflows" "
+        log_info 'Decrypting and extracting n8n backup...'
+        TMP_DIR=\$(mktemp -d)
+        gpg --decrypt '$BACKUP_DIR/databases/n8n.tar.gz.gpg' | tar xzf - -C \$TMP_DIR
+        log_info 'Stopping n8n containers...'
+        ssh '$MIRACLEMAX_HOST' 'podman stop n8n n8n-new 2>/dev/null || true'
+        log_info 'Restoring data...'
+        rsync -az --delete \$TMP_DIR/n8n/ '$MIRACLEMAX_HOST:/home/jbyrd/n8n-data/'
+        rm -rf \$TMP_DIR
+        log_info 'Starting n8n container...'
+        ssh '$MIRACLEMAX_HOST' 'cd ~/miraclemax-infrastructure && podman-compose -f compose/n8n.yml up -d'
+    "
+fi
+
+# Restore Grafana
+if [ -f "$BACKUP_DIR/volumes/grafana-data.tar.gz" ]; then
+    restore_component "grafana" "Grafana Dashboards" "
+        log_info 'Stopping Grafana container...'
+        ssh '$MIRACLEMAX_HOST' 'podman stop grafana 2>/dev/null || true'
+        log_info 'Uploading backup...'
+        scp '$BACKUP_DIR/volumes/grafana-data.tar.gz' '$MIRACLEMAX_HOST:/tmp/'
+        log_info 'Restoring volume...'
+        ssh '$MIRACLEMAX_HOST' 'podman volume rm grafana-data 2>/dev/null || true'
+        ssh '$MIRACLEMAX_HOST' 'podman volume create grafana-data'
+        ssh '$MIRACLEMAX_HOST' 'podman run --rm -v grafana-data:/data -v /tmp:/backup alpine tar xzf /backup/grafana-data.tar.gz -C /data'
+        ssh '$MIRACLEMAX_HOST' 'rm /tmp/grafana-data.tar.gz'
+        log_info 'Starting Grafana container...'
+        ssh '$MIRACLEMAX_HOST' 'cd ~/miraclemax-infrastructure && podman-compose -f compose/grafana.yml up -d'
+    "
+fi
+
+# Restore Prometheus
+if [ -f "$BACKUP_DIR/volumes/prometheus-data.tar.gz" ]; then
+    restore_component "prometheus" "Prometheus Metrics" "
+        log_warning 'Prometheus restore may take several minutes...'
+        log_info 'Stopping Prometheus container...'
+        ssh '$MIRACLEMAX_HOST' 'podman stop prometheus 2>/dev/null || true'
+        log_info 'Uploading backup...'
+        scp '$BACKUP_DIR/volumes/prometheus-data.tar.gz' '$MIRACLEMAX_HOST:/tmp/'
+        log_info 'Restoring volume...'
+        ssh '$MIRACLEMAX_HOST' 'podman volume rm prometheus-data 2>/dev/null || true'
+        ssh '$MIRACLEMAX_HOST' 'podman volume create prometheus-data'
+        ssh '$MIRACLEMAX_HOST' 'podman run --rm -v prometheus-data:/data -v /tmp:/backup alpine tar xzf /backup/prometheus-data.tar.gz -C /data'
+        ssh '$MIRACLEMAX_HOST' 'rm /tmp/prometheus-data.tar.gz'
+        log_info 'Starting Prometheus container...'
+        ssh '$MIRACLEMAX_HOST' 'cd ~/pai-monitoring-stack && podman-compose up -d prometheus'
+    "
+fi
+
+# Restore Traefik Certificates
+if [ -f "$BACKUP_DIR/volumes/traefik-certs.tar.gz" ]; then
+    restore_component "traefik" "Traefik SSL Certificates" "
+        log_info 'Stopping Traefik container...'
+        ssh '$MIRACLEMAX_HOST' 'podman stop compose_traefik_1 2>/dev/null || true'
+        log_info 'Uploading backup...'
+        scp '$BACKUP_DIR/volumes/traefik-certs.tar.gz' '$MIRACLEMAX_HOST:/tmp/'
+        log_info 'Restoring volume...'
+        ssh '$MIRACLEMAX_HOST' 'podman volume rm compose_traefik-certs 2>/dev/null || true'
+        ssh '$MIRACLEMAX_HOST' 'podman volume create compose_traefik-certs'
+        ssh '$MIRACLEMAX_HOST' 'podman run --rm -v compose_traefik-certs:/data -v /tmp:/backup alpine tar xzf /backup/traefik-certs.tar.gz -C /data'
+        ssh '$MIRACLEMAX_HOST' 'rm /tmp/traefik-certs.tar.gz'
+        log_info 'Starting Traefik container...'
+        ssh '$MIRACLEMAX_HOST' 'cd ~/miraclemax-infrastructure && podman-compose -f compose/traefik.yml up -d'
+    "
+fi
+
+# Restore Alertmanager
+if [ -f "$BACKUP_DIR/volumes/alertmanager-data.tar.gz" ]; then
+    restore_component "alertmanager" "Alertmanager State" "
+        log_info 'Stopping Alertmanager container...'
+        ssh '$MIRACLEMAX_HOST' 'podman stop alertmanager 2>/dev/null || true'
+        log_info 'Uploading backup...'
+        scp '$BACKUP_DIR/volumes/alertmanager-data.tar.gz' '$MIRACLEMAX_HOST:/tmp/'
+        log_info 'Restoring volume...'
+        ssh '$MIRACLEMAX_HOST' 'podman volume rm compose_alertmanager-data 2>/dev/null || true'
+        ssh '$MIRACLEMAX_HOST' 'podman volume create compose_alertmanager-data'
+        ssh '$MIRACLEMAX_HOST' 'podman run --rm -v compose_alertmanager-data:/data -v /tmp:/backup alpine tar xzf /backup/alertmanager-data.tar.gz -C /data'
+        ssh '$MIRACLEMAX_HOST' 'rm /tmp/alertmanager-data.tar.gz'
+        log_info 'Starting Alertmanager container...'
+        ssh '$MIRACLEMAX_HOST' 'cd ~/miraclemax-infrastructure && podman-compose -f compose/alertmanager.yml up -d'
+    "
+fi
+
+# Restore Portainer
+if [ -f "$BACKUP_DIR/volumes/portainer-data.tar.gz" ]; then
+    restore_component "portainer" "Portainer Configuration" "
+        log_info 'Stopping Portainer container...'
+        ssh '$MIRACLEMAX_HOST' 'podman stop portainer 2>/dev/null || true'
+        log_info 'Uploading backup...'
+        scp '$BACKUP_DIR/volumes/portainer-data.tar.gz' '$MIRACLEMAX_HOST:/tmp/'
+        log_info 'Restoring volume...'
+        ssh '$MIRACLEMAX_HOST' 'podman volume rm portainer_data 2>/dev/null || true'
+        ssh '$MIRACLEMAX_HOST' 'podman volume create portainer_data'
+        ssh '$MIRACLEMAX_HOST' 'podman run --rm -v portainer_data:/data -v /tmp:/backup alpine tar xzf /backup/portainer-data.tar.gz -C /data'
+        ssh '$MIRACLEMAX_HOST' 'rm /tmp/portainer-data.tar.gz'
+        log_info 'Starting Portainer container...'
+        ssh '$MIRACLEMAX_HOST' 'cd ~/miraclemax-infrastructure && podman-compose -f compose/portainer.yml up -d'
+    "
+fi
+
+# Restore Infrastructure Configs
+if [ -d "$BACKUP_DIR/configs/miraclemax-infrastructure" ]; then
+    restore_component "configs" "Infrastructure Configuration" "
+        log_warning 'Backing up existing configs before overwrite...'
+        ssh '$MIRACLEMAX_HOST' 'tar czf ~/miraclemax-infrastructure-pre-restore-\$(date +%Y%m%d_%H%M%S).tar.gz ~/miraclemax-infrastructure 2>/dev/null || true'
+        log_info 'Restoring infrastructure configs...'
+        rsync -az --delete '$BACKUP_DIR/configs/miraclemax-infrastructure/' '$MIRACLEMAX_HOST:/home/jbyrd/miraclemax-infrastructure/'
+        log_success 'Infrastructure configs restored'
+        log_warning 'Remember to reload any affected services'
+    "
+fi
+
+log_info "╔═══════════════════════════════════════════════════════════════════════╗"
+log_info "║         Restore Complete                                             ║"
+log_info "╚═══════════════════════════════════════════════════════════════════════╝"
+
+if [ "$DRY_RUN" = true ]; then
+    log_info "DRY-RUN mode: No changes were made"
+else
+    log_success "Restore completed successfully"
+    log_info "Component: $COMPONENT"
+    log_info "From backup: $BACKUP_DIR"
+    
+    # Verify services are running
+    log_info "━━━ Verifying Services ━━━"
+    ssh "$MIRACLEMAX_HOST" "podman ps --format 'table {{.Names}}\t{{.Status}}'" | head -20
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Restore Summary"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Component: $COMPONENT"
+echo "  Backup: $(basename "$BACKUP_DIR")"
+echo "  Mode: $([ "$DRY_RUN" = true ] && echo "DRY-RUN" || echo "LIVE")"
+echo "  Status: SUCCESS"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+

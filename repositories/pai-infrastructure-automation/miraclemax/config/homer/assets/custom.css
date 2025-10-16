@@ -1,171 +1,423 @@
-/* CSS-Only Theme Switcher Dropdown for Homer */
+/* Fidelity Investments Color Scheme for Homer */
+/* Based on Fidelity's brand colors: Dark Green, Gold, Beige */
+/* Professional finance aesthetic with trust and stability */
 
-/* Theme dropdown container - positioned in header */
-#app::before {
-  content: "";
-  display: none; /* Placeholder for dropdown positioning */
-}
+/* Import professional fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
 
-/* Create theme selector dropdown using pure CSS */
-.navbar-end::after {
-  content: "Theme ▼";
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  margin-left: 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  color: var(--text-header, #ffffff);
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.navbar-end::after:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
-/* Alternative: Add theme indicators to cards */
-.card::before {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 0.75rem;
-  opacity: 0.7;
-}
-
-/* Enhanced theme colors for better contrast */
 :root {
-  --highlight-primary: #ee0033;
-  --highlight-secondary: #0088ce;
-  --highlight-hover: #cc0000;
+  /* Fidelity Core Colors */
+  --fidelity-green: #08542C;       /* Primary dark green */
+  --fidelity-green-dark: #064020;  /* Darker green for hover */
+  --fidelity-green-light: #0A6838; /* Lighter green for accents */
+  --fidelity-gold: #BB8A2D;        /* Accent gold */
+  --fidelity-gold-dark: #9A7324;   /* Darker gold */
+  --fidelity-beige: #E6D4B2;       /* Neutral beige */
+  --fidelity-beige-dark: #D4C2A0;  /* Darker beige */
+  
+  /* Light mode - Professional finance theme */
+  --bg-light: #FFFFFF;             /* Pure White */
+  --bg-secondary-light: #F8F6F2;   /* Very light beige */
+  --card-light: #E6D4B2;           /* Fidelity Beige */
+  --text-light: #000000;           /* Pure Black */
+  --text-muted-light: #08542C;     /* Fidelity Green for accents */
+  --border-light: #D4C2A0;         /* Darker beige for borders */
+  --accent-light: #08542C;         /* Fidelity Green */
+  --accent-hover-light: #BB8A2D;   /* Fidelity Gold */
+  --button-light: #08542C;         /* Fidelity Green */
+  --button-hover-light: #BB8A2D;   /* Fidelity Gold */
+  
+  /* Dark mode - Rich financial dark theme */
+  --bg-dark: #0A1A0F;              /* Very Dark Green */
+  --bg-secondary-dark: #0F2417;    /* Dark Green Secondary */
+  --card-dark: #1A2A1F;            /* Dark Green Tint */
+  --text-dark: #FFFFFF;            /* Pure White */
+  --text-muted-dark: #E6D4B2;      /* Fidelity Beige for muted text */
+  --border-dark: #2A3A2F;          /* Dark border */
+  --accent-dark: #BB8A2D;          /* Fidelity Gold */
+  --accent-hover-dark: #E6D4B2;    /* Fidelity Beige */
+  --button-dark: #BB8A2D;          /* Fidelity Gold */
+  --button-hover-dark: #E6D4B2;    /* Fidelity Beige */
 }
 
-/* Improved card styling with theme awareness */
-.card {
-  transition: all 0.3s ease !important;
-  border-left: 3px solid var(--highlight-primary) !important;
+/* ========================================
+   Light Mode Styles
+   ======================================== */
+
+/* Red Hat clean layout with generous white space */
+body:not(.is-dark) {
+  background: var(--bg-light) !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
-.card:hover {
-  border-left-width: 5px !important;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px var(--card-shadow, rgba(0, 0, 0, 0.15)) !important;
+body:not(.is-dark) .first-line {
+  background: var(--accent-light) !important;
+  border-bottom: none !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* Tag styling with theme colors */
-.tag {
-  background-color: var(--highlight-primary) !important;
+body:not(.is-dark) .card {
+  background: var(--card-light) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  padding: 1.5rem !important;
+}
+
+body:not(.is-dark) .card:hover {
+  box-shadow: 0 8px 20px rgba(8, 84, 44, 0.2) !important;
+  transform: translateY(-3px);
+  border-color: var(--accent-light) !important;
+}
+
+/* Title in header (light mode) - white text on green */
+body:not(.is-dark) .first-line .title,
+body:not(.is-dark) .first-line .subtitle {
+  color: #FFFFFF !important;
+}
+
+/* Title in content area (light mode) - normal text */
+body:not(.is-dark) .title,
+body:not(.is-dark) .subtitle,
+body:not(.is-dark) .group-title {
+  color: var(--text-light) !important;
+}
+
+body:not(.is-dark) .subtitle,
+body:not(.is-dark) .card p,
+body:not(.is-dark) .message-body {
+  color: var(--text-light) !important;
+}
+
+body:not(.is-dark) .group-title {
+  border-bottom: 2px solid var(--accent-light) !important;
+  padding-bottom: 0.75rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+body:not(.is-dark) .message {
+  background: var(--bg-secondary-light) !important;
+  border: 1px solid var(--border-light) !important;
+  border-left: 3px solid var(--accent-light) !important;
+}
+
+body:not(.is-dark) .tag {
+  background-color: var(--accent-light) !important;
   color: #ffffff !important;
   font-weight: 600 !important;
-}
-
-/* Link color improvements */
-a {
-  color: var(--highlight-secondary) !important;
-  transition: color 0.2s ease;
-}
-
-a:hover {
-  color: var(--highlight-hover) !important;
-}
-
-/* Header enhancements */
-.first-line {
-  background: linear-gradient(135deg, var(--highlight-primary), var(--highlight-secondary)) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-}
-
-/* Service group headers */
-.group-title {
-  color: var(--highlight-primary) !important;
-  font-weight: 700 !important;
-  font-size: 1.2rem !important;
-  padding: 0.75rem 0 !important;
-  border-bottom: 2px solid var(--highlight-primary) !important;
-  margin-bottom: 1rem !important;
-}
-
-/* Search box styling */
-#search {
-  border: 2px solid var(--highlight-secondary) !important;
+  padding: 0.35rem 0.85rem !important;
   border-radius: 6px !important;
-  transition: all 0.3s ease;
+  font-size: 0.875rem !important;
 }
 
-#search:focus {
-  border-color: var(--highlight-primary) !important;
-  box-shadow: 0 0 0 3px rgba(238, 0, 51, 0.1) !important;
-  outline: none !important;
+body:not(.is-dark) #search {
+  background: var(--bg-light) !important;
+  border: 1px solid var(--border-light) !important;
+  color: var(--text-light) !important;
 }
 
-/* Message/Banner styling */
-.message {
-  border-left: 4px solid var(--highlight-primary) !important;
-  background: linear-gradient(90deg, rgba(238, 0, 51, 0.1), transparent) !important;
+body:not(.is-dark) #search:focus {
+  border-color: var(--accent-light) !important;
+  box-shadow: 0 0 0 2px rgba(73, 80, 87, 0.1) !important;
 }
 
-/* Icon enhancements */
-.service-card i, .group-title i {
-  color: var(--highlight-primary) !important;
-  transition: transform 0.3s ease;
+/* Light mode buttons and interactive elements */
+body:not(.is-dark) button,
+body:not(.is-dark) .button,
+body:not(.is-dark) .navbar-item,
+body:not(.is-dark) .navbar-link {
+  color: #FFFFFF !important;
+  background: transparent !important;
+  border: none !important;
+  font-weight: 500 !important;
 }
 
-.service-card:hover i {
-  transform: scale(1.2);
+body:not(.is-dark) button:hover,
+body:not(.is-dark) .button:hover,
+body:not(.is-dark) .navbar-item:hover,
+body:not(.is-dark) .navbar-link:hover {
+  color: #FFFFFF !important;
+  background: rgba(0, 0, 0, 0.1) !important;
+  border-bottom: 2px solid #FFFFFF !important;
 }
 
-/* Subtitle text improvements */
-.subtitle {
-  opacity: 0.85 !important;
-  font-size: 0.9rem !important;
+body:not(.is-dark) .delete {
+  background-color: var(--text-light) !important;
 }
 
-/* Footer styling */
-.footer {
-  background: var(--card-background) !important;
-  border-top: 2px solid var(--highlight-primary) !important;
-  padding: 1rem !important;
-}
+/* ========================================
+   Dark Mode Styles
+   ======================================== */
 
-.footer a {
-  font-weight: 600 !important;
-}
-
-/* Dark mode adjustments */
-body.is-dark .card {
-  border-left-color: var(--highlight-secondary) !important;
+body.is-dark {
+  background: var(--bg-dark) !important;
 }
 
 body.is-dark .first-line {
-  background: linear-gradient(135deg, #ee0033, #0066aa) !important;
+  background: var(--accent-dark) !important;
+  border-bottom: none !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Mobile responsive adjustments */
+body.is-dark .card {
+  background: var(--card-dark) !important;
+  border: 1px solid var(--border-dark) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  padding: 1.5rem !important;
+}
+
+body.is-dark .card:hover {
+  box-shadow: 0 8px 24px rgba(187, 138, 45, 0.25), 0 0 0 1px var(--accent-dark) !important;
+  transform: translateY(-3px);
+  border-color: var(--accent-dark) !important;
+}
+
+/* Title in header (dark mode) - white text on green */
+body.is-dark .first-line .title,
+body.is-dark .first-line .subtitle {
+  color: #FFFFFF !important;
+}
+
+/* Title in content area (dark mode) - white text for readability */
+body.is-dark .title,
+body.is-dark .group-title,
+body.is-dark h2.group-title {
+  color: #FFFFFF !important;
+}
+
+body.is-dark .group-title {
+  color: #FFFFFF !important;
+  border-bottom: 2px solid var(--accent-dark) !important;
+  padding-bottom: 0.75rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+body.is-dark .subtitle,
+body.is-dark .card p {
+  color: #E6D4B2 !important;  /* Beige for subtitles/descriptions */
+}
+
+body.is-dark .message-body {
+  color: #FFFFFF !important;
+}
+
+body.is-dark .message {
+  background: var(--bg-secondary-dark) !important;
+  border: 1px solid var(--border-dark) !important;
+  border-left: 3px solid var(--accent-dark) !important;
+}
+
+body.is-dark .tag {
+  background-color: var(--accent-dark) !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+  padding: 0.35rem 0.85rem !important;
+  border-radius: 6px !important;
+  font-size: 0.875rem !important;
+}
+
+body.is-dark #search {
+  background: var(--bg-secondary-dark) !important;
+  border: 1px solid var(--border-dark) !important;
+  color: var(--text-dark) !important;
+}
+
+body.is-dark #search:focus {
+  border-color: var(--accent-dark) !important;
+  box-shadow: 0 0 0 2px rgba(206, 212, 218, 0.2) !important;
+}
+
+body.is-dark .footer {
+  background: var(--bg-dark) !important;
+  border-top: 1px solid var(--border-dark) !important;
+}
+
+/* Dark mode buttons and interactive elements */
+body.is-dark button,
+body.is-dark .button,
+body.is-dark .navbar-item,
+body.is-dark .navbar-link {
+  color: #FFFFFF !important;
+  background: transparent !important;
+  border: none !important;
+  font-weight: 500 !important;
+}
+
+body.is-dark button:hover,
+body.is-dark .button:hover,
+body.is-dark .navbar-item:hover,
+body.is-dark .navbar-link:hover {
+  color: #FFFFFF !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-bottom: 2px solid #FFFFFF !important;
+}
+
+body.is-dark .delete {
+  background-color: var(--text-dark) !important;
+}
+
+/* ========================================
+   Universal Styles (Both Modes)
+   Professional Finance Typography System
+   ======================================== */
+
+/* Apply professional fonts globally */
+body,
+.card,
+.title,
+.subtitle,
+.group-title,
+p,
+a,
+button {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  line-height: 1.5 !important;
+}
+
+.card {
+  border-left: none !important;
+  border-radius: 8px !important;
+}
+
+/* Professional headers with bold, impactful style */
+.group-title,
+.first-line .title {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 1.5rem !important;
+  text-transform: none !important;
+  letter-spacing: -0.02em !important;
+  margin-bottom: 1.5rem !important;
+  line-height: 1.2 !important;
+}
+
+.title {
+  font-weight: 600 !important;
+  font-size: 1.125rem !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.4 !important;
+}
+
+.subtitle {
+  font-weight: 400 !important;
+  font-size: 1rem !important;
+  opacity: 1 !important;
+  line-height: 1.6 !important;
+}
+
+a {
+  transition: opacity 0.2s ease !important;
+}
+
+a:hover {
+  opacity: 0.7 !important;
+}
+
+/* Icon styling */
+.service-card i,
+.group-title i {
+  opacity: 0.8;
+  transition: all 0.2s ease;
+}
+
+.service-card:hover i {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+/* Footer minimal styling */
+.footer {
+  padding: 1.5rem !important;
+  text-align: center !important;
+  font-size: 0.9rem !important;
+}
+
+/* Search box minimal styling */
+#search {
+  border-radius: 4px !important;
+  padding: 0.75rem 1rem !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Button and interactive element fixes */
+button,
+.button {
+  cursor: pointer !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+  font-weight: 500 !important;
+}
+
+/* Theme toggle button with labels */
+.theme-toggle,
+.theme-switcher {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+/* Add text labels that are always visible next to theme toggle */
+body:not(.is-dark) .theme-toggle::after,
+body:not(.is-dark) .theme-switcher::after {
+  content: "Switch to Dark Mode";
+  font-weight: 500 !important;
+  font-size: 0.875rem !important;
+  color: #FFFFFF !important;
+  white-space: nowrap !important;
+  display: inline-block !important;
+}
+
+body.is-dark .theme-toggle::after,
+body.is-dark .theme-switcher::after {
+  content: "Switch to Light Mode";
+  font-weight: 500 !important;
+  font-size: 0.875rem !important;
+  color: #FFFFFF !important;
+  white-space: nowrap !important;
+  display: inline-block !important;
+}
+
+/* Mobile responsive */
 @media (max-width: 768px) {
-  .navbar-end::after {
-    font-size: 0.8rem;
-    padding: 0.4rem 0.8rem;
-    margin-left: 0.5rem;
+  .title {
+    font-size: 1.5rem !important;
   }
   
   .group-title {
-    font-size: 1.1rem !important;
+    font-size: 1rem !important;
   }
   
-  .card {
-    border-left-width: 2px !important;
+  .footer {
+    font-size: 0.8rem !important;
+    padding: 1rem !important;
   }
 }
 
-/* Animation for page load */
-@keyframes fadeInUp {
+/* Smooth transitions for theme switching */
+body,
+.first-line,
+.card,
+.message,
+.tag,
+#search,
+.footer,
+button,
+.button {
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+}
+
+/* Clean animations */
+@keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -174,18 +426,12 @@ body.is-dark .first-line {
 }
 
 .card {
-  animation: fadeInUp 0.5s ease-out;
+  animation: fadeIn 0.4s ease-out;
 }
 
-/* Stagger animation for cards */
 .card:nth-child(1) { animation-delay: 0.05s; }
 .card:nth-child(2) { animation-delay: 0.1s; }
 .card:nth-child(3) { animation-delay: 0.15s; }
 .card:nth-child(4) { animation-delay: 0.2s; }
 .card:nth-child(5) { animation-delay: 0.25s; }
 .card:nth-child(6) { animation-delay: 0.3s; }
-
-/* Note: This is a CSS-only enhanced theme.
-   For full theme switching functionality with JavaScript,
-   a custom Homer build or browser extension would be needed.
-   This CSS provides visual enhancements with Red Hat branding. */

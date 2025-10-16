@@ -30,7 +30,7 @@ services:
       - traefik-network
     
     ports:
-      - "3000:3000"
+      - "3001:3000"  # Mapped to 3001 to avoid port conflict
     
     # Volume mounts
     volumes:
@@ -80,10 +80,6 @@ services:
 volumes:
   grafana-data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /home/jbyrd/grafana-data
 
 networks:
   traefik-network:

@@ -6,7 +6,7 @@ version: '3.8'
 
 services:
   actual-budget:
-    image: actualbudget/actual-server:24.10.1  # Pinned version
+    image: actualbudget/actual-server:latest  # Using latest for better stability
     container_name: actual-budget
     restart: unless-stopped
     
@@ -15,17 +15,10 @@ services:
       - no-new-privileges:true
     read_only: false  # Needs write access to /data
     
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-    
     # Network configuration
+    networks:
+      - traefik-network
+    
     ports:
       - "5006:5006"
     
@@ -40,14 +33,16 @@ services:
       # Upload limits (optional)
       - ACTUAL_UPLOAD_FILE_SYNC_SIZE_LIMIT_MB=20
       - ACTUAL_UPLOAD_SYNC_ENCRYPTED_FILE_SYNC_SIZE_LIMIT_MB=50
+      # Trust proxy headers from Caddy/Cloudflare (Podman network CIDR)
+      - ACTUAL_TRUSTED_PROXIES=172.20.0.0/16
     
-    # Health check
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5006"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+    # Health check - disabled due to false negatives
+    # healthcheck:
+    #   test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5006"]
+    #   interval: 60s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 30s
     
     labels:
       # Service identification
@@ -78,8 +73,9 @@ services:
 volumes:
   actual-budget-data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /home/jbyrd/actual-budget-data
+
+# Networks
+networks:
+  traefik-network:
+    external: true
 

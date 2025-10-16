@@ -66,6 +66,38 @@ http:
 
   # Routers (Service Access Rules)
   routers:
+    # Homer Dashboard (Main Landing Page - HTTP only, Cloudflare handles SSL)
+    homer:
+      rule: "Host(`jbyrd.org`) || Host(`dashboard.jbyrd.org`)"
+      entryPoints:
+        - web
+      service: homer
+      middlewares:
+        - security-headers
+        - rate-limit
+    
+    # Portainer (Container Management)
+    portainer:
+      rule: "Host(`portainer.jbyrd.org`)"
+      entryPoints:
+        - web
+        - websecure
+      service: portainer
+      middlewares:
+        - security-headers
+        - rate-limit
+    
+    # Netdata (System Monitoring)
+    netdata:
+      rule: "Host(`netdata.jbyrd.org`)"
+      entryPoints:
+        - web
+        - websecure
+      service: netdata
+      middlewares:
+        - security-headers
+        - rate-limit
+    
     # Authelia (MFA Portal)
     authelia:
       rule: "Host(`auth.jbyrd.org`)"
@@ -77,18 +109,16 @@ http:
         - security-headers
       # TLS removed - Cloudflare Tunnel handles SSL
     
-    # Traefik Dashboard
+    # Traefik Dashboard (internal access only)
     dashboard:
       rule: "Host(`traefik.jbyrd.org`)"
       entryPoints:
-        - websecure
+        - web
       service: api@internal
       middlewares:
         - dashboard-auth
         - security-headers
         - internal-only
-      tls:
-        certResolver: letsencrypt
     
     # Home Assistant
     homeassistant:
@@ -105,16 +135,15 @@ http:
     
     # Actual Budget (Personal Finance)
     actual-budget:
-      rule: "Host(`budget.jbyrd.org`)"
+      rule: "Host(`money.jbyrd.org`) || Host(`budget.jbyrd.org`)"
       entryPoints:
         - web
-        - websecure
       service: actual-budget
       middlewares:
-        - authelia
         - security-headers
         - rate-limit
       # TLS removed - Cloudflare Tunnel handles SSL
+      # Authelia temporarily disabled until SSO is deployed
     
     # n8n (Workflow Automation)
     n8n:
@@ -168,6 +197,36 @@ http:
 
   # Services (Backend Definitions)
   services:
+    # Homer Dashboard
+    homer:
+      loadBalancer:
+        servers:
+          - url: "http://homer:8080"
+        healthCheck:
+          path: /
+          interval: 30s
+          timeout: 10s
+    
+    # Portainer
+    portainer:
+      loadBalancer:
+        servers:
+          - url: "http://172.20.0.6:9000"
+        healthCheck:
+          path: /api/status
+          interval: 30s
+          timeout: 10s
+    
+    # Netdata
+    netdata:
+      loadBalancer:
+        servers:
+          - url: "http://172.20.0.7:19999"
+        healthCheck:
+          path: /api/v1/info
+          interval: 30s
+          timeout: 10s
+    
     # Authelia
     authelia:
       loadBalancer:

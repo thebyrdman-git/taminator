@@ -1,0 +1,22 @@
+[Unit]
+Description=MiracleMax Infrastructure Backup Timer
+Documentation=file:///home/jbyrd/pai/bin/pai-miraclemax-backup
+Requires=pai-miraclemax-backup.service
+
+[Timer]
+# Run daily at 3:00 AM (low-traffic time)
+OnCalendar=daily
+OnCalendar=*-*-* 03:00:00
+
+# If system was off, run backup 15 minutes after boot
+Persistent=true
+
+# Randomize start time by up to 15 minutes to avoid load spikes
+RandomizedDelaySec=15min
+
+# Unit to activate
+Unit=pai-miraclemax-backup.service
+
+[Install]
+WantedBy=timers.target
+
