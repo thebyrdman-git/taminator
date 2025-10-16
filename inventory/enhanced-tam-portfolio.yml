@@ -1,0 +1,139 @@
+---
+# Enhanced TAM Portfolio Configuration
+# Handles real-world complexity: multi-TAM accounts, product specialization,
+# coverage models, backup relationships, and account weights
+
+plugin: redhat.rfe_automation.enhanced_tam_portfolio
+
+# TAM Information
+tam_name: "Jimmy Byrd"
+tam_email: "jbyrd@redhat.com"
+tam_type: "Ansible Specialist"
+region: "NA"
+vertical: "FSI"
+backup_tam: "Peter Sagat"
+
+# Portfolio Definition with Real-World Complexity
+accounts:
+  - customer_name: "JP Morgan Chase"
+    account_numbers: ["334224", "5477163", "996210"]
+    tam_role: "Primary"
+    products: ["Ansible"]
+    account_weight: 3
+    coverage_model: "Shared"
+    backup_tam: "Peter Sagat"
+    account_exec: "Christopher Pirigyi, Marisha Beason"
+    asa: "Ed Presutti"
+    cse: "Omar Ali"
+    start_date: "2024-01-01"
+    end_date: "2025-12-31"
+    renewal_status: "Active"
+    syb_booked_amt: "$100,380.00"
+    notes: "Primary Ansible customer - large enterprise deployment"
+    
+  - customer_name: "Bank of America"
+    account_numbers: ["54545"]
+    tam_role: "Primary"
+    products: ["Ansible"]
+    account_weight: 1
+    coverage_model: "Shared"
+    backup_tam: "Jimmy Byrd"
+    account_exec: "Christopher Pirigyi, Marisha Beason"
+    asa: "Ed Presutti"
+    cse: "Omar Ali"
+    start_date: "2025-05-13"
+    end_date: "2026-05-12"
+    renewal_status: "Active"
+    syb_booked_amt: "$100,380.00"
+    notes: "Ansible coverage - shared with Platform, OpenShift, Middleware TAMs"
+    
+  - customer_name: "BNY"
+    account_numbers: ["729650"]
+    tam_role: "Primary"
+    products: ["Ansible"]
+    account_weight: 1
+    coverage_model: "Shared"
+    backup_tam: "Jimmy Byrd"
+    account_exec: "Jackie Davis, Jaime Beavers"
+    asa: "David Johnston"
+    cse: "Michelle Henson"
+    start_date: "2024-09-01"
+    end_date: "2027-08-31"
+    renewal_status: "Active"
+    syb_booked_amt: "$113,400.00"
+    notes: "Ansible coverage - shared with Platform, OpenShift TAMs"
+    
+  - customer_name: "Citigroup"
+    account_numbers: ["6231835"]
+    tam_role: "Primary"
+    products: ["Ansible"]
+    account_weight: 4
+    coverage_model: "Dedicated"
+    backup_tam: "Kevin White"
+    account_exec: "Blake Schlukbier, Evan Barnette"
+    asa: "Daniel Callot, Mahen Singh"
+    cse: "Susan Buchanan"
+    start_date: "2023-10-01"
+    end_date: "2028-09-30"
+    renewal_status: "Active"
+    syb_booked_amt: "$341,922.00"
+    notes: "Dedicated Ansible TAM - high-value strategic account"
+
+# Multi-TAM Coordination
+coordination:
+  shared_accounts:
+    - customer_name: "Bank of America"
+      other_tams:
+        - name: "Stephen Hobbs"
+          products: ["Platform"]
+          role: "Primary"
+        - name: "Jonathan Edwards"
+          products: ["OpenShift"]
+          role: "Primary"
+        - name: "Sheela Tigulla"
+          products: ["Middleware"]
+          role: "Primary"
+      coordination_notes: "Weekly sync calls, shared account strategy"
+      
+    - customer_name: "BNY"
+      other_tams:
+        - name: "Julian Holmes"
+          products: ["Platform"]
+          role: "Primary"
+        - name: "Grimm Greysson"
+          products: ["OpenShift"]
+          role: "Primary"
+      coordination_notes: "Monthly account reviews, joint customer meetings"
+
+# Backup Coverage
+backup_coverage:
+  primary_backup: "Peter Sagat"
+  coverage_schedule:
+    - dates: "2024-12-20 to 2024-12-31"
+      backup_tam: "Peter Sagat"
+      accounts: ["334224", "54545", "729650", "6231835"]
+      reason: "Holiday coverage"
+  
+# Account Prioritization
+prioritization:
+  high_priority: ["6231835"]  # Citigroup - Dedicated, Weight 4
+  medium_priority: ["334224"]  # JPMC - Weight 3
+  low_priority: ["54545", "729650"]  # BofA, BNY - Weight 1
+
+# Reporting Preferences
+reporting:
+  frequency: "weekly"
+  report_types: ["rfe_bug_tracker", "active_cases"]
+  include_backup_coverage: true
+  include_coordination_notes: true
+  notification_preferences:
+    email: true
+    slack: false
+    teams: false
+
+# Validation Settings
+validation_mode: "active_cases"
+auto_suggestions: true
+min_cases_for_suggestion: 3
+include_closed: false
+min_cases: 1

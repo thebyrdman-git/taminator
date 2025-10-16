@@ -1,0 +1,93 @@
+# vi: set ft=ruby :
+#
+# RFE Automation Installer Testing - LOCAL Vagrant Configuration
+# Creates GUI VMs on your LOCAL laptop (not miraclemax)
+#
+# Usage:
+#   VAGRANT_VAGRANTFILE=Vagrantfile.local vagrant up fedora41
+#   VAGRANT_VAGRANTFILE=Vagrantfile.local vagrant up alma9
+#   VAGRANT_VAGRANTFILE=Vagrantfile.local vagrant ssh fedora41
+#   VAGRANT_VAGRANTFILE=Vagrantfile.local vagrant snapshot save fedora41 clean-install
+#   VAGRANT_VAGRANTFILE=Vagrantfile.local vagrant destroy -f
+
+Vagrant.configure("2") do |config|
+  # Common configuration for LOCAL libvirt
+  config.vm.provider :libvirt do |libvirt|
+    # LOCAL - no remote connection
+    libvirt.driver = "kvm"
+    libvirt.memory = 4096
+    libvirt.cpus = 2
+    libvirt.graphics_type = "spice"  # SPICE works on local
+    libvirt.video_type = "qxl"       # Better performance locally
+    libvirt.channel :type => 'spicevmc', :target_name => 'com.redhat.spice.0', :target_type => 'virtio'
+    # Use existing default network
+    libvirt.management_network_name = "default"
+    libvirt.management_network_address = "192.168.122.0/24"
+  end
+
+  # Fedora 41 Workstation (Fedora 42 box not yet available)
+  config.vm.define "fedora41", autostart: false do |fedora|
+    fedora.vm.box = "fedora/41-cloud-base"
+    fedora.vm.hostname = "rfe-test-fedora41-local"
+    
+    fedora.vm.provider :libvirt do |lv|
+      lv.machine_virtual_size = 50  # Expand primary disk to 50GB
+    end
+    
+    # Install GNOME desktop
+    fedora.vm.provision "shell", inline: <<-SHELL
+      echo "Installing GNOME desktop..."
+      dnf groupinstall -y "Fedora Workstation" --allowerasing
+      systemctl set-default graphical.target
+      
+      echo "Installing git for testing..."
+      dnf install -y git
+      
+      echo "Creating test user..."
+      useradd -m -G wheel testuser
+      echo "testuser:testpass" | chpasswd
+      
+      echo ""
+      echo "✅ Fedora 41 GUI ready! (Will update to Fedora 42 when box available)"
+      echo "   Access via virt-manager (localhost)"
+      echo "   User: testuser / Pass: testpass"
+    SHELL
+  end
+
+  # AlmaLinux 9 Workstation (RHEL 9 compatible)
+  config.vm.define "alma9", autostart: false do |rhel|
+    rhel.vm.box = "almalinux/9"
+    rhel.vm.hostname = "rfe-test-alma9-local"
+    
+    rhel.vm.provider :libvirt do |lv|
+      lv.machine_virtual_size = 50  # Expand primary disk to 50GB
+    end
+    
+    # Install GNOME desktop
+    rhel.vm.provision "shell", inline: <<-SHELL
+      echo "Updating AlmaLinux 9..."
+      dnf update -y
+      
+      echo "Installing GNOME desktop..."
+      dnf groupinstall -y "Workstation" --allowerasing || dnf groupinstall -y "Server with GUI" --allowerasing
+      systemctl set-default graphical.target
+      
+      echo "Installing git for testing..."
+      dnf install -y git
+      
+      echo "Creating test user..."
+      useradd -m -G wheel testuser
+      echo "testuser:testpass" | chpasswd
+      
+      echo ""
+      echo "✅ AlmaLinux 9 GUI ready!"
+      echo "   Access via virt-manager (localhost)"
+      echo "   User: testuser / Pass: testpass"
+      
+      # Auto-reboot to start GUI
+      echo "Rebooting to start graphical environment..."
+      shutdown -r +1
+    SHELL
+  end
+end
+

@@ -1,0 +1,201 @@
+---
+- name: Generate Bulletproof RFE/Bug and Active Cases Reports
+  hosts: localhost
+  gather_facts: yes
+  become: no
+
+  vars:
+    customer_name: "{{ customer | title }}"
+    account_name: "{{ customer | lower }}"
+    account_number: "{{ accounts[customer].account_number }}"
+    priority_components: "{{ accounts[customer].priority_components }}"
+    rhcase_path: "rhcase"
+    output_dir: "/home/jbyrd/pai/rfe-automation-clean/output"
+    logs_dir: "/home/jbyrd/pai/rfe-automation-clean/logs"
+    validation_threshold: 0.95
+
+  tasks:
+    - name: Validate customer configuration
+      assert:
+        that:
+          - customer is defined
+          - customer in accounts
+          - accounts[customer].account_number is defined
+          - accounts[customer].priority_components is defined
+        fail_msg: "Invalid customer configuration for {{ customer }}"
+      tags: [validation, prerequisites]
+
+    - name: Display customer configuration
+      debug:
+        msg: |
+          🎯 Generating Bulletproof Reports for:
+          - Customer: {{ customer_name }}
+          - Account: {{ account_number }}
+          - Components: {{ priority_components | join(', ') }}
+          - Validation Threshold: {{ validation_threshold }}
+      tags: [always]
+
+    - name: Create output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ output_dir }}"
+        - "{{ logs_dir }}"
+      tags: [prerequisites]
+
+    - name: Get all cases from rhcase
+      shell: |
+        {{ rhcase_path }} list --all \
+          --format json --includefilter 'sbrGroup,{{ priority_components | join(",") }}' | jq '.[] | select(.accountNumber == "{{ account_number }}")' | jq -s '.' > /tmp/bulletproof_cases_{{ ansible_date_time.epoch }}.json
+      register: cases_output
+      changed_when: false
+      tags: [data_collection]
+
+    - name: Validate rhcase output
+      assert:
+        that:
+          - cases_output.rc == 0
+        fail_msg: "rhcase command failed with return code {{ cases_output.rc }}"
+      tags: [validation, data_collection]
+
+    - name: Load case data
+      slurp:
+        src: "/tmp/bulletproof_cases_{{ ansible_date_time.epoch }}.json"
+      register: cases_data
+      tags: [data_collection]
+
+    - name: Parse case data
+      set_fact:
+        all_cases: "{{ cases_data.content | b64decode | from_json }}"
+      tags: [data_collection]
+
+    - name: Validate case data structure
+      assert:
+        that:
+          - all_cases is defined
+          - all_cases | length >= 0
+        fail_msg: "Failed to parse case data or no cases found"
+      tags: [validation, data_collection]
+
+    - name: Filter RFE cases
+      set_fact:
+        active_rfes: "{{ all_cases | selectattr('isClosed', 'equalto', false) | selectattr('subject', 'match', '.*\\[RFE\\].*') | list }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter bug cases
+      set_fact:
+        active_bugs: "{{ all_cases | selectattr('isClosed', 'equalto', false) | selectattr('subject', 'match', '.*\\[BUG\\].*') | list }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter closed cases
+      set_fact:
+        closed_cases: "{{ (all_cases | selectattr('isClosed', 'equalto', true) | list | sort(attribute='closedDate', reverse=true))[0:10] }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter active cases (exclude RFE/Bug)
+      set_fact:
+        all_active_cases: "{{ all_cases | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | list }}"
+        priority_active_cases: "{{ all_cases | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | selectattr('sbrGroup', 'in', priority_components) | list }}"
+      tags: [active_cases, data_processing]
+
+    - name: Validate RFE/Bug template data
+      redhat.rfe_automation.template_validator:
+        template_data:
+          customer_name: "{{ customer_name }}"
+          account_number: "{{ account_number }}"
+          ansible_date_time: "{{ ansible_date_time }}"
+          active_rfes: "{{ active_rfes }}"
+          active_bugs: "{{ active_bugs }}"
+          closed_cases: "{{ closed_cases }}"
+        template_type: "rfe_bug"
+        validate_cases: true
+      register: rfe_bug_validation
+      tags: [validation, rfe_bug]
+
+    - name: Validate Active Cases template data
+      redhat.rfe_automation.template_validator:
+        template_data:
+          customer_name: "{{ customer_name }}"
+          account_number: "{{ account_number }}"
+          ansible_date_time: "{{ ansible_date_time }}"
+          all_active_cases: "{{ all_active_cases }}"
+          priority_active_cases: "{{ priority_active_cases }}"
+        template_type: "active_cases"
+        validate_cases: true
+      register: active_cases_validation
+      tags: [validation, active_cases]
+
+    - name: Check validation thresholds
+      assert:
+        that:
+          - rfe_bug_validation.data_quality_score | float >= validation_threshold | float
+          - active_cases_validation.data_quality_score | float >= validation_threshold | float
+        fail_msg: "Data quality score below threshold ({{ validation_threshold }}). RFE/Bug: {{ rfe_bug_validation.data_quality_score }}, Active Cases: {{ active_cases_validation.data_quality_score }}"
+      tags: [validation]
+
+    - name: Generate RFE/Bug Report
+      template:
+        src: bulletproof_rfe_bug_report.j2
+        dest: "{{ output_dir }}/{{ customer }}_rfe_bug_report.md"
+        mode: '0644'
+      tags: [rfe_bug, report_generation]
+
+    - name: Generate Active Cases Report
+      template:
+        src: bulletproof_active_cases_report.j2
+        dest: "{{ output_dir }}/{{ customer }}_active_cases_report.md"
+        mode: '0644'
+      tags: [active_cases, report_generation]
+
+    - name: Validate generated reports
+      stat:
+        path: "{{ item }}"
+      register: report_files
+      loop:
+        - "{{ output_dir }}/{{ customer }}_rfe_bug_report.md"
+        - "{{ output_dir }}/{{ customer }}_active_cases_report.md"
+      tags: [validation, report_generation]
+
+    - name: Check report files exist
+      assert:
+        that:
+          - report_files.results | selectattr('stat.exists') | list | length == 2
+        fail_msg: "Not all report files were generated successfully"
+      tags: [validation, report_generation]
+
+    - name: Display bulletproof report summary
+      debug:
+        msg: |
+          📊 Bulletproof Reports Generated Successfully:
+          - RFE/Bug Report: {{ output_dir }}/{{ customer }}_rfe_bug_report.md
+          - Active Cases Report: {{ output_dir }}/{{ customer }}_active_cases_report.md
+          
+          📈 Data Quality Scores:
+          - RFE/Bug Template: {{ (rfe_bug_validation.data_quality_score | float * 100) | round(1) }}%
+          - Active Cases Template: {{ (active_cases_validation.data_quality_score | float * 100) | round(1) }}%
+          
+          📋 Summary:
+          - Active RFEs: {{ active_rfes | length }}
+          - Active Bugs: {{ active_bugs | length }}
+          - Open Troubleshooting Cases: {{ all_active_cases | length }}
+          - Priority Cases: {{ priority_active_cases | length }}
+          - Total Cases Processed: {{ all_cases | length }}
+          
+          ✅ All validations passed - Reports are bulletproof!
+      tags: [always]
+
+    - name: Log successful generation
+      lineinfile:
+        path: "{{ logs_dir }}/bulletproof_reports.log"
+        line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - SUCCESS - RFE/Bug: {{ rfe_bug_validation.data_quality_score | float }}, Active Cases: {{ active_cases_validation.data_quality_score | float }}, Total Cases: {{ all_cases | length }}"
+        create: yes
+        mode: '0644'
+      tags: [logging]
+
+    - name: Clean up temporary files
+      file:
+        path: "/tmp/bulletproof_cases_{{ ansible_date_time.epoch }}.json"
+        state: absent
+      tags: [cleanup]

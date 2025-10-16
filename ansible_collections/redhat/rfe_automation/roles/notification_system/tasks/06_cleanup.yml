@@ -1,0 +1,183 @@
+---
+# Cleanup tasks for Notification System Role
+
+- name: Clean up temporary notification content files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ output_dir }}/notifications/rfe_bug_email_content_{{ ansible_date_time.epoch }}.html"
+    - "{{ output_dir }}/notifications/active_cases_email_content_{{ ansible_date_time.epoch }}.html"
+    - "{{ output_dir }}/notifications/rfe_bug_slack_content_{{ ansible_date_time.epoch }}.json"
+    - "{{ output_dir }}/notifications/active_cases_slack_content_{{ ansible_date_time.epoch }}.json"
+    - "{{ output_dir }}/notifications/rfe_bug_teams_content_{{ ansible_date_time.epoch }}.json"
+    - "{{ output_dir }}/notifications/active_cases_teams_content_{{ ansible_date_time.epoch }}.json"
+  when: 
+    - notifications_enabled
+    - not notification_keep_temp_files | default(false)
+  tags: [cleanup, temp_files]
+
+- name: Archive notification results
+  copy:
+    content: |
+      {
+        "customer": "{{ customer_name }}",
+        "account": "{{ account_name }}",
+        "timestamp": "{{ ansible_date_time.iso8601 }}",
+        "notification_results": {
+          "email": {
+            "rfe_bug_tracker": {
+              "status": {{ email_rfe_bug_result.status | default('skipped') }},
+              "sent": {{ (email_rfe_bug_result.status | default(0) == 200) | to_json }},
+              "error": "{{ email_rfe_bug_result.msg | default('') }}"
+            },
+            "active_cases": {
+              "status": {{ email_active_cases_result.status | default('skipped') }},
+              "sent": {{ (email_active_cases_result.status | default(0) == 200) | to_json }},
+              "error": "{{ email_active_cases_result.msg | default('') }}"
+            }
+          },
+          "slack": {
+            "rfe_bug_tracker": {
+              "status": {{ slack_rfe_bug_result.status | default('skipped') }},
+              "sent": {{ (slack_rfe_bug_result.status | default(0) == 200) | to_json }},
+              "error": "{{ slack_rfe_bug_result.msg | default('') }}"
+            },
+            "active_cases": {
+              "status": {{ slack_active_cases_result.status | default('skipped') }},
+              "sent": {{ (slack_active_cases_result.status | default(0) == 200) | to_json }},
+              "error": "{{ slack_active_cases_result.msg | default('') }}"
+            }
+          },
+          "teams": {
+            "rfe_bug_tracker": {
+              "status": {{ teams_rfe_bug_result.status | default('skipped') }},
+              "sent": {{ (teams_rfe_bug_result.status | default(0) == 200) | to_json }},
+              "error": "{{ teams_rfe_bug_result.msg | default('') }}"
+            },
+            "active_cases": {
+              "status": {{ teams_active_cases_result.status | default('skipped') }},
+              "sent": {{ (teams_active_cases_result.status | default(0) == 200) | to_json }},
+              "error": "{{ teams_active_cases_result.msg | default('') }}"
+            }
+          },
+          "webhook": {
+            "rfe_bug_tracker": {
+              "status": {{ webhook_rfe_bug_result.status | default('skipped') }},
+              "sent": {{ (webhook_rfe_bug_result.status | default(0) in [200, 201, 202]) | to_json }},
+              "error": "{{ webhook_rfe_bug_result.msg | default('') }}"
+            },
+            "active_cases": {
+              "status": {{ webhook_active_cases_result.status | default('skipped') }},
+              "sent": {{ (webhook_active_cases_result.status | default(0) in [200, 201, 202]) | to_json }},
+              "error": "{{ webhook_active_cases_result.msg | default('') }}"
+            }
+          }
+        },
+        "metadata": {{ notification_metadata | to_nice_json }},
+        "cooldown_status": {
+          "active": {{ notification_cooldown_active | default(false) | to_json }},
+          "time_since_last": {{ time_since_last_notification | default(0) }},
+          "cooldown_period": {{ notification_cooldown }}
+        }
+      }
+    dest: "{{ output_dir }}/notifications/notification_results_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  when: notifications_enabled
+  tags: [cleanup, archive]
+
+- name: Update notification statistics
+  lineinfile:
+    path: "{{ logs_dir }}/notifications/notification_statistics.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - {{ account_name }} - Email: {{ (email_rfe_bug_result.status | default(0) == 200) | int + (email_active_cases_result.status | default(0) == 200) | int }}/2 - Slack: {{ (slack_rfe_bug_result.status | default(0) == 200) | int + (slack_active_cases_result.status | default(0) == 200) | int }}/2 - Teams: {{ (teams_rfe_bug_result.status | default(0) == 200) | int + (teams_active_cases_result.status | default(0) == 200) | int }}/2 - Webhook: {{ (webhook_rfe_bug_result.status | default(0) in [200, 201, 202]) | int + (webhook_active_cases_result.status | default(0) in [200, 201, 202]) | int }}/2"
+    create: yes
+    mode: '0644'
+  when: notifications_enabled
+  tags: [cleanup, statistics]
+
+- name: Clean up old notification files (older than 30 days)
+  find:
+    paths: "{{ output_dir }}/notifications"
+    patterns: "notification_*"
+    age: "30d"
+  register: old_notification_files
+  when: notifications_enabled
+  tags: [cleanup, old_files]
+
+- name: Remove old notification files
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ old_notification_files.files }}"
+  when: 
+    - notifications_enabled
+    - old_notification_files.files | length > 0
+  tags: [cleanup, old_files]
+
+- name: Clean up old notification logs (older than 90 days)
+  find:
+    paths: "{{ logs_dir }}/notifications"
+    patterns: "*.log"
+    age: "90d"
+  register: old_notification_logs
+  when: notifications_enabled
+  tags: [cleanup, old_logs]
+
+- name: Archive old notification logs
+  shell: |
+    for log_file in {{ old_notification_logs.files | map(attribute='path') | list | join(' ') }}; do
+      if [ -f "$log_file" ]; then
+        gzip "$log_file"
+        mv "$log_file.gz" "{{ logs_dir }}/notifications/archive/"
+      fi
+    done
+  when: 
+    - notifications_enabled
+    - old_notification_logs.files | length > 0
+  tags: [cleanup, old_logs]
+
+- name: Create notification archive directory
+  file:
+    path: "{{ logs_dir }}/notifications/archive"
+    state: directory
+    mode: '0755'
+  when: notifications_enabled
+  tags: [cleanup, archive_dir]
+
+- name: Generate notification cleanup report
+  copy:
+    content: |
+      {
+        "cleanup_timestamp": "{{ ansible_date_time.iso8601 }}",
+        "customer": "{{ customer_name }}",
+        "account": "{{ account_name }}",
+        "cleanup_summary": {
+          "temp_files_removed": {{ 'true' if not notification_keep_temp_files | default(false) else 'false' }},
+          "old_files_removed": {{ old_notification_files.files | length if old_notification_files is defined else 0 }},
+          "old_logs_archived": {{ old_notification_logs.files | length if old_notification_logs is defined else 0 }},
+          "results_archived": true
+        },
+        "notification_summary": {
+          "methods_used": {{ notification_methods | to_json }},
+          "total_notifications_sent": {{ ((email_rfe_bug_result.status | default(0) == 200) | int + (email_active_cases_result.status | default(0) == 200) | int + (slack_rfe_bug_result.status | default(0) == 200) | int + (slack_active_cases_result.status | default(0) == 200) | int + (teams_rfe_bug_result.status | default(0) == 200) | int + (teams_active_cases_result.status | default(0) == 200) | int + (webhook_rfe_bug_result.status | default(0) in [200, 201, 202]) | int + (webhook_active_cases_result.status | default(0) in [200, 201, 202]) | int) }},
+          "total_notifications_attempted": {{ (notification_methods | length * 2) }},
+          "success_rate": {{ ((((email_rfe_bug_result.status | default(0) == 200) | int + (email_active_cases_result.status | default(0) == 200) | int + (slack_rfe_bug_result.status | default(0) == 200) | int + (slack_active_cases_result.status | default(0) == 200) | int + (teams_rfe_bug_result.status | default(0) == 200) | int + (teams_active_cases_result.status | default(0) == 200) | int + (webhook_rfe_bug_result.status | default(0) in [200, 201, 202]) | int + (webhook_active_cases_result.status | default(0) in [200, 201, 202]) | int) / (notification_methods | length * 2) * 100) | round(2)) if (notification_methods | length * 2) > 0 else 0 }}
+        }
+      }
+    dest: "{{ output_dir }}/notifications/notification_cleanup_report_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  when: notifications_enabled
+  tags: [cleanup, report]
+
+- name: Display cleanup summary
+  debug:
+    msg: |
+      🧹 Notification Cleanup Summary:
+      📁 Temp Files: {{ 'Cleaned' if not notification_keep_temp_files | default(false) else 'Preserved' }}
+      📊 Results Archived: {{ output_dir }}/notifications/notification_results_{{ ansible_date_time.epoch }}.json
+      📋 Statistics Updated: {{ logs_dir }}/notifications/notification_statistics.log
+      🗂️  Old Files Removed: {{ old_notification_files.files | length if old_notification_files is defined else 0 }}
+      📜 Old Logs Archived: {{ old_notification_logs.files | length if old_notification_logs is defined else 0 }}
+      📊 Success Rate: {{ ((((email_rfe_bug_result.status | default(0) == 200) | int + (email_active_cases_result.status | default(0) == 200) | int + (slack_rfe_bug_result.status | default(0) == 200) | int + (slack_active_cases_result.status | default(0) == 200) | int + (teams_rfe_bug_result.status | default(0) == 200) | int + (teams_active_cases_result.status | default(0) == 200) | int + (webhook_rfe_bug_result.status | default(0) in [200, 201, 202]) | int + (webhook_active_cases_result.status | default(0) in [200, 201, 202]) | int) / (notification_methods | length * 2) * 100) | round(2)) if (notification_methods | length * 2) > 0 else 0 }}%
+  when: notifications_enabled
+  tags: [cleanup, summary]

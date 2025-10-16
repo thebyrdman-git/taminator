@@ -1,0 +1,138 @@
+# TAM Portfolio Summary Report
+
+**Generated:** {{ ansible_date_time.iso8601 }}  
+**TAM:** {{ tam_name }}  
+**Email:** {{ tam_email }}  
+**Total Accounts:** {{ groups['tam_portfolio'] | length }}  
+
+## 📊 Portfolio Overview
+
+- **Accounts with Cases:** {{ validation_results.accounts_with_cases }}
+- **Accounts without Cases:** {{ validation_results.accounts_without_cases }}
+- **Total Cases Found:** {{ validation_results.total_cases_found }}
+- **Validation Mode:** Active Cases Only
+
+## 🏢 Portfolio Accounts
+
+{% for account in groups['tam_portfolio'] %}
+### {{ hostvars[account].customer_name }}
+
+- **Account Name:** {{ hostvars[account].account_name }}
+- **Account Number:** {{ hostvars[account].account_number }}
+- **Products:** {{ hostvars[account].products | join(', ') }}
+- **Vertical:** {{ hostvars[account].vertical }}
+- **Priority:** {{ hostvars[account].priority }}
+- **Cases Found:** {{ hostvars[account].cases_found }} ({{ hostvars[account].active_cases }} active)
+- **Validated:** {{ 'Yes' if hostvars[account].validated else 'No' }}
+- **Description:** {{ hostvars[account].description }}
+
+{% endfor %}
+
+## 💡 Portfolio Suggestions
+
+{% if suggestions is defined and suggestions.add_accounts | length > 0 %}
+### Suggested Account Additions
+
+{% for suggestion in suggestions.add_accounts %}
+#### {{ suggestion.customer_name }} ({{ suggestion.account_number }})
+
+- **Account Name:** {{ suggestion.account_name }}
+- **Active Cases:** {{ suggestion.active_cases }}
+- **Total Cases:** {{ suggestion.total_cases }}
+- **SBR Groups:** {{ suggestion.sbr_groups | join(', ') }}
+- **Vertical:** {{ suggestion.vertical }}
+- **Confidence:** {{ suggestion.confidence }}
+- **Reason:** {{ suggestion.reason }}
+
+{% endfor %}
+{% else %}
+No account suggestions at this time.
+{% endif %}
+
+## 📈 Portfolio Statistics
+
+### By Product
+{% set product_stats = {} %}
+{% for account in groups['tam_portfolio'] %}
+  {% for product in hostvars[account].products %}
+    {% if product not in product_stats %}
+      {% set _ = product_stats.update({product: {'accounts': 0, 'total_cases': 0, 'active_cases': 0}}) %}
+    {% endif %}
+    {% set _ = product_stats[product].update({
+      'accounts': product_stats[product].accounts + 1,
+      'total_cases': product_stats[product].total_cases + hostvars[account].cases_found,
+      'active_cases': product_stats[product].active_cases + hostvars[account].active_cases
+    }) %}
+  {% endfor %}
+{% endfor %}
+
+{% for product, stats in product_stats.items() %}
+### {{ product }}
+- **Accounts:** {{ stats.accounts }}
+- **Total Cases:** {{ stats.total_cases }}
+- **Active Cases:** {{ stats.active_cases }}
+
+{% endfor %}
+
+### By Vertical
+{% set vertical_stats = {} %}
+{% for account in groups['tam_portfolio'] %}
+  {% set vertical = hostvars[account].vertical %}
+  {% if vertical not in vertical_stats %}
+    {% set _ = vertical_stats.update({vertical: {'accounts': 0, 'total_cases': 0, 'active_cases': 0}}) %}
+  {% endif %}
+  {% set _ = vertical_stats[vertical].update({
+    'accounts': vertical_stats[vertical].accounts + 1,
+    'total_cases': vertical_stats[vertical].total_cases + hostvars[account].cases_found,
+    'active_cases': vertical_stats[vertical].active_cases + hostvars[account].active_cases
+  }) %}
+{% endfor %}
+
+{% for vertical, stats in vertical_stats.items() %}
+### {{ vertical }}
+- **Accounts:** {{ stats.accounts }}
+- **Total Cases:** {{ stats.total_cases }}
+- **Active Cases:** {{ stats.active_cases }}
+
+{% endfor %}
+
+### By Priority
+{% set priority_stats = {} %}
+{% for account in groups['tam_portfolio'] %}
+  {% set priority = hostvars[account].priority %}
+  {% if priority not in priority_stats %}
+    {% set _ = priority_stats.update({priority: {'accounts': 0, 'total_cases': 0, 'active_cases': 0}}) %}
+  {% endif %}
+  {% set _ = priority_stats[priority].update({
+    'accounts': priority_stats[priority].accounts + 1,
+    'total_cases': priority_stats[priority].total_cases + hostvars[account].cases_found,
+    'active_cases': priority_stats[priority].active_cases + hostvars[account].active_cases
+  }) %}
+{% endfor %}
+
+{% for priority, stats in priority_stats.items() %}
+### {{ priority.title() }} Priority
+- **Accounts:** {{ stats.accounts }}
+- **Total Cases:** {{ stats.total_cases }}
+- **Active Cases:** {{ stats.active_cases }}
+
+{% endfor %}
+
+## 🚀 Next Steps
+
+1. **Review Reports:** Check the generated reports in the `output/` directory
+2. **Update Portfolio:** Edit `~/.config/rfe-automation/tam-portfolio.yml` to add/remove accounts
+3. **Accept Suggestions:** Consider adding suggested accounts to your portfolio
+4. **Schedule Automation:** Set up regular report generation for your portfolio
+
+## 📋 Portfolio Management
+
+- **Config File:** `~/.config/rfe-automation/tam-portfolio.yml`
+- **Setup Tool:** `./setup-tam-portfolio.sh`
+- **Generate Reports:** `make generate-tam-reports`
+- **Review Portfolio:** `make review-portfolio`
+
+---
+
+*This summary was automatically generated by the TAM Portfolio RFE Automation System.*  
+*For questions or issues, please contact your TAM or the TAM Operations team.*

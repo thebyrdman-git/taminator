@@ -1,0 +1,14 @@
+---
+# Molecule destroy playbook
+- name: Destroy test environment
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Clean up test files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/rfe_output"
+        - "/tmp/rfe_logs"
+      ignore_errors: true

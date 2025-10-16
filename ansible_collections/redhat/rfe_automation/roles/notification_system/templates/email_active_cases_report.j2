@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Active Cases Report - {{ customer_name }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { background-color: #0066cc; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .summary { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .section { margin-bottom: 25px; }
+        .section h2 { color: #0066cc; border-bottom: 2px solid #0066cc; padding-bottom: 5px; }
+        .case-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .case-table th, .case-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .case-table th { background-color: #f2f2f2; font-weight: bold; }
+        .case-number { font-weight: bold; color: #0066cc; }
+        .severity-1 { background-color: #ffebee; }
+        .severity-2 { background-color: #fff3e0; }
+        .severity-3 { background-color: #f3e5f5; }
+        .severity-4 { background-color: #e8f5e8; }
+        .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+        .quality-score { font-weight: bold; color: {% if data_quality_score >= 0.95 %}#4caf50{% else %}#f44336{% endif %}; }
+        .external-tracker { background-color: #fff3cd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Active Cases Report</h1>
+            <p><strong>Customer:</strong> {{ customer_name }} | <strong>Account:</strong> {{ account_name }} | <strong>Generated:</strong> {{ report_timestamp }}</p>
+        </div>
+
+        {% if notification_include_summary %}
+        <div class="summary">
+            <h3>📊 Executive Summary</h3>
+            <ul>
+                <li><strong>All Active Cases:</strong> {{ all_active_cases | length }}</li>
+                <li><strong>Priority Component Cases:</strong> {{ priority_active_cases | length }}</li>
+                <li><strong>External Tracker Cases Excluded:</strong> {{ cases_with_external_trackers | length }}</li>
+                <li><strong>Data Quality Score:</strong> <span class="quality-score">{{ (data_quality_score * 100) | round(1) }}%</span></li>
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if priority_active_cases | length > 0 %}
+        <div class="section">
+            <h2>🎯 Priority Component Cases ({{ priority_active_cases | length }})</h2>
+            <table class="case-table">
+                <thead>
+                    <tr>
+                        <th>Case Number</th>
+                        <th>Subject</th>
+                        <th>Severity</th>
+                        <th>SBR Group</th>
+                        <th>Owner</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for case in priority_active_cases[:notification_max_cases_per_notification] %}
+                    <tr class="severity-{{ case.severity.split(' ')[0] if case.severity else '4' }}">
+                        <td class="case-number">{{ case.caseNumber }}</td>
+                        <td>{{ case.subject[:100] }}{% if case.subject | length > 100 %}...{% endif %}</td>
+                        <td>{{ case.severity if case.severity else 'N/A' }}</td>
+                        <td>{{ case.sbrGroup if case.sbrGroup else 'N/A' }}</td>
+                        <td>{{ case.caseOwner.name if case.caseOwner else 'N/A' }}</td>
+                        <td>{{ case.internalStatus if case.internalStatus else 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if priority_active_cases | length > notification_max_cases_per_notification %}
+            <p><em>Showing first {{ notification_max_cases_per_notification }} of {{ priority_active_cases | length }} priority cases. Full report available in portal.</em></p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if notification_include_details and all_active_cases | length > 0 %}
+        <div class="section">
+            <h2>📋 All Active Cases ({{ all_active_cases | length }})</h2>
+            <table class="case-table">
+                <thead>
+                    <tr>
+                        <th>Case Number</th>
+                        <th>Subject</th>
+                        <th>Severity</th>
+                        <th>SBR Group</th>
+                        <th>Owner</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for case in all_active_cases[:notification_max_cases_per_notification] %}
+                    <tr class="severity-{{ case.severity.split(' ')[0] if case.severity else '4' }}">
+                        <td class="case-number">{{ case.caseNumber }}</td>
+                        <td>{{ case.subject[:80] }}{% if case.subject | length > 80 %}...{% endif %}</td>
+                        <td>{{ case.severity if case.severity else 'N/A' }}</td>
+                        <td>{{ case.sbrGroup if case.sbrGroup else 'N/A' }}</td>
+                        <td>{{ case.caseOwner.name if case.caseOwner else 'N/A' }}</td>
+                        <td>{{ case.internalStatus if case.internalStatus else 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if all_active_cases | length > notification_max_cases_per_notification %}
+            <p><em>Showing first {{ notification_max_cases_per_notification }} of {{ all_active_cases | length }} active cases. Full report available in portal.</em></p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if cases_with_external_trackers | length > 0 %}
+        <div class="section">
+            <h2>🔗 External Tracker Cases (Excluded from Active Cases)</h2>
+            <p>These cases are tracked in external systems (JIRA) and are excluded from the active cases report to avoid duplication:</p>
+            <table class="case-table">
+                <thead>
+                    <tr>
+                        <th>Case Number</th>
+                        <th>Subject</th>
+                        <th>SBR Group</th>
+                        <th>External Tracker</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for case in cases_with_external_trackers[:10] %}
+                    <tr class="external-tracker">
+                        <td class="case-number">{{ case.caseNumber }}</td>
+                        <td>{{ case.subject[:80] }}{% if case.subject | length > 80 %}...{% endif %}</td>
+                        <td>{{ case.sbrGroup if case.sbrGroup else 'N/A' }}</td>
+                        <td>JIRA</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if cases_with_external_trackers | length > 10 %}
+            <p><em>Showing first 10 of {{ cases_with_external_trackers | length }} external tracker cases.</em></p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="footer">
+            <p>This report was automatically generated by the Red Hat RFE Automation System.</p>
+            <p>Active cases exclude formal RFE/Bug cases and cases tracked in external systems (JIRA).</p>
+            <p>For questions or issues, please contact your TAM or the TAM Operations team.</p>
+            <p><strong>Report Quality:</strong> <span class="quality-score">{{ (data_quality_score * 100) | round(1) }}%</span> | <strong>Generated:</strong> {{ report_timestamp }}</p>
+        </div>
+    </div>
+</body>
+</html>

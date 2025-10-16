@@ -1,0 +1,33 @@
+---
+# Dynamic Inventory for RFE Automation Customers
+# This inventory automatically discovers customers from rhcase data
+# Designed for TAMs who support multiple product lines and need a complete
+# view of all their customers across all supported products
+
+plugin: redhat.rfe_automation.rfe_customers
+
+# Configuration
+rhcase_path: "rhcase"
+# TAMs support different product combinations:
+# - Some TAMs: All Ansible accounts
+# - Some TAMs: RHEL + OpenShift + Ansible
+# - Some TAMs: Satellite + CloudForms + RHEL
+# - Some TAMs: Any other combination
+# Empty list means auto-discover what products THIS TAM actually supports
+sbr_groups: []  # Auto-discover TAM's actual product portfolio
+
+# Discovery settings
+include_closed: false
+min_cases: 1
+
+# Caching settings (disabled for now)
+cache: false
+
+# Additional filtering (optional)
+# max_customers: 50
+# exclude_accounts:
+#   - "000000"  # Test accounts
+# include_verticals:
+#   - "Financial Services"
+#   - "Healthcare"
+#   - "Government"

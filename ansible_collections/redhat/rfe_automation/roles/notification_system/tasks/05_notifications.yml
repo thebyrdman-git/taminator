@@ -1,0 +1,266 @@
+---
+# Notification tasks for Notification System Role
+
+- name: Send RFE/Bug Tracker email notification
+  mail:
+    host: "{{ email_smtp_server }}"
+    port: "{{ email_smtp_port }}"
+    username: "{{ email_username }}"
+    password: "{{ email_password }}"
+    to: "{{ email_recipients | join(',') }}"
+    cc: "{{ email_cc_recipients | join(',') if email_cc_recipients | length > 0 else omit }}"
+    bcc: "{{ email_bcc_recipients | join(',') if email_bcc_recipients | length > 0 else omit }}"
+    subject: "{{ notification_templates.rfe_bug_tracker.email_subject }}"
+    body: "{{ lookup('file', notification_metadata.content_files.email.rfe_bug) }}"
+    subtype: html
+    secure: "{{ 'starttls' if email_smtp_tls else 'never' }}"
+  delegate_to: localhost
+  register: email_rfe_bug_result
+  retries: "{{ notification_retry_attempts }}"
+  delay: "{{ notification_retry_delay }}"
+  when: 
+    - notifications_enabled
+    - 'email' in notification_methods
+    - email_enabled
+    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - not (notification_cooldown_active | default(false))
+    - email_username is defined
+    - email_password is defined
+  tags: [notifications, email, rfe_bug]
+
+- name: Send Active Cases email notification
+  mail:
+    host: "{{ email_smtp_server }}"
+    port: "{{ email_smtp_port }}"
+    username: "{{ email_username }}"
+    password: "{{ email_password }}"
+    to: "{{ email_recipients | join(',') }}"
+    cc: "{{ email_cc_recipients | join(',') if email_cc_recipients | length > 0 else omit }}"
+    bcc: "{{ email_bcc_recipients | join(',') if email_bcc_recipients | length > 0 else omit }}"
+    subject: "{{ notification_templates.active_cases.email_subject }}"
+    body: "{{ lookup('file', notification_metadata.content_files.email.active_cases) }}"
+    subtype: html
+    secure: "{{ 'starttls' if email_smtp_tls else 'never' }}"
+  delegate_to: localhost
+  register: email_active_cases_result
+  retries: "{{ notification_retry_attempts }}"
+  delay: "{{ notification_retry_delay }}"
+  when: 
+    - notifications_enabled
+    - 'email' in notification_methods
+    - email_enabled
+    - "'active_cases' in (report_types | default([]))"
+    - not (notification_cooldown_active | default(false))
+    - email_username is defined
+    - email_password is defined
+  tags: [notifications, email, active_cases]
+
+- name: Send RFE/Bug Tracker Slack notification
+  uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body: "{{ lookup('file', notification_metadata.content_files.slack.rfe_bug) | from_json }}"
+    status_code: [200, 404]
+  register: slack_rfe_bug_result
+  retries: "{{ notification_retry_attempts }}"
+  delay: "{{ notification_retry_delay }}"
+  when: 
+    - notifications_enabled
+    - 'slack' in notification_methods
+    - slack_enabled
+    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - not (notification_cooldown_active | default(false))
+    - slack_webhook_url is defined
+  tags: [notifications, slack, rfe_bug]
+
+- name: Send Active Cases Slack notification
+  uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body: "{{ lookup('file', notification_metadata.content_files.slack.active_cases) | from_json }}"
+    status_code: [200, 404]
+  register: slack_active_cases_result
+  retries: "{{ notification_retry_attempts }}"
+  delay: "{{ notification_retry_delay }}"
+  when: 
+    - notifications_enabled
+    - 'slack' in notification_methods
+    - slack_enabled
+    - "'active_cases' in (report_types | default([]))"
+    - not (notification_cooldown_active | default(false))
+    - slack_webhook_url is defined
+  tags: [notifications, slack, active_cases]
+
+- name: Send RFE/Bug Tracker Teams notification
+  uri:
+    url: "{{ teams_webhook_url }}"
+    method: POST
+    body_format: json
+    body: "{{ lookup('file', notification_metadata.content_files.teams.rfe_bug) | from_json }}"
+    status_code: [200, 404]
+  register: teams_rfe_bug_result
+  retries: "{{ notification_retry_attempts }}"
+  delay: "{{ notification_retry_delay }}"
+  when: 
+    - notifications_enabled
+    - 'teams' in notification_methods
+    - teams_enabled
+    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - not (notification_cooldown_active | default(false))
+    - teams_webhook_url is defined
+  tags: [notifications, teams, rfe_bug]
+
+- name: Send Active Cases Teams notification
+  uri:
+    url: "{{ teams_webhook_url }}"
+    method: POST
+    body_format: json
+    body: "{{ lookup('file', notification_metadata.content_files.teams.active_cases) | from_json }}"
+    status_code: [200, 404]
+  register: teams_active_cases_result
+  retries: "{{ notification_retry_attempts }}"
+  delay: "{{ notification_retry_delay }}"
+  when: 
+    - notifications_enabled
+    - 'teams' in notification_methods
+    - teams_enabled
+    - "'active_cases' in (report_types | default([]))"
+    - not (notification_cooldown_active | default(false))
+    - teams_webhook_url is defined
+  tags: [notifications, teams, active_cases]
+
+- name: Send RFE/Bug Tracker webhook notification
+  uri:
+    url: "{{ webhook_url }}"
+    method: POST
+    headers: "{{ webhook_headers }}"
+    body_format: json
+    body:
+      event_type: "rfe_bug_tracker_report"
+      customer: "{{ customer_name }}"
+      account: "{{ account_name }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      content: "{{ lookup('file', notification_metadata.content_files.email.rfe_bug) }}"
+      metadata:
+        report_type: "rfe_bug_tracker"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+        active_rfes_count: "{{ active_rfes | default([]) | length }}"
+        active_bugs_count: "{{ active_bugs | default([]) | length }}"
+    status_code: [200, 201, 202, 404]
+  register: webhook_rfe_bug_result
+  retries: "{{ notification_retry_attempts }}"
+  delay: "{{ notification_retry_delay }}"
+  when: 
+    - notifications_enabled
+    - 'webhook' in notification_methods
+    - webhook_enabled
+    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - not (notification_cooldown_active | default(false))
+    - webhook_url is defined
+  tags: [notifications, webhook, rfe_bug]
+
+- name: Send Active Cases webhook notification
+  uri:
+    url: "{{ webhook_url }}"
+    method: POST
+    headers: "{{ webhook_headers }}"
+    body_format: json
+    body:
+      event_type: "active_cases_report"
+      customer: "{{ customer_name }}"
+      account: "{{ account_name }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      content: "{{ lookup('file', notification_metadata.content_files.email.active_cases) }}"
+      metadata:
+        report_type: "active_cases"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+        all_active_cases_count: "{{ all_active_cases | default([]) | length }}"
+        priority_active_cases_count: "{{ priority_active_cases | default([]) | length }}"
+        external_tracker_cases_count: "{{ cases_with_external_trackers | default([]) | length }}"
+    status_code: [200, 201, 202, 404]
+  register: webhook_active_cases_result
+  retries: "{{ notification_retry_attempts }}"
+  delay: "{{ notification_retry_delay }}"
+  when: 
+    - notifications_enabled
+    - 'webhook' in notification_methods
+    - webhook_enabled
+    - "'active_cases' in (report_types | default([]))"
+    - not (notification_cooldown_active | default(false))
+    - webhook_url is defined
+  tags: [notifications, webhook, active_cases]
+
+- name: Handle notification success
+  debug:
+    msg: |
+      ✅ Notification Sent Successfully:
+      📋 Method: {{ item.method }}
+      📊 Report Type: {{ item.report_type }}
+      📊 Status: {{ item.result.status | default('sent') }}
+  loop:
+    - { method: "email", report_type: "rfe_bug_tracker", result: "{{ email_rfe_bug_result | default({}) }}" }
+    - { method: "email", report_type: "active_cases", result: "{{ email_active_cases_result | default({}) }}" }
+    - { method: "slack", report_type: "rfe_bug_tracker", result: "{{ slack_rfe_bug_result | default({}) }}" }
+    - { method: "slack", report_type: "active_cases", result: "{{ slack_active_cases_result | default({}) }}" }
+    - { method: "teams", report_type: "rfe_bug_tracker", result: "{{ teams_rfe_bug_result | default({}) }}" }
+    - { method: "teams", report_type: "active_cases", result: "{{ teams_active_cases_result | default({}) }}" }
+    - { method: "webhook", report_type: "rfe_bug_tracker", result: "{{ webhook_rfe_bug_result | default({}) }}" }
+    - { method: "webhook", report_type: "active_cases", result: "{{ webhook_active_cases_result | default({}) }}" }
+  when: 
+    - notifications_enabled
+    - item.result is defined
+    - item.result.changed | default(false)
+  tags: [notifications, success]
+
+- name: Handle notification errors
+  debug:
+    msg: |
+      ❌ Notification Failed:
+      📋 Method: {{ item.method }}
+      📊 Report Type: {{ item.report_type }}
+      📊 Status: {{ item.result.status | default('unknown') }}
+      💬 Error: {{ item.result.msg | default('Unknown error') }}
+  loop:
+    - { method: "email", report_type: "rfe_bug_tracker", result: "{{ email_rfe_bug_result | default({}) }}" }
+    - { method: "email", report_type: "active_cases", result: "{{ email_active_cases_result | default({}) }}" }
+    - { method: "slack", report_type: "rfe_bug_tracker", result: "{{ slack_rfe_bug_result | default({}) }}" }
+    - { method: "slack", report_type: "active_cases", result: "{{ slack_active_cases_result | default({}) }}" }
+    - { method: "teams", report_type: "rfe_bug_tracker", result: "{{ teams_rfe_bug_result | default({}) }}" }
+    - { method: "teams", report_type: "active_cases", result: "{{ teams_active_cases_result | default({}) }}" }
+    - { method: "webhook", report_type: "rfe_bug_tracker", result: "{{ webhook_rfe_bug_result | default({}) }}" }
+    - { method: "webhook", report_type: "active_cases", result: "{{ webhook_active_cases_result | default({}) }}" }
+  when: 
+    - notifications_enabled
+    - item.result is defined
+    - item.result.failed | default(false)
+  tags: [notifications, errors]
+
+- name: Log notification results
+  lineinfile:
+    path: "{{ logs_dir }}/notifications/notification_history.log"
+    line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - Email RFE/Bug: {{ email_rfe_bug_result.status | default('skipped') }} - Email Active Cases: {{ email_active_cases_result.status | default('skipped') }} - Slack RFE/Bug: {{ slack_rfe_bug_result.status | default('skipped') }} - Slack Active Cases: {{ slack_active_cases_result.status | default('skipped') }} - Teams RFE/Bug: {{ teams_rfe_bug_result.status | default('skipped') }} - Teams Active Cases: {{ teams_active_cases_result.status | default('skipped') }} - Webhook RFE/Bug: {{ webhook_rfe_bug_result.status | default('skipped') }} - Webhook Active Cases: {{ webhook_active_cases_result.status | default('skipped') }}"
+    create: yes
+    mode: '0644'
+  when: notifications_enabled
+  tags: [notifications, logging]
+
+- name: Display notification summary
+  debug:
+    msg: |
+      📧 Notification Summary:
+      🏢 Customer: {{ customer_name }}
+      📊 Account: {{ account_name }}
+      📋 Methods Used: {{ notification_methods | join(', ') }}
+      📧 Email RFE/Bug: {{ 'Sent' if (email_rfe_bug_result.status | default(0) == 200) else 'Failed/Skipped' }}
+      📧 Email Active Cases: {{ 'Sent' if (email_active_cases_result.status | default(0) == 200) else 'Failed/Skipped' }}
+      💬 Slack RFE/Bug: {{ 'Sent' if (slack_rfe_bug_result.status | default(0) == 200) else 'Failed/Skipped' }}
+      💬 Slack Active Cases: {{ 'Sent' if (slack_active_cases_result.status | default(0) == 200) else 'Failed/Skipped' }}
+      🔔 Teams RFE/Bug: {{ 'Sent' if (teams_rfe_bug_result.status | default(0) == 200) else 'Failed/Skipped' }}
+      🔔 Teams Active Cases: {{ 'Sent' if (teams_active_cases_result.status | default(0) == 200) else 'Failed/Skipped' }}
+      🌐 Webhook RFE/Bug: {{ 'Sent' if (webhook_rfe_bug_result.status | default(0) in [200, 201, 202]) else 'Failed/Skipped' }}
+      🌐 Webhook Active Cases: {{ 'Sent' if (webhook_active_cases_result.status | default(0) in [200, 201, 202]) else 'Failed/Skipped' }}
+      ⏰ Cooldown Status: {{ 'Active' if (notification_cooldown_active | default(false)) else 'Ready' }}
+  when: notifications_enabled
+  tags: [notifications, summary]

@@ -1,0 +1,301 @@
+---
+# Molecule converge playbook for RFE Automation testing
+- name: Converge RFE Automation roles
+  hosts: all
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    # Test variables
+    customer_name: "TestCustomer"
+    account_name: "testcustomer"
+    account_number: "123456"
+    priority_components: ["Ansible", "OpenShift"]
+    rhcase_path: "rhcase"
+    output_dir: "/tmp/rfe_output"
+    logs_dir: "/tmp/rfe_logs"
+    validation_threshold: 0.95
+    data_quality_threshold: 0.90
+    report_types: ["rfe_bug_tracker", "active_cases"]
+    
+    # Mock case data for testing
+    mock_cases:
+      - caseNumber: "TEST001"
+        subject: "[RFE] Test RFE Case"
+        caseType: "Feature / Enhancement Request"
+        sbrGroup: "Ansible"
+        isClosed: false
+        accountNumber: "123456"
+        severity: "4 (Low)"
+        internalStatus: "Waiting on Red Hat"
+        description: "Test RFE case for automation testing"
+        tags: "test,rfe"
+      - caseNumber: "TEST002"
+        subject: "[BUG] Test Bug Case"
+        caseType: "Defect / Bug"
+        sbrGroup: "Ansible"
+        isClosed: false
+        accountNumber: "123456"
+        severity: "3 (Medium)"
+        internalStatus: "Waiting on Customer"
+        description: "Test bug case for automation testing"
+        tags: "test,bug"
+      - caseNumber: "TEST003"
+        subject: "Test Active Case"
+        caseType: "Configuration Issue"
+        sbrGroup: "Ansible"
+        isClosed: false
+        accountNumber: "123456"
+        severity: "4 (Low)"
+        internalStatus: "Waiting on PM"
+        description: "Test active case for automation testing"
+        tags: "test,active"
+      - caseNumber: "TEST004"
+        subject: "[RFE] Closed RFE Case"
+        caseType: "Feature / Enhancement Request"
+        sbrGroup: "Ansible"
+        isClosed: true
+        accountNumber: "123456"
+        severity: "4 (Low)"
+        internalStatus: "Closed"
+        description: "Test closed RFE case"
+        tags: "test,closed"
+      - caseNumber: "TEST005"
+        subject: "Case with External Tracker"
+        caseType: "Configuration Issue"
+        sbrGroup: "Ansible"
+        isClosed: false
+        accountNumber: "123456"
+        severity: "4 (Low)"
+        internalStatus: "Waiting on PM"
+        description: "Test case with https://issues.redhat.com/browse/TEST-123"
+        tags: "test,external"
+  
+  pre_tasks:
+    - name: Install required packages
+      package:
+        name:
+          - python3-pip
+          - jq
+          - curl
+        state: present
+      when: ansible_os_family == "RedHat"
+      
+    - name: Install required packages (Debian)
+      apt:
+        name:
+          - python3-pip
+          - jq
+          - curl
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+      
+    - name: Create mock rhcase script
+      copy:
+        content: |
+          #!/bin/bash
+          # Mock rhcase script for testing
+          if [[ "$1" == "list" && "$2" == "--all" ]]; then
+            echo '[
+              {
+                "caseNumber": "TEST001",
+                "subject": "[RFE] Test RFE Case",
+                "caseType": "Feature / Enhancement Request",
+                "sbrGroup": "Ansible",
+                "isClosed": false,
+                "accountNumber": "123456",
+                "severity": "4 (Low)",
+                "internalStatus": "Waiting on Red Hat",
+                "description": "Test RFE case for automation testing",
+                "tags": "test,rfe"
+              },
+              {
+                "caseNumber": "TEST002",
+                "subject": "[BUG] Test Bug Case",
+                "caseType": "Defect / Bug",
+                "sbrGroup": "Ansible",
+                "isClosed": false,
+                "accountNumber": "123456",
+                "severity": "3 (Medium)",
+                "internalStatus": "Waiting on Customer",
+                "description": "Test bug case for automation testing",
+                "tags": "test,bug"
+              },
+              {
+                "caseNumber": "TEST003",
+                "subject": "Test Active Case",
+                "caseType": "Configuration Issue",
+                "sbrGroup": "Ansible",
+                "isClosed": false,
+                "accountNumber": "123456",
+                "severity": "4 (Low)",
+                "internalStatus": "Waiting on PM",
+                "description": "Test active case for automation testing",
+                "tags": "test,active"
+              },
+              {
+                "caseNumber": "TEST004",
+                "subject": "[RFE] Closed RFE Case",
+                "caseType": "Feature / Enhancement Request",
+                "sbrGroup": "Ansible",
+                "isClosed": true,
+                "accountNumber": "123456",
+                "severity": "4 (Low)",
+                "internalStatus": "Closed",
+                "description": "Test closed RFE case",
+                "tags": "test,closed"
+              },
+              {
+                "caseNumber": "TEST005",
+                "subject": "Case with External Tracker",
+                "caseType": "Configuration Issue",
+                "sbrGroup": "Ansible",
+                "isClosed": false,
+                "accountNumber": "123456",
+                "severity": "4 (Low)",
+                "internalStatus": "Waiting on PM",
+                "description": "Test case with https://issues.redhat.com/browse/TEST-123",
+                "tags": "test,external"
+              }
+            ]'
+          elif [[ "$1" == "--version" ]]; then
+            echo "rhcase 2.9.3 (mock)"
+          else
+            echo "Mock rhcase: $*"
+          fi
+        dest: /usr/local/bin/rhcase
+        mode: '0755'
+        
+  tasks:
+    - name: Test RFE Case Collector Module
+      redhat.rfe_automation.rfe_case_collector:
+        account_number: "{{ account_number }}"
+        sbr_groups: "{{ priority_components }}"
+        case_types: ["Feature / Enhancement Request", "Defect / Bug", "Account / Customer Service Request", "Configuration Issue"]
+        rhcase_path: "{{ rhcase_path }}"
+        include_closed: false
+        validate_data: true
+      register: collected_cases
+      
+    - name: Verify case collection results
+      assert:
+        that:
+          - collected_cases.total_cases == 5
+          - collected_cases.filtered_cases == 4
+          - collected_cases.data_quality_score >= 0.95
+          - collected_cases.cases | length == 4
+        fail_msg: "Case collection failed validation"
+        
+    - name: Test RFE Data Processor Module
+      redhat.rfe_automation.rfe_data_processor:
+        cases: "{{ collected_cases.cases }}"
+        case_types: ["Feature / Enhancement Request", "Defect / Bug"]
+        rfe_keywords: ["[RFE]"]
+        bug_keywords: ["[BUG]"]
+        external_tracker_patterns: ["issues.redhat.com", "jira.redhat.com"]
+        priority_components: "{{ priority_components }}"
+      register: processed_data
+      
+    - name: Verify data processing results
+      assert:
+        that:
+          - processed_data.statistics.active_rfes_count == 1
+          - processed_data.statistics.active_bugs_count == 1
+          - processed_data.statistics.closed_cases_count == 0
+          - processed_data.statistics.external_tracker_cases_count == 1
+          - processed_data.statistics.all_active_cases_count == 1
+          - processed_data.statistics.priority_active_cases_count == 1
+        fail_msg: "Data processing failed validation"
+        
+    - name: Test RFE Report Generator Module (RFE/Bug Tracker)
+      redhat.rfe_automation.rfe_report_generator:
+        report_type: "rfe_bug_tracker"
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        active_rfes: "{{ processed_data.active_rfes }}"
+        active_bugs: "{{ processed_data.active_bugs }}"
+        closed_cases: "{{ processed_data.closed_cases }}"
+        data_quality_score: "{{ collected_cases.data_quality_score }}"
+        output_dir: "{{ output_dir }}"
+        output_formats: ["markdown", "json"]
+        include_timestamp: false
+      register: rfe_report
+      
+    - name: Verify RFE report generation
+      assert:
+        that:
+          - rfe_report.changed == true
+          - rfe_report.report_files | length == 2
+          - rfe_report.report_summary.total_cases == 2
+        fail_msg: "RFE report generation failed validation"
+        
+    - name: Test RFE Report Generator Module (Active Cases)
+      redhat.rfe_automation.rfe_report_generator:
+        report_type: "active_cases"
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        all_active_cases: "{{ processed_data.all_active_cases }}"
+        priority_active_cases: "{{ processed_data.priority_active_cases }}"
+        output_dir: "{{ output_dir }}"
+        output_formats: ["markdown", "json"]
+        include_timestamp: false
+      register: active_cases_report
+      
+    - name: Verify Active Cases report generation
+      assert:
+        that:
+          - active_cases_report.changed == true
+          - active_cases_report.report_files | length == 2
+          - active_cases_report.report_summary.total_cases == 1
+        fail_msg: "Active Cases report generation failed validation"
+        
+    - name: Verify report files exist
+      stat:
+        path: "{{ item.path }}"
+      register: report_files_stat
+      loop: "{{ rfe_report.report_files + active_cases_report.report_files }}"
+      
+    - name: Check all report files were created
+      assert:
+        that:
+          - report_files_stat.results | selectattr('stat.exists') | list | length == 4
+        fail_msg: "Not all report files were created"
+        
+    - name: Verify report file contents (Markdown)
+      slurp:
+        src: "{{ item.path }}"
+      register: markdown_content
+      loop: "{{ (rfe_report.report_files + active_cases_report.report_files) | selectattr('format', 'equalto', 'markdown') | list }}"
+      
+    - name: Check Markdown report content
+      assert:
+        that:
+          - markdown_content.results | selectattr('content', 'defined') | list | length == 2
+          - "'RFE/Bug Tracker Report' in (markdown_content.results[0].content | b64decode)" or "'Active Cases Report' in (markdown_content.results[0].content | b64decode)"
+        fail_msg: "Markdown report content validation failed"
+        
+    - name: Verify report file contents (JSON)
+      slurp:
+        src: "{{ item.path }}"
+      register: json_content
+      loop: "{{ (rfe_report.report_files + active_cases_report.report_files) | selectattr('format', 'equalto', 'json') | list }}"
+      
+    - name: Check JSON report content
+      assert:
+        that:
+          - json_content.results | selectattr('content', 'defined') | list | length == 2
+        fail_msg: "JSON report content validation failed"
+        
+  post_tasks:
+    - name: Display test results summary
+      debug:
+        msg: |
+          🧪 Molecule Test Results Summary:
+          ✅ Case Collection: {{ collected_cases.filtered_cases }}/{{ collected_cases.total_cases }} cases
+          ✅ Data Processing: {{ processed_data.statistics.active_rfes_count }} RFEs, {{ processed_data.statistics.active_bugs_count }} Bugs
+          ✅ Report Generation: {{ rfe_report.report_files | length + active_cases_report.report_files | length }} files
+          ✅ Data Quality: {{ (collected_cases.data_quality_score * 100) | round(1) }}%
+          🎯 All tests passed successfully!

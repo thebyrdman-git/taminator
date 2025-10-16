@@ -1,0 +1,162 @@
+---
+# Smart RFE Automation Tool - Using Custom Modules
+- name: Generate RFE Reports using Smart Custom Modules
+  hosts: localhost
+  gather_facts: yes
+  become: no
+  
+  vars_files:
+    - vars/accounts.yml
+    
+  vars:
+    # Override these on command line: -e "customer=jpmc"
+    customer: "{{ customer | default('jpmc') }}"
+    
+  pre_tasks:
+    - name: Validate customer account exists
+      assert:
+        that:
+          - customer in accounts
+        fail_msg: "Customer '{{ customer }}' not found in accounts.yml. Available customers: {{ accounts.keys() | list }}"
+      tags: [validation]
+      
+    - name: Set customer-specific variables
+      set_fact:
+        customer_config: "{{ accounts[customer] }}"
+        customer_name: "{{ accounts[customer].customer_name }}"
+        account_name: "{{ accounts[customer].account_name }}"
+        account_number: "{{ accounts[customer].account_number }}"
+        priority_components: "{{ accounts[customer].priority_components }}"
+        rhcase_path: "{{ defaults.rhcase_path }}"
+        output_dir: "{{ defaults.output_dir }}"
+        logs_dir: "{{ defaults.logs_dir }}"
+        validation_threshold: "{{ defaults.validation_threshold }}"
+        data_quality_threshold: "{{ defaults.data_quality_threshold }}"
+        report_types: "{{ defaults.report_types }}"
+        notifications_enabled: "{{ notifications.enabled }}"
+        portal_posting_enabled: "{{ portal.enabled }}"
+      tags: [setup]
+      
+    - name: Display customer configuration
+      debug:
+        msg: |
+          🎯 Smart RFE Automation Configuration:
+          📋 Customer: {{ customer_name }}
+          🏢 Account: {{ account_name }} ({{ account_number }})
+          🎯 Components: {{ priority_components | join(', ') }}
+          📊 Reports: {{ report_types | join(', ') }}
+          ✅ Validation: {{ (validation_threshold | float * 100) | round(1) }}%
+      tags: [setup, info]
+      
+  tasks:
+    - name: Create output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ output_dir }}"
+        - "{{ logs_dir }}"
+      tags: [setup]
+      
+    - name: Collect cases using smart module
+      redhat.rfe_automation.rfe_case_collector:
+        account_number: "{{ account_number }}"
+        sbr_groups: "{{ priority_components }}"
+        case_types: ["Feature / Enhancement Request", "Defect / Bug", "Account / Customer Service Request", "Configuration Issue"]
+        rhcase_path: "{{ rhcase_path }}"
+        include_closed: false
+        validate_data: true
+      register: collected_cases
+      tags: [data_collection]
+      
+    - name: Display collection results
+      debug:
+        msg: |
+          📊 Case Collection Results:
+          ✅ Total Cases Found: {{ collected_cases.total_cases | default('N/A') }}
+          ✅ Filtered Cases: {{ collected_cases.filtered_cases | default('N/A') }}
+          ✅ Data Quality: {{ (collected_cases.data_quality_score | default(1.0) | float * 100) | round(1) }}%
+      tags: [data_collection, info]
+      
+    - name: Process case data using smart module
+      redhat.rfe_automation.rfe_data_processor:
+        cases: "{{ collected_cases.cases }}"
+        case_types: ["Feature / Enhancement Request", "Defect / Bug"]
+        rfe_keywords: ["[RFE]"]
+        bug_keywords: ["[BUG]"]
+        external_tracker_patterns: ["issues.redhat.com", "jira.redhat.com"]
+        priority_components: "{{ priority_components }}"
+      register: processed_data
+      tags: [data_processing]
+      
+    - name: Display processing results
+      debug:
+        msg: |
+          🔄 Data Processing Results:
+          ✅ Active RFEs: {{ processed_data.statistics.active_rfes_count | default('N/A') }}
+          ✅ Active Bugs: {{ processed_data.statistics.active_bugs_count | default('N/A') }}
+          ✅ Closed Cases: {{ processed_data.statistics.closed_cases_count | default('N/A') }}
+          ✅ External Tracker Cases: {{ processed_data.statistics.external_tracker_cases_count | default('N/A') }}
+          ✅ All Active Cases: {{ processed_data.statistics.all_active_cases_count | default('N/A') }}
+          ✅ Priority Active Cases: {{ processed_data.statistics.priority_active_cases_count | default('N/A') }}
+      tags: [data_processing, info]
+      
+    - name: Generate RFE/Bug Tracker Report
+      redhat.rfe_automation.rfe_report_generator:
+        report_type: "rfe_bug_tracker"
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        active_rfes: "{{ processed_data.active_rfes }}"
+        active_bugs: "{{ processed_data.active_bugs }}"
+        closed_cases: "{{ processed_data.closed_cases }}"
+        data_quality_score: "{{ collected_cases.data_quality_score | default(1.0) }}"
+        output_dir: "{{ output_dir }}"
+        output_formats: ["markdown", "json"]
+        include_timestamp: true
+      register: rfe_report
+      when: "'rfe_bug_tracker' in report_types"
+      tags: [report_generation, rfe_bug_tracker]
+      
+    - name: Generate Active Cases Report
+      redhat.rfe_automation.rfe_report_generator:
+        report_type: "active_cases"
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        all_active_cases: "{{ processed_data.all_active_cases }}"
+        priority_active_cases: "{{ processed_data.priority_active_cases }}"
+        output_dir: "{{ output_dir }}"
+        output_formats: ["markdown", "json"]
+        include_timestamp: true
+      register: active_cases_report
+      when: "'active_cases' in report_types"
+      tags: [report_generation, active_cases]
+      
+    - name: Display report generation summary
+      debug:
+        msg: |
+          📋 Smart Report Generation Complete!
+          📁 Output Directory: {{ output_dir }}
+          📊 Customer: {{ customer_name }}
+          🎯 Components: {{ priority_components | join(', ') }}
+          {% if rfe_report is defined and rfe_report.report_files is defined %}
+          📄 RFE/Bug Report: {{ rfe_report.report_files | length }} files generated
+          {% endif %}
+          {% if active_cases_report is defined and active_cases_report.report_files is defined %}
+          📄 Active Cases Report: {{ active_cases_report.report_files | length }} files generated
+          {% endif %}
+      tags: [summary]
+      
+  post_tasks:
+    - name: Display final summary
+      debug:
+        msg: |
+          ✅ Smart RFE Automation Complete!
+          📁 Reports: {{ output_dir }}
+          📋 Customer: {{ customer_name }}
+          🎯 Components: {{ priority_components | join(', ') }}
+          📊 Generated: {{ report_types | join(', ') }}
+          🚀 Using: Custom Ansible Modules (Smart Processing)
+      tags: [summary, final]

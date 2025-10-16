@@ -1,0 +1,77 @@
+{
+  "channel": "{{ slack_channel }}",
+  "username": "{{ slack_username }}",
+  "icon_emoji": "{{ slack_icon_emoji }}",
+  "attachments": [
+    {
+      "color": "{% if all_active_cases | length > 0 %}warning{% else %}good{% endif %}",
+      "title": "📋 Active Cases Report - {{ customer_name }}",
+      "title_link": "https://access.redhat.com",
+      "fields": [
+        {
+          "title": "Customer",
+          "value": "{{ customer_name }} ({{ account_name }})",
+          "short": true
+        },
+        {
+          "title": "Generated",
+          "value": "{{ report_timestamp }}",
+          "short": true
+        },
+        {
+          "title": "All Active Cases",
+          "value": "{{ all_active_cases | length }}",
+          "short": true
+        },
+        {
+          "title": "Priority Cases",
+          "value": "{{ priority_active_cases | length }}",
+          "short": true
+        },
+        {
+          "title": "External Trackers",
+          "value": "{{ cases_with_external_trackers | length }} excluded",
+          "short": true
+        },
+        {
+          "title": "Data Quality",
+          "value": "{{ (data_quality_score * 100) | round(1) }}%",
+          "short": true
+        }
+      ]
+    }
+    {% if priority_active_cases | length > 0 %}
+    ,{
+      "color": "warning",
+      "title": "🎯 Priority Component Cases ({{ priority_active_cases | length }})",
+      "text": "{% for case in priority_active_cases[:5] %}• *{{ case.caseNumber }}*: {{ case.subject[:80] }}{% if case.subject | length > 80 %}...{% endif %} ({{ case.severity if case.severity else 'N/A' }})\n{% endfor %}{% if priority_active_cases | length > 5 %}... and {{ priority_active_cases | length - 5 }} more{% endif %}",
+      "mrkdwn_in": ["text"]
+    }
+    {% endif %}
+    {% if notification_include_details and all_active_cases | length > 0 %}
+    ,{
+      "color": "good",
+      "title": "📋 All Active Cases ({{ all_active_cases | length }})",
+      "text": "{% for case in all_active_cases[:5] %}• *{{ case.caseNumber }}*: {{ case.subject[:60] }}{% if case.subject | length > 60 %}...{% endif %} ({{ case.sbrGroup if case.sbrGroup else 'N/A' }})\n{% endfor %}{% if all_active_cases | length > 5 %}... and {{ all_active_cases | length - 5 }} more{% endif %}",
+      "mrkdwn_in": ["text"]
+    }
+    {% endif %}
+    {% if cases_with_external_trackers | length > 0 %}
+    ,{
+      "color": "good",
+      "title": "🔗 External Tracker Cases ({{ cases_with_external_trackers | length }})",
+      "text": "Cases tracked in JIRA (excluded from active cases):\n{% for case in cases_with_external_trackers[:3] %}• *{{ case.caseNumber }}*: {{ case.subject[:60] }}{% if case.subject | length > 60 %}...{% endif %}\n{% endfor %}{% if cases_with_external_trackers | length > 3 %}... and {{ cases_with_external_trackers | length - 3 }} more{% endif %}",
+      "mrkdwn_in": ["text"]
+    }
+    {% endif %}
+    ,{
+      "color": "{% if data_quality_score >= 0.95 %}good{% else %}warning{% endif %}",
+      "title": "📊 Report Quality",
+      "text": "Data Quality Score: *{{ (data_quality_score * 100) | round(1) }}%*\n{% if data_quality_score < 0.95 %}⚠️ Quality below recommended threshold (95%){% else %}✅ Quality meets standards{% endif %}",
+      "mrkdwn_in": ["text"]
+    }
+  ],
+  "footer": "Red Hat RFE Automation System",
+  "footer_icon": "https://redhat.com/favicon.ico",
+  "ts": {{ ansible_date_time.epoch }}
+}

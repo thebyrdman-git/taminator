@@ -1,0 +1,187 @@
+---
+# TAM Portfolio RFE Automation Tool
+# Generates reports for all accounts in TAM's defined portfolio
+- name: Generate RFE Reports for TAM Portfolio
+  hosts: tam_portfolio
+  gather_facts: yes
+  become: no
+  
+  vars:
+    # Override these on command line: -e "report_types=['rfe_bug_tracker']"
+    report_types: "{{ report_types | default(['rfe_bug_tracker', 'active_cases']) }}"
+    output_dir: "./output"
+    logs_dir: "./logs"
+    rhcase_path: "rhcase"
+    
+  pre_tasks:
+    - name: Display TAM portfolio information
+      debug:
+        msg: |
+          🎯 TAM Portfolio Information:
+          👤 TAM: {{ tam_name }}
+          📧 Email: {{ tam_email }}
+          📊 Total Accounts: {{ groups['tam_portfolio'] | length }}
+          🔍 Validation Mode: {{ validation_results }}
+      run_once: true
+      tags: [portfolio, info]
+      
+    - name: Display account validation results
+      debug:
+        msg: |
+          📋 Account Validation Results:
+          ✅ Accounts with Cases: {{ validation_results.accounts_with_cases }}
+          ⚠️  Accounts without Cases: {{ validation_results.accounts_without_cases }}
+          📊 Total Cases Found: {{ validation_results.total_cases_found }}
+      run_once: true
+      tags: [portfolio, validation]
+      
+    - name: Display portfolio suggestions
+      debug:
+        msg: |
+          💡 Portfolio Suggestions:
+          ➕ Suggested Additions: {{ suggestions.add_accounts | length }}
+          {% if suggestions.add_accounts | length > 0 %}
+          {% for suggestion in suggestions.add_accounts[:3] %}
+          - {{ suggestion.customer_name }} ({{ suggestion.account_number }}): {{ suggestion.reason }}
+          {% endfor %}
+          {% if suggestions.add_accounts | length > 3 %}
+          ... and {{ suggestions.add_accounts | length - 3 }} more
+          {% endif %}
+          {% endif %}
+      run_once: true
+      when: suggestions is defined
+      tags: [portfolio, suggestions]
+      
+    - name: Display current account information
+      debug:
+        msg: |
+          🏢 Account: {{ customer_name }} ({{ account_name }})
+          📋 Account Number: {{ account_number }}
+          🎯 Products: {{ products | join(', ') }}
+          🏢 Vertical: {{ vertical }}
+          📊 Cases Found: {{ cases_found }} ({{ active_cases }} active)
+          ✅ Validated: {{ validated }}
+          🎯 Priority: {{ priority }}
+          📝 Description: {{ description }}
+      tags: [account, info]
+      
+    - name: Create account-specific output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ output_dir }}/{{ account_name }}"
+        - "{{ logs_dir }}/{{ account_name }}"
+      tags: [setup]
+      
+  tasks:
+    - name: Collect cases using smart module
+      redhat.rfe_automation.rfe_case_collector:
+        account_number: "{{ account_number }}"
+        sbr_groups: "{{ priority_components | default(products) }}"
+        case_types: ["Feature / Enhancement Request", "Defect / Bug", "Account / Customer Service Request", "Configuration Issue"]
+        rhcase_path: "{{ rhcase_path }}"
+        include_closed: false
+        validate_data: true
+      register: collected_cases
+      tags: [data_collection]
+      
+    - name: Display collection results
+      debug:
+        msg: |
+          📊 Case Collection Results for {{ customer_name }}:
+          ✅ Total Cases Found: {{ collected_cases.total_cases | default('N/A') }}
+          ✅ Filtered Cases: {{ collected_cases.filtered_cases | default('N/A') }}
+          ✅ Data Quality: {{ (collected_cases.data_quality_score | default(1.0) | float * 100) | round(1) }}%
+      tags: [data_collection, info]
+      
+    - name: Process case data using smart module
+      redhat.rfe_automation.rfe_data_processor:
+        cases: "{{ collected_cases.cases }}"
+        case_types: ["Feature / Enhancement Request", "Defect / Bug"]
+        rfe_keywords: ["[RFE]"]
+        bug_keywords: ["[BUG]"]
+        external_tracker_patterns: ["issues.redhat.com", "jira.redhat.com"]
+        priority_components: "{{ priority_components | default(products) }}"
+      register: processed_data
+      tags: [data_processing]
+      
+    - name: Display processing results
+      debug:
+        msg: |
+          🔄 Data Processing Results for {{ customer_name }}:
+          ✅ Active RFEs: {{ processed_data.statistics.active_rfes_count | default('N/A') }}
+          ✅ Active Bugs: {{ processed_data.statistics.active_bugs_count | default('N/A') }}
+          ✅ Closed Cases: {{ processed_data.statistics.closed_cases_count | default('N/A') }}
+          ✅ External Tracker Cases: {{ processed_data.statistics.external_tracker_cases_count | default('N/A') }}
+          ✅ All Active Cases: {{ processed_data.statistics.all_active_cases_count | default('N/A') }}
+          ✅ Priority Active Cases: {{ processed_data.statistics.priority_active_cases_count | default('N/A') }}
+      tags: [data_processing, info]
+      
+    - name: Generate RFE/Bug Tracker Report
+      redhat.rfe_automation.rfe_report_generator:
+        report_type: "rfe_bug_tracker"
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        active_rfes: "{{ processed_data.active_rfes }}"
+        active_bugs: "{{ processed_data.active_bugs }}"
+        closed_cases: "{{ processed_data.closed_cases }}"
+        data_quality_score: "{{ collected_cases.data_quality_score | default(1.0) }}"
+        output_dir: "{{ output_dir }}/{{ account_name }}"
+        output_formats: ["markdown", "json"]
+        include_timestamp: true
+      register: rfe_report
+      when: "'rfe_bug_tracker' in report_types"
+      tags: [report_generation, rfe_bug_tracker]
+      
+    - name: Generate Active Cases Report
+      redhat.rfe_automation.rfe_report_generator:
+        report_type: "active_cases"
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        all_active_cases: "{{ processed_data.all_active_cases }}"
+        priority_active_cases: "{{ processed_data.priority_active_cases }}"
+        output_dir: "{{ output_dir }}/{{ account_name }}"
+        output_formats: ["markdown", "json"]
+        include_timestamp: true
+      register: active_cases_report
+      when: "'active_cases' in report_types"
+      tags: [report_generation, active_cases]
+      
+    - name: Display account report generation summary
+      debug:
+        msg: |
+          📋 Report Generation Complete for {{ customer_name }}!
+          📁 Output Directory: {{ output_dir }}/{{ account_name }}
+          🎯 Products: {{ products | join(', ') }}
+          {% if rfe_report is defined and rfe_report.report_files is defined %}
+          📄 RFE/Bug Report: {{ rfe_report.report_files | length }} files generated
+          {% endif %}
+          {% if active_cases_report is defined and active_cases_report.report_files is defined %}
+          📄 Active Cases Report: {{ active_cases_report.report_files | length }} files generated
+          {% endif %}
+      tags: [summary]
+      
+  post_tasks:
+    - name: Display TAM portfolio summary
+      debug:
+        msg: |
+          🎉 TAM Portfolio RFE Automation Complete!
+          👤 TAM: {{ tam_name }}
+          📊 Total Accounts Processed: {{ groups['tam_portfolio'] | length }}
+          📁 Reports Directory: {{ output_dir }}
+          🎯 Report Types: {{ report_types | join(', ') }}
+          🚀 Using: TAM Portfolio Configuration + Smart Custom Modules
+      run_once: true
+      tags: [summary, final]
+      
+    - name: Generate TAM portfolio summary report
+      template:
+        src: tam_portfolio_summary.j2
+        dest: "{{ output_dir }}/tam_portfolio_summary.md"
+        mode: '0644'
+      run_once: true
+      tags: [summary, portfolio]

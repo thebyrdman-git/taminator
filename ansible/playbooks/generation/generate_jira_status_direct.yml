@@ -1,0 +1,165 @@
+---
+- name: Generate RFE/Bug Reports with JIRA Status (Direct Approach)
+  hosts: localhost
+  gather_facts: yes
+  become: no
+
+  vars:
+    customer_name: "{{ customer | title }}"
+    account_name: "{{ customer | lower }}"
+    account_number: "{{ accounts[customer].account_number }}"
+    priority_components: "{{ accounts[customer].priority_components }}"
+    rhcase_path: "rhcase"
+    output_dir: "/home/jbyrd/pai/rfe-automation-clean/output"
+    logs_dir: "/home/jbyrd/pai/rfe-automation-clean/logs"
+
+  tasks:
+    - name: Display customer configuration
+      debug:
+        msg: |
+          🎯 Generating RFE/Bug Reports with JIRA Status (Direct Approach):
+          - Customer: {{ customer_name }}
+          - Account: {{ account_number }}
+          - Components: {{ priority_components | join(', ') }}
+          - Checking externalTrackers field directly in case data
+      tags: [always]
+
+    - name: Create output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ output_dir }}"
+        - "{{ logs_dir }}"
+      tags: [prerequisites]
+
+    - name: Get all cases from rhcase
+      shell: |
+        {{ rhcase_path }} list --all \
+          --format json --includefilter 'sbrGroup,{{ priority_components | join(",") }}' | jq '.[] | select(.accountNumber == "{{ account_number }}")' | jq -s '.' > /tmp/jira_direct_cases_{{ ansible_date_time.epoch }}.json
+      register: cases_output
+      changed_when: false
+      tags: [data_collection]
+
+    - name: Load case data
+      slurp:
+        src: "/tmp/jira_direct_cases_{{ ansible_date_time.epoch }}.json"
+      register: cases_data
+      tags: [data_collection]
+
+    - name: Parse case data
+      set_fact:
+        all_cases: "{{ cases_data.content | b64decode | from_json }}"
+      tags: [data_collection]
+
+    - name: Filter cases with external trackers
+      set_fact:
+        cases_with_external_trackers: "{{ all_cases | selectattr('externalTrackers', 'defined') | selectattr('externalTrackers', 'length') | list }}"
+        cases_without_external_trackers: "{{ all_cases | rejectattr('externalTrackers', 'defined') | list + (all_cases | selectattr('externalTrackers', 'defined') | rejectattr('externalTrackers', 'length') | list) }}"
+      tags: [data_processing]
+
+    - name: Add JIRA status to all cases
+      set_fact:
+        all_cases_with_jira_status: "{{ all_cases | map('combine', {'jira_status': (item.externalTrackers | default([]) | selectattr('system', 'equalto', 'Jira') | map(attribute='status') | first | default(item.status))}) | list }}"
+      vars:
+        item: "{{ item }}"
+      loop: "{{ all_cases }}"
+      tags: [data_processing]
+
+    - name: Display external tracker detection results
+      debug:
+        msg: |
+          🔍 External Tracker Detection Results:
+          - Total Cases Processed: {{ all_cases | length }}
+          - Cases with External Trackers: {{ cases_with_external_trackers | length }}
+          - Cases without External Trackers: {{ cases_without_external_trackers | length }}
+      tags: [external_tracker_detection, info]
+
+    - name: Show cases with external trackers
+      debug:
+        msg: |
+          📋 Cases with External Trackers:
+          {% for case in cases_with_external_trackers %}
+          - Case {{ case.caseNumber }}: {{ case.subject | truncate(60) }}
+            JIRA Status: {{ case.jira_status | default('Unknown') }}
+            External Trackers: {{ case.externalTrackers | length }}
+            {% for tracker in case.externalTrackers %}
+            - {{ tracker.system }}: {{ tracker.resourceKey }} ({{ tracker.status }})
+            {% endfor %}
+          {% endfor %}
+      when: cases_with_external_trackers | length > 0
+      tags: [external_tracker_detection, info]
+
+    - name: Filter RFE cases (include ALL RFEs, with or without external trackers)
+      set_fact:
+        active_rfes: "{{ all_cases_with_jira_status | selectattr('isClosed', 'equalto', false) | selectattr('subject', 'match', '.*\\[RFE\\].*') | list }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter bug cases (include ALL bugs, with or without external trackers)
+      set_fact:
+        active_bugs: "{{ all_cases_with_jira_status | selectattr('isClosed', 'equalto', false) | selectattr('subject', 'match', '.*\\[BUG\\].*') | list }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter closed cases
+      set_fact:
+        closed_cases: "{{ (all_cases_with_jira_status | selectattr('isClosed', 'equalto', true) | list | sort(attribute='lastModifiedDate', reverse=true))[0:10] }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter active cases (exclude RFE/Bug and cases with external trackers)
+      set_fact:
+        all_active_cases: "{{ cases_without_external_trackers | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | list }}"
+        priority_active_cases: "{{ cases_without_external_trackers | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | selectattr('sbrGroup', 'in', priority_components) | list }}"
+      tags: [active_cases, data_processing]
+
+    - name: Generate RFE/Bug Report with JIRA Status
+      template:
+        src: jira_status_rfe_bug_report.j2
+        dest: "{{ output_dir }}/{{ customer }}_jira_status_direct_rfe_bug_report.md"
+        mode: '0644'
+      tags: [rfe_bug, report_generation]
+
+    - name: Generate Active Cases Report
+      template:
+        src: working_active_cases_report.j2
+        dest: "{{ output_dir }}/{{ customer }}_jira_status_direct_active_cases_report.md"
+        mode: '0644'
+      tags: [active_cases, report_generation]
+
+    - name: Generate External Tracker Summary Report
+      template:
+        src: external_tracker_summary.j2
+        dest: "{{ output_dir }}/{{ customer }}_jira_status_direct_external_tracker_summary.md"
+        mode: '0644'
+      vars:
+        external_tracker_cases: "{{ cases_with_external_trackers }}"
+      tags: [external_tracker_detection, report_generation]
+
+    - name: Display final JIRA status report summary
+      debug:
+        msg: |
+          📊 RFE/Bug Reports Generated with JIRA Status (Direct Approach):
+          - RFE/Bug Report: {{ output_dir }}/{{ customer }}_jira_status_direct_rfe_bug_report.md
+          - Active Cases Report: {{ output_dir }}/{{ customer }}_jira_status_direct_active_cases_report.md
+          - External Tracker Summary: {{ output_dir }}/{{ customer }}_jira_status_direct_external_tracker_summary.md
+          
+          📈 Final Summary:
+          - Total Cases Processed: {{ all_cases | length }}
+          - Cases with External Trackers: {{ cases_with_external_trackers | length }}
+          - Active RFEs (ALL RFEs included): {{ active_rfes | length }}
+          - Active Bugs (ALL bugs included): {{ active_bugs | length }}
+          - Open Troubleshooting Cases (excluding external trackers): {{ all_active_cases | length }}
+          - Priority Cases: {{ priority_active_cases | length }}
+          
+          🎯 Status Column Logic:
+          - Cases with JIRA trackers: Shows JIRA status (e.g., "Release Pending", "In Progress")
+          - Cases without JIRA trackers: Shows support case status (e.g., "Waiting on Engineering")
+          
+          ✅ JIRA status integration completed using direct externalTrackers field access
+      tags: [always]
+
+    - name: Clean up temporary files
+      file:
+        path: "/tmp/jira_direct_cases_{{ ansible_date_time.epoch }}.json"
+        state: absent
+      tags: [cleanup]

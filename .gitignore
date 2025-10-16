@@ -1,0 +1,6 @@
+
+# Generated output
+output/
+logs/*.log
+logs/JP_Morgan_Chase/
+logs/jpmorgan*

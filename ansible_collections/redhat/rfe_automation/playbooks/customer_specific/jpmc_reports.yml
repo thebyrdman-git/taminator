@@ -1,0 +1,300 @@
+---
+# JPMC-Specific RFE Automation Workflow
+# Pre-configured for JPMC with their specific requirements and settings
+
+- name: JPMC RFE Automation Workflow
+  hosts: localhost
+  gather_facts: yes
+  become: no
+  
+  vars:
+    # JPMC-specific settings
+    customer_name: "JPMC"
+    account_name: "JPMC"
+    account_number: "334224"
+    priority_components: ["Ansible"]
+    
+    # Global settings
+    ansible_python_interpreter: /usr/bin/python3
+    report_timestamp: "{{ ansible_date_time.epoch }}"
+    
+    # Default paths
+    rhcase_path: "{{ rhcase_path | default('rhcase') }}"
+    output_dir: "{{ output_dir | default('./output') }}"
+    logs_dir: "{{ logs_dir | default('./logs') }}"
+    
+    # JPMC report configuration
+    report_types: "{{ report_types | default(['rfe_bug_tracker', 'active_cases']) }}"
+    
+    # JPMC validation settings (strict for enterprise customer)
+    validation_threshold: "{{ validation_threshold | default(0.99) }}"
+    data_quality_threshold: "{{ data_quality_threshold | default(0.95) }}"
+    
+    # JPMC notification settings
+    notifications_enabled: "{{ notifications_enabled | default(true) }}"
+    notification_methods: "{{ notification_methods | default(['email', 'slack']) }}"
+    
+    # JPMC portal settings
+    portal_posting_enabled: "{{ portal_posting_enabled | default(true) }}"
+    portal_auto_post: "{{ portal_auto_post | default(true) }}"
+    
+    # JPMC-specific email configuration
+    email_recipients:
+      - "{{ customer_contact_email | default('jpmc-tam-team@jpmchase.com') }}"
+      - "{{ tam_email | default('jbyrd@redhat.com') }}"
+    email_cc_recipients:
+      - "tam-operations@redhat.com"
+    
+    # JPMC-specific Slack configuration
+    slack_channel: "#jpmc-tam-alerts"
+    slack_username: "JPMC RFE Automation"
+    slack_icon_emoji: ":bank:"
+    
+    # JPMC-specific portal configuration
+    portal_sections:
+      rfe_bug_tracker:
+        enabled: true
+        section_id: "jpmc-rfe-bug-tracker"
+        title_template: "JPMC RFE/Bug Tracker Report - {{ ansible_date_time.date }}"
+      active_cases:
+        enabled: true
+        section_id: "jpmc-active-cases"
+        title_template: "JPMC Active Cases Report - {{ ansible_date_time.date }}"
+    
+    # JPMC-specific notification templates
+    notification_templates:
+      rfe_bug_tracker:
+        email_subject: "JPMC RFE/Bug Tracker Report - {{ ansible_date_time.date }}"
+        email_template: "email_rfe_bug_report.j2"
+        slack_template: "slack_rfe_bug_report.j2"
+        teams_template: "teams_rfe_bug_report.j2"
+      active_cases:
+        email_subject: "JPMC Active Cases Report - {{ ansible_date_time.date }}"
+        email_template: "email_active_cases_report.j2"
+        slack_template: "slack_active_cases_report.j2"
+        teams_template: "teams_active_cases_report.j2"
+    
+    # JPMC-specific validation settings
+    notification_validation_enabled: true
+    notification_recipient_validation: true
+    portal_validation_enabled: true
+    portal_duplicate_detection: true
+    
+    # JPMC-specific retry settings (more aggressive for enterprise)
+    notification_retry_attempts: 5
+    notification_retry_delay: 3
+    portal_retry_attempts: 5
+    portal_retry_delay: 3
+    
+  pre_tasks:
+    - name: Display JPMC workflow information
+      debug:
+        msg: |
+          🏦 JPMC RFE Automation Workflow
+          🏢 Customer: {{ customer_name }}
+          📊 Account: {{ account_name }} ({{ account_number }})
+          🎯 Priority Component: {{ priority_components[0] }}
+          📋 Report Types: {{ report_types | join(', ') }}
+          📧 Notifications: {{ 'Enabled' if notifications_enabled else 'Disabled' }} ({{ notification_methods | join(', ') }})
+          🌐 Portal Posting: {{ 'Enabled' if portal_posting_enabled else 'Disabled' }}
+          ✅ Validation Threshold: {{ (validation_threshold * 100) | round(1) }}%
+          🔄 Retry Attempts: {{ notification_retry_attempts }} (notifications), {{ portal_retry_attempts }} (portal)
+    
+    - name: Validate JPMC-specific requirements
+      assert:
+        that:
+          - customer_name == "JPMC"
+          - account_number == "334224"
+          - "Ansible" in priority_components
+          - validation_threshold >= 0.99
+        fail_msg: "JPMC-specific validation failed. Check customer_name, account_number, and priority_components."
+    
+    - name: Create JPMC-specific output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ output_dir }}"
+        - "{{ logs_dir }}"
+        - "{{ output_dir }}/jpmc"
+        - "{{ output_dir }}/jpmc/reports"
+        - "{{ output_dir }}/jpmc/notifications"
+        - "{{ output_dir }}/jpmc/portal"
+        - "{{ logs_dir }}/jpmc"
+        - "{{ logs_dir }}/jpmc/reports"
+        - "{{ logs_dir }}/jpmc/notifications"
+        - "{{ logs_dir }}/jpmc/portal"
+
+  roles:
+    # Step 1: Generate RFE/Bug Tracker Report
+    - role: rfe_bug_tracker
+      when: "'rfe_bug_tracker' in report_types"
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        rhcase_path: "{{ rhcase_path }}"
+        output_dir: "{{ output_dir }}/jpmc"
+        logs_dir: "{{ logs_dir }}/jpmc"
+        validation_threshold: "{{ validation_threshold }}"
+        data_quality_threshold: "{{ data_quality_threshold }}"
+        report_types: "{{ report_types }}"
+      tags: [rfe_bug_tracker, reports, jpmc]
+
+    # Step 2: Generate Active Cases Report
+    - role: active_cases
+      when: "'active_cases' in report_types"
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        rhcase_path: "{{ rhcase_path }}"
+        output_dir: "{{ output_dir }}/jpmc"
+        logs_dir: "{{ logs_dir }}/jpmc"
+        validation_threshold: "{{ validation_threshold }}"
+        data_quality_threshold: "{{ data_quality_threshold }}"
+        report_types: "{{ report_types }}"
+      tags: [active_cases, reports, jpmc]
+
+    # Step 3: Post to JPMC Customer Portal
+    - role: customer_portal
+      when: portal_posting_enabled
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        output_dir: "{{ output_dir }}/jpmc"
+        logs_dir: "{{ logs_dir }}/jpmc"
+        report_types: "{{ report_types }}"
+        portal_sections: "{{ portal_sections }}"
+        portal_validation_enabled: "{{ portal_validation_enabled }}"
+        portal_duplicate_detection: "{{ portal_duplicate_detection }}"
+        portal_retry_attempts: "{{ portal_retry_attempts }}"
+        portal_retry_delay: "{{ portal_retry_delay }}"
+        # Pass data from previous roles
+        active_rfes: "{{ active_rfes | default([]) }}"
+        active_bugs: "{{ active_bugs | default([]) }}"
+        closed_cases: "{{ closed_cases | default([]) }}"
+        all_active_cases: "{{ all_active_cases | default([]) }}"
+        priority_active_cases: "{{ priority_active_cases | default([]) }}"
+        cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+      tags: [customer_portal, posting, jpmc]
+
+    # Step 4: Send JPMC Notifications
+    - role: notification_system
+      when: notifications_enabled
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        output_dir: "{{ output_dir }}/jpmc"
+        logs_dir: "{{ logs_dir }}/jpmc"
+        report_types: "{{ report_types }}"
+        notification_methods: "{{ notification_methods }}"
+        notification_templates: "{{ notification_templates }}"
+        notification_validation_enabled: "{{ notification_validation_enabled }}"
+        notification_recipient_validation: "{{ notification_recipient_validation }}"
+        notification_retry_attempts: "{{ notification_retry_attempts }}"
+        notification_retry_delay: "{{ notification_retry_delay }}"
+        email_recipients: "{{ email_recipients }}"
+        email_cc_recipients: "{{ email_cc_recipients }}"
+        slack_channel: "{{ slack_channel }}"
+        slack_username: "{{ slack_username }}"
+        slack_icon_emoji: "{{ slack_icon_emoji }}"
+        # Pass data from previous roles
+        active_rfes: "{{ active_rfes | default([]) }}"
+        active_bugs: "{{ active_bugs | default([]) }}"
+        closed_cases: "{{ closed_cases | default([]) }}"
+        all_active_cases: "{{ all_active_cases | default([]) }}"
+        priority_active_cases: "{{ priority_active_cases | default([]) }}"
+        cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+      tags: [notifications, alerts, jpmc]
+
+  post_tasks:
+    - name: Generate JPMC workflow summary
+      debug:
+        msg: |
+          🏦 JPMC Workflow Summary:
+          🏢 Customer: {{ customer_name }}
+          📊 Account: {{ account_name }} ({{ account_number }})
+          🎯 Component: {{ priority_components[0] }}
+          📋 Reports Generated: {{ report_types | join(', ') }}
+          📧 Notifications: {{ 'Sent' if notifications_enabled else 'Skipped' }} ({{ notification_methods | join(', ') }})
+          🌐 Portal Posting: {{ 'Completed' if portal_posting_enabled else 'Skipped' }}
+          ✅ Data Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}%
+          📁 Output Directory: {{ output_dir }}/jpmc/
+          📋 Logs Directory: {{ logs_dir }}/jpmc/
+    
+    - name: Save JPMC workflow results
+      copy:
+        content: |
+          {
+            "workflow_timestamp": "{{ ansible_date_time.iso8601 }}",
+            "customer": "{{ customer_name }}",
+            "account": "{{ account_name }}",
+            "account_number": "{{ account_number }}",
+            "priority_components": {{ priority_components | to_json }},
+            "report_types": {{ report_types | to_json }},
+            "jpmc_specific_settings": {
+              "validation_threshold": {{ validation_threshold }},
+              "data_quality_threshold": {{ data_quality_threshold }},
+              "notification_methods": {{ notification_methods | to_json }},
+              "portal_posting_enabled": {{ portal_posting_enabled | to_json }},
+              "retry_attempts": {
+                "notifications": {{ notification_retry_attempts }},
+                "portal": {{ portal_retry_attempts }}
+              }
+            },
+            "workflow_summary": {
+              "rfe_bug_tracker": {
+                "enabled": {{ "'rfe_bug_tracker' in report_types" | to_json }},
+                "active_rfes": {{ active_rfes | default([]) | length }},
+                "active_bugs": {{ active_bugs | default([]) | length }},
+                "closed_cases": {{ closed_cases | default([]) | length }}
+              },
+              "active_cases": {
+                "enabled": {{ "'active_cases' in report_types" | to_json }},
+                "all_active_cases": {{ all_active_cases | default([]) | length }},
+                "priority_active_cases": {{ priority_active_cases | default([]) | length }},
+                "external_tracker_cases": {{ cases_with_external_trackers | default([]) | length }}
+              },
+              "customer_portal": {
+                "enabled": {{ portal_posting_enabled | to_json }},
+                "auto_post": {{ portal_auto_post | to_json }},
+                "sections": {{ portal_sections | to_json }}
+              },
+              "notifications": {
+                "enabled": {{ notifications_enabled | to_json }},
+                "methods": {{ notification_methods | to_json }},
+                "recipients": {{ email_recipients | to_json }},
+                "slack_channel": "{{ slack_channel }}"
+              }
+            },
+            "data_quality": {
+              "score": {{ data_quality_score | default(0.0) }},
+              "threshold": {{ validation_threshold }},
+              "passed": {{ (data_quality_score | default(0.0) >= validation_threshold) | to_json }}
+            },
+            "output_directories": {
+              "reports": "{{ output_dir }}/jpmc/reports",
+              "notifications": "{{ output_dir }}/jpmc/notifications",
+              "portal": "{{ output_dir }}/jpmc/portal",
+              "logs": "{{ logs_dir }}/jpmc"
+            }
+          }
+        dest: "{{ output_dir }}/jpmc/jpmc_workflow_results_{{ ansible_date_time.epoch }}.json"
+        mode: '0644'
+    
+    - name: Log JPMC workflow completion
+      lineinfile:
+        path: "{{ logs_dir }}/jpmc/jpmc_workflow_history.log"
+        line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - {{ account_name }} - Reports: {{ report_types | join(',') }} - Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}% - Portal: {{ 'Yes' if portal_posting_enabled else 'No' }} - Notifications: {{ 'Yes' if notifications_enabled else 'No' }} - Methods: {{ notification_methods | join(',') }}"
+        create: yes
+        mode: '0644'

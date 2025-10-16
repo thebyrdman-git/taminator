@@ -1,0 +1,159 @@
+---
+- name: Generate RFE/Bug Reports with Correct JIRA IDs and Status
+  hosts: localhost
+  gather_facts: yes
+  become: no
+
+  vars:
+    customer_name: "{{ customer | title }}"
+    account_name: "{{ customer | lower }}"
+    account_number: "{{ accounts[customer].account_number }}"
+    priority_components: "{{ accounts[customer].priority_components }}"
+    rhcase_path: "rhcase"
+    output_dir: "/home/jbyrd/pai/rfe-automation-clean/output"
+    logs_dir: "/home/jbyrd/pai/rfe-automation-clean/logs"
+
+  tasks:
+    - name: Display customer configuration
+      debug:
+        msg: |
+          🎯 Generating RFE/Bug Reports with Correct JIRA IDs and Status:
+          - Customer: {{ customer_name }}
+          - Account: {{ account_number }}
+          - Components: {{ priority_components | join(', ') }}
+          - Using rhcase analyze to get external trackers for each case
+      tags: [always]
+
+    - name: Create output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ output_dir }}"
+        - "{{ logs_dir }}"
+      tags: [prerequisites]
+
+    - name: Get all cases from rhcase
+      shell: |
+        {{ rhcase_path }} list --all \
+          --format json --includefilter 'sbrGroup,{{ priority_components | join(",") }}' | jq '.[] | select(.accountNumber == "{{ account_number }}")' | jq -s '.' > /tmp/final_jira_cases_{{ ansible_date_time.epoch }}.json
+      register: cases_output
+      changed_when: false
+      tags: [data_collection]
+
+    - name: Load case data
+      slurp:
+        src: "/tmp/final_jira_cases_{{ ansible_date_time.epoch }}.json"
+      register: cases_data
+      tags: [data_collection]
+
+    - name: Parse case data
+      set_fact:
+        all_cases: "{{ cases_data.content | b64decode | from_json }}"
+      tags: [data_collection]
+
+    - name: Get detailed case information with external trackers
+      shell: |
+        {{ rhcase_path }} analyze {{ item.caseNumber }} --debug > /tmp/final_case_{{ item.caseNumber }}_{{ ansible_date_time.epoch }}.txt 2>&1
+      register: analyze_results
+      loop: "{{ all_cases }}"
+      changed_when: false
+      tags: [external_tracker_detection]
+
+    - name: Extract and enrich case data with JIRA information
+      shell: |
+        case_number="{{ item.item.caseNumber }}"
+        temp_file="/tmp/final_case_${case_number}_{{ ansible_date_time.epoch }}.txt"
+        
+        if grep -q "externalTrackers:" "$temp_file"; then
+          # Extract JIRA information
+          jira_id=$(grep -A 20 "externalTrackers:" "$temp_file" | grep "'resourceKey':" | head -1 | sed "s/.*'resourceKey': '\([^']*\)'.*/\1/")
+          jira_status=$(grep -A 20 "externalTrackers:" "$temp_file" | grep "'status':" | head -1 | sed "s/.*'status': '\([^']*\)'.*/\1/")
+          jira_url=$(grep -A 20 "externalTrackers:" "$temp_file" | grep "'resourceURL':" | head -1 | sed "s/.*'resourceURL': '\([^']*\)'.*/\1/")
+          
+          echo "{\"caseNumber\": \"$case_number\", \"jira_id\": \"$jira_id\", \"jira_status\": \"$jira_status\", \"jira_url\": \"$jira_url\"}"
+        else
+          echo "{\"caseNumber\": \"$case_number\", \"jira_id\": \"\", \"jira_status\": \"\", \"jira_url\": \"\"}"
+        fi
+      register: jira_enrichment
+      loop: "{{ analyze_results.results }}"
+      changed_when: false
+      tags: [external_tracker_detection]
+
+    - name: Create JIRA enrichment lookup
+      set_fact:
+        jira_lookup: "{{ jira_enrichment.results | map(attribute='stdout') | map('from_json') | list }}"
+      tags: [external_tracker_detection]
+
+    - name: Enrich all cases with JIRA information
+      set_fact:
+        enriched_cases: "{{ enriched_cases | default(all_cases) | map('combine', jira_lookup | selectattr('caseNumber', 'equalto', item.caseNumber) | first | default({})) | list }}"
+      loop: "{{ all_cases }}"
+      tags: [external_tracker_detection]
+
+    - name: Filter RFE cases
+      set_fact:
+        active_rfes: "{{ enriched_cases | selectattr('isClosed', 'equalto', false) | selectattr('subject', 'match', '.*\\[RFE\\].*') | list }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter bug cases
+      set_fact:
+        active_bugs: "{{ enriched_cases | selectattr('isClosed', 'equalto', false) | selectattr('subject', 'match', '.*\\[BUG\\].*') | list }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter closed cases
+      set_fact:
+        closed_cases: "{{ (enriched_cases | selectattr('isClosed', 'equalto', true) | list | sort(attribute='lastModifiedDate', reverse=true))[0:10] }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter active cases (exclude RFE/Bug)
+      set_fact:
+        all_active_cases: "{{ enriched_cases | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | list }}"
+        priority_active_cases: "{{ enriched_cases | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | selectattr('sbrGroup', 'in', priority_components) | list }}"
+      tags: [active_cases, data_processing]
+
+    - name: Generate RFE/Bug Report with Correct JIRA IDs
+      template:
+        src: final_jira_rfe_bug_report.j2
+        dest: "{{ output_dir }}/{{ customer }}_final_jira_rfe_bug_report.md"
+        mode: '0644'
+      tags: [rfe_bug, report_generation]
+
+    - name: Generate Active Cases Report
+      template:
+        src: working_active_cases_report.j2
+        dest: "{{ output_dir }}/{{ customer }}_final_jira_active_cases_report.md"
+        mode: '0644'
+      tags: [active_cases, report_generation]
+
+    - name: Display final correct JIRA report summary
+      debug:
+        msg: |
+          📊 RFE/Bug Reports Generated with Correct JIRA IDs and Status:
+          - RFE/Bug Report: {{ output_dir }}/{{ customer }}_final_jira_rfe_bug_report.md
+          - Active Cases Report: {{ output_dir }}/{{ customer }}_final_jira_active_cases_report.md
+          
+          📈 Final Summary:
+          - Total Cases Processed: {{ enriched_cases | length }}
+          - Active RFEs: {{ active_rfes | length }}
+          - Active Bugs: {{ active_bugs | length }}
+          - Open Troubleshooting Cases: {{ all_active_cases | length }}
+          - Priority Cases: {{ priority_active_cases | length }}
+          
+          🎯 Correct JIRA ID Logic:
+          - Cases with JIRA trackers: Shows actual JIRA ID (e.g., AAP-3456, RHEL-61730)
+          - Cases without JIRA trackers: Shows support case number
+          - Status shows JIRA status when available, support case status otherwise
+          
+          ✅ Final JIRA ID and status integration completed
+      tags: [always]
+
+    - name: Clean up temporary files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/final_jira_cases_{{ ansible_date_time.epoch }}.json"
+        - "/tmp/final_case_{{ item.caseNumber }}_{{ ansible_date_time.epoch }}.txt"
+      tags: [cleanup]

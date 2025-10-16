@@ -1,0 +1,153 @@
+---
+- name: Generate RFE/Bug Reports with Proper External Tracker Detection
+  hosts: localhost
+  gather_facts: yes
+  become: no
+
+  vars:
+    customer_name: "{{ customer | title }}"
+    account_name: "{{ customer | lower }}"
+    account_number: "{{ accounts[customer].account_number }}"
+    priority_components: "{{ accounts[customer].priority_components }}"
+    rhcase_path: "rhcase"
+    output_dir: "/home/jbyrd/pai/rfe-automation-clean/output"
+    logs_dir: "/home/jbyrd/pai/rfe-automation-clean/logs"
+
+  tasks:
+    - name: Display customer configuration
+      debug:
+        msg: |
+          🎯 Generating Reports with External Tracker Detection for:
+          - Customer: {{ customer_name }}
+          - Account: {{ account_number }}
+          - Components: {{ priority_components | join(', ') }}
+          - Using Customer Portal API for external tracker detection
+      tags: [always]
+
+    - name: Create output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ output_dir }}"
+        - "{{ logs_dir }}"
+      tags: [prerequisites]
+
+    - name: Get all cases from rhcase
+      shell: |
+        {{ rhcase_path }} list --all \
+          --format json --includefilter 'sbrGroup,{{ priority_components | join(",") }}' | jq '.[] | select(.accountNumber == "{{ account_number }}")' | jq -s '.' > /tmp/external_tracker_cases_{{ ansible_date_time.epoch }}.json
+      register: cases_output
+      changed_when: false
+      tags: [data_collection]
+
+    - name: Load case data
+      slurp:
+        src: "/tmp/external_tracker_cases_{{ ansible_date_time.epoch }}.json"
+      register: cases_data
+      tags: [data_collection]
+
+    - name: Parse case data
+      set_fact:
+        all_cases: "{{ cases_data.content | b64decode | from_json }}"
+      tags: [data_collection]
+
+    - name: Detect external trackers using Customer Portal API
+      redhat.rfe_automation.rfe_external_tracker_detector:
+        cases: "{{ all_cases }}"
+        rhcase_path: "{{ rhcase_path }}"
+      register: external_tracker_detection
+      tags: [external_tracker_detection]
+
+    - name: Display external tracker detection results
+      debug:
+        msg: |
+          🔍 External Tracker Detection Results:
+          - Total Cases Processed: {{ external_tracker_detection.statistics.total_cases_processed }}
+          - Cases with External Trackers: {{ external_tracker_detection.statistics.cases_with_trackers_count }}
+          - Cases without External Trackers: {{ external_tracker_detection.statistics.cases_without_trackers_count }}
+          {% if external_tracker_detection.errors | length > 0 %}
+          - Errors: {{ external_tracker_detection.errors | length }}
+          {% endif %}
+      tags: [external_tracker_detection, info]
+
+    - name: Show cases with external trackers
+      debug:
+        msg: |
+          📋 Cases with External Trackers:
+          {% for case in external_tracker_detection.cases_with_external_trackers %}
+          - Case {{ case.caseNumber }}: {{ case.subject | truncate(60) }}
+            External Trackers: {{ case.external_trackers | length }}
+          {% endfor %}
+      when: external_tracker_detection.cases_with_external_trackers | length > 0
+      tags: [external_tracker_detection, info]
+
+    - name: Filter RFE cases (excluding those with external trackers)
+      set_fact:
+        active_rfes: "{{ external_tracker_detection.cases_without_external_trackers | selectattr('isClosed', 'equalto', false) | selectattr('subject', 'match', '.*\\[RFE\\].*') | list }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter bug cases (excluding those with external trackers)
+      set_fact:
+        active_bugs: "{{ external_tracker_detection.cases_without_external_trackers | selectattr('isClosed', 'equalto', false) | selectattr('subject', 'match', '.*\\[BUG\\].*') | list }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter closed cases
+      set_fact:
+        closed_cases: "{{ (external_tracker_detection.cases_without_external_trackers | selectattr('isClosed', 'equalto', true) | list | sort(attribute='lastModifiedDate', reverse=true))[0:10] }}"
+      tags: [rfe_bug, data_processing]
+
+    - name: Filter active cases (exclude RFE/Bug and cases with external trackers)
+      set_fact:
+        all_active_cases: "{{ external_tracker_detection.cases_without_external_trackers | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | list }}"
+        priority_active_cases: "{{ external_tracker_detection.cases_without_external_trackers | selectattr('isClosed', 'equalto', false) | rejectattr('subject', 'match', '.*\\[RFE\\].*') | rejectattr('subject', 'match', '.*\\[BUG\\].*') | selectattr('sbrGroup', 'in', priority_components) | list }}"
+      tags: [active_cases, data_processing]
+
+    - name: Generate Professional RFE/Bug Report
+      template:
+        src: professional_rfe_bug_report.j2
+        dest: "{{ output_dir }}/{{ customer }}_external_tracker_rfe_bug_report.md"
+        mode: '0644'
+      tags: [rfe_bug, report_generation]
+
+    - name: Generate Active Cases Report
+      template:
+        src: working_active_cases_report.j2
+        dest: "{{ output_dir }}/{{ customer }}_external_tracker_active_cases_report.md"
+        mode: '0644'
+      tags: [active_cases, report_generation]
+
+    - name: Generate External Tracker Summary Report
+      template:
+        src: external_tracker_summary.j2
+        dest: "{{ output_dir }}/{{ customer }}_external_tracker_summary.md"
+        mode: '0644'
+      vars:
+        external_tracker_cases: "{{ external_tracker_detection.cases_with_external_trackers }}"
+      tags: [external_tracker_detection, report_generation]
+
+    - name: Display final report summary
+      debug:
+        msg: |
+          📊 Reports Generated with External Tracker Detection:
+          - RFE/Bug Report: {{ output_dir }}/{{ customer }}_external_tracker_rfe_bug_report.md
+          - Active Cases Report: {{ output_dir }}/{{ customer }}_external_tracker_active_cases_report.md
+          - External Tracker Summary: {{ output_dir }}/{{ customer }}_external_tracker_summary.md
+          
+          📈 Final Summary:
+          - Total Cases Processed: {{ all_cases | length }}
+          - Cases with External Trackers: {{ external_tracker_detection.statistics.cases_with_trackers_count }}
+          - Active RFEs (no external trackers): {{ active_rfes | length }}
+          - Active Bugs (no external trackers): {{ active_bugs | length }}
+          - Open Troubleshooting Cases: {{ all_active_cases | length }}
+          - Priority Cases: {{ priority_active_cases | length }}
+          
+          ✅ External tracker detection completed using Customer Portal API
+      tags: [always]
+
+    - name: Clean up temporary files
+      file:
+        path: "/tmp/external_tracker_cases_{{ ansible_date_time.epoch }}.json"
+        state: absent
+      tags: [cleanup]

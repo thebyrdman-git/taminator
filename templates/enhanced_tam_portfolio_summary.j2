@@ -1,0 +1,197 @@
+# Enhanced TAM Portfolio Summary Report
+
+**Generated:** {{ ansible_date_time.iso8601 }}  
+**TAM:** {{ tam_name }} ({{ tam_type }})  
+**Email:** {{ tam_email }}  
+**Region:** {{ region }} | **Vertical:** {{ vertical }}  
+**Backup TAM:** {{ backup_tam }}  
+
+## 📊 Enhanced Portfolio Overview
+
+- **Total Accounts:** {{ groups['enhanced_tam_portfolio'] | length }}
+- **Accounts with Cases:** {{ validation_results.accounts_with_cases }}
+- **Accounts without Cases:** {{ validation_results.accounts_without_cases }}
+- **Total Cases Found:** {{ validation_results.total_cases_found }}
+- **Multi-Account Customers:** {{ validation_results.multi_account_customers }}
+- **Shared Accounts:** {{ validation_results.shared_accounts }}
+
+## 🏢 Enhanced Portfolio Accounts
+
+{% for account in groups['enhanced_tam_portfolio'] %}
+### {{ hostvars[account].customer_name }}
+
+- **Account Numbers:** {{ hostvars[account].account_numbers | join(', ') }}
+- **TAM Role:** {{ hostvars[account].tam_role }}
+- **Products:** {{ hostvars[account].products | join(', ') }}
+- **Account Weight:** {{ hostvars[account].account_weight }}
+- **Coverage Model:** {{ hostvars[account].coverage_model }}
+- **Backup TAM:** {{ hostvars[account].backup_tam }}
+- **Account Exec:** {{ hostvars[account].account_exec }}
+- **ASA:** {{ hostvars[account].asa }}
+- **CSE:** {{ hostvars[account].cse }}
+- **Cases Found:** {{ hostvars[account].cases_found }} ({{ hostvars[account].active_cases }} active)
+- **Validated:** {{ 'Yes' if hostvars[account].validated else 'No' }}
+- **Renewal Status:** {{ hostvars[account].renewal_status }}
+- **SYB Booked Amount:** {{ hostvars[account].syb_booked_amt }}
+- **Notes:** {{ hostvars[account].notes }}
+
+{% endfor %}
+
+## 🤝 Multi-TAM Coordination
+
+{% if coordination.shared_accounts | length > 0 %}
+### Shared Accounts
+
+{% for shared_account in coordination.shared_accounts %}
+#### {{ shared_account.customer_name }}
+
+**Other TAMs:**
+{% for other_tam in shared_account.other_tams %}
+- **{{ other_tam.name }}** ({{ other_tam.products | join(', ') }}) - {{ other_tam.role }}
+{% endfor %}
+
+**Coordination Notes:** {{ shared_account.coordination_notes }}
+
+{% endfor %}
+{% else %}
+No shared accounts configured.
+{% endif %}
+
+## 🔄 Backup Coverage
+
+- **Primary Backup:** {{ backup_coverage.primary_backup }}
+- **Coverage Schedules:** {{ backup_coverage.coverage_schedule | length }}
+
+{% if backup_coverage.coverage_schedule | length > 0 %}
+### Coverage Schedule
+
+{% for schedule in backup_coverage.coverage_schedule %}
+- **Dates:** {{ schedule.dates }}
+- **Backup TAM:** {{ schedule.backup_tam }}
+- **Accounts:** {{ schedule.accounts | join(', ') }}
+- **Reason:** {{ schedule.reason }}
+
+{% endfor %}
+{% endif %}
+
+## 📊 Account Prioritization
+
+### High Priority (Weight 4)
+{% for account in groups['enhanced_tam_portfolio'] %}
+{% if hostvars[account].account_number in prioritization.high_priority %}
+- **{{ hostvars[account].customer_name }}** ({{ hostvars[account].account_number }})
+{% endif %}
+{% endfor %}
+
+### Medium Priority (Weight 3)
+{% for account in groups['enhanced_tam_portfolio'] %}
+{% if hostvars[account].account_number in prioritization.medium_priority %}
+- **{{ hostvars[account].customer_name }}** ({{ hostvars[account].account_number }})
+{% endif %}
+{% endfor %}
+
+### Low Priority (Weight 1-2)
+{% for account in groups['enhanced_tam_portfolio'] %}
+{% if hostvars[account].account_number in prioritization.low_priority %}
+- **{{ hostvars[account].customer_name }}** ({{ hostvars[account].account_number }})
+{% endif %}
+{% endfor %}
+
+## 💡 Enhanced Portfolio Suggestions
+
+{% if suggestions.add_accounts | length > 0 %}
+### Suggested Account Additions
+
+{% for suggestion in suggestions.add_accounts %}
+#### {{ suggestion.customer_name }} ({{ suggestion.account_number }})
+
+- **Account Name:** {{ suggestion.account_name }}
+- **Active Cases:** {{ suggestion.active_cases }}
+- **Total Cases:** {{ suggestion.total_cases }}
+- **SBR Groups:** {{ suggestion.sbr_groups | join(', ') }}
+- **Vertical:** {{ suggestion.vertical }}
+- **Confidence:** {{ suggestion.confidence }}
+- **Reason:** {{ suggestion.reason }}
+- **Suggested Coverage Model:** {{ suggestion.suggested_coverage_model }}
+- **Suggested Account Weight:** {{ suggestion.suggested_account_weight }}
+
+{% endfor %}
+{% else %}
+No account suggestions at this time.
+{% endif %}
+
+## 📈 Enhanced Statistics
+
+### By Coverage Model
+{% set coverage_stats = {} %}
+{% for account in groups['enhanced_tam_portfolio'] %}
+  {% set coverage_model = hostvars[account].coverage_model %}
+  {% if coverage_model not in coverage_stats %}
+    {% set _ = coverage_stats.update({coverage_model: {'accounts': 0, 'total_cases': 0, 'active_cases': 0}}) %}
+  {% endif %}
+  {% set _ = coverage_stats[coverage_model].update({
+    'accounts': coverage_stats[coverage_model].accounts + 1,
+    'total_cases': coverage_stats[coverage_model].total_cases + hostvars[account].cases_found,
+    'active_cases': coverage_stats[coverage_model].active_cases + hostvars[account].active_cases
+  }) %}
+{% endfor %}
+
+{% for coverage_model, stats in coverage_stats.items() %}
+### {{ coverage_model.title() }} Coverage
+- **Accounts:** {{ stats.accounts }}
+- **Total Cases:** {{ stats.total_cases }}
+- **Active Cases:** {{ stats.active_cases }}
+
+{% endfor %}
+
+### By Account Weight
+{% set weight_stats = {} %}
+{% for account in groups['enhanced_tam_portfolio'] %}
+  {% set weight = hostvars[account].account_weight %}
+  {% if weight not in weight_stats %}
+    {% set _ = weight_stats.update({weight: {'accounts': 0, 'total_cases': 0, 'active_cases': 0}}) %}
+  {% endif %}
+  {% set _ = weight_stats[weight].update({
+    'accounts': weight_stats[weight].accounts + 1,
+    'total_cases': weight_stats[weight].total_cases + hostvars[account].cases_found,
+    'active_cases': weight_stats[weight].active_cases + hostvars[account].active_cases
+  }) %}
+{% endfor %}
+
+{% for weight, stats in weight_stats.items() %}
+### Weight {{ weight }}
+- **Accounts:** {{ stats.accounts }}
+- **Total Cases:** {{ stats.total_cases }}
+- **Active Cases:** {{ stats.active_cases }}
+
+{% endfor %}
+
+## 🚀 Enhanced TAM Portfolio Advantages
+
+### **Real-World Complexity Handled**
+- ✅ **Multi-TAM Accounts** - Awareness of other TAMs on shared accounts
+- ✅ **Product Specialization** - TAM-specific product assignments
+- ✅ **Coverage Models** - Dedicated vs Shared coverage awareness
+- ✅ **Account Weights** - Priority-based reporting and processing
+- ✅ **Backup Relationships** - Coverage during absences
+- ✅ **Multi-Account Customers** - Same customer, multiple account numbers
+
+### **Enterprise Features**
+- ✅ **Coordination Awareness** - Knows about other TAMs on shared accounts
+- ✅ **Backup Coverage** - Handles coverage during absences
+- ✅ **Account Prioritization** - Weight-based processing and reporting
+- ✅ **Smart Suggestions** - Portfolio maintenance recommendations
+- ✅ **Real-time Validation** - Validates against actual case data
+
+## 🎯 Next Steps
+
+1. **Review Reports:** Check the generated reports in the `output/` directory
+2. **Update Portfolio:** Edit `~/.config/rfe-automation/enhanced-tam-portfolio.yml`
+3. **Accept Suggestions:** Consider adding suggested accounts
+4. **Coordinate with Other TAMs:** Use coordination information for shared accounts
+5. **Schedule Automation:** Set up regular report generation
+
+---
+
+*This summary was automatically generated by the Enhanced TAM Portfolio RFE Automation System.*  
+*For questions or issues, please contact your TAM or the TAM Operations team.*

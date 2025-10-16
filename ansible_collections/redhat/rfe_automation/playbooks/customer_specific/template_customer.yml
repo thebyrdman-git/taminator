@@ -1,0 +1,300 @@
+---
+# Customer Template for RFE Automation Workflow
+# Copy this template and customize for specific customers
+
+- name: Customer RFE Automation Workflow Template
+  hosts: localhost
+  gather_facts: yes
+  become: no
+  
+  vars:
+    # CUSTOMER-SPECIFIC SETTINGS - MODIFY THESE
+    customer_name: "CUSTOMER_NAME"           # Replace with actual customer name
+    account_name: "ACCOUNT_NAME"             # Replace with actual account name
+    account_number: "ACCOUNT_NUMBER"         # Replace with actual account number
+    priority_components: ["COMPONENT1", "COMPONENT2"]  # Replace with actual priority components
+    
+    # Global settings
+    ansible_python_interpreter: /usr/bin/python3
+    report_timestamp: "{{ ansible_date_time.epoch }}"
+    
+    # Default paths
+    rhcase_path: "{{ rhcase_path | default('rhcase') }}"
+    output_dir: "{{ output_dir | default('./output') }}"
+    logs_dir: "{{ logs_dir | default('./logs') }}"
+    
+    # Report configuration
+    report_types: "{{ report_types | default(['rfe_bug_tracker', 'active_cases']) }}"
+    
+    # Validation settings
+    validation_threshold: "{{ validation_threshold | default(0.99) }}"
+    data_quality_threshold: "{{ data_quality_threshold | default(0.95) }}"
+    
+    # Notification settings
+    notifications_enabled: "{{ notifications_enabled | default(false) }}"
+    notification_methods: "{{ notification_methods | default(['email']) }}"
+    
+    # Portal settings
+    portal_posting_enabled: "{{ portal_posting_enabled | default(false) }}"
+    portal_auto_post: "{{ portal_auto_post | default(false) }}"
+    
+    # CUSTOMER-SPECIFIC EMAIL CONFIGURATION - MODIFY THESE
+    email_recipients:
+      - "{{ customer_contact_email | default('customer-contact@customer.com') }}"
+      - "{{ tam_email | default('tam@redhat.com') }}"
+    email_cc_recipients:
+      - "tam-operations@redhat.com"
+    
+    # CUSTOMER-SPECIFIC SLACK CONFIGURATION - MODIFY THESE
+    slack_channel: "#customer-tam-alerts"
+    slack_username: "Customer RFE Automation"
+    slack_icon_emoji: ":office:"
+    
+    # CUSTOMER-SPECIFIC PORTAL CONFIGURATION - MODIFY THESE
+    portal_sections:
+      rfe_bug_tracker:
+        enabled: true
+        section_id: "customer-rfe-bug-tracker"
+        title_template: "{{ customer_name }} RFE/Bug Tracker Report - {{ ansible_date_time.date }}"
+      active_cases:
+        enabled: true
+        section_id: "customer-active-cases"
+        title_template: "{{ customer_name }} Active Cases Report - {{ ansible_date_time.date }}"
+    
+    # CUSTOMER-SPECIFIC NOTIFICATION TEMPLATES - MODIFY THESE
+    notification_templates:
+      rfe_bug_tracker:
+        email_subject: "{{ customer_name }} RFE/Bug Tracker Report - {{ ansible_date_time.date }}"
+        email_template: "email_rfe_bug_report.j2"
+        slack_template: "slack_rfe_bug_report.j2"
+        teams_template: "teams_rfe_bug_report.j2"
+      active_cases:
+        email_subject: "{{ customer_name }} Active Cases Report - {{ ansible_date_time.date }}"
+        email_template: "email_active_cases_report.j2"
+        slack_template: "slack_active_cases_report.j2"
+        teams_template: "teams_active_cases_report.j2"
+    
+    # Validation settings
+    notification_validation_enabled: true
+    notification_recipient_validation: true
+    portal_validation_enabled: true
+    portal_duplicate_detection: true
+    
+    # Retry settings
+    notification_retry_attempts: 3
+    notification_retry_delay: 5
+    portal_retry_attempts: 3
+    portal_retry_delay: 5
+    
+  pre_tasks:
+    - name: Display customer workflow information
+      debug:
+        msg: |
+          🏢 Customer RFE Automation Workflow
+          🏢 Customer: {{ customer_name }}
+          📊 Account: {{ account_name }} ({{ account_number }})
+          🎯 Priority Components: {{ priority_components | join(', ') }}
+          📋 Report Types: {{ report_types | join(', ') }}
+          📧 Notifications: {{ 'Enabled' if notifications_enabled else 'Disabled' }} ({{ notification_methods | join(', ') }})
+          🌐 Portal Posting: {{ 'Enabled' if portal_posting_enabled else 'Disabled' }}
+          ✅ Validation Threshold: {{ (validation_threshold * 100) | round(1) }}%
+    
+    - name: Validate customer-specific requirements
+      assert:
+        that:
+          - customer_name != "CUSTOMER_NAME"
+          - account_name != "ACCOUNT_NAME"
+          - account_number != "ACCOUNT_NUMBER"
+          - priority_components | length > 0
+          - priority_components[0] != "COMPONENT1"
+        fail_msg: "Please customize the customer-specific settings in this playbook before running."
+    
+    - name: Create customer-specific output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ output_dir }}"
+        - "{{ logs_dir }}"
+        - "{{ output_dir }}/{{ customer_name | lower }}"
+        - "{{ output_dir }}/{{ customer_name | lower }}/reports"
+        - "{{ output_dir }}/{{ customer_name | lower }}/notifications"
+        - "{{ output_dir }}/{{ customer_name | lower }}/portal"
+        - "{{ logs_dir }}/{{ customer_name | lower }}"
+        - "{{ logs_dir }}/{{ customer_name | lower }}/reports"
+        - "{{ logs_dir }}/{{ customer_name | lower }}/notifications"
+        - "{{ logs_dir }}/{{ customer_name | lower }}/portal"
+
+  roles:
+    # Step 1: Generate RFE/Bug Tracker Report
+    - role: rfe_bug_tracker
+      when: "'rfe_bug_tracker' in report_types"
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        rhcase_path: "{{ rhcase_path }}"
+        output_dir: "{{ output_dir }}/{{ customer_name | lower }}"
+        logs_dir: "{{ logs_dir }}/{{ customer_name | lower }}"
+        validation_threshold: "{{ validation_threshold }}"
+        data_quality_threshold: "{{ data_quality_threshold }}"
+        report_types: "{{ report_types }}"
+      tags: [rfe_bug_tracker, reports, customer]
+
+    # Step 2: Generate Active Cases Report
+    - role: active_cases
+      when: "'active_cases' in report_types"
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        rhcase_path: "{{ rhcase_path }}"
+        output_dir: "{{ output_dir }}/{{ customer_name | lower }}"
+        logs_dir: "{{ logs_dir }}/{{ customer_name | lower }}"
+        validation_threshold: "{{ validation_threshold }}"
+        data_quality_threshold: "{{ data_quality_threshold }}"
+        report_types: "{{ report_types }}"
+      tags: [active_cases, reports, customer]
+
+    # Step 3: Post to Customer Portal
+    - role: customer_portal
+      when: portal_posting_enabled
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        output_dir: "{{ output_dir }}/{{ customer_name | lower }}"
+        logs_dir: "{{ logs_dir }}/{{ customer_name | lower }}"
+        report_types: "{{ report_types }}"
+        portal_sections: "{{ portal_sections }}"
+        portal_validation_enabled: "{{ portal_validation_enabled }}"
+        portal_duplicate_detection: "{{ portal_duplicate_detection }}"
+        portal_retry_attempts: "{{ portal_retry_attempts }}"
+        portal_retry_delay: "{{ portal_retry_delay }}"
+        # Pass data from previous roles
+        active_rfes: "{{ active_rfes | default([]) }}"
+        active_bugs: "{{ active_bugs | default([]) }}"
+        closed_cases: "{{ closed_cases | default([]) }}"
+        all_active_cases: "{{ all_active_cases | default([]) }}"
+        priority_active_cases: "{{ priority_active_cases | default([]) }}"
+        cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+      tags: [customer_portal, posting, customer]
+
+    # Step 4: Send Notifications
+    - role: notification_system
+      when: notifications_enabled
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        output_dir: "{{ output_dir }}/{{ customer_name | lower }}"
+        logs_dir: "{{ logs_dir }}/{{ customer_name | lower }}"
+        report_types: "{{ report_types }}"
+        notification_methods: "{{ notification_methods }}"
+        notification_templates: "{{ notification_templates }}"
+        notification_validation_enabled: "{{ notification_validation_enabled }}"
+        notification_recipient_validation: "{{ notification_recipient_validation }}"
+        notification_retry_attempts: "{{ notification_retry_attempts }}"
+        notification_retry_delay: "{{ notification_retry_delay }}"
+        email_recipients: "{{ email_recipients }}"
+        email_cc_recipients: "{{ email_cc_recipients }}"
+        slack_channel: "{{ slack_channel }}"
+        slack_username: "{{ slack_username }}"
+        slack_icon_emoji: "{{ slack_icon_emoji }}"
+        # Pass data from previous roles
+        active_rfes: "{{ active_rfes | default([]) }}"
+        active_bugs: "{{ active_bugs | default([]) }}"
+        closed_cases: "{{ closed_cases | default([]) }}"
+        all_active_cases: "{{ all_active_cases | default([]) }}"
+        priority_active_cases: "{{ priority_active_cases | default([]) }}"
+        cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+      tags: [notifications, alerts, customer]
+
+  post_tasks:
+    - name: Generate customer workflow summary
+      debug:
+        msg: |
+          🏢 Customer Workflow Summary:
+          🏢 Customer: {{ customer_name }}
+          📊 Account: {{ account_name }} ({{ account_number }})
+          🎯 Components: {{ priority_components | join(', ') }}
+          📋 Reports Generated: {{ report_types | join(', ') }}
+          📧 Notifications: {{ 'Sent' if notifications_enabled else 'Skipped' }} ({{ notification_methods | join(', ') }})
+          🌐 Portal Posting: {{ 'Completed' if portal_posting_enabled else 'Skipped' }}
+          ✅ Data Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}%
+          📁 Output Directory: {{ output_dir }}/{{ customer_name | lower }}/
+          📋 Logs Directory: {{ logs_dir }}/{{ customer_name | lower }}/
+    
+    - name: Save customer workflow results
+      copy:
+        content: |
+          {
+            "workflow_timestamp": "{{ ansible_date_time.iso8601 }}",
+            "customer": "{{ customer_name }}",
+            "account": "{{ account_name }}",
+            "account_number": "{{ account_number }}",
+            "priority_components": {{ priority_components | to_json }},
+            "report_types": {{ report_types | to_json }},
+            "customer_specific_settings": {
+              "validation_threshold": {{ validation_threshold }},
+              "data_quality_threshold": {{ data_quality_threshold }},
+              "notification_methods": {{ notification_methods | to_json }},
+              "portal_posting_enabled": {{ portal_posting_enabled | to_json }},
+              "retry_attempts": {
+                "notifications": {{ notification_retry_attempts }},
+                "portal": {{ portal_retry_attempts }}
+              }
+            },
+            "workflow_summary": {
+              "rfe_bug_tracker": {
+                "enabled": {{ "'rfe_bug_tracker' in report_types" | to_json }},
+                "active_rfes": {{ active_rfes | default([]) | length }},
+                "active_bugs": {{ active_bugs | default([]) | length }},
+                "closed_cases": {{ closed_cases | default([]) | length }}
+              },
+              "active_cases": {
+                "enabled": {{ "'active_cases' in report_types" | to_json }},
+                "all_active_cases": {{ all_active_cases | default([]) | length }},
+                "priority_active_cases": {{ priority_active_cases | default([]) | length }},
+                "external_tracker_cases": {{ cases_with_external_trackers | default([]) | length }}
+              },
+              "customer_portal": {
+                "enabled": {{ portal_posting_enabled | to_json }},
+                "auto_post": {{ portal_auto_post | to_json }},
+                "sections": {{ portal_sections | to_json }}
+              },
+              "notifications": {
+                "enabled": {{ notifications_enabled | to_json }},
+                "methods": {{ notification_methods | to_json }},
+                "recipients": {{ email_recipients | to_json }},
+                "slack_channel": "{{ slack_channel }}"
+              }
+            },
+            "data_quality": {
+              "score": {{ data_quality_score | default(0.0) }},
+              "threshold": {{ validation_threshold }},
+              "passed": {{ (data_quality_score | default(0.0) >= validation_threshold) | to_json }}
+            },
+            "output_directories": {
+              "reports": "{{ output_dir }}/{{ customer_name | lower }}/reports",
+              "notifications": "{{ output_dir }}/{{ customer_name | lower }}/notifications",
+              "portal": "{{ output_dir }}/{{ customer_name | lower }}/portal",
+              "logs": "{{ logs_dir }}/{{ customer_name | lower }}"
+            }
+          }
+        dest: "{{ output_dir }}/{{ customer_name | lower }}/{{ customer_name | lower }}_workflow_results_{{ ansible_date_time.epoch }}.json"
+        mode: '0644'
+    
+    - name: Log customer workflow completion
+      lineinfile:
+        path: "{{ logs_dir }}/{{ customer_name | lower }}/{{ customer_name | lower }}_workflow_history.log"
+        line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - {{ account_name }} - Reports: {{ report_types | join(',') }} - Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}% - Portal: {{ 'Yes' if portal_posting_enabled else 'No' }} - Notifications: {{ 'Yes' if notifications_enabled else 'No' }} - Methods: {{ notification_methods | join(',') }}"
+        create: yes
+        mode: '0644'

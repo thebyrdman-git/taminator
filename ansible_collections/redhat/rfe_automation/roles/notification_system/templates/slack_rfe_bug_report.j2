@@ -1,0 +1,77 @@
+{
+  "channel": "{{ slack_channel }}",
+  "username": "{{ slack_username }}",
+  "icon_emoji": "{{ slack_icon_emoji }}",
+  "attachments": [
+    {
+      "color": "{% if active_rfes | length > 0 or active_bugs | length > 0 %}warning{% else %}good{% endif %}",
+      "title": "🔧 RFE/Bug Tracker Report - {{ customer_name }}",
+      "title_link": "https://access.redhat.com",
+      "fields": [
+        {
+          "title": "Customer",
+          "value": "{{ customer_name }} ({{ account_name }})",
+          "short": true
+        },
+        {
+          "title": "Generated",
+          "value": "{{ report_timestamp }}",
+          "short": true
+        },
+        {
+          "title": "Active RFEs",
+          "value": "{{ active_rfes | length }}",
+          "short": true
+        },
+        {
+          "title": "Active Bugs",
+          "value": "{{ active_bugs | length }}",
+          "short": true
+        },
+        {
+          "title": "Closed Cases",
+          "value": "{{ closed_cases | length }}",
+          "short": true
+        },
+        {
+          "title": "Data Quality",
+          "value": "{{ (data_quality_score * 100) | round(1) }}%",
+          "short": true
+        }
+      ]
+    }
+    {% if active_rfes | length > 0 %}
+    ,{
+      "color": "warning",
+      "title": "🎯 Active RFE Cases ({{ active_rfes | length }})",
+      "text": "{% for case in active_rfes[:5] %}• *{{ case.caseNumber }}*: {{ case.subject[:80] }}{% if case.subject | length > 80 %}...{% endif %} ({{ case.severity if case.severity else 'N/A' }})\n{% endfor %}{% if active_rfes | length > 5 %}... and {{ active_rfes | length - 5 }} more{% endif %}",
+      "mrkdwn_in": ["text"]
+    }
+    {% endif %}
+    {% if active_bugs | length > 0 %}
+    ,{
+      "color": "danger",
+      "title": "🐛 Active Bug Cases ({{ active_bugs | length }})",
+      "text": "{% for case in active_bugs[:5] %}• *{{ case.caseNumber }}*: {{ case.subject[:80] }}{% if case.subject | length > 80 %}...{% endif %} ({{ case.severity if case.severity else 'N/A' }})\n{% endfor %}{% if active_bugs | length > 5 %}... and {{ active_bugs | length - 5 }} more{% endif %}",
+      "mrkdwn_in": ["text"]
+    }
+    {% endif %}
+    {% if notification_include_details and closed_cases | length > 0 %}
+    ,{
+      "color": "good",
+      "title": "📋 Recent Closed Cases ({{ closed_cases | length }})",
+      "text": "{% for case in closed_cases[:3] %}• *{{ case.caseNumber }}*: {{ case.subject[:60] }}{% if case.subject | length > 60 %}...{% endif %}\n{% endfor %}{% if closed_cases | length > 3 %}... and {{ closed_cases | length - 3 }} more{% endif %}",
+      "mrkdwn_in": ["text"]
+    }
+    {% endif %}
+    ,{
+      "color": "{% if data_quality_score >= 0.95 %}good{% else %}warning{% endif %}",
+      "title": "📊 Report Quality",
+      "text": "Data Quality Score: *{{ (data_quality_score * 100) | round(1) }}%*\n{% if data_quality_score < 0.95 %}⚠️ Quality below recommended threshold (95%){% else %}✅ Quality meets standards{% endif %}",
+      "mrkdwn_in": ["text"]
+    }
+  ],
+  "footer": "Red Hat RFE Automation System",
+  "footer_icon": "https://redhat.com/favicon.ico",
+  "ts": {{ ansible_date_time.epoch }}
+}

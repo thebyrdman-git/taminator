@@ -1,0 +1,204 @@
+---
+# Active Cases Report Generation
+# Focused workflow for active support cases only (excluding RFE/Bug cases)
+
+- name: Generate Active Cases Report
+  hosts: localhost
+  gather_facts: yes
+  become: no
+  
+  vars:
+    # Global settings
+    ansible_python_interpreter: /usr/bin/python3
+    report_timestamp: "{{ ansible_date_time.epoch }}"
+    
+    # Default paths (can be overridden)
+    rhcase_path: "{{ rhcase_path | default('rhcase') }}"
+    output_dir: "{{ output_dir | default('./output') }}"
+    logs_dir: "{{ logs_dir | default('./logs') }}"
+    
+    # Active Cases specific settings
+    report_types: ['active_cases']
+    
+    # Default validation settings
+    validation_threshold: "{{ validation_threshold | default(0.99) }}"
+    data_quality_threshold: "{{ data_quality_threshold | default(0.95) }}"
+    
+    # Default notification settings
+    notifications_enabled: "{{ notifications_enabled | default(false) }}"
+    notification_methods: "{{ notification_methods | default(['email']) }}"
+    
+    # Default portal settings
+    portal_posting_enabled: "{{ portal_posting_enabled | default(false) }}"
+    portal_auto_post: "{{ portal_auto_post | default(false) }}"
+    
+  pre_tasks:
+    - name: Display Active Cases workflow information
+      debug:
+        msg: |
+          📋 Active Cases Report Generation
+          🏢 Customer: {{ customer_name }}
+          📊 Account: {{ account_name }} ({{ account_number }})
+          🎯 Components: {{ priority_components | join(', ') }}
+          📋 Focus: Active support cases (excluding RFE/Bug cases)
+          🔍 External Tracker Detection: Enabled
+          📧 Notifications: {{ 'Enabled' if notifications_enabled else 'Disabled' }}
+          🌐 Portal Posting: {{ 'Enabled' if portal_posting_enabled else 'Disabled' }}
+          ✅ Validation Threshold: {{ (validation_threshold * 100) | round(1) }}%
+    
+    - name: Validate required variables
+      assert:
+        that:
+          - customer_name is defined
+          - account_name is defined
+          - account_number is defined
+          - priority_components is defined
+          - priority_components | length > 0
+        fail_msg: "Missing required variables: customer_name, account_name, account_number, priority_components"
+    
+    - name: Create output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ output_dir }}"
+        - "{{ logs_dir }}"
+        - "{{ output_dir }}/active_cases"
+        - "{{ logs_dir }}/active_cases"
+
+  roles:
+    # Generate Active Cases Report
+    - role: active_cases
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        rhcase_path: "{{ rhcase_path }}"
+        output_dir: "{{ output_dir }}"
+        logs_dir: "{{ logs_dir }}"
+        validation_threshold: "{{ validation_threshold }}"
+        data_quality_threshold: "{{ data_quality_threshold }}"
+        report_types: "{{ report_types }}"
+      tags: [active_cases, reports]
+
+    # Post to Customer Portal (if enabled)
+    - role: customer_portal
+      when: portal_posting_enabled
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        output_dir: "{{ output_dir }}"
+        logs_dir: "{{ logs_dir }}"
+        report_types: "{{ report_types }}"
+        # Pass data from Active Cases role
+        all_active_cases: "{{ all_active_cases | default([]) }}"
+        priority_active_cases: "{{ priority_active_cases | default([]) }}"
+        cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+        # Disable RFE/Bug Tracker section
+        portal_sections:
+          rfe_bug_tracker:
+            enabled: false
+          active_cases:
+            enabled: true
+            section_id: "active-cases"
+            title_template: "Active Cases Report - {{ customer_name }}"
+      tags: [customer_portal, posting]
+
+    # Send Notifications (if enabled)
+    - role: notification_system
+      when: notifications_enabled
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        output_dir: "{{ output_dir }}"
+        logs_dir: "{{ logs_dir }}"
+        report_types: "{{ report_types }}"
+        notification_methods: "{{ notification_methods }}"
+        # Pass data from Active Cases role
+        all_active_cases: "{{ all_active_cases | default([]) }}"
+        priority_active_cases: "{{ priority_active_cases | default([]) }}"
+        cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+        # Disable RFE/Bug Tracker notifications
+        notification_templates:
+          rfe_bug_tracker:
+            email_subject: "RFE/Bug Tracker Report - {{ customer_name }}"
+            email_template: "email_rfe_bug_report.j2"
+            slack_template: "slack_rfe_bug_report.j2"
+            teams_template: "teams_rfe_bug_report.j2"
+          active_cases:
+            email_subject: "Active Cases Report - {{ customer_name }}"
+            email_template: "email_active_cases_report.j2"
+            slack_template: "slack_active_cases_report.j2"
+            teams_template: "teams_active_cases_report.j2"
+      tags: [notifications, alerts]
+
+  post_tasks:
+    - name: Generate Active Cases summary
+      debug:
+        msg: |
+          📋 Active Cases Report Summary:
+          🏢 Customer: {{ customer_name }}
+          📊 Account: {{ account_name }}
+          📋 All Active Cases: {{ all_active_cases | default([]) | length }}
+          🎯 Priority Cases: {{ priority_active_cases | default([]) | length }}
+          🔗 External Tracker Cases: {{ cases_with_external_trackers | default([]) | length }} (excluded)
+          ✅ Data Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}%
+          📧 Notifications: {{ 'Sent' if notifications_enabled else 'Skipped' }}
+          🌐 Portal Posting: {{ 'Completed' if portal_posting_enabled else 'Skipped' }}
+          📁 Output Directory: {{ output_dir }}/active_cases/
+    
+    - name: Save Active Cases results
+      copy:
+        content: |
+          {
+            "report_timestamp": "{{ ansible_date_time.iso8601 }}",
+            "report_type": "active_cases",
+            "customer": "{{ customer_name }}",
+            "account": "{{ account_name }}",
+            "account_number": "{{ account_number }}",
+            "priority_components": {{ priority_components | to_json }},
+            "summary": {
+              "all_active_cases": {{ all_active_cases | default([]) | length }},
+              "priority_active_cases": {{ priority_active_cases | default([]) | length }},
+              "external_tracker_cases": {{ cases_with_external_trackers | default([]) | length }},
+              "total_cases_analyzed": {{ (all_active_cases | default([]) | length) + (cases_with_external_trackers | default([]) | length) }}
+            },
+            "external_tracker_detection": {
+              "enabled": true,
+              "patterns": ["issues.redhat.com", "jira.redhat.com"],
+              "cases_detected": {{ cases_with_external_trackers | default([]) | length }},
+              "exclusion_reason": "Cases tracked in external systems (JIRA) are excluded to avoid duplication"
+            },
+            "data_quality": {
+              "score": {{ data_quality_score | default(0.0) }},
+              "threshold": {{ validation_threshold }},
+              "passed": {{ (data_quality_score | default(0.0) >= validation_threshold) | to_json }}
+            },
+            "workflow": {
+              "notifications_enabled": {{ notifications_enabled | to_json }},
+              "portal_posting_enabled": {{ portal_posting_enabled | to_json }},
+              "notification_methods": {{ notification_methods | to_json }}
+            },
+            "output_files": {
+              "markdown_report": "{{ output_dir }}/{{ customer_name | lower }}_active_cases_report_{{ ansible_date_time.epoch }}.md",
+              "json_report": "{{ output_dir }}/{{ customer_name | lower }}_active_cases_report_{{ ansible_date_time.epoch }}.json",
+              "validation_report": "{{ output_dir }}/{{ customer_name | lower }}_active_cases_validation_report_{{ ansible_date_time.epoch }}.json"
+            }
+          }
+        dest: "{{ output_dir }}/active_cases/active_cases_results_{{ ansible_date_time.epoch }}.json"
+        mode: '0644'
+    
+    - name: Log Active Cases completion
+      lineinfile:
+        path: "{{ logs_dir }}/active_cases/active_cases_history.log"
+        line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - {{ account_name }} - All Active: {{ all_active_cases | default([]) | length }} - Priority: {{ priority_active_cases | default([]) | length }} - External Trackers: {{ cases_with_external_trackers | default([]) | length }} - Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}% - Portal: {{ 'Yes' if portal_posting_enabled else 'No' }} - Notifications: {{ 'Yes' if notifications_enabled else 'No' }}"
+        create: yes
+        mode: '0644'

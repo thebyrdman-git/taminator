@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Copy RFE/Bug report to clipboard for easy pasting
+# Usage: ./bin/copy-report [customer] [report_type]
+
+CUSTOMER=${1:-jpmc}
+REPORT_TYPE=${2:-rfe_bug}
+OUTPUT_DIR="/home/jbyrd/pai/rfe-automation-clean/output"
+
+# Handle professional report type
+if [ "$REPORT_TYPE" = "professional_rfe_bug" ]; then
+    REPORT_FILE="${OUTPUT_DIR}/${CUSTOMER}_professional_rfe_bug_report.md"
+else
+    REPORT_FILE="${OUTPUT_DIR}/${CUSTOMER}_${REPORT_TYPE}_report.md"
+fi
+
+if [ ! -f "$REPORT_FILE" ]; then
+    echo "❌ Report file not found: $REPORT_FILE"
+    echo "Available reports:"
+    ls -1 ${OUTPUT_DIR}/*.md 2>/dev/null | grep -E "(rfe_bug|active_cases)" || echo "No reports found"
+    exit 1
+fi
+
+# Try different clipboard methods
+CLIPBOARD_SUCCESS=false
+
+if command -v xclip >/dev/null 2>&1; then
+    if cat "$REPORT_FILE" | xclip -selection clipboard 2>/dev/null; then
+        echo "✅ Report copied to clipboard (xclip)"
+        CLIPBOARD_SUCCESS=true
+    fi
+elif command -v wl-copy >/dev/null 2>&1; then
+    if cat "$REPORT_FILE" | wl-copy 2>/dev/null; then
+        echo "✅ Report copied to clipboard (wl-copy)"
+        CLIPBOARD_SUCCESS=true
+    fi
+elif command -v pbcopy >/dev/null 2>&1; then
+    if cat "$REPORT_FILE" | pbcopy 2>/dev/null; then
+        echo "✅ Report copied to clipboard (pbcopy)"
+        CLIPBOARD_SUCCESS=true
+    fi
+fi
+
+# If clipboard failed or no utility found, display content
+if [ "$CLIPBOARD_SUCCESS" = false ]; then
+    echo "📋 Report content (copy manually):"
+    echo "=================================="
+    cat "$REPORT_FILE"
+    echo "=================================="
+    echo "Clipboard not available. Please copy the content above manually."
+fi

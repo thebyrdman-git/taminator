@@ -1,0 +1,178 @@
+---
+# Content preparation tasks for Notification System Role
+
+- name: Prepare RFE/Bug Tracker notification content
+  template:
+    src: "{{ notification_templates.rfe_bug_tracker.email_template }}"
+    dest: "{{ output_dir }}/notifications/rfe_bug_email_content_{{ ansible_date_time.epoch }}.html"
+    mode: '0644'
+  vars:
+    customer_name: "{{ customer_name }}"
+    account_name: "{{ account_name }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+    active_rfes: "{{ active_rfes | default([]) }}"
+    active_bugs: "{{ active_bugs | default([]) }}"
+    closed_cases: "{{ closed_cases | default([]) }}"
+    data_quality_score: "{{ data_quality_score | default(0.0) }}"
+    notification_include_summary: "{{ notification_include_summary }}"
+    notification_include_details: "{{ notification_include_details }}"
+    notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
+  when: 
+    - notifications_enabled
+    - 'email' in notification_methods
+    - "'rfe_bug_tracker' in (report_types | default([]))"
+  tags: [content_preparation, rfe_bug, email]
+
+- name: Prepare Active Cases notification content
+  template:
+    src: "{{ notification_templates.active_cases.email_template }}"
+    dest: "{{ output_dir }}/notifications/active_cases_email_content_{{ ansible_date_time.epoch }}.html"
+    mode: '0644'
+  vars:
+    customer_name: "{{ customer_name }}"
+    account_name: "{{ account_name }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+    all_active_cases: "{{ all_active_cases | default([]) }}"
+    priority_active_cases: "{{ priority_active_cases | default([]) }}"
+    cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
+    data_quality_score: "{{ data_quality_score | default(0.0) }}"
+    notification_include_summary: "{{ notification_include_summary }}"
+    notification_include_details: "{{ notification_include_details }}"
+    notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
+  when: 
+    - notifications_enabled
+    - 'email' in notification_methods
+    - "'active_cases' in (report_types | default([]))"
+  tags: [content_preparation, active_cases, email]
+
+- name: Prepare Slack RFE/Bug Tracker notification content
+  template:
+    src: "{{ notification_templates.rfe_bug_tracker.slack_template }}"
+    dest: "{{ output_dir }}/notifications/rfe_bug_slack_content_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  vars:
+    customer_name: "{{ customer_name }}"
+    account_name: "{{ account_name }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+    active_rfes: "{{ active_rfes | default([]) }}"
+    active_bugs: "{{ active_bugs | default([]) }}"
+    closed_cases: "{{ closed_cases | default([]) }}"
+    data_quality_score: "{{ data_quality_score | default(0.0) }}"
+    slack_channel: "{{ slack_channel }}"
+    slack_username: "{{ slack_username }}"
+    slack_icon_emoji: "{{ slack_icon_emoji }}"
+    notification_include_summary: "{{ notification_include_summary }}"
+    notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
+  when: 
+    - notifications_enabled
+    - 'slack' in notification_methods
+    - "'rfe_bug_tracker' in (report_types | default([]))"
+  tags: [content_preparation, rfe_bug, slack]
+
+- name: Prepare Slack Active Cases notification content
+  template:
+    src: "{{ notification_templates.active_cases.slack_template }}"
+    dest: "{{ output_dir }}/notifications/active_cases_slack_content_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  vars:
+    customer_name: "{{ customer_name }}"
+    account_name: "{{ account_name }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+    all_active_cases: "{{ all_active_cases | default([]) }}"
+    priority_active_cases: "{{ priority_active_cases | default([]) }}"
+    cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
+    data_quality_score: "{{ data_quality_score | default(0.0) }}"
+    slack_channel: "{{ slack_channel }}"
+    slack_username: "{{ slack_username }}"
+    slack_icon_emoji: "{{ slack_icon_emoji }}"
+    notification_include_summary: "{{ notification_include_summary }}"
+    notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
+  when: 
+    - notifications_enabled
+    - 'slack' in notification_methods
+    - "'active_cases' in (report_types | default([]))"
+  tags: [content_preparation, active_cases, slack]
+
+- name: Prepare Teams RFE/Bug Tracker notification content
+  template:
+    src: "{{ notification_templates.rfe_bug_tracker.teams_template }}"
+    dest: "{{ output_dir }}/notifications/rfe_bug_teams_content_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  vars:
+    customer_name: "{{ customer_name }}"
+    account_name: "{{ account_name }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+    active_rfes: "{{ active_rfes | default([]) }}"
+    active_bugs: "{{ active_bugs | default([]) }}"
+    closed_cases: "{{ closed_cases | default([]) }}"
+    data_quality_score: "{{ data_quality_score | default(0.0) }}"
+    teams_theme_color: "{{ teams_theme_color }}"
+    notification_include_summary: "{{ notification_include_summary }}"
+    notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
+  when: 
+    - notifications_enabled
+    - 'teams' in notification_methods
+    - "'rfe_bug_tracker' in (report_types | default([]))"
+  tags: [content_preparation, rfe_bug, teams]
+
+- name: Prepare Teams Active Cases notification content
+  template:
+    src: "{{ notification_templates.active_cases.teams_template }}"
+    dest: "{{ output_dir }}/notifications/active_cases_teams_content_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  vars:
+    customer_name: "{{ customer_name }}"
+    account_name: "{{ account_name }}"
+    report_timestamp: "{{ ansible_date_time.iso8601 }}"
+    all_active_cases: "{{ all_active_cases | default([]) }}"
+    priority_active_cases: "{{ priority_active_cases | default([]) }}"
+    cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
+    data_quality_score: "{{ data_quality_score | default(0.0) }}"
+    teams_theme_color: "{{ teams_theme_color }}"
+    notification_include_summary: "{{ notification_include_summary }}"
+    notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
+  when: 
+    - notifications_enabled
+    - 'teams' in notification_methods
+    - "'active_cases' in (report_types | default([]))"
+  tags: [content_preparation, active_cases, teams]
+
+- name: Generate notification metadata
+  set_fact:
+    notification_metadata:
+      customer: "{{ customer_name }}"
+      account: "{{ account_name }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      methods: "{{ notification_methods }}"
+      content_files:
+        email:
+          rfe_bug: "{{ output_dir }}/notifications/rfe_bug_email_content_{{ ansible_date_time.epoch }}.html"
+          active_cases: "{{ output_dir }}/notifications/active_cases_email_content_{{ ansible_date_time.epoch }}.html"
+        slack:
+          rfe_bug: "{{ output_dir }}/notifications/rfe_bug_slack_content_{{ ansible_date_time.epoch }}.json"
+          active_cases: "{{ output_dir }}/notifications/active_cases_slack_content_{{ ansible_date_time.epoch }}.json"
+        teams:
+          rfe_bug: "{{ output_dir }}/notifications/rfe_bug_teams_content_{{ ansible_date_time.epoch }}.json"
+          active_cases: "{{ output_dir }}/notifications/active_cases_teams_content_{{ ansible_date_time.epoch }}.json"
+  when: notifications_enabled
+  tags: [content_preparation, metadata]
+
+- name: Save notification metadata
+  copy:
+    content: "{{ notification_metadata | to_nice_json }}"
+    dest: "{{ output_dir }}/notifications/notification_metadata_{{ ansible_date_time.epoch }}.json"
+    mode: '0644'
+  when: notifications_enabled
+  tags: [content_preparation, metadata]
+
+- name: Display content preparation summary
+  debug:
+    msg: |
+      📝 Notification Content Preparation Summary:
+      🏢 Customer: {{ customer_name }}
+      📊 Account: {{ account_name }}
+      📋 Methods: {{ notification_methods | join(', ') }}
+      📁 Content Directory: {{ output_dir }}/notifications/
+      📋 Report Types: {{ report_types | default([]) | join(', ') }}
+  when: notifications_enabled
+  tags: [content_preparation, summary]

@@ -1,0 +1,53 @@
+---
+# TAM Portfolio Configuration
+# This approach lets TAMs explicitly define their account portfolio
+# which is more reliable than trying to infer from case data
+
+plugin: redhat.rfe_automation.tam_portfolio
+
+# TAM Configuration
+tam_name: "Jimmy Byrd"
+tam_email: "jbyrd@redhat.com"
+
+# Portfolio Definition
+accounts:
+  - account_number: "334224"
+    account_name: "jpmc"
+    customer_name: "JP Morgan Chase"
+    products: ["Ansible"]
+    vertical: "Financial Services"
+    priority: "high"
+    description: "Primary Ansible customer - large enterprise deployment"
+    
+  - account_number: "838043"
+    account_name: "wellsfargo"
+    customer_name: "WELLS FARGO"
+    products: ["Ansible"]
+    vertical: "Financial Services"
+    priority: "high"
+    description: "Major Ansible customer - complex multi-cluster environment"
+    
+  - account_number: "6225030"
+    account_name: "fanniemae"
+    customer_name: "Fannie Mae"
+    products: ["Ansible"]
+    vertical: "Financial Services"
+    priority: "medium"
+    description: "Ansible customer - growing adoption"
+    
+  - account_number: "9691154"
+    account_name: "tdbank"
+    customer_name: "Td Bank Scarborough"
+    products: ["Ansible"]
+    vertical: "Financial Services"
+    priority: "medium"
+    description: "Ansible customer - regional deployment"
+
+# Validation Settings
+validation_mode: "active_cases"  # Validate portfolio against active cases
+auto_suggestions: true           # Suggest new accounts based on case activity
+min_cases_for_suggestion: 3     # Minimum cases to suggest a new account
+
+# Discovery Settings
+include_closed: false
+min_cases: 1

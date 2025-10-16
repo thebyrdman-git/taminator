@@ -1,0 +1,21 @@
+---
+# Simple test for RFE/Bug Tracker role
+- name: Test RFE/Bug Tracker Role
+  hosts: localhost
+  gather_facts: yes
+  become: no
+  
+  vars:
+    customer_name: "JPMC"
+    account_name: "jpmc"
+    account_number: "334224"
+    priority_components: ["Ansible"]
+    rhcase_path: "rhcase"
+    output_dir: "./output"
+    logs_dir: "./logs"
+    validation_threshold: 0.99
+    data_quality_threshold: 0.95
+    report_types: ["rfe_bug_tracker"]
+    
+  roles:
+    - role: ansible_collections/redhat/rfe_automation/roles/rfe_bug_tracker

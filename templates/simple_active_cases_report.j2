@@ -1,0 +1,30 @@
+# Open Troubleshooting Cases - {{ customer_name }}
+
+**Generated:** {{ ansible_date_time.date }}  
+**Account:** {{ account_number }}
+
+## 🔧 Open Cases for Troubleshooting
+{% if all_active_cases | length > 0 %}
+| Case # | Subject | Status | Priority | SBR Group |
+|--------|---------|--------|----------|-----------|
+{% for case in all_active_cases %}
+| {{ case.caseNumber }} | {{ case.subject }} | {{ case.internalStatus }} | {{ case.priority }} | {{ case.sbrGroup }} |
+{% endfor %}
+
+**Total Open Cases:** {{ all_active_cases | length }}
+{% else %}
+No open troubleshooting cases found.
+{% endif %}
+
+## 🎯 Priority Component Cases
+{% if priority_active_cases | length > 0 %}
+| Case # | Subject | Status | Priority |
+|--------|---------|--------|----------|
+{% for case in priority_active_cases %}
+| {{ case.caseNumber }} | {{ case.subject }} | {{ case.internalStatus }} | {{ case.priority }} |
+{% endfor %}
+
+**Priority Cases:** {{ priority_active_cases | length }}
+{% else %}
+No priority component cases found.
+{% endif %}

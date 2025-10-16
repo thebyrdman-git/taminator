@@ -1,0 +1,73 @@
+{
+  "@type": "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "themeColor": "{{ teams_theme_color }}",
+  "summary": "Active Cases Report - {{ customer_name }}",
+  "sections": [
+    {
+      "activityTitle": "📋 Active Cases Report - {{ customer_name }}",
+      "activitySubtitle": "{{ account_name }} | Generated: {{ report_timestamp }}",
+      "activityImage": "https://redhat.com/favicon.ico",
+      "facts": [
+        {
+          "name": "Customer",
+          "value": "{{ customer_name }}"
+        },
+        {
+          "name": "Account",
+          "value": "{{ account_name }}"
+        },
+        {
+          "name": "All Active Cases",
+          "value": "{{ all_active_cases | length }}"
+        },
+        {
+          "name": "Priority Cases",
+          "value": "{{ priority_active_cases | length }}"
+        },
+        {
+          "name": "External Trackers",
+          "value": "{{ cases_with_external_trackers | length }} excluded"
+        },
+        {
+          "name": "Data Quality",
+          "value": "{{ (data_quality_score * 100) | round(1) }}%"
+        }
+      ],
+      "markdown": true
+    }
+    {% if priority_active_cases | length > 0 %}
+    ,{
+      "activityTitle": "🎯 Priority Component Cases ({{ priority_active_cases | length }})",
+      "text": "{% for case in priority_active_cases[:5] %}**{{ case.caseNumber }}**: {{ case.subject[:80] }}{% if case.subject | length > 80 %}...{% endif %} ({{ case.severity if case.severity else 'N/A' }})\n\n{% endfor %}{% if priority_active_cases | length > 5 %}... and {{ priority_active_cases | length - 5 }} more cases{% endif %}",
+      "markdown": true
+    }
+    {% endif %}
+    {% if notification_include_details and all_active_cases | length > 0 %}
+    ,{
+      "activityTitle": "📋 All Active Cases ({{ all_active_cases | length }})",
+      "text": "{% for case in all_active_cases[:5] %}**{{ case.caseNumber }}**: {{ case.subject[:60] }}{% if case.subject | length > 60 %}...{% endif %} ({{ case.sbrGroup if case.sbrGroup else 'N/A' }})\n\n{% endfor %}{% if all_active_cases | length > 5 %}... and {{ all_active_cases | length - 5 }} more cases{% endif %}",
+      "markdown": true
+    }
+    {% endif %}
+    {% if cases_with_external_trackers | length > 0 %}
+    ,{
+      "activityTitle": "🔗 External Tracker Cases ({{ cases_with_external_trackers | length }})",
+      "text": "Cases tracked in JIRA (excluded from active cases):\n\n{% for case in cases_with_external_trackers[:3] %}**{{ case.caseNumber }}**: {{ case.subject[:60] }}{% if case.subject | length > 60 %}...{% endif %}\n\n{% endfor %}{% if cases_with_external_trackers | length > 3 %}... and {{ cases_with_external_trackers | length - 3 }} more cases{% endif %}",
+      "markdown": true
+    }
+    {% endif %}
+  ],
+  "potentialAction": [
+    {
+      "@type": "OpenUri",
+      "name": "View Full Report",
+      "targets": [
+        {
+          "os": "default",
+          "uri": "https://access.redhat.com"
+        }
+      ]
+    }
+  ]
+}

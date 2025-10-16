@@ -1,0 +1,37 @@
+# RFE/Bug Status Report - {{ customer_name }}
+
+**Generated:** {{ ansible_date_time.date }}  
+**Account:** {{ account_number }}
+
+## 📋 Active RFE Cases
+{% if active_rfes | length > 0 %}
+| Case # | Subject | Status | Priority |
+|--------|---------|--------|----------|
+{% for case in active_rfes %}
+| {{ case.caseNumber }} | {{ case.subject }} | {{ case.internalStatus }} | {{ case.priority }} |
+{% endfor %}
+{% else %}
+No active RFE cases found.
+{% endif %}
+
+## 🐛 Active Bug Cases  
+{% if active_bugs | length > 0 %}
+| Case # | Subject | Status | Priority |
+|--------|---------|--------|----------|
+{% for case in active_bugs %}
+| {{ case.caseNumber }} | {{ case.subject }} | {{ case.internalStatus }} | {{ case.priority }} |
+{% endfor %}
+{% else %}
+No active bug cases found.
+{% endif %}
+
+## ✅ Recently Closed Cases
+{% if closed_cases | length > 0 %}
+| Case # | Subject | Closed Date |
+|--------|---------|-------------|
+{% for case in closed_cases %}
+| {{ case.caseNumber }} | {{ case.subject }} | {{ case.closedDate }} |
+{% endfor %}
+{% else %}
+No recently closed cases found.
+{% endif %}

@@ -1,0 +1,197 @@
+---
+# RFE/Bug Tracker Report Generation
+# Focused workflow for RFE and Bug case tracking only
+
+- name: Generate RFE/Bug Tracker Report
+  hosts: localhost
+  gather_facts: yes
+  become: no
+  
+  vars:
+    # Global settings
+    ansible_python_interpreter: /usr/bin/python3
+    report_timestamp: "{{ ansible_date_time.epoch }}"
+    
+    # Default paths (can be overridden)
+    rhcase_path: "{{ rhcase_path | default('rhcase') }}"
+    output_dir: "{{ output_dir | default('./output') }}"
+    logs_dir: "{{ logs_dir | default('./logs') }}"
+    
+    # RFE/Bug specific settings
+    report_types: ['rfe_bug_tracker']
+    
+    # Default validation settings
+    validation_threshold: "{{ validation_threshold | default(0.99) }}"
+    data_quality_threshold: "{{ data_quality_threshold | default(0.95) }}"
+    
+    # Default notification settings
+    notifications_enabled: "{{ notifications_enabled | default(false) }}"
+    notification_methods: "{{ notification_methods | default(['email']) }}"
+    
+    # Default portal settings
+    portal_posting_enabled: "{{ portal_posting_enabled | default(false) }}"
+    portal_auto_post: "{{ portal_auto_post | default(false) }}"
+    
+  pre_tasks:
+    - name: Display RFE/Bug Tracker workflow information
+      debug:
+        msg: |
+          🎯 RFE/Bug Tracker Report Generation
+          🏢 Customer: {{ customer_name }}
+          📊 Account: {{ account_name }} ({{ account_number }})
+          🎯 Components: {{ priority_components | join(', ') }}
+          📋 Focus: RFE and Bug case tracking
+          📧 Notifications: {{ 'Enabled' if notifications_enabled else 'Disabled' }}
+          🌐 Portal Posting: {{ 'Enabled' if portal_posting_enabled else 'Disabled' }}
+          ✅ Validation Threshold: {{ (validation_threshold * 100) | round(1) }}%
+    
+    - name: Validate required variables
+      assert:
+        that:
+          - customer_name is defined
+          - account_name is defined
+          - account_number is defined
+          - priority_components is defined
+          - priority_components | length > 0
+        fail_msg: "Missing required variables: customer_name, account_name, account_number, priority_components"
+    
+    - name: Create output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ output_dir }}"
+        - "{{ logs_dir }}"
+        - "{{ output_dir }}/rfe_bug_tracker"
+        - "{{ logs_dir }}/rfe_bug_tracker"
+
+  roles:
+    # Generate RFE/Bug Tracker Report
+    - role: ../../roles/rfe_bug_tracker
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        rhcase_path: "{{ rhcase_path }}"
+        output_dir: "{{ output_dir }}"
+        logs_dir: "{{ logs_dir }}"
+        validation_threshold: "{{ validation_threshold }}"
+        data_quality_threshold: "{{ data_quality_threshold }}"
+        report_types: "{{ report_types }}"
+      tags: [rfe_bug_tracker, reports]
+
+    # Post to Customer Portal (if enabled)
+    - role: ../../roles/customer_portal
+      when: portal_posting_enabled
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        output_dir: "{{ output_dir }}"
+        logs_dir: "{{ logs_dir }}"
+        report_types: "{{ report_types }}"
+        # Pass data from RFE/Bug Tracker role
+        active_rfes: "{{ active_rfes | default([]) }}"
+        active_bugs: "{{ active_bugs | default([]) }}"
+        closed_cases: "{{ closed_cases | default([]) }}"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+        # Disable active cases section
+        portal_sections:
+          rfe_bug_tracker:
+            enabled: true
+            section_id: "rfe-bug-tracker"
+            title_template: "RFE/Bug Tracker Report - {{ customer_name }}"
+          active_cases:
+            enabled: false
+      tags: [customer_portal, posting]
+
+    # Send Notifications (if enabled)
+    - role: ../../roles/notification_system
+      when: notifications_enabled
+      vars:
+        customer_name: "{{ customer_name }}"
+        account_name: "{{ account_name }}"
+        account_number: "{{ account_number }}"
+        priority_components: "{{ priority_components }}"
+        output_dir: "{{ output_dir }}"
+        logs_dir: "{{ logs_dir }}"
+        report_types: "{{ report_types }}"
+        notification_methods: "{{ notification_methods }}"
+        # Pass data from RFE/Bug Tracker role
+        active_rfes: "{{ active_rfes | default([]) }}"
+        active_bugs: "{{ active_bugs | default([]) }}"
+        closed_cases: "{{ closed_cases | default([]) }}"
+        data_quality_score: "{{ data_quality_score | default(0.0) }}"
+        # Disable active cases notifications
+        notification_templates:
+          rfe_bug_tracker:
+            email_subject: "RFE/Bug Tracker Report - {{ customer_name }}"
+            email_template: "email_rfe_bug_report.j2"
+            slack_template: "slack_rfe_bug_report.j2"
+            teams_template: "teams_rfe_bug_report.j2"
+          active_cases:
+            email_subject: "Active Cases Report - {{ customer_name }}"
+            email_template: "email_active_cases_report.j2"
+            slack_template: "slack_active_cases_report.j2"
+            teams_template: "teams_active_cases_report.j2"
+      tags: [notifications, alerts]
+
+  post_tasks:
+    - name: Generate RFE/Bug Tracker summary
+      debug:
+        msg: |
+          🎯 RFE/Bug Tracker Report Summary:
+          🏢 Customer: {{ customer_name }}
+          📊 Account: {{ account_name }}
+          📋 Active RFEs: {{ active_rfes | default([]) | length }}
+          🐛 Active Bugs: {{ active_bugs | default([]) | length }}
+          📋 Closed Cases: {{ closed_cases | default([]) | length }}
+          ✅ Data Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}%
+          📧 Notifications: {{ 'Sent' if notifications_enabled else 'Skipped' }}
+          🌐 Portal Posting: {{ 'Completed' if portal_posting_enabled else 'Skipped' }}
+          📁 Output Directory: {{ output_dir }}/rfe_bug_tracker/
+    
+    - name: Save RFE/Bug Tracker results
+      copy:
+        content: |
+          {
+            "report_timestamp": "{{ ansible_date_time.iso8601 }}",
+            "report_type": "rfe_bug_tracker",
+            "customer": "{{ customer_name }}",
+            "account": "{{ account_name }}",
+            "account_number": "{{ account_number }}",
+            "priority_components": {{ priority_components | to_json }},
+            "summary": {
+              "active_rfes": {{ active_rfes | default([]) | length }},
+              "active_bugs": {{ active_bugs | default([]) | length }},
+              "closed_cases": {{ closed_cases | default([]) | length }},
+              "total_cases": {{ (active_rfes | default([]) | length) + (active_bugs | default([]) | length) + (closed_cases | default([]) | length) }}
+            },
+            "data_quality": {
+              "score": {{ data_quality_score | default(0.0) }},
+              "threshold": {{ validation_threshold }},
+              "passed": {{ (data_quality_score | default(0.0) >= validation_threshold) | to_json }}
+            },
+            "workflow": {
+              "notifications_enabled": {{ notifications_enabled | to_json }},
+              "portal_posting_enabled": {{ portal_posting_enabled | to_json }},
+              "notification_methods": {{ notification_methods | to_json }}
+            },
+            "output_files": {
+              "markdown_report": "{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_tracker_report_{{ ansible_date_time.epoch }}.md",
+              "json_report": "{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_tracker_report_{{ ansible_date_time.epoch }}.json",
+              "validation_report": "{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_validation_report_{{ ansible_date_time.epoch }}.json"
+            }
+          }
+        dest: "{{ output_dir }}/rfe_bug_tracker/rfe_bug_tracker_results_{{ ansible_date_time.epoch }}.json"
+        mode: '0644'
+    
+    - name: Log RFE/Bug Tracker completion
+      lineinfile:
+        path: "{{ logs_dir }}/rfe_bug_tracker/rfe_bug_tracker_history.log"
+        line: "{{ ansible_date_time.iso8601 }} - {{ customer_name }} - {{ account_name }} - RFEs: {{ active_rfes | default([]) | length }} - Bugs: {{ active_bugs | default([]) | length }} - Closed: {{ closed_cases | default([]) | length }} - Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}% - Portal: {{ 'Yes' if portal_posting_enabled else 'No' }} - Notifications: {{ 'Yes' if notifications_enabled else 'No' }}"
+        create: yes
+        mode: '0644'

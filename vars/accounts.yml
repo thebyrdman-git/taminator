@@ -1,0 +1,69 @@
+---
+# Account Configuration for RFE Automation Tool
+# This file contains customer account mappings and configuration
+
+# Account definitions
+accounts:
+  jpmc:
+    customer_name: "JPMC"
+    account_name: "jpmc"
+    account_number: "334224"
+    priority_components: ["Ansible"]
+    description: "JP Morgan Chase - Financial Services"
+    vertical: "Financial Services"
+    tam_owner: "Jimmy Byrd"
+    contact_email: "adam.j.moore@jpmchase.com"
+    
+  # Template for adding new customers
+  # customer_key:
+  #   customer_name: "Customer Display Name"
+  #   account_name: "rhcase_account_name"
+  #   account_number: "123456"
+  #   priority_components: ["Component1", "Component2"]
+  #   description: "Customer Description"
+  #   vertical: "Industry Vertical"
+  #   tam_owner: "TAM Name"
+  #   contact_email: "customer@email.com"
+
+# Default settings for all accounts
+defaults:
+  rhcase_path: "rhcase"
+  output_dir: "./output"
+  logs_dir: "./logs"
+  validation_threshold: 0.99
+  data_quality_threshold: 0.95
+  report_types: ["rfe_bug_tracker", "active_cases"]
+  
+# Notification settings
+notifications:
+  enabled: false
+  email:
+    enabled: false
+    smtp_server: "smtp.redhat.com"
+    smtp_port: 587
+    from_address: "rfe-automation@redhat.com"
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#rfe-reports"
+  teams:
+    enabled: false
+    webhook_url: ""
+    
+# Portal settings
+portal:
+  enabled: false
+  base_url: "https://access.redhat.com"
+  api_endpoint: "/api/v1"
+  authentication:
+    method: "bearer_token"
+    token_file: "~/.config/pai/secrets/portal_token"
+    
+# Validation settings
+validation:
+  strict_mode: true
+  require_account_number: true
+  require_priority_components: true
+  max_cases_per_report: 1000
+  data_quality_warning_threshold: 0.90
+  data_quality_error_threshold: 0.80

@@ -1,0 +1,174 @@
+---
+# Validation tasks for Notification System Role
+
+- name: Validate notification content files
+  stat:
+    path: "{{ item }}"
+  register: notification_content_files
+  loop: "{{ notification_metadata.content_files.values() | map('values') | flatten | list }}"
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+  tags: [validation, content]
+
+- name: Check notification content file existence
+  assert:
+    that:
+      - item.stat.exists
+    fail_msg: "Notification content file does not exist: {{ item.item }}"
+  loop: "{{ notification_content_files.results }}"
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+    - notification_content_files is defined
+  tags: [validation, content]
+
+- name: Validate notification content size
+  assert:
+    that:
+      - item.stat.size > 0
+    fail_msg: "Notification content file is empty: {{ item.item }}"
+  loop: "{{ notification_content_files.results }}"
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+    - notification_content_files is defined
+  tags: [validation, content]
+
+- name: Validate email recipients
+  assert:
+    that:
+      - email_recipients is defined
+      - email_recipients | length > 0
+      - item is defined
+      - item | length > 0
+      - item | regex_search('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$')
+    fail_msg: "Invalid email address: {{ item }}"
+  loop: "{{ email_recipients }}"
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+    - notification_recipient_validation
+    - 'email' in notification_methods
+  tags: [validation, email_recipients]
+
+- name: Validate Slack webhook URL
+  assert:
+    that:
+      - slack_webhook_url is defined
+      - slack_webhook_url | length > 0
+      - slack_webhook_url | regex_search('^https://hooks\\.slack\\.com/')
+    fail_msg: "Invalid Slack webhook URL format"
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+    - 'slack' in notification_methods
+    - slack_webhook_url is defined
+  tags: [validation, slack_webhook]
+
+- name: Validate Teams webhook URL
+  assert:
+    that:
+      - teams_webhook_url is defined
+      - teams_webhook_url | length > 0
+      - teams_webhook_url | regex_search('^https://[^/]+\\.webhook\\.office\\.com/')
+    fail_msg: "Invalid Teams webhook URL format"
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+    - 'teams' in notification_methods
+    - teams_webhook_url is defined
+  tags: [validation, teams_webhook]
+
+- name: Validate webhook URL
+  assert:
+    that:
+      - webhook_url is defined
+      - webhook_url | length > 0
+      - webhook_url | regex_search('^https?://')
+    fail_msg: "Invalid webhook URL format"
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+    - 'webhook' in notification_methods
+    - webhook_url is defined
+  tags: [validation, webhook]
+
+- name: Check notification cooldown
+  stat:
+    path: "{{ logs_dir }}/notifications/notification_history.log"
+  register: notification_history_file
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+  tags: [validation, cooldown]
+
+- name: Check recent notifications for customer
+  shell: |
+    tail -n 100 "{{ logs_dir }}/notifications/notification_history.log" | \
+    grep "{{ customer_name }}" | \
+    tail -n 1
+  register: last_notification
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+    - notification_history_file.stat.exists
+  tags: [validation, cooldown]
+
+- name: Calculate time since last notification
+  set_fact:
+    time_since_last_notification: "{{ (ansible_date_time.epoch | int) - (last_notification.stdout.split(' - ')[0] | int) }}"
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+    - last_notification is defined
+    - last_notification.stdout | length > 0
+  tags: [validation, cooldown]
+
+- name: Check if notification cooldown is active
+  set_fact:
+    notification_cooldown_active: "{{ time_since_last_notification | default(999999) < notification_cooldown }}"
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+  tags: [validation, cooldown]
+
+- name: Warn about notification cooldown
+  debug:
+    msg: |
+      ⏰ Notification Cooldown Active:
+      🏢 Customer: {{ customer_name }}
+      ⏱️  Time since last notification: {{ (time_since_last_notification | default(0) / 3600) | round(2) }} hours
+      ⏱️  Cooldown period: {{ (notification_cooldown / 3600) | round(2) }} hours
+      📋 Notifications will be skipped to avoid spam.
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+    - notification_cooldown_active | default(false)
+  tags: [validation, cooldown]
+
+- name: Validate notification triggers
+  assert:
+    that:
+      - notification_triggers is defined
+      - notification_triggers.keys() | length > 0
+    fail_msg: "Notification triggers not configured"
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+  tags: [validation, triggers]
+
+- name: Display validation summary
+  debug:
+    msg: |
+      ✅ Notification Validation Summary:
+      📁 Content Files: {{ notification_content_files.results | length }} validated
+      📧 Email Recipients: {{ email_recipients | length }} validated
+      💬 Slack Webhook: {{ 'Valid' if (slack_webhook_url is defined) else 'Not Configured' }}
+      🔔 Teams Webhook: {{ 'Valid' if (teams_webhook_url is defined) else 'Not Configured' }}
+      🌐 Webhook URL: {{ 'Valid' if (webhook_url is defined) else 'Not Configured' }}
+      ⏰ Cooldown Status: {{ 'Active' if (notification_cooldown_active | default(false)) else 'Ready' }}
+  when: 
+    - notifications_enabled
+    - notification_validation_enabled
+  tags: [validation, summary]
