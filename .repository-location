@@ -1,0 +1,9 @@
+# Taminator Repository Location
+# Last updated: $(date +%Y-%m-%d)
+
+Location: /home/jbyrd/taminator
+
+GitLab: https://gitlab.cee.redhat.com/jbyrd/taminator
+GitHub: https://github.com/thebyrdman-git/taminator
+
+Previous location: /home/jbyrd/pai/taminator (moved $(date +%Y-%m-%d))
