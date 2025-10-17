@@ -27,7 +27,7 @@
   when:
     - portal_posting_enabled
     - portal_sections.rfe_bug_tracker.enabled
-    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - "rfe_bug_tracker in (report_types | default([]))"
     - portal_auth_token is defined
   tags: [posting, rfe_bug]
 
@@ -57,7 +57,7 @@
   when:
     - portal_posting_enabled
     - portal_sections.active_cases.enabled
-    - "'active_cases' in (report_types | default([]))"
+    - "active_cases in (report_types | default([]))"
     - portal_auth_token is defined
   tags: [posting, active_cases]
 

@@ -105,7 +105,7 @@
         that:
           - customer_name == "JPMC"
           - account_number == "334224"
-          - "Ansible" in priority_components
+          - '"Ansible" in priority_components'
           - validation_threshold >= 0.99
         fail_msg: "JPMC-specific validation failed. Check customer_name, account_number, and priority_components."
 

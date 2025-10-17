@@ -49,7 +49,7 @@
     - notifications_enabled
     - notification_validation_enabled
     - notification_recipient_validation
-    - 'email' in notification_methods
+    - email in notification_methods
   tags: [validation, email_recipients]
 
 - name: Validate Slack webhook URL
@@ -62,7 +62,7 @@
   when:
     - notifications_enabled
     - notification_validation_enabled
-    - 'slack' in notification_methods
+    - slack in notification_methods
     - slack_webhook_url is defined
   tags: [validation, slack_webhook]
 
@@ -76,7 +76,7 @@
   when:
     - notifications_enabled
     - notification_validation_enabled
-    - 'teams' in notification_methods
+    - teams in notification_methods
     - teams_webhook_url is defined
   tags: [validation, teams_webhook]
 
@@ -90,7 +90,7 @@
   when:
     - notifications_enabled
     - notification_validation_enabled
-    - 'webhook' in notification_methods
+    - webhook in notification_methods
     - webhook_url is defined
   tags: [validation, webhook]
 

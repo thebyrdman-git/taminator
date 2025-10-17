@@ -17,7 +17,7 @@
   when:
     - portal_posting_enabled
     - portal_sections.rfe_bug_tracker.enabled
-    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - "rfe_bug_tracker in (report_types | default([]))"
   tags: [content_preparation, rfe_bug]
 
 - name: Prepare Active Cases content for portal
@@ -36,7 +36,7 @@
   when:
     - portal_posting_enabled
     - portal_sections.active_cases.enabled
-    - "'active_cases' in (report_types | default([]))"
+    - "active_cases in (report_types | default([]))"
   tags: [content_preparation, active_cases]
 
 - name: Generate portal metadata

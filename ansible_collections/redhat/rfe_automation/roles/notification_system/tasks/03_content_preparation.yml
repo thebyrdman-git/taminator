@@ -19,8 +19,8 @@
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
   when:
     - notifications_enabled
-    - 'email' in notification_methods
-    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - email in notification_methods
+    - "rfe_bug_tracker in (report_types | default([]))"
   tags: [content_preparation, rfe_bug, email]
 
 - name: Prepare Active Cases notification content
@@ -41,8 +41,8 @@
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
   when:
     - notifications_enabled
-    - 'email' in notification_methods
-    - "'active_cases' in (report_types | default([]))"
+    - email in notification_methods
+    - "active_cases in (report_types | default([]))"
   tags: [content_preparation, active_cases, email]
 
 - name: Prepare Slack RFE/Bug Tracker notification content
@@ -65,8 +65,8 @@
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
   when:
     - notifications_enabled
-    - 'slack' in notification_methods
-    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - slack in notification_methods
+    - "rfe_bug_tracker in (report_types | default([]))"
   tags: [content_preparation, rfe_bug, slack]
 
 - name: Prepare Slack Active Cases notification content
@@ -89,8 +89,8 @@
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
   when:
     - notifications_enabled
-    - 'slack' in notification_methods
-    - "'active_cases' in (report_types | default([]))"
+    - slack in notification_methods
+    - "active_cases in (report_types | default([]))"
   tags: [content_preparation, active_cases, slack]
 
 - name: Prepare Teams RFE/Bug Tracker notification content
@@ -111,8 +111,8 @@
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
   when:
     - notifications_enabled
-    - 'teams' in notification_methods
-    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - teams in notification_methods
+    - "rfe_bug_tracker in (report_types | default([]))"
   tags: [content_preparation, rfe_bug, teams]
 
 - name: Prepare Teams Active Cases notification content
@@ -133,8 +133,8 @@
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
   when:
     - notifications_enabled
-    - 'teams' in notification_methods
-    - "'active_cases' in (report_types | default([]))"
+    - teams in notification_methods
+    - "active_cases in (report_types | default([]))"
   tags: [content_preparation, active_cases, teams]
 
 - name: Generate notification metadata

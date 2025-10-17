@@ -20,9 +20,9 @@
   delay: "{{ notification_retry_delay }}"
   when:
     - notifications_enabled
-    - 'email' in notification_methods
+    - email in notification_methods
     - email_enabled
-    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - "rfe_bug_tracker in (report_types | default([]))"
     - not (notification_cooldown_active | default(false))
     - email_username is defined
     - email_password is defined
@@ -47,9 +47,9 @@
   delay: "{{ notification_retry_delay }}"
   when:
     - notifications_enabled
-    - 'email' in notification_methods
+    - email in notification_methods
     - email_enabled
-    - "'active_cases' in (report_types | default([]))"
+    - "active_cases in (report_types | default([]))"
     - not (notification_cooldown_active | default(false))
     - email_username is defined
     - email_password is defined
@@ -67,9 +67,9 @@
   delay: "{{ notification_retry_delay }}"
   when:
     - notifications_enabled
-    - 'slack' in notification_methods
+    - slack in notification_methods
     - slack_enabled
-    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - "rfe_bug_tracker in (report_types | default([]))"
     - not (notification_cooldown_active | default(false))
     - slack_webhook_url is defined
   tags: [notifications, slack, rfe_bug]
@@ -86,9 +86,9 @@
   delay: "{{ notification_retry_delay }}"
   when:
     - notifications_enabled
-    - 'slack' in notification_methods
+    - slack in notification_methods
     - slack_enabled
-    - "'active_cases' in (report_types | default([]))"
+    - "active_cases in (report_types | default([]))"
     - not (notification_cooldown_active | default(false))
     - slack_webhook_url is defined
   tags: [notifications, slack, active_cases]
@@ -105,9 +105,9 @@
   delay: "{{ notification_retry_delay }}"
   when:
     - notifications_enabled
-    - 'teams' in notification_methods
+    - teams in notification_methods
     - teams_enabled
-    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - "rfe_bug_tracker in (report_types | default([]))"
     - not (notification_cooldown_active | default(false))
     - teams_webhook_url is defined
   tags: [notifications, teams, rfe_bug]
@@ -124,9 +124,9 @@
   delay: "{{ notification_retry_delay }}"
   when:
     - notifications_enabled
-    - 'teams' in notification_methods
+    - teams in notification_methods
     - teams_enabled
-    - "'active_cases' in (report_types | default([]))"
+    - "active_cases in (report_types | default([]))"
     - not (notification_cooldown_active | default(false))
     - teams_webhook_url is defined
   tags: [notifications, teams, active_cases]
@@ -154,9 +154,9 @@
   delay: "{{ notification_retry_delay }}"
   when:
     - notifications_enabled
-    - 'webhook' in notification_methods
+    - webhook in notification_methods
     - webhook_enabled
-    - "'rfe_bug_tracker' in (report_types | default([]))"
+    - "rfe_bug_tracker in (report_types | default([]))"
     - not (notification_cooldown_active | default(false))
     - webhook_url is defined
   tags: [notifications, webhook, rfe_bug]
@@ -185,9 +185,9 @@
   delay: "{{ notification_retry_delay }}"
   when:
     - notifications_enabled
-    - 'webhook' in notification_methods
+    - webhook in notification_methods
     - webhook_enabled
-    - "'active_cases' in (report_types | default([]))"
+    - "active_cases in (report_types | default([]))"
     - not (notification_cooldown_active | default(false))
     - webhook_url is defined
   tags: [notifications, webhook, active_cases]

@@ -61,7 +61,7 @@
     fail_msg: "Missing required email configuration"
   when:
     - notifications_enabled
-    - 'email' in notification_methods
+    - email in notification_methods
   tags: [prerequisites, email_config]
 
 - name: Validate Slack configuration
@@ -72,7 +72,7 @@
     fail_msg: "Missing required Slack configuration"
   when:
     - notifications_enabled
-    - 'slack' in notification_methods
+    - slack in notification_methods
   tags: [prerequisites, slack_config]
 
 - name: Display notification configuration

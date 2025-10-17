@@ -16,7 +16,7 @@
     closed_cases: "{{ closed_cases }}"
     total_cases: "{{ rfe_bug_cases | length }}"
     data_quality_score: "{{ data_quality_score | default(0.0) }}"
-  when: "'rfe_bug_tracker' in (report_types | default([]))"
+  when: "rfe_bug_tracker in (report_types | default([]))"
   tags: [report_generation, rfe_bug_tracker]
 
 - name: Generate RFE/Bug Tracker JSON Report
@@ -41,7 +41,7 @@
       }
     dest: "{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_tracker_report_{{ ansible_date_time.epoch }}.json"
     mode: '0644'
-  when: "'rfe_bug_tracker' in (report_types | default([]))"
+  when: "rfe_bug_tracker in (report_types | default([]))"
   tags: [report_generation, rfe_bug_tracker, json]
 
 - name: Display RFE/Bug Tracker report generation summary
@@ -51,5 +51,5 @@
       📁 Location: {{ output_dir }}/{{ customer_name | lower }}_rfe_bug_tracker_report_{{ ansible_date_time.epoch }}.md
       📊 Summary: {{ active_rfes | length }} RFEs, {{ active_bugs | length }} Bugs, {{ closed_cases | length }} Closed
       ✅ Data Quality: {{ ((data_quality_score | default(0.0) | float) * 100) | round(1) }}%
-  when: "'rfe_bug_tracker' in (report_types | default([]))"
+  when: "rfe_bug_tracker in (report_types | default([]))"
   tags: [report_generation, summary]
