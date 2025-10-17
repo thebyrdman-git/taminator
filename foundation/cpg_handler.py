@@ -9,6 +9,22 @@ Enables posting content to customer private groups on Red Hat Customer Portal:
 
 Authentication: Red Hat SSO (Kerberos or OAuth)
 API: Red Hat Customer Portal API
+
+⚠️ IMPORTANT: API ENDPOINTS NEED VERIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The API endpoints in this file are PLACEHOLDERS and need to be verified
+against actual Red Hat Customer Portal API documentation.
+
+See docs/CPG-API-VERIFICATION.md for:
+  • How to obtain API documentation
+  • How to verify endpoints
+  • How to test with curl
+  • How to update this file
+  • Who to contact for help
+
+Current Status: Framework complete, endpoints need verification
+Estimated time to fix: 1 day (with API docs)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 import os
@@ -124,7 +140,13 @@ class CPGHandler:
             return []
         
         try:
-            # This is a placeholder URL - actual API endpoint needs to be verified
+            # TODO: VERIFY ENDPOINT - See docs/CPG-API-VERIFICATION.md
+            # Current endpoint is a placeholder and needs verification against
+            # actual Red Hat Customer Portal API documentation.
+            # Possible alternatives:
+            #   - /rs/customers/{accountNumber}/groups
+            #   - /rs/privategroups?account={accountNumber}
+            #   - /rs/groups?customer={accountNumber}
             url = f"{self.config.api_base_url}/customers/{customer_name}/groups"
             response = session.get(url, timeout=30)
             response.raise_for_status()
@@ -178,7 +200,8 @@ class CPGHandler:
                 # Use first group as default
                 group_id = groups[0].get('id')
             
-            # Prepare post data
+            # TODO: VERIFY REQUEST FORMAT - See docs/CPG-API-VERIFICATION.md
+            # Current post_data format may need adjustment based on actual API requirements
             post_data = {
                 'title': title,
                 'content': content,
@@ -188,7 +211,13 @@ class CPGHandler:
                 'source': 'Taminator'
             }
             
-            # This is a placeholder URL - actual API endpoint needs to be verified
+            # TODO: VERIFY ENDPOINT - See docs/CPG-API-VERIFICATION.md
+            # Current endpoint is a placeholder and needs verification against
+            # actual Red Hat Customer Portal API documentation.
+            # Possible alternatives:
+            #   - /rs/groups/{groupId}/posts
+            #   - /rs/privategroups/{groupId}/content
+            #   - /rs/groups/{groupId}/discussions
             url = f"{self.config.api_base_url}/groups/{group_id}/posts"
             response = session.post(url, json=post_data, timeout=30)
             response.raise_for_status()

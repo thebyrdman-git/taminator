@@ -275,7 +275,7 @@ The AI apocalypse is here... and it's **HELPING**. 🤖✅
 - [Phase 3 Integration Testing](docs/PHASE3-INTEGRATION-TESTING.md) — Comprehensive testing guide
 - [Phase 3 Complete](docs/PHASE3-COMPLETE.md) — Phase 3 completion summary
 - [GitLab Repository Rename](docs/GITLAB-REPO-RENAME.md) — How to rename on GitLab
-- [KAB Integration Plan](docs/KAB-INTEGRATION.md) — Making KAB obsolete
+- [KAB Alternative](docs/KAB-ALTERNATIVE.md) — KAB-inspired alternative approach
 - [Intelligence Engine](docs/INTELLIGENCE-ENGINE-TESTING.md)
 - [Backup TAM Intelligence](docs/BACKUP-TAM-INTELLIGENCE.md)
 - [Architecture](ARCHITECTURE-DIAGRAM.md)
