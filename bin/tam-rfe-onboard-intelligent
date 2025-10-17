@@ -129,8 +129,10 @@ YAMLINIT
         return
     fi
     
-    # Backup tamscripts.config
-    cp "$TAMSCRIPTS_CONFIG" "${TAMSCRIPTS_CONFIG}.bak.$(date +%s)"
+    # Backup tamscripts.config (only if it exists and has content)
+    if [ -s "$TAMSCRIPTS_CONFIG" ]; then
+        cp "$TAMSCRIPTS_CONFIG" "${TAMSCRIPTS_CONFIG}.bak.$(date +%s)"
+    fi
     
     # Create customer YAML block
     local customer_yaml="- name: $customer_key
