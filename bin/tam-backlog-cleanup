@@ -588,8 +588,27 @@ Time Saved: ~2 hours per cleanup
     
     # Email if requested
     if args.email:
-        print(f"\n📧 Email functionality coming soon...")
-        print(f"   For now, use: mail -s 'Backlog Report' {args.email} < ~/tam-backlog-reports/{args.customer}_*.md")
+        try:
+            from foundation.email_handler import get_email_handler
+            from pathlib import Path
+            
+            print(f"\n📧 Emailing report to {args.email}...")
+            
+            handler = get_email_handler()
+            report_file = Path.home() / "tam-backlog-reports" / f"{args.customer}_{datetime.now().strftime('%Y-%m-%d')}_backlog.md"
+            
+            if handler.send_backlog_report(
+                customer=args.customer,
+                to_email=args.email,
+                report_file=report_file
+            ):
+                print(f"✅ Email sent successfully!")
+            else:
+                print(f"⚠️  Email failed. Report saved to: {report_file}")
+                print(f"ℹ️  Configure email: Set SMTP_* environment variables")
+        except Exception as e:
+            print(f"⚠️  Email error: {e}")
+            print(f"ℹ️  Report saved to file instead")
     
     return 0
 

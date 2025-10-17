@@ -111,6 +111,8 @@ Coverage automation with:
 git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git
 cd taminator
 
+# Note: Old URL (rfe-and-bug-tracker-automation) redirects automatically
+
 # Install
 ./install.sh
 

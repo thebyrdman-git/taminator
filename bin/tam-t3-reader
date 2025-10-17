@@ -357,8 +357,26 @@ class T3Reader:
     
     def _send_email(self, report: str, email: str):
         """Send report via email"""
-        print(f"  📧 Email functionality coming soon...")
-        print(f"     Would send to: {email}")
+        print(f"  📧 Emailing T3 report to {email}...")
+        
+        try:
+            from foundation.email_handler import get_email_handler
+            
+            handler = get_email_handler()
+            report_file = Path.home() / "tam-t3-reports" / f"{self.customer}_{datetime.now().strftime('%Y-%m-%d')}_t3.md"
+            
+            if handler.send_t3_recommendations(
+                customer=self.customer or "All",
+                to_email=email,
+                report_file=report_file
+            ):
+                print(f"  ✅ Email sent successfully!")
+            else:
+                print(f"  ⚠️  Email failed. Report saved to: {report_file}")
+                print(f"  ℹ️  Configure email: Set SMTP_* environment variables")
+        except Exception as e:
+            print(f"  ⚠️  Email error: {e}")
+            print(f"  ℹ️  Report saved to file instead")
     
     def _save_report(self, report: str, suffix: str = "") -> Path:
         """Save report to file"""

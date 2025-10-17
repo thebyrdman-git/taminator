@@ -437,9 +437,26 @@ class AgendaGenerator:
     
     def _email_agenda(self, agenda: str, email: str, format: str):
         """Email the agenda"""
-        print(f"  📧 Email functionality coming soon...")
-        print(f"  ℹ️  For now, agenda saved to file. Use 'mail' command to send:")
-        print(f"     mail -s 'TAM Agenda - {self.customer}' {email} < ~/tam-agendas/{self.customer}_{self.date}_agenda.{format.replace('markdown', 'md')}")
+        print(f"  📧 Emailing agenda to {email}...")
+        
+        try:
+            from foundation.email_handler import get_email_handler
+            
+            handler = get_email_handler()
+            agenda_file = Path.home() / "tam-agendas" / f"{self.customer}_{self.date}_agenda.md"
+            
+            if handler.send_agenda(
+                customer=self.customer,
+                to_email=email,
+                agenda_file=agenda_file
+            ):
+                print(f"  ✅ Email sent successfully!")
+            else:
+                print(f"  ⚠️  Email failed. Agenda saved to: {agenda_file}")
+                print(f"  ℹ️  Configure email: Set SMTP_* environment variables")
+        except Exception as e:
+            print(f"  ⚠️  Email error: {e}")
+            print(f"  ℹ️  Agenda saved to file instead")
     
     def _get_next_call_date(self) -> str:
         """Calculate next call date (assuming bi-weekly)"""

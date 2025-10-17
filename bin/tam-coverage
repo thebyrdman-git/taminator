@@ -388,8 +388,28 @@ Contact {self.tam_name}: {self.tam_email}
     
     def _send_email(self, announcement: str, email: str):
         """Send announcement via email"""
-        print(f"  📧 Email functionality coming soon...")
-        print(f"     Would send to: {email}")
+        print(f"  📧 Emailing coverage announcement to {email}...")
+        
+        try:
+            from foundation.email_handler import get_email_handler
+            
+            handler = get_email_handler()
+            announcement_file = Path.home() / "tam-coverage" / f"coverage_announcement_{self.start_date.strftime('%Y-%m-%d')}{'_' + self.customer if self.customer else ''}.md"
+            briefing_file = Path.home() / "tam-coverage" / f"backup_briefing_{self.start_date.strftime('%Y-%m-%d')}{'_' + self.customer if self.customer else ''}.md"
+            
+            if handler.send_coverage_announcement(
+                customer=self.customer or "",
+                to_email=email,
+                announcement_file=announcement_file,
+                briefing_file=briefing_file if briefing_file.exists() else None
+            ):
+                print(f"  ✅ Email sent successfully!")
+            else:
+                print(f"  ⚠️  Email failed. Files saved locally")
+                print(f"  ℹ️  Configure email: Set SMTP_* environment variables")
+        except Exception as e:
+            print(f"  ⚠️  Email error: {e}")
+            print(f"  ℹ️  Files saved to ~/tam-coverage/ instead")
     
     def _load_sample_context(self):
         """Load sample context data"""

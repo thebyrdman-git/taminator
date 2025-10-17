@@ -333,6 +333,8 @@ Found a bug? Want a feature? We're listening!
 - **Email:** jbyrd@redhat.com
 - **Slack:** #tam-automation
 
+**Note:** Old repository URL (`rfe-and-bug-tracker-automation`) automatically redirects to new URL (`taminator`).
+
 ---
 
 ## 📜 License
@@ -357,6 +359,8 @@ cd taminator
 
 # Your first agenda
 tam-generate-agenda --customer [your-customer] --print
+
+# Note: Old URL (rfe-and-bug-tracker-automation) redirects automatically
 ```
 
 **"I'll be back"** — and so will your productivity. ✅
