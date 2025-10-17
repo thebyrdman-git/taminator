@@ -36,8 +36,8 @@ Build on proven foundations:
 
 **Result:** 95% less code to write and maintain
 
-### 2. Lego Architecture
-Services are modular blocks you snap together:
+### 2. Composable Service Architecture
+Services are declaratively composed from pre-configured components:
 
 ```yaml
 # Add a new service (one line)
@@ -47,11 +47,11 @@ services_enabled:
   - grafana
 ```
 
-- Self-wiring (automatic SSL, monitoring, backups)
-- One config file controls everything
-- Deploy with one command
+- Automatic service discovery (SSL, monitoring, backups)
+- Centralized configuration management
+- Single-command deployment
 
-**Result:** Infrastructure in 10 minutes
+**Result:** Infrastructure deployed in < 10 minutes
 
 ### 3. OS-Agnostic by Default
 Write once, run everywhere:

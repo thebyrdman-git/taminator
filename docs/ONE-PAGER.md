@@ -30,7 +30,7 @@ Clone proven foundation → Write business logic (5%) → Days → Cross-platfor
 - Use proven Python libraries (not reinvented)
 - Result: 95% less code to maintain
 
-### 2. Lego Architecture - Plug & Play
+### 2. Composable Service Architecture - Declarative Deployment
 Add service = add one line to YAML:
 ```yaml
 services_enabled:
@@ -38,7 +38,7 @@ services_enabled:
   - n8n
   - grafana
 ```
-Result: Infrastructure in 10 minutes
+Result: Infrastructure deployed in < 10 minutes
 
 ### 3. OS-Agnostic - Write Once, Run Everywhere
 ```python

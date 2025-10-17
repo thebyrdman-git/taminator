@@ -30,17 +30,17 @@
 
 **Result:** 99.9% availability (43 min downtime/month)
 
-### Pillar 3: Lego Infrastructure
-**Doc:** `LEGO-SERVICE-ARCHITECTURE.md`
+### Pillar 3: Composable Service Architecture
+**Doc:** `COMPOSABLE-SERVICE-ARCHITECTURE.md`
 
-**Principle:** Infrastructure as snap-together blocks
+**Principle:** Declarative service composition with automatic orchestration
 
-- Service catalog (pre-built blocks)
+- Service catalog (pre-configured components)
 - Type system (webapp/database/worker/utility)
-- Auto-wiring (Traefik, SSL, monitoring, backups)
-- One-command deployment (`pai-service-add`)
+- Service discovery (automatic routing, TLS, monitoring, backups)
+- Single-command deployment (`pai-service-add`)
 
-**Result:** 30-second service deployments, zero config
+**Result:** Sub-minute service deployments, minimal configuration
 
 ---
 
@@ -512,11 +512,11 @@ ls ~/pai/postmortems/
    - Netflix chaos engineering
    - Kubernetes self-healing
 
-3. **LEGO-SERVICE-ARCHITECTURE.md** (10,000 words)
+3. **COMPOSABLE-SERVICE-ARCHITECTURE.md** (10,000 words)
    - Service catalog
    - Type system (webapp/database/worker/utility)
-   - Auto-wiring magic
-   - 30-second deployments
+   - Automatic service discovery and routing
+   - Sub-minute deployments
 
 ### Implementation Guides
 4. **ANSIBLE-IMPLEMENTATION-COMPLETE.md**
@@ -536,7 +536,7 @@ ls ~/pai/postmortems/
 
 ### Tool Documentation
 - `ansible/README.md` - Ansible usage
-- `ansible/service-catalog.yml` - Lego blocks
+- `ansible/service-catalog.yml` - Service components
 - `bin/pai-*` - Tool man pages (to create)
 
 ---
@@ -550,7 +550,7 @@ World-Class Tools =
   Geerling's roles (infrastructure) +     # Pillar 1
   Proven libraries (functionality) +       # Pillar 1
   Google SRE patterns (resilience) +       # Pillar 2
-  Lego architecture (simplicity) +         # Pillar 3
+  Composable architecture (simplicity) +   # Pillar 3
   Your business logic (value)              # 0.4% custom
 
 = 99.6% proven code
@@ -571,7 +571,7 @@ World-Class Tools =
 **But:**
 - Proven foundations (99.6%)
 - SRE patterns (Google/Netflix/Kubernetes)
-- Lego simplicity (30-second deploys)
+- Composable simplicity (sub-minute deploys)
 - Focus on value (0.4% custom)
 
 ### The Result
@@ -585,7 +585,7 @@ World-Class Tools =
 
 **Built by:** Standing on Giants' Shoulders  
 **Inspired by:** Google, Netflix, Kubernetes, AWS, Jeff Geerling  
-**Philosophy:** Proven code + SRE patterns + Lego simplicity  
+**Philosophy:** Proven code + SRE patterns + Composable simplicity  
 
 **That's world-class.** 🎉
 
