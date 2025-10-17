@@ -172,6 +172,21 @@ Help improve report consistency and quality:
 
 ---
 
+## 📋 Version History
+
+| Version | Date | Key Features |
+|---------|------|--------------|
+| **1.4.1** | Oct 17, 2025 | Bug fixes (macOS, verification system) |
+| **1.4.0** | Oct 16, 2025 | TUI, Report Scheduler, VPN Intelligence |
+| **1.3.0** | Oct 16, 2025 | Hydra API, Customer discovery |
+| **1.2.0** | Oct 16, 2025 | Dynamic customer onboarding |
+| **1.1.0** | Oct 15, 2025 | Automated installer |
+| **1.0.0** | Oct 10, 2025 | Production release 🎉 |
+
+**See**: [CHANGELOG.md](CHANGELOG.md) for complete history • [RELEASE-NOTES.md](RELEASE-NOTES.md) for detailed release information
+
+---
+
 **🤖 TAM Automation Assistant**  
 *Built by jbyrd for the Red Hat TAM community*  
 *Making your life easier, one report at a time*
