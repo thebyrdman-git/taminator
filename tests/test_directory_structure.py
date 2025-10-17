@@ -43,7 +43,7 @@ def test_directory_creation():
     assert test_file.exists()
     assert test_file.read_text() == "test content"
     
-    print("✅ All directory operations successful")
+    print("[OK] All directory operations successful")
     
     # Cleanup
     import shutil
@@ -51,7 +51,7 @@ def test_directory_creation():
         if dir_path.exists():
             shutil.rmtree(dir_path, ignore_errors=True)
     
-    print("✅ Cleanup complete")
+    print("[OK] Cleanup complete")
 
 
 if __name__ == '__main__':
@@ -59,7 +59,7 @@ if __name__ == '__main__':
         test_directory_creation()
         sys.exit(0)
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        print(f"[FAIL] Test failed: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

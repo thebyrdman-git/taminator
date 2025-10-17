@@ -24,7 +24,7 @@ def test_windows_installation():
     # Test 1: Platform detection
     print("Test 1: Platform detection")
     assert platform.is_windows(), "Should detect Windows"
-    print(f"✅ Platform detected: {platform.system()}")
+    print(f"[OK] Platform detected: {platform.system()}")
     print()
     
     # Test 2: Directory paths use Windows conventions
@@ -33,28 +33,28 @@ def test_windows_installation():
     
     assert 'AppData' in str(config) or 'APPDATA' in os.environ, \
         "Windows should use AppData"
-    print(f"✅ Config dir: {config}")
+    print(f"[OK] Config dir: {config}")
     print()
     
     # Test 3: Path separator
     print("Test 3: Windows path separator")
     sep = platform.path_separator()
     assert sep == ';', "Windows should use semicolon"
-    print(f"✅ Path separator: '{sep}'")
+    print(f"[OK] Path separator: '{sep}'")
     print()
     
     # Test 4: Executable extension
     print("Test 4: Windows executable extension")
     ext = platform.executable_extension()
     assert ext == '.exe', "Windows should use .exe"
-    print(f"✅ Executable extension: '{ext}'")
+    print(f"[OK] Executable extension: '{ext}'")
     print()
     
     # Test 5: Line endings
     print("Test 5: Windows line endings")
     ending = platform.line_ending()
     assert ending == '\r\n', "Windows should use CRLF"
-    print(f"✅ Line ending: CRLF")
+    print(f"[OK] Line ending: CRLF")
     print()
     
     # Test 6: Directory creation
@@ -70,18 +70,18 @@ def test_windows_installation():
     
     for test_dir in test_dirs:
         assert test_dir.exists(), f"Directory not created: {test_dir}"
-        print(f"✅ Created: {test_dir}")
+        print(f"[OK] Created: {test_dir}")
     
     # Cleanup
     import shutil
     for test_dir in test_dirs:
         if test_dir.exists():
             shutil.rmtree(test_dir, ignore_errors=True)
-    print("✅ Cleanup complete")
+    print("[OK] Cleanup complete")
     print()
     
     print("=" * 60)
-    print("✅ All Windows installation tests PASSED")
+    print("[OK] All Windows installation tests PASSED")
     print("=" * 60)
 
 
@@ -90,7 +90,7 @@ if __name__ == '__main__':
         test_windows_installation()
         sys.exit(0)
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        print(f"[FAIL] Test failed: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
