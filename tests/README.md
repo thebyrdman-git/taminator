@@ -1,177 +1,160 @@
-# RFE Automation Installation Testing
+# Cross-Platform Testing
 
-**Automated testing infrastructure for validating zero-dependency-hell installation**
+## Overview
 
----
+Automated testing suite to validate the RFE Bug Tracker Automation Tool works correctly on **Linux, macOS, and Windows**.
 
-## 🚀 Quick Start
+## Test Files
 
+### Platform Abstraction Tests
+- **`test_platform_abstraction.py`** - Comprehensive test of `foundation/platform.py`
+  - OS detection (Linux/macOS/Windows)
+  - Directory path conventions (XDG/Library/AppData)
+  - OS-specific helpers (shells, paths, line endings)
+
+- **`test_directory_structure.py`** - Directory creation and management
+  - Creates test directories
+  - Validates file operations
+  - Tests cleanup
+
+### Installation Tests
+- **`test-install.sh`** - Linux/macOS installation validation
+- **`test_installation_windows.py`** - Windows installation validation
+
+## Running Tests Locally
+
+### Linux/macOS
 ```bash
-cd /home/jbyrd/pai/rfe-automation-clean/tests
-./run-tests.sh
+# Run all tests
+python3 tests/test_platform_abstraction.py
+python3 tests/test_directory_structure.py
+./tests/test-install.sh
 ```
 
-**What it does**:
-- Tests installation on RHEL 9, RHEL 8, Fedora 41, Fedora 40
-- Uses Ansible + Podman for automation
-- Only installs minimal prerequisites (git, python3)
-- Validates installer handles everything else
-- Takes ~10-15 minutes
-
----
-
-## 📋 Prerequisites
-
-The test requires:
-- `ansible-core` - Install: `sudo dnf install ansible-core`
-- `podman` - Install: `sudo dnf install podman`
-- `rsync` - Install: `sudo dnf install rsync`
-- Red Hat VPN (for cloning rhcase from GitLab)
-
----
-
-## 🧪 What Gets Tested
-
-### Minimal Prerequisites Only
-Each test container gets ONLY:
-- `git` - For cloning rhcase
-- `python3` - Runtime
-
-### Installer Must Handle
-- All Python packages (requests, pyyaml, jinja2, cryptography, etc.)
-- Build dependencies (if needed)
-- rhcase cloning from GitLab
-- rhcase installation
-- PATH configuration
-
-### Validation
-Tests verify `rhcase` command works via:
-1. Global install (`rhcase --version`)
-2. User install (`~/.local/bin/rhcase --version`)
-3. Venv install (`.venv/bin/rhcase --version`)
-
----
-
-## 📁 Files
-
-```
-tests/
-├── run-tests.sh              # Main test runner
-├── test-installation.yml     # Ansible playbook (orchestration)
-├── test-platform.yml         # Per-platform test logic
-├── test-installation.sh      # Original bash test (deprecated)
-├── Vagrantfile              # VM-based testing (alternative)
-└── README.md                # This file
+### Windows
+```powershell
+# Run all tests
+python tests\test_platform_abstraction.py
+python tests\test_directory_structure.py
+python tests\test_installation_windows.py
 ```
 
----
+## CI/CD Integration
 
-## 🎯 Success Criteria
+### GitHub Actions
+The workflow `.github/workflows/cross-platform-test.yml` automatically tests on:
+- **ubuntu-22.04** (Linux)
+- **macos-13** (macOS)
+- **windows-latest** (Windows)
 
-**Installation must**:
-- ✅ Work with ONLY git + python3 pre-installed
-- ✅ Clone rhcase from GitLab automatically
-- ✅ Handle all dependencies (3 fallback methods)
-- ✅ Complete in < 5 minutes per platform
-- ✅ Leave rhcase command functional
+**Triggers:**
+- Push to `main`/`master`
+- Pull requests
+- Manual workflow dispatch
 
----
+### GitLab CI
+The configuration `.gitlab-ci.yml` tests on available runners:
+- **Linux** - UBI9/Python 3.11 container
+- **macOS** - Requires macOS runner (optional)
+- **Windows** - Requires Windows runner (optional)
 
-## 📊 Test Output
+## Current Status
 
-```
-🧪 RFE Automation Installation Testing (Ansible)
-==================================================
+| Platform | Status | Coverage |
+|----------|--------|----------|
+| **Linux** | ✅ **Fully Tested** | RHEL 8/9, Fedora 40-43, Ubuntu 22.04 |
+| **macOS** | ⚠️ **Architectural Support** | CI/CD ready, needs runner |
+| **Windows** | ⚠️ **Architectural Support** | CI/CD ready, needs runner |
 
-✅ All test prerequisites available
+## Path to A+ Grade
 
-PLAY [Test RFE Automation Installation] ****************
+**Current Grade: A** (Architecture supports all platforms, validated on Linux)
 
-TASK [Test installation on each platform] **************
+**To achieve A+:**
+1. ✅ Create comprehensive test suite (DONE)
+2. ✅ Set up CI/CD workflows (DONE)
+3. ⏳ Enable macOS runner in CI/CD
+4. ⏳ Enable Windows runner in CI/CD
+5. ⏳ Validate production usage on all platforms
 
-✅ PASSED: RHEL 9 (AlmaLinux)
-✅ PASSED: RHEL 8 (AlmaLinux)
-✅ PASSED: Fedora 41
-✅ PASSED: Fedora 40
+### Enabling CI/CD Runners
 
-==================================================
-Test results saved in: ~/.cache/rfe-tests/
-==================================================
-```
+#### For GitHub Actions
+**No action needed** - GitHub provides free Linux/macOS/Windows runners.
 
----
+Just push to GitHub and workflows run automatically.
 
-## 🔍 Troubleshooting
+#### For GitLab CEE
+**Linux:** ✅ Already works with shared runners
 
-### Test fails with "Failed to clone rhcase"
-**Cause**: Not connected to Red Hat VPN  
-**Fix**: Connect to Red Hat VPN and retry
-
-### Test fails with "ansible-playbook: command not found"
-**Cause**: Ansible not installed  
-**Fix**: `sudo dnf install ansible-core`
-
-### Test fails with permission denied
-**Cause**: SELinux or container permissions  
-**Fix**: Tests use `:Z` flag for SELinux, should work automatically
-
-### Want to see detailed output
-**Fix**: Run with verbose flag: `ansible-playbook test-installation.yml -vv`
-
----
-
-## 🧹 Cleanup
-
-Failed tests leave directories for debugging:
+**macOS:** Requires GitLab Runner on macOS machine
 ```bash
-# View failed test logs
-ls -la ~/.cache/rfe-tests/
-
-# Clean up all test directories
-rm -rf ~/.cache/rfe-tests/
+# On macOS machine:
+brew install gitlab-runner
+gitlab-runner register --url https://gitlab.cee.redhat.com \
+  --tag-list "macos"
 ```
 
----
-
-## 🎯 Why This Approach
-
-### Ansible Benefits
-- ✅ Declarative, readable test definitions
-- ✅ Easy to add more platforms
-- ✅ Structured error handling
-- ✅ Reusable for CI/CD
-- ✅ Industry standard for automation
-
-### Container Benefits
-- ✅ Clean slate every time
-- ✅ Fast (no VM overhead)
-- ✅ Parallel testing possible
-- ✅ Consistent environment
-
-### GitLab Integration
-- ✅ Always tests latest rhcase
-- ✅ No submodule complexity
-- ✅ Simpler for TAMs (they clone fresh too)
-- ✅ Matches real-world usage
-
----
-
-## 📝 Adding New Platforms
-
-Edit `test-installation.yml`:
-
-```yaml
-test_platforms:
-  - name: "Rocky Linux 9"
-    image: "rockylinux:9"
-    base_packages:
-      - git
-      - python3
+**Windows:** Requires GitLab Runner on Windows machine
+```powershell
+# On Windows machine:
+# Download: https://gitlab-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-runner-windows-amd64.exe
+gitlab-runner.exe register --url https://gitlab.cee.redhat.com --tag-list "windows"
 ```
 
-That's it. The test will automatically include the new platform.
+## Test Coverage
+
+### What's Tested
+- ✅ OS detection (Linux, macOS, Windows)
+- ✅ Directory conventions per platform
+- ✅ Directory creation and management
+- ✅ File operations
+- ✅ Path separators and line endings
+- ✅ Executable extensions
+- ✅ Shell detection
+- ✅ Python executable location
+
+### What's NOT Tested Yet
+- ⏳ GUI operations (not applicable for CLI tool)
+- ⏳ VPN configuration (requires credentials)
+- ⏳ Case API integration (requires Red Hat SSO)
+- ⏳ Hydra API integration (requires VPN)
+
+## Adding New Tests
+
+1. Create test file: `tests/test_your_feature.py`
+2. Follow existing test structure
+3. Add to CI/CD workflows:
+   - `.github/workflows/cross-platform-test.yml`
+   - `.gitlab-ci.yml`
+4. Run locally to verify
+5. Commit and push
+
+## Troubleshooting
+
+### Tests fail on macOS
+- Check Homebrew is installed
+- Verify Python 3.11+ available
+- Check `platformdirs` and `keyring` packages installed
+
+### Tests fail on Windows
+- Check Python added to PATH
+- Verify pip works
+- Check AppData directory permissions
+
+### CI/CD not running
+- **GitHub:** Check repository settings → Actions enabled
+- **GitLab:** Check `.gitlab-ci.yml` syntax with CI Lint tool
+
+## Reference
+
+- **Platform Abstraction:** `foundation/platform.py`
+- **PAI Gold Standard:** `docs/PAI-GOLD-STANDARD-INDEX.md`
+- **OS-Agnostic Framework:** `docs/OS-AGNOSTIC-FRAMEWORK.md`
 
 ---
 
-*Ready to test! Run: `./run-tests.sh`*
+**Goal:** Achieve **A+ grade** for OS-Agnostic support through comprehensive automated testing on all platforms.
 
+**Current:** A (Architecture complete, Linux validated)  
+**Target:** A+ (All platforms tested and production-validated)
