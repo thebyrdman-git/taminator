@@ -40,7 +40,12 @@ cmd_remove() {
     
     # Remove case from file
     if grep -q "^$case_number" "$ASSIST_FILE"; then
-        sed -i "/^$case_number/d" "$ASSIST_FILE"
+        # Cross-platform sed
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "/^$case_number/d" "$ASSIST_FILE"
+        else
+            sed -i "/^$case_number/d" "$ASSIST_FILE"
+        fi
         echo "✅ Removed case $case_number from assistance list"
         pai-audit log "CITI_ASSIST_REMOVE" "case=$case_number" 2>/dev/null || true
     else

@@ -152,7 +152,12 @@ remove_cron_jobs() {
     crontab -l 2>/dev/null | grep -v -E "(pai-rfe|pai-weekly|pai-alerts|pai-maintenance)" > "$temp_cron"
     
     # Remove RFE automation section header if it exists
-    sed -i '/# === RFE AUTOMATION SYSTEM JOBS ===/d' "$temp_cron"
+    # Cross-platform sed
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' '/# === RFE AUTOMATION SYSTEM JOBS ===/d' "$temp_cron"
+    else
+        sed -i '/# === RFE AUTOMATION SYSTEM JOBS ===/d' "$temp_cron"
+    fi
     
     # Install cleaned crontab
     if crontab "$temp_cron"; then

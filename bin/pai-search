@@ -92,7 +92,12 @@ update_entry() {
     
     # Update modified timestamp in frontmatter
     local timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-    sed -i "s/^modified: .*/modified: $timestamp/" "$filepath"
+    # Cross-platform sed
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/^modified: .*/modified: $timestamp/" "$filepath"
+    else
+        sed -i "s/^modified: .*/modified: $timestamp/" "$filepath"
+    fi
     
     # Append new content
     echo "" >> "$filepath"

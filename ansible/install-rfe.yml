@@ -5,18 +5,18 @@
 - name: Install RFE Bug Tracker Automation Tool
   hosts: all
   gather_facts: true
-
+  
   vars_prompt:
     - name: install_confirm
       prompt: "Install RFE Bug Tracker Automation Tool? (yes/no)"
       private: false
       default: "yes"
-
+    
     - name: setup_vpn_prompt
       prompt: "Configure Red Hat VPN? (yes/no)"
       private: false
       default: "no"
-
+    
     - name: vpn_profile_path
       prompt: "VPN profile path (leave empty to skip)"
       private: false
@@ -83,3 +83,5 @@
           - "Documentation: {{ rfe_install_dir }}/README.md"
           - ""
           - "Need help? Run: tam-rfe-<command> --help"
+
+

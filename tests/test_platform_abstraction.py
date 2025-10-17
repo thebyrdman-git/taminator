@@ -20,7 +20,7 @@ def test_os_detection():
     assert detected_os in ['linux', 'macos', 'windows'], \
         f"Unexpected OS: {detected_os}"
     
-    print(f"[OK] OS Detection: {detected_os}")
+    print(f"✅ OS Detection: {detected_os}")
     
     # Test helper methods
     if detected_os == 'linux':
@@ -36,7 +36,7 @@ def test_os_detection():
         assert not platform.is_macos()
         assert platform.is_windows()
     
-    print(f"[OK] OS Helper Methods: Correct")
+    print(f"✅ OS Helper Methods: Correct")
 
 
 def test_directory_methods():
@@ -45,32 +45,32 @@ def test_directory_methods():
     # Home directory
     home = platform.home_dir()
     assert home.exists(), "Home directory must exist"
-    print(f"[OK] Home Dir: {home}")
+    print(f"✅ Home Dir: {home}")
     
     # Config directory
     config = platform.config_dir("rfe-tool-test")
     assert isinstance(config, Path), "Config dir must be Path object"
-    print(f"[OK] Config Dir: {config}")
+    print(f"✅ Config Dir: {config}")
     
     # Data directory
     data = platform.data_dir("rfe-tool-test")
     assert isinstance(data, Path), "Data dir must be Path object"
-    print(f"[OK] Data Dir: {data}")
+    print(f"✅ Data Dir: {data}")
     
     # Cache directory
     cache = platform.cache_dir("rfe-tool-test")
     assert isinstance(cache, Path), "Cache dir must be Path object"
-    print(f"[OK] Cache Dir: {cache}")
+    print(f"✅ Cache Dir: {cache}")
     
     # Log directory
     log = platform.log_dir("rfe-tool-test")
     assert isinstance(log, Path), "Log dir must be Path object"
-    print(f"[OK] Log Dir: {log}")
+    print(f"✅ Log Dir: {log}")
     
     # Temp directory
     temp = platform.temp_dir()
     assert temp.exists(), "Temp directory must exist"
-    print(f"[OK] Temp Dir: {temp}")
+    print(f"✅ Temp Dir: {temp}")
 
 
 def test_directory_conventions():
@@ -81,17 +81,17 @@ def test_directory_conventions():
     if detected_os == 'linux':
         # Linux: Should use XDG Base Directory spec
         assert '.config' in str(config) or 'XDG_CONFIG_HOME' in os.environ
-        print("[OK] Linux: XDG Base Directory conventions")
+        print("✅ Linux: XDG Base Directory conventions")
     
     elif detected_os == 'macos':
         # macOS: Should use ~/Library/Application Support
         assert 'Library' in str(config)
-        print("[OK] macOS: Library conventions")
+        print("✅ macOS: Library conventions")
     
     elif detected_os == 'windows':
         # Windows: Should use AppData
         assert 'AppData' in str(config) or 'APPDATA' in os.environ
-        print("[OK] Windows: AppData conventions")
+        print("✅ Windows: AppData conventions")
 
 
 def test_ensure_dirs():
@@ -110,7 +110,7 @@ def test_ensure_dirs():
         assert cache.exists(), f"Cache dir not created: {cache}"
         assert log.exists(), f"Log dir not created: {log}"
         
-        print("[OK] Directory Creation: All directories created")
+        print("✅ Directory Creation: All directories created")
         
         # Cleanup
         import shutil
@@ -118,10 +118,10 @@ def test_ensure_dirs():
             if dir_path.exists():
                 shutil.rmtree(dir_path, ignore_errors=True)
         
-        print("[OK] Cleanup: Test directories removed")
+        print("✅ Cleanup: Test directories removed")
         
     except Exception as e:
-        print(f"[FAIL] Directory creation failed: {e}")
+        print(f"❌ Directory creation failed: {e}")
         raise
 
 
@@ -130,11 +130,11 @@ def test_shell_detection():
     shells = platform.shell_available()
     assert isinstance(shells, list), "shell_available() must return list"
     assert len(shells) > 0, "Must have at least one shell available"
-    print(f"[OK] Available Shells: {', '.join(shells)}")
+    print(f"✅ Available Shells: {', '.join(shells)}")
     
     default = platform.default_shell()
     assert default in shells, f"Default shell {default} not in available shells"
-    print(f"[OK] Default Shell: {default}")
+    print(f"✅ Default Shell: {default}")
 
 
 def test_path_helpers():
@@ -147,7 +147,7 @@ def test_path_helpers():
         assert ext == '.exe', "Windows should return .exe"
     else:
         assert ext == '', "Unix-like should return empty string"
-    print(f"[OK] Executable Extension: '{ext}'")
+    print(f"✅ Executable Extension: '{ext}'")
     
     # Path separator
     sep = platform.path_separator()
@@ -155,7 +155,7 @@ def test_path_helpers():
         assert sep == ';', "Windows should use semicolon"
     else:
         assert sep == ':', "Unix-like should use colon"
-    print(f"[OK] Path Separator: '{sep}'")
+    print(f"✅ Path Separator: '{sep}'")
     
     # Line ending
     ending = platform.line_ending()
@@ -163,14 +163,14 @@ def test_path_helpers():
         assert ending == '\r\n', "Windows should use CRLF"
     else:
         assert ending == '\n', "Unix-like should use LF"
-    print(f"[OK] Line Ending: {repr(ending)}")
+    print(f"✅ Line Ending: {repr(ending)}")
 
 
 def test_python_executable():
     """Test Python executable detection"""
     python_exe = platform.python_executable()
     assert python_exe.exists(), f"Python executable not found: {python_exe}"
-    print(f"[OK] Python Executable: {python_exe}")
+    print(f"✅ Python Executable: {python_exe}")
 
 
 def main():
@@ -204,10 +204,10 @@ def main():
         try:
             test_func()
             passed += 1
-            print(f"[OK] {test_name}: PASSED")
+            print(f"✅ {test_name}: PASSED")
         except Exception as e:
             failed += 1
-            print(f"[FAIL] {test_name}: FAILED - {e}")
+            print(f"❌ {test_name}: FAILED - {e}")
             import traceback
             traceback.print_exc()
     
@@ -219,7 +219,7 @@ def main():
     if failed > 0:
         sys.exit(1)
     else:
-        print("\n[OK] All platform abstraction tests PASSED!")
+        print("\n✅ All platform abstraction tests PASSED!")
         sys.exit(0)
 
 

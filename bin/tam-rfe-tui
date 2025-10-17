@@ -316,7 +316,12 @@ remove_customer() {
         IFS=: read -r shortname fullname account products <<< "$line"
         
         if show_yesno "Confirm Removal" "Remove customer: $fullname ($shortname)?\n\nThis will remove from customers.conf only.\nYou may need to manually update tamscripts.config."; then
-            sed -i "${choice}d" "$CUSTOMERS_CONF"
+            # Cross-platform sed
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "${choice}d" "$CUSTOMERS_CONF"
+            else
+                sed -i "${choice}d" "$CUSTOMERS_CONF"
+            fi
             show_msgbox "Success" "Customer removed: $fullname"
         fi
     fi
