@@ -95,4 +95,3 @@
     path: "{{ test_dir }}"
     state: absent
   when: test_result.rc == 0  # Only clean up on success
-

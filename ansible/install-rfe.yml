@@ -83,4 +83,3 @@
           - "Documentation: {{ rfe_install_dir }}/README.md"
           - ""
           - "Need help? Run: tam-rfe-<command> --help"
-

@@ -303,9 +303,9 @@
     - name: Display test results summary
       debug:
         msg: |
-          🧪 Molecule Test Results Summary:
-          ✅ Case Collection: {{ collected_cases.filtered_cases }}/{{ collected_cases.total_cases }} cases
+          [TEST] Molecule Test Results Summary:
+          [OK] Case Collection: {{ collected_cases.filtered_cases }}/{{ collected_cases.total_cases }} cases
           [OK] Data Processing: {{ processed_data.statistics.active_rfes_count }} RFEs, {{ processed_data.statistics.active_bugs_count }} Bugs
-          ✅ Report Generation: {{ rfe_report.report_files | length + active_cases_report.report_files | length }} files
-          ✅ Data Quality: {{ (collected_cases.data_quality_score * 100) | round(1) }}%
-          🎯 All tests passed successfully!
+          [OK] Report Generation: {{ rfe_report.report_files | length + active_cases_report.report_files | length }} files
+          [OK] Data Quality: {{ (collected_cases.data_quality_score * 100) | round(1) }}%
+          [TARGET] All tests passed successfully!
