@@ -175,9 +175,13 @@ def test_python_executable():
 
 def main():
     """Run all tests"""
-    print("=" * 60)
+    # Use ASCII characters for Windows compatibility
+    separator = "=" * 60
+    line = "-" * 60
+    
+    print(separator)
     print("Platform Abstraction Layer Tests")
-    print("=" * 60)
+    print(separator)
     print()
     
     tests = [
@@ -194,9 +198,9 @@ def main():
     failed = 0
     
     for test_name, test_func in tests:
-        print(f"\n{'─' * 60}")
+        print(f"\n{line}")
         print(f"Test: {test_name}")
-        print('─' * 60)
+        print(line)
         try:
             test_func()
             passed += 1
@@ -208,9 +212,9 @@ def main():
             traceback.print_exc()
     
     print()
-    print("=" * 60)
+    print(separator)
     print(f"Results: {passed} passed, {failed} failed")
-    print("=" * 60)
+    print(separator)
     
     if failed > 0:
         sys.exit(1)
