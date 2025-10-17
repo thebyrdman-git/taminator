@@ -272,6 +272,8 @@ The AI apocalypse is here... and it's **HELPING**. 🤖✅
 - [CPG Configuration](docs/CPG-CONFIGURATION.md) — Customer Portal Private Groups integration
 - [rhcase Integration](docs/RHCASE-INTEGRATION.md) — Real customer case data integration
 - [Salesforce Configuration](docs/SALESFORCE-CONFIGURATION.md) — Salesforce write operations integration
+- [Phase 3 Integration Testing](docs/PHASE3-INTEGRATION-TESTING.md) — Comprehensive testing guide
+- [Phase 3 Complete](docs/PHASE3-COMPLETE.md) — Phase 3 completion summary
 - [GitLab Repository Rename](docs/GITLAB-REPO-RENAME.md) — How to rename on GitLab
 - [KAB Integration Plan](docs/KAB-INTEGRATION.md) — Making KAB obsolete
 - [Intelligence Engine](docs/INTELLIGENCE-ENGINE-TESTING.md)
