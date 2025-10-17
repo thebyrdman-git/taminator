@@ -5,25 +5,496 @@ Syncs customer onboarding requests from Google Sheets to local configuration
 """
 
 import sys
+import os
 from pathlib import Path
+from datetime import datetime
+import json
+import subprocess
 
-print("=" * 60)
-print("TAM RFE Customer Onboarding Sync")
-print("=" * 60)
-print()
-print("Status: [STUB] - Full implementation coming soon!")
-print()
-print("This tool will:")
-print("  1. Connect to Google Sheets")
-print("  2. Fetch pending customer onboardings")
-print("  3. Validate data (account numbers, names, etc.)")
-print("  4. Generate customers.conf entries")
-print("  5. Update tamscripts.config")
-print("  6. Send confirmation emails to TAMs")
-print()
-print("For now, use: tam-rfe-onboard-intelligent")
-print()
-print("Implementation details: docs/GOOGLE-FORM-INTEGRATION.md")
-print()
+# Try to import Google Sheets libraries
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    HAS_GOOGLE_LIBS = True
+except ImportError:
+    HAS_GOOGLE_LIBS = False
 
-sys.exit(0)
+try:
+    import yaml
+except ImportError:
+    print("[FAIL] PyYAML not installed. Run: pip install pyyaml")
+    sys.exit(1)
+
+# Configuration
+CONFIG_DIR = Path.home() / ".config" / "rfe-tool"
+GOOGLE_CREDS = CONFIG_DIR / "google-credentials.json"
+SHEET_CONFIG = CONFIG_DIR / "google-sheets-config.yaml"
+CUSTOMERS_CONF = CONFIG_DIR / "customers.conf"
+TAMSCRIPTS_CONFIG = CONFIG_DIR / "tamscripts.config"
+
+# Colors for output
+GREEN = '\033[0;32m'
+RED = '\033[0;31m'
+YELLOW = '\033[1;33m'
+BLUE = '\033[0;34m'
+NC = '\033[0m'
+
+
+def print_header():
+    print("=" * 70)
+    print("TAM RFE Customer Onboarding Sync")
+    print("=" * 70)
+    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+
+
+def print_success(msg):
+    print(f"{GREEN}[OK]{NC} {msg}")
+
+
+def print_error(msg):
+    print(f"{RED}[FAIL]{NC} {msg}")
+
+
+def print_warning(msg):
+    print(f"{YELLOW}[WARN]{NC} {msg}")
+
+
+def print_info(msg):
+    print(f"{BLUE}[INFO]{NC} {msg}")
+
+
+def check_setup():
+    """Check if Google Sheets is configured"""
+    if not HAS_GOOGLE_LIBS:
+        print_error("Google Sheets libraries not installed")
+        print()
+        print("Install with:")
+        print("  pip install gspread google-auth google-auth-oauthlib google-auth-httplib2")
+        print()
+        return False
+    
+    if not GOOGLE_CREDS.exists():
+        print_error(f"Google credentials not found: {GOOGLE_CREDS}")
+        print()
+        print("Setup instructions:")
+        print("  1. Go to: https://console.cloud.google.com/")
+        print("  2. Create a service account")
+        print("  3. Download credentials JSON")
+        print("  4. Save to: " + str(GOOGLE_CREDS))
+        print()
+        return False
+    
+    if not SHEET_CONFIG.exists():
+        print_warning(f"Sheet config not found: {SHEET_CONFIG}")
+        print_info("Creating template config...")
+        create_template_config()
+        print()
+        print("Edit the config file and add your Google Sheet ID:")
+        print(f"  {SHEET_CONFIG}")
+        print()
+        return False
+    
+    return True
+
+
+def create_template_config():
+    """Create template Google Sheets config"""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    
+    template = {
+        'google_sheets': {
+            'onboarding_sheet_id': 'YOUR_GOOGLE_SHEET_ID_HERE',
+            'onboarding_sheet_name': 'Customer Onboarding',
+            'template_sheet_id': 'YOUR_GOOGLE_SHEET_ID_HERE',
+            'template_sheet_name': 'Email Templates',
+            'schedule_sheet_id': 'YOUR_GOOGLE_SHEET_ID_HERE',
+            'schedule_sheet_name': 'Schedules'
+        },
+        'sync_settings': {
+            'auto_approve': False,
+            'require_manager_approval': True,
+            'send_notifications': True,
+            'notification_email_from': 'tam-rfe-automation@redhat.com'
+        }
+    }
+    
+    with open(SHEET_CONFIG, 'w') as f:
+        yaml.dump(template, f, default_flow_style=False)
+    
+    print_success(f"Created template config: {SHEET_CONFIG}")
+
+
+def authenticate_google_sheets():
+    """Authenticate with Google Sheets API"""
+    try:
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive.readonly'
+        ]
+        
+        creds = Credentials.from_service_account_file(
+            str(GOOGLE_CREDS),
+            scopes=scopes
+        )
+        
+        client = gspread.authorize(creds)
+        print_success("Authenticated with Google Sheets")
+        return client
+    
+    except Exception as e:
+        print_error(f"Failed to authenticate: {e}")
+        return None
+
+
+def load_config():
+    """Load Google Sheets configuration"""
+    try:
+        with open(SHEET_CONFIG) as f:
+            config = yaml.safe_load(f)
+        return config
+    except Exception as e:
+        print_error(f"Failed to load config: {e}")
+        return None
+
+
+def fetch_pending_onboardings(client, config):
+    """Fetch pending onboarding requests from Google Sheets"""
+    try:
+        sheet_id = config['google_sheets']['onboarding_sheet_id']
+        sheet_name = config['google_sheets']['onboarding_sheet_name']
+        
+        spreadsheet = client.open_by_key(sheet_id)
+        worksheet = spreadsheet.worksheet(sheet_name)
+        
+        # Get all records
+        records = worksheet.get_all_records()
+        
+        # Filter for pending/approved
+        pending = [r for r in records if r.get('Status') in ['Pending', 'Approved', '']]
+        
+        print_success(f"Found {len(pending)} pending onboardings")
+        return worksheet, pending
+    
+    except Exception as e:
+        print_error(f"Failed to fetch onboardings: {e}")
+        return None, []
+
+
+def validate_onboarding(record):
+    """Validate onboarding data"""
+    errors = []
+    
+    # Required fields
+    required = {
+        'TAM Name': 'TAM name is required',
+        'TAM Email': 'TAM email is required',
+        'Customer Name': 'Customer name is required',
+        'Account Number': 'Account number is required',
+        'Short Name': 'Short name is required'
+    }
+    
+    for field, error_msg in required.items():
+        if not record.get(field):
+            errors.append(error_msg)
+    
+    # Validate account number
+    account = str(record.get('Account Number', ''))
+    if account and not account.isdigit():
+        errors.append("Account number must be numeric")
+    
+    # Validate short name
+    short_name = str(record.get('Short Name', '')).lower()
+    if short_name and not short_name.replace('-', '').replace('_', '').isalnum():
+        errors.append("Short name must be alphanumeric (dashes and underscores allowed)")
+    
+    # Validate email
+    tam_email = record.get('TAM Email', '')
+    if tam_email and '@' not in tam_email:
+        errors.append("Invalid TAM email address")
+    
+    return errors
+
+
+def generate_config_entries(record):
+    """Generate configuration entries for customers.conf and tamscripts.config"""
+    short_name = str(record['Short Name']).lower().strip()
+    account = str(record['Account Number']).strip()
+    customer_name = record['Customer Name']
+    
+    # Generate customers.conf entry
+    customers_entry = f"\n# {customer_name} (Onboarded: {datetime.now().strftime('%Y-%m-%d')})\n"
+    customers_entry += f"CUSTOMER_{short_name.upper()}_ACCOUNT=\"{account}\"\n"
+    customers_entry += f"CUSTOMER_{short_name.upper()}_NAME=\"{customer_name}\"\n"
+    
+    # Generate tamscripts.config entry
+    products_str = record.get('Priority Products', '')
+    products = [p.strip() for p in products_str.split(',') if p.strip()] if products_str else []
+    
+    tamscripts_entry = {
+        'account_number': account,
+        'account_name': customer_name,
+        'customer_shortname': short_name,
+        'tam_name': record.get('TAM Name', ''),
+        'tam_email': record.get('TAM Email', ''),
+        'manager_email': record.get('Manager Email', ''),
+        'products': products,
+        'report_frequency': record.get('Report Frequency', 'Weekly'),
+        'report_template': record.get('Report Template', 'default'),
+        'send_reports_to': record.get('Send reports to', record.get('TAM Email', '')),
+        'onboarded_date': datetime.now().isoformat(),
+        'onboarded_via': 'google_form',
+        'strategic_account': record.get('Strategic account?', 'No') == 'Yes'
+    }
+    
+    return customers_entry, tamscripts_entry
+
+
+def update_configs(customers_entry, tamscripts_entry):
+    """Update configuration files"""
+    try:
+        # Ensure config directory exists
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Update customers.conf
+        if not CUSTOMERS_CONF.exists():
+            CUSTOMERS_CONF.write_text("# TAM RFE Automation - Customer Configuration\n")
+        
+        with open(CUSTOMERS_CONF, 'a') as f:
+            f.write(customers_entry)
+        
+        print_success(f"Updated customers.conf")
+        
+        # Update tamscripts.config
+        if TAMSCRIPTS_CONFIG.exists():
+            with open(TAMSCRIPTS_CONFIG) as f:
+                config = yaml.safe_load(f) or {}
+        else:
+            config = {}
+        
+        if 'customers' not in config:
+            config['customers'] = []
+        
+        config['customers'].append(tamscripts_entry)
+        
+        with open(TAMSCRIPTS_CONFIG, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        
+        print_success(f"Updated tamscripts.config")
+        return True
+    
+    except Exception as e:
+        print_error(f"Failed to update configs: {e}")
+        return False
+
+
+def update_sheet_status(worksheet, row_index, status, notes=""):
+    """Update status in Google Sheet"""
+    try:
+        # Row index is 0-based from records, but sheets are 1-based and have header
+        sheet_row = row_index + 2
+        
+        # Find Status column
+        headers = worksheet.row_values(1)
+        status_col = headers.index('Status') + 1 if 'Status' in headers else None
+        notes_col = headers.index('Notes') + 1 if 'Notes' in headers else None
+        
+        if status_col:
+            worksheet.update_cell(sheet_row, status_col, status)
+        
+        if notes_col and notes:
+            worksheet.update_cell(sheet_row, notes_col, notes)
+        
+        print_success(f"Updated sheet status to: {status}")
+    
+    except Exception as e:
+        print_warning(f"Failed to update sheet status: {e}")
+
+
+def send_notification_email(record, status, message=""):
+    """Send notification email to TAM"""
+    tam_email = record.get('TAM Email', '')
+    customer_name = record.get('Customer Name', '')
+    short_name = record.get('Short Name', '')
+    
+    if not tam_email:
+        print_warning("No TAM email, skipping notification")
+        return
+    
+    if status == "Activated":
+        subject = f"✅ Customer Onboarded: {customer_name}"
+        body = f"""
+Your customer has been successfully onboarded to TAM RFE Automation!
+
+Customer Details:
+  Name: {customer_name}
+  Account: {record.get('Account Number', '')}
+  Short Name: {short_name}
+
+You can now use:
+  tam-rfe-chat {short_name}
+  tam-rfe-validate-intelligence {short_name}
+
+Reports will be sent {record.get('Report Frequency', 'Weekly')} to:
+  {record.get('Send reports to', tam_email)}
+
+Next Steps:
+  1. Verify configuration: tam-rfe-validate-intelligence {short_name}
+  2. Customize your template: tam-rfe-template-customizer
+  3. Run your first report: tam-rfe-chat {short_name}
+
+Questions? Contact the TAM Automation team.
+
+---
+TAM RFE Automation System
+"""
+    else:
+        subject = f"❌ Onboarding Issue: {customer_name}"
+        body = f"""
+There was an issue onboarding {customer_name}.
+
+Status: {status}
+Details: {message}
+
+Please review the data in the Google Sheet and correct any issues.
+
+Questions? Contact the TAM Automation team.
+
+---
+TAM RFE Automation System
+"""
+    
+    try:
+        # Use mail command if available
+        proc = subprocess.run(
+            ['mail', '-s', subject, tam_email],
+            input=body.encode(),
+            capture_output=True
+        )
+        
+        if proc.returncode == 0:
+            print_success(f"Sent notification to {tam_email}")
+        else:
+            print_warning(f"Mail command failed, notification not sent")
+    
+    except FileNotFoundError:
+        print_warning("Mail command not available, notification not sent")
+    except Exception as e:
+        print_warning(f"Failed to send notification: {e}")
+
+
+def process_onboarding(worksheet, record, index, config):
+    """Process a single onboarding request"""
+    customer_name = record.get('Customer Name', 'Unknown')
+    short_name = record.get('Short Name', 'unknown')
+    
+    print()
+    print("-" * 70)
+    print(f"Processing: {customer_name} ({short_name})")
+    print("-" * 70)
+    
+    # Validate
+    errors = validate_onboarding(record)
+    if errors:
+        error_msg = "; ".join(errors)
+        print_error(f"Validation failed: {error_msg}")
+        update_sheet_status(worksheet, index, "Error", error_msg)
+        send_notification_email(record, "Error", error_msg)
+        return False
+    
+    # Check if already exists
+    if CUSTOMERS_CONF.exists():
+        content = CUSTOMERS_CONF.read_text()
+        if f'CUSTOMER_{short_name.upper()}_ACCOUNT' in content:
+            msg = "Customer already exists in configuration"
+            print_warning(msg)
+            update_sheet_status(worksheet, index, "Duplicate", msg)
+            return False
+    
+    # Generate config entries
+    try:
+        customers_entry, tamscripts_entry = generate_config_entries(record)
+    except Exception as e:
+        error_msg = f"Failed to generate config: {e}"
+        print_error(error_msg)
+        update_sheet_status(worksheet, index, "Error", error_msg)
+        return False
+    
+    # Update configuration files
+    if not update_configs(customers_entry, tamscripts_entry):
+        update_sheet_status(worksheet, index, "Error", "Failed to update config files")
+        return False
+    
+    # Update status
+    activation_msg = f"Activated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    update_sheet_status(worksheet, index, "Activated", activation_msg)
+    
+    # Send notification
+    send_notification_email(record, "Activated")
+    
+    print_success(f"Successfully onboarded {customer_name}")
+    return True
+
+
+def main():
+    print_header()
+    
+    # Check setup
+    if not check_setup():
+        print()
+        print("Setup incomplete. Please configure Google Sheets integration.")
+        sys.exit(1)
+    
+    # Load configuration
+    config = load_config()
+    if not config:
+        sys.exit(1)
+    
+    # Authenticate
+    client = authenticate_google_sheets()
+    if not client:
+        sys.exit(1)
+    
+    # Fetch pending onboardings
+    worksheet, pending = fetch_pending_onboardings(client, config)
+    if not pending:
+        print()
+        print_info("No pending onboardings found")
+        sys.exit(0)
+    
+    # Process each onboarding
+    success_count = 0
+    error_count = 0
+    
+    for index, record in enumerate(pending):
+        if process_onboarding(worksheet, record, index, config):
+            success_count += 1
+        else:
+            error_count += 1
+    
+    # Summary
+    print()
+    print("=" * 70)
+    print("Summary")
+    print("=" * 70)
+    print(f"Total processed: {len(pending)}")
+    print(f"{GREEN}Successful: {success_count}{NC}")
+    print(f"{RED}Errors: {error_count}{NC}")
+    print()
+    print("Sync complete!")
+    print()
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print()
+        print("Interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        print()
+        print_error(f"Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

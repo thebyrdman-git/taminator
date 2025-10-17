@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+# Quick setup script for Google Forms integration
+
+set -e
+
+echo "=========================================="
+echo "Google Forms Integration Setup"
+echo "=========================================="
+echo ""
+
+# Check if Python is available
+if ! command -v python3 &> /dev/null; then
+    echo "[FAIL] Python 3 not found. Please install Python 3."
+    exit 1
+fi
+
+# Install Python dependencies
+echo "[OK] Installing Python dependencies..."
+pip3 install -r requirements-google.txt
+
+# Create config directory
+CONFIG_DIR="$HOME/.config/rfe-tool"
+mkdir -p "$CONFIG_DIR"
+echo "[OK] Created config directory: $CONFIG_DIR"
+
+# Run setup
+echo ""
+echo "Running tam-rfe-onboard-sync to create config template..."
+echo ""
+tam-rfe-onboard-sync
+
+echo ""
+echo "=========================================="
+echo "Next Steps:"
+echo "=========================================="
+echo ""
+echo "1. Set up Google Cloud Project:"
+echo "   - Go to: https://console.cloud.google.com/"
+echo "   - Create new project or select existing"
+echo "   - Enable Google Sheets API"
+echo "   - Enable Google Drive API"
+echo ""
+echo "2. Create Service Account:"
+echo "   - IAM & Admin → Service Accounts → Create"
+echo "   - Download JSON credentials"
+echo "   - Save to: $CONFIG_DIR/google-credentials.json"
+echo ""
+echo "3. Create Google Forms (see docs/GOOGLE-FORMS-EXAMPLES.md)"
+echo ""
+echo "4. Link forms to Google Sheets"
+echo ""
+echo "5. Share sheets with service account email"
+echo ""
+echo "6. Update config with Sheet IDs:"
+echo "   $CONFIG_DIR/google-sheets-config.yaml"
+echo ""
+echo "7. Test the sync:"
+echo "   tam-rfe-onboard-sync"
+echo ""
+echo "Full docs: docs/GOOGLE-FORM-INTEGRATION.md"
+echo ""
+
