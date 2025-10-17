@@ -268,6 +268,8 @@ The AI apocalypse is here... and it's **HELPING**. 🤖✅
 
 - [Installation Guide](docs/INSTALLATION-GUIDE.md)
 - [Getting Started](docs/GETTING-STARTED.md)
+- [Email Configuration](docs/EMAIL-CONFIGURATION.md) — Set up SMTP for email delivery
+- [GitLab Repository Rename](docs/GITLAB-REPO-RENAME.md) — How to rename on GitLab
 - [KAB Integration Plan](docs/KAB-INTEGRATION.md) — Making KAB obsolete
 - [Intelligence Engine](docs/INTELLIGENCE-ENGINE-TESTING.md)
 - [Backup TAM Intelligence](docs/BACKUP-TAM-INTELLIGENCE.md)
