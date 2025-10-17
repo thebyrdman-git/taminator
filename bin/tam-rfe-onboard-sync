@@ -42,7 +42,7 @@ NC = '\033[0m'
 
 def print_header():
     print("=" * 70)
-    print("TAM RFE Customer Onboarding Sync")
+print("TAM RFE Customer Onboarding Sync")
     print("=" * 70)
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
@@ -82,17 +82,17 @@ def check_setup():
         print("  2. Create a service account")
         print("  3. Download credentials JSON")
         print("  4. Save to: " + str(GOOGLE_CREDS))
-        print()
+print()
         return False
     
     if not SHEET_CONFIG.exists():
         print_warning(f"Sheet config not found: {SHEET_CONFIG}")
         print_info("Creating template config...")
         create_template_config()
-        print()
+print()
         print("Edit the config file and add your Google Sheet ID:")
         print(f"  {SHEET_CONFIG}")
-        print()
+print()
         return False
     
     return True
@@ -231,6 +231,12 @@ def generate_config_entries(record):
     products_str = record.get('Priority Products', '')
     products = [p.strip() for p in products_str.split(',') if p.strip()] if products_str else []
     
+    # Handle CC email addresses
+    cc_emails_str = record.get('CC report to', '')
+    cc_emails = []
+    if cc_emails_str:
+        cc_emails = [e.strip() for e in cc_emails_str.split(',') if e.strip() and '@redhat.com' in e]
+    
     tamscripts_entry = {
         'account_number': account,
         'account_name': customer_name,
@@ -242,6 +248,7 @@ def generate_config_entries(record):
         'report_frequency': record.get('Report Frequency', 'Weekly'),
         'report_template': record.get('Report Template', 'default'),
         'send_reports_to': record.get('Send reports to', record.get('TAM Email', '')),
+        'cc_reports_to': cc_emails,
         'onboarded_date': datetime.now().isoformat(),
         'onboarded_via': 'google_form',
         'strategic_account': record.get('Strategic account?', 'No') == 'Yes'
@@ -388,7 +395,7 @@ def process_onboarding(worksheet, record, index, config):
     customer_name = record.get('Customer Name', 'Unknown')
     short_name = record.get('Short Name', 'unknown')
     
-    print()
+print()
     print("-" * 70)
     print(f"Processing: {customer_name} ({short_name})")
     print("-" * 70)
@@ -441,7 +448,7 @@ def main():
     
     # Check setup
     if not check_setup():
-        print()
+print()
         print("Setup incomplete. Please configure Google Sheets integration.")
         sys.exit(1)
     
@@ -460,7 +467,7 @@ def main():
     if not pending:
         print()
         print_info("No pending onboardings found")
-        sys.exit(0)
+sys.exit(0)
     
     # Process each onboarding
     success_count = 0

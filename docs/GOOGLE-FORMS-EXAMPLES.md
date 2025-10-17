@@ -112,9 +112,14 @@ Questions? Contact the TAM Automation team.
 **Question 13: Send reports to** (Short answer, Required)
 - Validation: Email format
 - Default: (pre-fill with TAM email from Q2)
-- Help text: Email address for reports (your email or customer DL)
+- Help text: Primary email address for reports (your email or customer DL)
 
-**Question 14: Report Template** (Dropdown, Required)
+**Question 14: CC report to (optional)** (Short answer, Optional)
+- Validation: Email format (multiple emails separated by commas)
+- Help text: Additional Red Hat email addresses to receive report copies (e.g., manager, team lead)
+- Example: manager@redhat.com, colleague@redhat.com
+
+**Question 15: Report Template** (Dropdown, Required)
 - Comprehensive (all details) - default
 - Minimal (quick status)
 - Priority-focused (high priority only)
@@ -124,14 +129,14 @@ Questions? Contact the TAM Automation team.
 
 #### Section 5: Alert Preferences
 
-**Question 15: Send alerts when** (Checkboxes)
+**Question 16: Send alerts when** (Checkboxes)
 - ☐ New high-priority cases are opened
 - ☐ Cases age beyond 30 days
 - ☐ No updates in 7 days
 - ☐ SLA breach risk detected
 - ☐ Case volume spikes above normal
 
-**Question 16: Alert delivery method** (Checkboxes)
+**Question 17: Alert delivery method** (Checkboxes)
 - ☑ Email (default)
 - ☐ Slack (if configured)
 - ☐ Teams (if configured)
@@ -140,7 +145,7 @@ Questions? Contact the TAM Automation team.
 
 #### Section 6: Additional Context
 
-**Question 17: Customer vertical** (Dropdown, Optional)
+**Question 18: Customer vertical** (Dropdown, Optional)
 - Financial Services
 - Healthcare
 - Government/Public Sector
@@ -151,21 +156,21 @@ Questions? Contact the TAM Automation team.
 - Energy/Utilities
 - Other
 
-**Question 18: Strategic account?** (Multiple choice, Required)
+**Question 19: Strategic account?** (Multiple choice, Required)
 - Yes
 - No (default)
 
-**Question 19: Special handling notes** (Paragraph, Optional)
+**Question 20: Special handling notes** (Paragraph, Optional)
 - Help text: Any special requirements or considerations
 
-**Question 20: Escalation contacts** (Paragraph, Optional)
+**Question 21: Escalation contacts** (Paragraph, Optional)
 - Help text: Names/emails for escalations
 
 ---
 
 #### Section 7: Confirmation
 
-**Question 21: Confirmations** (Checkboxes, Required - all must be checked)
+**Question 22: Confirmations** (Checkboxes, Required - all must be checked)
 - ☑ I have verified the account number is correct
 - ☑ I have customer approval to automate case monitoring
 - ☑ I will keep this information updated

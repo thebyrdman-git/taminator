@@ -318,13 +318,21 @@ def fetch_cases(customer: str) -> List[CaseData]:
     return [CaseData(c) for c in mock_cases]
 
 
-def send_email(to_address: str, subject: str, html_content: str):
-    """Send HTML email"""
+def send_email(to_address: str, subject: str, html_content: str, cc_addresses: List[str] = None):
+    """Send HTML email with optional CC recipients"""
     try:
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
-        msg['From'] = os.environ.get('SMTP_FROM', 'noreply@example.com')
+        msg['From'] = os.environ.get('SMTP_FROM', 'tam-rfe-automation@redhat.com')
         msg['To'] = to_address
+        
+        # Add CC recipients (Red Hat emails only)
+        if cc_addresses:
+            # Filter for @redhat.com addresses only
+            valid_cc = [email for email in cc_addresses if '@redhat.com' in email.lower()]
+            if valid_cc:
+                msg['Cc'] = ', '.join(valid_cc)
+                print(f"[OK] CC: {', '.join(valid_cc)}")
         
         html_part = MIMEText(html_content, 'html')
         msg.attach(html_part)
@@ -333,10 +341,17 @@ def send_email(to_address: str, subject: str, html_content: str):
         smtp_server = os.environ.get('SMTP_SERVER', 'localhost')
         smtp_port = int(os.environ.get('SMTP_PORT', 25))
         
+        # Build recipient list (To + CC)
+        recipients = [to_address]
+        if cc_addresses:
+            recipients.extend([email for email in cc_addresses if '@redhat.com' in email.lower()])
+        
         with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.send_message(msg)
+            server.send_message(msg, to_addrs=recipients)
         
         print(f"[OK] Email sent to {to_address}")
+        if cc_addresses:
+            print(f"[OK] CC sent to {len([e for e in cc_addresses if '@redhat.com' in e])} recipients")
     except Exception as e:
         print(f"[FAIL] Failed to send email: {e}")
 
@@ -352,9 +367,18 @@ def main():
     template_name = sys.argv[2] if len(sys.argv) > 2 else 'default'
     email_to = sys.argv[3] if len(sys.argv) > 3 else os.environ.get('EMAIL_TO', 'tam@example.com')
     
+    # CC recipients (comma-separated list)
+    cc_emails = []
+    if len(sys.argv) > 4:
+        cc_emails = [e.strip() for e in sys.argv[4].split(',') if e.strip()]
+    elif os.environ.get('EMAIL_CC'):
+        cc_emails = [e.strip() for e in os.environ.get('EMAIL_CC', '').split(',') if e.strip()]
+    
     print(f"Customer: {customer}")
     print(f"Template: {template_name}")
     print(f"Email: {email_to}")
+    if cc_emails:
+        print(f"CC: {', '.join(cc_emails)}")
     print()
     
     # Load template
@@ -379,13 +403,17 @@ def main():
     # Send email
     print()
     print("Sending email...")
-    send_email(email_to, subject, html_content)
+    send_email(email_to, subject, html_content, cc_emails)
     
     print()
     print("[OK] Report generation complete!")
     print()
     print("Customize your templates:")
     print("  tam-rfe-template-customizer")
+    print()
+    print("Usage:")
+    print("  tam-rfe-scheduler-v2 <customer> <template> <to_email> <cc_emails>")
+    print("  Example: tam-rfe-scheduler-v2 westpac default tam@redhat.com manager@redhat.com,colleague@redhat.com")
     print()
 
 
