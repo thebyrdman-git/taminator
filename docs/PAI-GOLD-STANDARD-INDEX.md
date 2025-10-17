@@ -26,14 +26,14 @@ This index provides the complete roadmap for the PAI (Personal AI Infrastructure
 
 ---
 
-### 2. Lego Architecture
-**File:** `LEGO-SERVICE-ARCHITECTURE.md`  
-**Summary:** Modular, plug-and-play infrastructure. Services are Lego blocks you snap together.
+### 2. Composable Service Architecture
+**File:** `COMPOSABLE-SERVICE-ARCHITECTURE.md`  
+**Summary:** Declarative, modular infrastructure. Services are composed from pre-configured components.
 
 **Key Concepts:**
-- Service catalog (pre-built blocks)
-- Self-wiring (automatic Traefik, SSL, monitoring)
-- One config file controls everything
+- Service catalog (pre-configured components)
+- Service discovery (automatic Traefik routing, SSL, monitoring)
+- Centralized configuration management
 - Add service = add one line to YAML
 
 **Apply To:** Infrastructure deployment, service orchestration
@@ -124,7 +124,7 @@ ansible-playbook site.yml    # Deploy everything
 ### VPN Configurator (Modular Component)
 **File:** `MODULAR-VPN-CONFIGURATOR.md`
 
-**Summary:** Standalone Red Hat VPN configuration tool. Perfect example of a "Lego block."
+**Summary:** Standalone Red Hat VPN configuration tool. Perfect example of a modular component.
 
 **Characteristics:**
 - One task (VPN config)
@@ -164,7 +164,7 @@ roles:
 **For:** Understanding how everything fits together
 
 **Contents:**
-- Three pillars (Geerling, SRE, Lego)
+- Three pillars (Geerling, SRE, Composable Services)
 - Complete workflow
 - Success metrics
 - Enterprise comparison
@@ -231,26 +231,26 @@ Production-Ready Application
 **Everywhere:**
 - Infrastructure (Geerling roles)
 - Applications (FastAPI foundation)
-- Services (Lego blocks)
+- Services (Composable components)
 - Tools (proven libraries)
 
 ---
 
-### The Lego Pattern
+### The Composable Service Pattern
 ```
-One Task = One Block
+One Task = One Component
 +
-Blocks Snap Together
+Components Orchestrate Together
 +
-Self-Wiring Magic
+Automatic Service Discovery
 =
 Complete System
 ```
 
 **Examples:**
-- VPN Configurator (one block)
-- Service deployment (snap blocks)
-- Traefik routing (auto-wired)
+- VPN Configurator (one component)
+- Service deployment (declarative composition)
+- Traefik routing (automatic discovery)
 
 ---
 
@@ -316,7 +316,7 @@ Self-healing (converges to Git state)
 
 ### Phase 1: Foundation (Already Built) ✅
 - ✅ Geerling pattern established
-- ✅ Lego architecture designed
+- ✅ Composable service architecture designed
 - ✅ OS-agnostic framework defined
 - ✅ Ansible infrastructure
 - ✅ SRE basics (health, metrics)
@@ -344,7 +344,7 @@ Self-healing (converges to Git state)
 
 ### Example 1: RFE Bug Tracker Tool
 **Pattern Application:**
-- ✅ VPN Config: Standalone Lego block
+- ✅ VPN Config: Standalone modular component
 - ✅ Hydra API: Circuit breaker (Netflix pattern)
 - ✅ Customer Discovery: Proven libraries (rhcase)
 - ✅ Scheduler: Cron + YAML config
@@ -357,7 +357,7 @@ Self-healing (converges to Git state)
 
 ### Example 2: Miraclemax Infrastructure
 **Pattern Application:**
-- ✅ Services: Lego blocks (add one YAML line)
+- ✅ Services: Composable components (add one YAML line)
 - ✅ Deployment: Ansible (Geerling roles)
 - ✅ Monitoring: SRE triad (Prometheus, Loki, Grafana)
 - ✅ SSL: Automatic (Traefik + Let's Encrypt)
@@ -454,7 +454,7 @@ pai-compliance-check
 1. **Build on Giants' Shoulders** - Never reinvent proven solutions
 2. **OS-Agnostic by Default** - Write once, run everywhere
 3. **95/5 Rule** - Minimize custom code
-4. **Lego Blocks** - Modular, plug-and-play components
+4. **Composable Components** - Modular, declarative services
 5. **GitOps** - Git is the single source of truth
 6. **Immutable** - Replace, don't patch
 7. **Observable** - Metrics, logs, traces everywhere
@@ -602,7 +602,7 @@ Build → Retrospect → Learn → Improve → Build Better
 ### How Everything Connects
 
 1. **Build on Giants' Shoulders** - Start with proven code
-2. **Lego Architecture** - Compose modular components
+2. **Composable Service Architecture** - Declarative modular components
 3. **SRE Patterns** - Build resilient systems
 4. **OS-Agnostic** - Work everywhere
 5. **Industry Patterns** - Learn from Netflix/Google
