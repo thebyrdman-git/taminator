@@ -1,0 +1,54 @@
+---
+# Configure RFE Tools
+
+- name: Create sample customers configuration
+  copy:
+    content: |
+      # RFE Tool - Customer Configuration
+      # Add your customers here (one per line)
+      # Format: customer_name account_number product1,product2
+      # Example: westpac 1363155 OpenShift,Ansible
+    dest: "{{ rfe_config_dir }}/customers.conf"
+    mode: '0644'
+    force: false
+  become: false
+  when: rfe_create_sample_config
+
+- name: Create tamscripts configuration
+  copy:
+    content: |
+      # TAM Scripts Configuration
+      # Legacy compatibility file
+      # Customer data is now in customers.conf
+    dest: "{{ rfe_config_dir }}/tamscripts.config"
+    mode: '0644'
+    force: false
+  become: false
+  when: rfe_create_sample_config
+
+- name: Configure Kerberos (if enabled)
+  template:
+    src: krb5.conf.j2
+    dest: /etc/krb5.conf
+    mode: '0644'
+    backup: true
+  become: true
+  when: rfe_setup_kerberos
+
+- name: Store Red Hat credentials in keychain (if provided)
+  command: >
+    python3 -c "import keyring; keyring.set_password('rfe-tool', 'username', '{{ rfe_username }}')"
+  become: false
+  when: 
+    - rfe_store_credentials
+    - rfe_username != ""
+  no_log: true
+
+- name: Display configuration info
+  debug:
+    msg:
+      - "Configuration directory: {{ rfe_config_dir }}"
+      - "Customers config: {{ rfe_config_dir }}/customers.conf"
+      - "{% if rfe_setup_kerberos %}Kerberos: Configured for {{ rfe_kerberos_realm }}{% endif %}"
+
+

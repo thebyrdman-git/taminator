@@ -1,0 +1,63 @@
+---
+galaxy_info:
+  author: Jimmy Byrd
+  description: RFE Bug Tracker Automation Tool Installation (Cross-Platform)
+  company: Red Hat
+  license: MIT
+  min_ansible_version: "2.10"
+  
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+        - "10"
+    - name: Fedora
+      versions:
+        - "40"
+        - "41"
+        - "42"
+        - "43"
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+    - name: MacOSX
+      versions:
+        - "11"
+        - "12"
+        - "13"
+        - "14"
+
+  galaxy_tags:
+    - development
+    - automation
+    - tam
+    - redhat
+    - tools
+
+# Dependencies on Geerling's proven roles
+dependencies:
+  - role: geerlingguy.git
+    when: ansible_os_family != "Darwin" or install_git_macos | default(false)
+  
+  - role: geerlingguy.pip
+    vars:
+      pip_install_packages:
+        - name: platformdirs
+        - name: keyring
+        - name: requests
+        - name: pyyaml
+  
+  - role: geerlingguy.homebrew
+    when: ansible_os_family == "Darwin"
+    vars:
+      homebrew_installed_packages:
+        - git
+        - python@3.11
+
+

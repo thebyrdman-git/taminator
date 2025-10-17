@@ -1,0 +1,62 @@
+---
+# Install Prerequisites
+
+- name: Install system packages (Red Hat family)
+  become: true
+  dnf:
+    name:
+      - git
+      - python3
+      - python3-pip
+      - python3-devel
+      - gcc
+      - krb5-workstation
+    state: present
+  when: is_redhat_family
+
+- name: Install system packages (Debian family)
+  become: true
+  apt:
+    name:
+      - git
+      - python3
+      - python3-pip
+      - python3-venv
+      - python3-dev
+      - build-essential
+      - krb5-user
+    state: present
+    update_cache: true
+  when: is_debian_family
+
+- name: Install system packages (macOS)
+  homebrew:
+    name:
+      - git
+      - python@3.11
+      - krb5
+    state: present
+  when: is_macos
+
+- name: Ensure bin directory exists
+  file:
+    path: "{{ rfe_bin_dir }}"
+    state: directory
+    mode: '0755'
+  become: false
+
+- name: Ensure config directory exists
+  file:
+    path: "{{ rfe_config_dir }}"
+    state: directory
+    mode: '0755'
+  become: false
+
+- name: Ensure data directory exists
+  file:
+    path: "{{ rfe_data_dir }}"
+    state: directory
+    mode: '0755'
+  become: false
+
+

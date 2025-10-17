@@ -1,0 +1,48 @@
+---
+# Clone RFE Tool Repository
+
+- name: Check if repository already exists
+  stat:
+    path: "{{ rfe_install_dir }}/.git"
+  register: rfe_repo_exists
+
+- name: Clone RFE repository
+  git:
+    repo: "{{ rfe_repo_url }}"
+    dest: "{{ rfe_install_dir }}"
+    version: "{{ rfe_repo_version }}"
+    update: true
+    force: false
+  register: rfe_clone
+  become: false
+  when: not rfe_repo_exists.stat.exists
+
+- name: Update existing repository
+  git:
+    repo: "{{ rfe_repo_url }}"
+    dest: "{{ rfe_install_dir }}"
+    version: "{{ rfe_repo_version }}"
+    update: true
+  register: rfe_update
+  become: false
+  when: rfe_repo_exists.stat.exists
+
+- name: Initialize submodules
+  command: git submodule update --init --recursive
+  args:
+    chdir: "{{ rfe_install_dir }}"
+  become: false
+  when: rfe_clone.changed or rfe_update.changed
+
+- name: Display clone result
+  debug:
+    msg: >-
+      {% if rfe_clone.changed %}
+      ✅ Repository cloned successfully
+      {% elif rfe_update.changed %}
+      ✅ Repository updated successfully
+      {% else %}
+      Repository already up-to-date
+      {% endif %}
+
+

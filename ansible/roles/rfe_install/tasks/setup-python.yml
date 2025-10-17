@@ -1,0 +1,44 @@
+---
+# Setup Python Environment
+
+- name: Create Python virtual environment
+  command: "python3 -m venv {{ rfe_venv_dir }}"
+  args:
+    creates: "{{ rfe_venv_dir }}/bin/activate"
+  become: false
+  when: rfe_use_venv
+
+- name: Upgrade pip in virtual environment
+  pip:
+    name:
+      - pip
+      - setuptools
+      - wheel
+    state: latest
+    virtualenv: "{{ rfe_venv_dir }}"
+  become: false
+  when: rfe_use_venv
+
+- name: Install Python packages in virtual environment
+  pip:
+    name: "{{ rfe_python_packages }}"
+    state: present
+    virtualenv: "{{ rfe_venv_dir }}"
+  become: false
+  when: rfe_use_venv
+
+- name: Install Python packages globally
+  pip:
+    name: "{{ rfe_python_packages }}"
+    state: present
+  become: "{{ rfe_install_scope == 'system' }}"
+  when: not rfe_use_venv
+
+- name: Display Python environment info
+  debug:
+    msg:
+      - "Python environment: {% if rfe_use_venv %}Virtual environment{% else %}Global{% endif %}"
+      - "{% if rfe_use_venv %}Venv location: {{ rfe_venv_dir }}{% endif %}"
+      - "Packages installed: {{ rfe_python_packages | length }}"
+
+

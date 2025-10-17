@@ -1,0 +1,36 @@
+---
+# Install RFE Tools
+
+- name: Make tools executable
+  file:
+    path: "{{ rfe_install_dir }}/bin/{{ item }}"
+    mode: '0755'
+  loop: "{{ rfe_tools }}"
+  become: false
+
+- name: Create symlinks to bin directory
+  file:
+    src: "{{ rfe_install_dir }}/bin/{{ item }}"
+    dest: "{{ rfe_bin_dir }}/{{ item }}"
+    state: link
+    force: true
+  loop: "{{ rfe_tools }}"
+  become: false
+
+- name: Verify tools are accessible
+  command: "which {{ item }}"
+  loop: "{{ rfe_tools }}"
+  register: tool_check
+  changed_when: false
+  failed_when: false
+
+- name: Display installation result
+  debug:
+    msg:
+      - "✅ {{ rfe_tools | length }} tools installed"
+      - "Location: {{ rfe_bin_dir }}"
+      - ""
+      - "Add to PATH if needed:"
+      - "  export PATH=\"{{ rfe_bin_dir }}:$PATH\""
+
+

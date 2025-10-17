@@ -1,0 +1,62 @@
+---
+# RFE Tool Installation - Main Tasks
+
+- name: Display installation info
+  debug:
+    msg:
+      - "Installing RFE Bug Tracker Automation Tool"
+      - "Platform: {{ ansible_os_family }}"
+      - "Install dir: {{ rfe_install_dir }}"
+      - "Bin dir: {{ rfe_bin_dir }}"
+
+- name: Include platform detection
+  include_tasks: detect-platform.yml
+
+- name: Include prerequisite installation
+  include_tasks: install-prerequisites.yml
+
+- name: Include repository clone
+  include_tasks: clone-repository.yml
+
+- name: Include Python environment setup
+  include_tasks: setup-python.yml
+
+- name: Include tool installation
+  include_tasks: install-tools.yml
+
+- name: Include configuration setup
+  include_tasks: configure-tools.yml
+
+- name: Include VPN setup (optional)
+  include_tasks: setup-vpn.yml
+  when: rfe_setup_vpn | bool
+
+- name: Include post-installation tasks
+  include_tasks: post-install.yml
+
+- name: Display installation summary
+  debug:
+    msg:
+      - "✅ RFE Bug Tracker Automation Tool installed successfully!"
+      - ""
+      - "Installation directory: {{ rfe_install_dir }}"
+      - "Tools installed in: {{ rfe_bin_dir }}"
+      - "Configuration: {{ rfe_config_dir }}"
+      - ""
+      - "Available commands:"
+      - "  tam-rfe-chat                    # Interactive case analysis"
+      - "  tam-rfe-onboard-intelligent     # Add new customers"
+      - "  tam-rfe-validate-intelligence   # Test customer config"
+      - "  tam-rfe-tui                     # Text UI for common tasks"
+      - ""
+      - "Next steps:"
+      - "  1. Configure your first customer:"
+      - "     tam-rfe-onboard-intelligent"
+      - ""
+      - "  2. Test the configuration:"
+      - "     tam-rfe-validate-intelligence <customer-name>"
+      - ""
+      - "{% if rfe_setup_vpn %}VPN: Configured{% else %}VPN: Run separately if needed{% endif %}"
+      - "{% if rfe_setup_kerberos %}Kerberos: Configured{% else %}Kerberos: Run 'kinit' manually{% endif %}"
+
+

@@ -1,0 +1,30 @@
+---
+# Ansible Galaxy Requirements for RFE Tool Installation
+# Uses Geerling's proven roles - "Build on Giants' Shoulders"
+
+collections:
+  - name: ansible.posix
+    version: ">=1.5.0"
+  - name: community.general
+    version: ">=7.0.0"
+
+roles:
+  # Git installation (cross-platform)
+  - src: geerlingguy.git
+    version: 3.0.0
+
+  # Python and pip management
+  - src: geerlingguy.pip
+    version: 3.0.0
+
+  # macOS package management (Homebrew)
+  - src: geerlingguy.homebrew
+    version: 5.0.0
+
+  # Red Hat VPN Configurator (our Lego block)
+  - src: https://gitlab.cee.redhat.com/jbyrd/red-hat-vpn-configurator.git
+    scm: git
+    version: main
+    name: redhat_vpn
+
+

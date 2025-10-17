@@ -1,0 +1,87 @@
+---
+# RFE Bug Tracker Automation Tool - Installation Playbook
+# Cross-platform installation using Geerling's proven roles
+
+- name: Install RFE Bug Tracker Automation Tool
+  hosts: all
+  gather_facts: true
+  
+  vars_prompt:
+    - name: install_confirm
+      prompt: "Install RFE Bug Tracker Automation Tool? (yes/no)"
+      private: false
+      default: "yes"
+    
+    - name: setup_vpn_prompt
+      prompt: "Configure Red Hat VPN? (yes/no)"
+      private: false
+      default: "no"
+    
+    - name: vpn_profile_path
+      prompt: "VPN profile path (leave empty to skip)"
+      private: false
+      default: ""
+      when: setup_vpn_prompt == "yes"
+
+  pre_tasks:
+    - name: Verify installation confirmed
+      fail:
+        msg: "Installation cancelled by user"
+      when: install_confirm | lower not in ['yes', 'y']
+
+    - name: Display installation information
+      debug:
+        msg:
+          - "╔════════════════════════════════════════════════════════╗"
+          - "║  RFE Bug Tracker Automation Tool - Installation       ║"
+          - "╚════════════════════════════════════════════════════════╝"
+          - ""
+          - "Platform: {{ ansible_os_family }}"
+          - "Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Python: {{ ansible_python_version }}"
+          - "User: {{ ansible_user }}"
+          - ""
+          - "Installation will:"
+          - "  ✅ Install system prerequisites"
+          - "  ✅ Clone RFE repository"
+          - "  ✅ Setup Python environment"
+          - "  ✅ Install TAM tools"
+          - "  ✅ Configure for Red Hat workflows"
+          - "  {% if setup_vpn_prompt == 'yes' %}✅ Setup VPN{% endif %}"
+
+  roles:
+    - role: rfe_install
+      vars:
+        rfe_setup_vpn: "{{ setup_vpn_prompt | lower in ['yes', 'y'] }}"
+        rfe_vpn_profile: "{{ vpn_profile_path | default('') }}"
+
+  post_tasks:
+    - name: Display next steps
+      debug:
+        msg:
+          - ""
+          - "╔════════════════════════════════════════════════════════╗"
+          - "║  Installation Complete!                                ║"
+          - "╚════════════════════════════════════════════════════════╝"
+          - ""
+          - "Next steps:"
+          - ""
+          - "1. Reload your shell:"
+          - "   source ~/.bashrc  # or ~/.zshrc"
+          - ""
+          - "2. Configure your first customer:"
+          - "   tam-rfe-onboard-intelligent"
+          - ""
+          - "3. Test the configuration:"
+          - "   tam-rfe-validate-intelligence <customer-name>"
+          - ""
+          - "4. Start using the tools:"
+          - "   tam-rfe-tui               # Text UI"
+          - "   tam-rfe-chat              # Interactive case analysis"
+          - "   tam-rfe-scheduler         # Schedule reports"
+          - ""
+          - "Documentation: {{ rfe_install_dir }}/README.md"
+          - ""
+          - "Need help? Run: tam-rfe-<command> --help"
+
+

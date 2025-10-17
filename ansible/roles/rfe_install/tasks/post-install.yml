@@ -1,0 +1,68 @@
+---
+# Post-Installation Tasks
+
+- name: Add bin directory to PATH (bash)
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    line: 'export PATH="{{ rfe_bin_dir }}:$PATH"'
+    state: present
+    create: true
+  become: false
+  when: ansible_env.SHELL is search('bash')
+
+- name: Add bin directory to PATH (zsh)
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.zshrc"
+    line: 'export PATH="{{ rfe_bin_dir }}:$PATH"'
+    state: present
+    create: true
+  become: false
+  when: ansible_env.SHELL is search('zsh')
+
+- name: Create bash completion script
+  copy:
+    content: |
+      # RFE Tool bash completion
+      _tam_rfe_completion() {
+          local cur="${COMP_WORDS[COMP_CWORD]}"
+          local commands="chat onboard-intelligent validate-intelligence tui scheduler hydra-api discover-customers"
+          COMPREPLY=($(compgen -W "${commands}" -- ${cur}))
+      }
+      complete -F _tam_rfe_completion tam-rfe
+    dest: "{{ ansible_env.HOME }}/.bash_completion.d/tam-rfe"
+    mode: '0644'
+  become: false
+  when: rfe_enable_completion and ansible_env.SHELL is search('bash')
+
+- name: Ensure bash completion directory exists
+  file:
+    path: "{{ ansible_env.HOME }}/.bash_completion.d"
+    state: directory
+    mode: '0755'
+  become: false
+  when: rfe_enable_completion
+
+- name: Create installation marker
+  copy:
+    content: |
+      RFE Bug Tracker Automation Tool
+      Installed: {{ ansible_date_time.iso8601 }}
+      Version: {{ rfe_repo_version }}
+      Install dir: {{ rfe_install_dir }}
+      Platform: {{ ansible_os_family }}
+    dest: "{{ rfe_install_dir }}/.installed"
+    mode: '0644'
+  become: false
+
+- name: Display post-installation info
+  debug:
+    msg:
+      - "✅ Post-installation complete"
+      - ""
+      - "PATH updated in shell RC file"
+      - "{% if rfe_enable_completion %}Bash completion enabled{% endif %}"
+      - ""
+      - "Reload your shell or run:"
+      - "  source ~/.bashrc  # (or ~/.zshrc)"
+
+

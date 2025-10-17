@@ -1,0 +1,66 @@
+---
+# RFE Tool Installation - Default Variables
+
+# Installation scope
+rfe_install_scope: "user"  # "user" or "system"
+rfe_install_user: "{{ ansible_user }}"
+rfe_install_group: "{{ ansible_user }}"
+
+# Installation paths
+rfe_install_dir: "{{ ansible_env.HOME }}/rfe-bug-tracker-automation"
+rfe_bin_dir: "{{ ansible_env.HOME }}/.local/bin"
+rfe_config_dir: "{{ ansible_env.HOME }}/.config/rfe-tool"
+rfe_data_dir: "{{ ansible_env.HOME }}/.local/share/rfe-tool"
+
+# Git repository
+rfe_repo_url: "https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation.git"
+rfe_repo_version: "main"
+
+# Python configuration
+rfe_python_version: "3.11"
+rfe_use_venv: true
+rfe_venv_dir: "{{ rfe_install_dir }}/.venv"
+
+# Python packages (via pip)
+rfe_python_packages:
+  - platformdirs>=4.0.0
+  - keyring>=24.0.0
+  - requests>=2.31.0
+  - pyyaml>=6.0.0
+  - click>=8.1.0
+  - jinja2>=3.1.0
+
+# Tools to install
+rfe_tools:
+  - tam-rfe-chat
+  - tam-rfe-onboard-intelligent
+  - tam-rfe-validate-intelligence
+  - tam-rfe-scheduler
+  - tam-rfe-tui
+  - tam-rfe-hydra-api
+  - tam-rfe-discover-customers
+  - tam-rfe-discover-customers-hydra
+
+# VPN configuration (optional)
+rfe_setup_vpn: false
+rfe_vpn_profile: ""
+
+# Kerberos configuration
+rfe_setup_kerberos: true
+rfe_kerberos_realm: "IPA.REDHAT.COM"
+
+# Red Hat credentials (stored in OS keychain)
+rfe_store_credentials: false
+rfe_username: ""
+
+# Create sample configuration
+rfe_create_sample_config: true
+
+# Enable bash completion
+rfe_enable_completion: true
+
+# Performance settings
+rfe_max_parallel_customers: 3
+rfe_api_timeout: 60
+
+

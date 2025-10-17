@@ -1,0 +1,45 @@
+---
+# Setup VPN (Optional - uses extracted VPN configurator)
+
+- name: Check if VPN configurator role is available
+  stat:
+    path: "{{ playbook_dir }}/roles/redhat_vpn"
+  register: vpn_role_exists
+
+- name: Fail if VPN setup requested but role not found
+  fail:
+    msg: |
+      VPN setup requested but redhat_vpn role not found.
+      
+      Install it with:
+        ansible-galaxy install -r requirements.yml
+      
+      Or add to requirements.yml:
+        - src: https://gitlab.cee.redhat.com/jbyrd/red-hat-vpn-configurator.git
+          scm: git
+          name: redhat_vpn
+  when: 
+    - rfe_setup_vpn
+    - not vpn_role_exists.stat.exists
+
+- name: Setup Red Hat VPN
+  include_role:
+    name: redhat_vpn
+  vars:
+    vpn_profile: "{{ rfe_vpn_profile }}"
+    enable_kerberos: "{{ rfe_setup_kerberos }}"
+  when:
+    - rfe_setup_vpn
+    - vpn_role_exists.stat.exists
+    - rfe_vpn_profile != ""
+
+- name: Display VPN setup result
+  debug:
+    msg: >-
+      {% if rfe_setup_vpn and vpn_role_exists.stat.exists %}
+      ✅ VPN configured
+      {% else %}
+      VPN setup skipped (set rfe_setup_vpn: true to enable)
+      {% endif %}
+
+
