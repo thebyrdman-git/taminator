@@ -134,39 +134,66 @@ class AgendaGenerator:
         print(f"  🔍 Fetching open cases...")
         
         try:
-            result = subprocess.run(
-                [self.rhcase_bin, "list", "--customer", self.customer, "--status", "open"],
-                capture_output=True,
-                text=True,
-                check=False
-            )
+            from foundation.rhcase_handler import get_rhcase_handler
             
-            if result.returncode == 0 and result.stdout:
-                # Parse case list (simplified for now)
-                for line in result.stdout.split('\n'):
-                    if line.strip() and line.startswith('Case'):
-                        # Extract case number and summary
-                        match = re.search(r'Case #(\d+):\s*(.+)', line)
-                        if match:
-                            self.open_cases.append({
-                                "number": match.group(1),
-                                "summary": match.group(2),
-                                "severity": self._extract_severity(line),
-                                "age_days": self._extract_age(line),
-                                "status": "open"
-                            })
+            handler = get_rhcase_handler()
+            cases = handler.get_open_cases(self.customer)
+            
+            if cases:
+                self.open_cases = []
+                for case in cases:
+                    self.open_cases.append({
+                        "number": case.get("number") or case.get("id") or case.get("case_number"),
+                        "summary": case.get("summary") or case.get("subject") or case.get("title", "No summary"),
+                        "severity": case.get("severity") or case.get("sev", "4"),
+                        "age_days": self._calculate_age_days(case),
+                        "status": case.get("status", "open"),
+                        "owner": case.get("owner") or case.get("assigned_to"),
+                        "last_updated": case.get("last_updated") or case.get("updated_at"),
+                        "product": case.get("product"),
+                        "component": case.get("component")
+                    })
+                print(f"  ✅ Found {len(self.open_cases)} open case(s)")
+            else:
+                print(f"  ℹ️  No open cases found (using sample data)")
+                self._load_sample_cases()
+                
         except Exception as e:
             print(f"  ⚠️  Error fetching cases: {e}")
-            # Use sample data for demonstration
+            print(f"  ℹ️  Using sample data for demonstration")
             self._load_sample_cases()
     
     def _fetch_recently_closed_cases(self):
         """Fetch recently closed cases (last 30 days)"""
         print(f"  ✅ Fetching recently closed cases...")
         
-        # For now, use placeholder
-        # Will integrate with actual case history
-        self.closed_cases = []
+        try:
+            from foundation.rhcase_handler import get_rhcase_handler
+            
+            handler = get_rhcase_handler()
+            cases = handler.get_closed_cases(self.customer, days=30)
+            
+            if cases:
+                self.closed_cases = []
+                for case in cases:
+                    self.closed_cases.append({
+                        "number": case.get("number") or case.get("id") or case.get("case_number"),
+                        "summary": case.get("summary") or case.get("subject") or case.get("title", "No summary"),
+                        "severity": case.get("severity") or case.get("sev", "4"),
+                        "resolution": case.get("resolution") or "Resolved",
+                        "close_date": case.get("close_date") or case.get("closed_date"),
+                        "resolution_time_days": self._calculate_resolution_time(case),
+                        "product": case.get("product"),
+                        "component": case.get("component")
+                    })
+                print(f"  ✅ Found {len(self.closed_cases)} recently closed case(s)")
+            else:
+                print(f"  ℹ️  No recently closed cases")
+                self.closed_cases = []
+                
+        except Exception as e:
+            print(f"  ⚠️  Error fetching closed cases: {e}")
+            self.closed_cases = []
     
     def _analyze_critical_cases(self) -> List[Dict]:
         """Analyze and prioritize critical cases"""
@@ -482,6 +509,38 @@ class AgendaGenerator:
         if match:
             return int(match.group(1))
         return 0
+    
+    def _calculate_age_days(self, case: Dict) -> int:
+        """Calculate case age in days from case data"""
+        created_date = case.get("created_date") or case.get("opened_date") or case.get("created_at")
+        
+        if not created_date:
+            return 0
+        
+        try:
+            # Parse ISO format date
+            created = datetime.fromisoformat(created_date.replace('Z', '+00:00'))
+            now = datetime.now(created.tzinfo) if created.tzinfo else datetime.now()
+            age = (now - created).days
+            return max(0, age)
+        except Exception:
+            return 0
+    
+    def _calculate_resolution_time(self, case: Dict) -> int:
+        """Calculate resolution time in days"""
+        created_date = case.get("created_date") or case.get("opened_date")
+        closed_date = case.get("close_date") or case.get("closed_date")
+        
+        if not created_date or not closed_date:
+            return 0
+        
+        try:
+            created = datetime.fromisoformat(created_date.replace('Z', '+00:00'))
+            closed = datetime.fromisoformat(closed_date.replace('Z', '+00:00'))
+            resolution_time = (closed - created).days
+            return max(0, resolution_time)
+        except Exception:
+            return 0
     
     def _load_sample_cases(self):
         """Load sample cases for demonstration"""

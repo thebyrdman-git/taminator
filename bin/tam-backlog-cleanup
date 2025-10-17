@@ -102,9 +102,40 @@ class BacklogCleaner:
         """Fetch all open cases"""
         print(f"  🔍 Fetching open cases...")
         
-        # For demonstration, use sample data
-        # Will integrate with real rhcase data
-        self._load_sample_cases()
+        try:
+            from foundation.rhcase_handler import get_rhcase_handler
+            
+            handler = get_rhcase_handler()
+            raw_cases = handler.get_open_cases(self.customer)
+            
+            if raw_cases:
+                self.cases = []
+                for case in raw_cases:
+                    self.cases.append({
+                        "number": case.get("number") or case.get("id") or case.get("case_number"),
+                        "summary": case.get("summary") or case.get("subject") or case.get("title", "No summary"),
+                        "severity": case.get("severity") or case.get("sev", "4"),
+                        "status": case.get("status", "open"),
+                        "age_days": self._calculate_age_days(case),
+                        "last_updated": case.get("last_updated") or case.get("updated_at"),
+                        "last_customer_update": case.get("last_customer_update"),
+                        "owner": case.get("owner") or case.get("assigned_to"),
+                        "product": case.get("product"),
+                        "component": case.get("component"),
+                        "sla_hours_remaining": case.get("sla_hours_remaining", 999),
+                        "sla_breached": case.get("sla_breached", False),
+                        "escalated": case.get("escalated", False),
+                        "waiting_on": case.get("waiting_on", "triage")
+                    })
+                print(f"  ✅ Found {len(self.cases)} open case(s)")
+            else:
+                print(f"  ℹ️  No open cases found (using sample data)")
+                self._load_sample_cases()
+                
+        except Exception as e:
+            print(f"  ⚠️  Error fetching cases: {e}")
+            print(f"  ℹ️  Using sample data for demonstration")
+            self._load_sample_cases()
         
         self.stats["total_reviewed"] = len(self.cases)
     
@@ -488,6 +519,22 @@ class BacklogCleaner:
             f.write(report)
         
         print(f"✅ Report saved: {output_file}")
+    
+    def _calculate_age_days(self, case: Dict) -> int:
+        """Calculate case age in days from case data"""
+        created_date = case.get("created_date") or case.get("opened_date") or case.get("created_at")
+        
+        if not created_date:
+            return 0
+        
+        try:
+            # Parse ISO format date
+            created = datetime.fromisoformat(created_date.replace('Z', '+00:00'))
+            now = datetime.now(created.tzinfo) if created.tzinfo else datetime.now()
+            age = (now - created).days
+            return max(0, age)
+        except Exception:
+            return 0
     
     def _load_sample_cases(self):
         """Load sample cases for demonstration"""
