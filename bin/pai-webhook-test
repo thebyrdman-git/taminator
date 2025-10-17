@@ -1,0 +1,74 @@
+#!/bin/bash
+# Test GitLab webhook configuration
+
+set -euo pipefail
+
+echo "🔍 GitLab Webhook Health Check"
+echo "================================"
+echo ""
+
+# Test 1: External access
+echo "1. Testing external webhook access..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://gitlab-webhook.jbyrd.org/health)
+if [[ "$HTTP_CODE" == "200" ]]; then
+    echo "   ✅ External access working (HTTP $HTTP_CODE)"
+    HEALTH=$(curl -s https://gitlab-webhook.jbyrd.org/health | jq -r .status 2>/dev/null || echo "unknown")
+    echo "   Status: $HEALTH"
+else
+    echo "   ❌ External access failing (HTTP $HTTP_CODE)"
+    echo "   Fix: Configure Cloudflare Tunnel routing for gitlab-webhook.jbyrd.org"
+    exit 1
+fi
+
+echo ""
+
+# Test 2: Container status
+echo "2. Checking container status..."
+if ssh jbyrd@miraclemax 'podman ps | grep -q gitlab-webhook'; then
+    echo "   ✅ Container running"
+    UPTIME=$(ssh jbyrd@miraclemax 'podman ps | grep gitlab-webhook' | awk '{print $(NF-2), $(NF-1), $NF}')
+    echo "   Uptime: $UPTIME"
+else
+    echo "   ❌ Container not running"
+    exit 1
+fi
+
+echo ""
+
+# Test 3: Recent activity
+echo "3. Checking recent webhook activity..."
+RECENT_LOGS=$(ssh jbyrd@miraclemax 'podman logs --tail 10 gitlab-webhook 2>/dev/null' | grep -c "POST /webhook" || echo "0")
+if [[ "$RECENT_LOGS" -gt 0 ]]; then
+    echo "   ✅ $RECENT_LOGS webhook events received"
+else
+    echo "   ⚠️  No webhook events yet (configure GitLab webhook)"
+fi
+
+echo ""
+
+# Test 4: SMTP connectivity
+echo "4. Checking SMTP for email delivery..."
+if ssh jbyrd@miraclemax 'command -v postfix &>/dev/null || command -v sendmail &>/dev/null'; then
+    echo "   ✅ SMTP available on miraclemax"
+else
+    echo "   ⚠️  SMTP not detected (emails may not send)"
+fi
+
+echo ""
+echo "================================"
+if [[ "$HTTP_CODE" == "200" ]]; then
+    echo "✅ Webhook receiver is healthy"
+    echo ""
+    echo "Next steps:"
+    echo "1. Configure GitLab webhook:"
+    echo "   URL: https://gitlab-webhook.jbyrd.org/webhook"
+    echo "   Trigger: Issues events"
+    echo ""
+    echo "2. Test webhook from GitLab settings"
+    echo "3. Create a test issue to verify email delivery"
+else
+    echo "❌ Webhook receiver needs attention"
+    echo ""
+    echo "See: /tmp/webhook-diagnosis.md for troubleshooting"
+fi
+

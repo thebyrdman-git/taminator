@@ -1,0 +1,127 @@
+{
+  "name": "Daily Budget Export",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "cronExpression": "0 2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "e5f2a6b8-3c7d-4e9f-2a6b-5c8e3f9a2b6d",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://money.jbyrd.org/sync/sync",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-ACTUAL-TOKEN",
+              "value": "fd118f31-1be9-4149-b094-2e75cd8ab59e"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"groupId\": \"export-request\",\n  \"fileId\": \"export\",\n  \"since\": \"0\"\n}",
+        "options": {}
+      },
+      "id": "f6a3b7c9-4d8e-5f1a-3b7c-6d9f4a8b7c1e",
+      "name": "Export Budget Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ 'actual-budget-backup-' + $now.format('yyyy-MM-dd') + '.json' }}",
+        "filePath": "/home/jbyrd/backups/",
+        "binaryData": true,
+        "options": {
+          "makeDirectories": true
+        }
+      },
+      "id": "a7b4c8d1-5e9f-6a2b-4c8d-7e1f5a9b4c8e",
+      "name": "Save Backup File",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "miraclemax-alerts@jbyrd.org",
+        "toEmail": "jimmykbyrd@gmail.com",
+        "subject": "={{ 'Actual Budget Daily Backup - ' + $now.format('yyyy-MM-dd') }}",
+        "message": "Daily budget backup completed successfully.\\n\\nBackup Details:\\n- File: {{ $node['Save Backup File'].json['fileName'] }}\\n- Size: {{ $node['Export Budget Data'].json['data'] ? ($node['Export Budget Data'].json['data'].length + ' bytes') : 'Unknown' }}\\n- Date: {{ $now.format('yyyy-MM-dd HH:mm:ss') }}\\n- Status: Success\\n\\nThis automated backup ensures your financial data is protected.\\n\\nMiracleMax Automation System",
+        "options": {}
+      },
+      "id": "b8c5d9e2-6f1a-7b3c-5d9e-8f2a6b1c5d9f",
+      "name": "Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Export Budget Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export Budget Data": {
+      "main": [
+        [
+          {
+            "node": "Save Backup File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Backup File": {
+      "main": [
+        [
+          {
+            "node": "Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/New_York"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "daily-budget-export",
+  "tags": []
+}

@@ -1,0 +1,70 @@
+---
+# Global Variables (All Hosts)
+# Philosophy: Configuration over Code
+
+# User Configuration
+pai_user: jbyrd
+pai_home: "/home/{{ pai_user }}"
+pai_email: jimmykbyrd@gmail.com
+
+# PAI Directories
+pai_base_dir: "{{ pai_home }}/pai"
+pai_bin_dir: "{{ pai_base_dir }}/bin"
+pai_config_dir: "{{ pai_home }}/.config/pai"
+pai_secrets_dir: "{{ pai_config_dir }}/secrets"
+
+# RFE Tool Configuration
+rfe_repo_url: "https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation.git"
+rfe_install_dir: "{{ pai_home }}/rfe-bug-tracker-automation"
+rfe_branch: main
+rfe_tools:
+  - tam-rfe-chat
+  - tam-rfe-onboard-intelligent
+  - tam-rfe-verify
+  - tam-rfe-validate-intelligence
+  - tam-rfe-discover-customers
+  - tam-rfe-hydra-api
+  - tam-rfe-scheduler
+  - tam-rfe-tui
+
+# Python Configuration
+python_version: "3.11"
+python_packages:
+  - requests
+  - click
+  - rich
+  - pydantic
+  - pytest
+  - pylint
+  - structlog
+
+# Security Configuration
+security_sudoers_passwordless:
+  - "{{ pai_user }}"
+security_ssh_permit_root_login: "no"
+security_ssh_password_authentication: "no"
+
+# Firewall Configuration (miraclemax)
+firewall_allowed_tcp_ports:
+  - "22"    # SSH
+  - "80"    # HTTP
+  - "443"   # HTTPS
+  - "8080"  # Traefik Dashboard
+
+# Docker/Podman Configuration
+docker_edition: 'ce'
+docker_users:
+  - "{{ pai_user }}"
+
+# Git Configuration
+git_install_from_source: false
+
+# Homebrew Packages (macOS only)
+homebrew_installed_packages:
+  - git
+  - python@3.11
+  - jq
+  - yq
+  - fzf
+  - ripgrep
+  - dialog

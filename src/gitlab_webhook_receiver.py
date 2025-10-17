@@ -23,10 +23,12 @@ LOG_FILE = LOG_DIR / "gitlab-webhook.log"
 EVENTS_LOG = LOG_DIR / "gitlab-events.jsonl"
 WEBHOOK_PORT = int(os.environ.get("GITLAB_WEBHOOK_PORT", 3002))
 WEBHOOK_SECRET = os.environ.get("GITLAB_WEBHOOK_SECRET", "")
-EMAIL_TO = os.environ.get("GITLAB_WEBHOOK_EMAIL", os.environ.get("USER", "jbyrd") + "@redhat.com")
-EMAIL_FROM = os.environ.get("GITLAB_WEBHOOK_FROM", "hatter@localhost")
-SMTP_SERVER = os.environ.get("SMTP_SERVER", "localhost")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", 25))
+EMAIL_TO = os.environ.get("GITLAB_WEBHOOK_EMAIL", "jimmykbyrd@gmail.com")
+EMAIL_FROM = os.environ.get("GITLAB_WEBHOOK_FROM", "jimmykbyrd@gmail.com")
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "jimmykbyrd@gmail.com")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "jbsrjwdtaqeqsueq")
 
 # Ensure directories exist
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -81,8 +83,10 @@ def send_email(subject, body_text, body_html=None):
         if body_html:
             msg.attach(MIMEText(body_html, "html"))
         
-        # Send via SMTP
+        # Send via SMTP with authentication (Gmail)
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
             server.send_message(msg)
         
         app.logger.info(f"Email sent successfully to {EMAIL_TO}")

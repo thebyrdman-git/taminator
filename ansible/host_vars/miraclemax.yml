@@ -1,0 +1,75 @@
+---
+# miraclemax Host Variables
+
+# Service Configuration
+miraclemax_base_dir: "/home/{{ pai_user }}/miraclemax-infrastructure"
+miraclemax_compose_dir: "{{ miraclemax_base_dir }}/compose"
+miraclemax_config_dir: "{{ miraclemax_base_dir }}/config"
+
+# Services to Deploy
+miraclemax_services:
+  # Finance
+  - name: actual-budget
+    image: docker.io/actualbudget/actual-server:latest
+    port: 5006
+    subdomain: money
+    volume: actual-budget-data:/data:z
+    
+  # Automation
+  - name: n8n
+    image: docker.io/n8nio/n8n:latest
+    port: 5678
+    subdomain: n8n
+    volume: n8n-data:/home/node/.n8n:z
+    
+  # Database
+  - name: redis
+    image: docker.io/redis:7-alpine
+    port: 6379
+    subdomain: null  # Internal only
+    volume: redis-data:/data:z
+    
+  # Dashboards
+  - name: homer
+    image: docker.io/b4bz/homer:latest
+    port: 8080
+    subdomain: home
+    volume: "{{ miraclemax_config_dir }}/homer:/www/assets:z"
+    
+  # Management
+  - name: portainer
+    image: docker.io/portainer/portainer-ce:latest
+    port: 9000
+    subdomain: portainer
+    volume: portainer-data:/data:z
+    
+  # Monitoring
+  - name: netdata
+    image: docker.io/netdata/netdata:latest
+    port: 19999
+    subdomain: netdata
+    volume: netdata-config:/etc/netdata:z
+    
+  - name: grafana
+    image: docker.io/grafana/grafana:latest
+    port: 3000
+    subdomain: grafana
+    volume: grafana-data:/var/lib/grafana:z
+    
+  - name: prometheus
+    image: docker.io/prom/prometheus:latest
+    port: 9090
+    subdomain: prometheus
+    volume: "{{ miraclemax_config_dir }}/prometheus:/etc/prometheus:z"
+    
+  - name: loki
+    image: docker.io/grafana/loki:latest
+    port: 3100
+    subdomain: loki
+    volume: loki-data:/loki:z
+
+# Traefik Configuration
+traefik_version: "3.0"
+traefik_domain: jbyrd.org
+traefik_email: "{{ pai_email }}"
+traefik_config_dir: "{{ miraclemax_config_dir }}/traefik"

@@ -26,9 +26,9 @@ services:
     
     # Network configuration
     ports:
-      - "8000:80"    # HTTP (Cloudflare Tunnel → here)
-      - "8443:443"   # HTTPS (internal, Cloudflare terminates SSL)
-      - "8081:8080"  # Dashboard (internal only, mapped to avoid conflict)
+      - "80:80"      # HTTP (Direct Cloudflare proxy)
+      - "443:443"    # HTTPS (Direct Cloudflare proxy)
+      - "8080:8080"  # Dashboard (internal)
     
     networks:
       - traefik-network

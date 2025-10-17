@@ -1,0 +1,78 @@
+---
+# Deploy miraclemax Infrastructure
+# Philosophy: 80% Geerling roles, 20% our business logic
+
+- name: Deploy miraclemax Infrastructure
+  hosts: miraclemax
+  become: true
+  
+  pre_tasks:
+    - name: Update system packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_cache: true
+      when: ansible_os_family == "RedHat"
+    
+    - name: Install base utilities
+      ansible.builtin.package:
+        name:
+          - git
+          - jq
+          - curl
+          - vim
+        state: present
+  
+  roles:
+    # ========================================
+    # Proven Roles (Geerling handles complexity)
+    # ========================================
+    
+    # 1. System Hardening
+    - role: geerlingguy.security
+      vars:
+        security_sudoers_passwordless: "{{ security_sudoers_passwordless }}"
+        security_ssh_permit_root_login: "{{ security_ssh_permit_root_login }}"
+        security_ssh_password_authentication: "{{ security_ssh_password_authentication }}"
+    
+    # 2. Firewall Configuration
+    - role: geerlingguy.firewall
+      vars:
+        firewall_allowed_tcp_ports: "{{ firewall_allowed_tcp_ports }}"
+    
+    # 3. Container Runtime (Docker/Podman)
+    - role: geerlingguy.docker
+      vars:
+        docker_edition: "{{ docker_edition }}"
+        docker_users: "{{ docker_users }}"
+    
+    # 4. Python Package Manager
+    - role: geerlingguy.pip
+      vars:
+        pip_install_packages: "{{ python_packages }}"
+    
+    # ========================================
+    # Custom Role (Our business logic only)
+    # ========================================
+    
+    # 5. Deploy Services
+    - role: miraclemax_services
+  
+  post_tasks:
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          ✅ miraclemax Deployment Complete
+          
+          Infrastructure (handled by Geerling):
+            - System hardened ✅
+            - Firewall configured ✅
+            - Podman installed ✅
+            - Python tools installed ✅
+          
+          Services (our logic):
+            {% for service in miraclemax_services %}
+            - {{ service.name }}: {{ service.subdomain }}.{{ traefik_domain if service.subdomain else 'internal only' }}
+            {% endfor %}
+          
+          Next: Visit https://home.jbyrd.org

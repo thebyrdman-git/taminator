@@ -1,0 +1,84 @@
+---
+# rfe_install: Install RFE Tool
+# Philosophy: Geerling handles platforms, we handle RFE-specific setup only
+
+- name: Clone RFE repository
+  ansible.builtin.git:
+    repo: "{{ rfe_repo_url }}"
+    dest: "{{ rfe_install_dir }}"
+    version: "{{ rfe_branch }}"
+    update: yes
+  become: false
+
+- name: Create configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ pai_user }}"
+    mode: '0700'
+  loop:
+    - "{{ pai_config_dir }}"
+    - "{{ pai_config_dir }}/tamscripts"
+    - "{{ pai_secrets_dir }}"
+
+- name: Check if requirements.txt exists
+  ansible.builtin.stat:
+    path: "{{ rfe_install_dir }}/requirements.txt"
+  register: requirements_file
+
+- name: Install Python dependencies (if requirements.txt exists)
+  ansible.builtin.pip:
+    requirements: "{{ rfe_install_dir }}/requirements.txt"
+    virtualenv: "{{ rfe_install_dir }}/.venv"
+    virtualenv_command: "{{ ansible_python_interpreter }} -m venv"
+  when: requirements_file.stat.exists
+  become: false
+
+- name: Make RFE tools executable
+  ansible.builtin.file:
+    path: "{{ rfe_install_dir }}/bin/{{ item }}"
+    mode: '0755'
+  loop: "{{ rfe_tools }}"
+
+- name: Link RFE tools to PATH
+  ansible.builtin.file:
+    src: "{{ rfe_install_dir }}/bin/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+    force: yes
+  loop: "{{ rfe_tools }}"
+  become: true
+
+- name: Initialize customer configuration (if not exists)
+  ansible.builtin.copy:
+    content: |
+      # Customer Configuration
+      # Managed by tam-rfe-onboard-intelligent
+      # Format: customer_key:account_number:customer_name
+    dest: "{{ rfe_install_dir }}/config/customers.conf"
+    owner: "{{ pai_user }}"
+    mode: '0644'
+    force: no
+
+- name: Run RFE verification
+  ansible.builtin.command:
+    cmd: "{{ rfe_install_dir }}/bin/tam-rfe-verify --quick"
+  register: rfe_verify
+  changed_when: false
+  failed_when: false
+
+- name: Display verification results
+  ansible.builtin.debug:
+    var: rfe_verify.stdout_lines
+
+- name: Report installation status
+  ansible.builtin.debug:
+    msg: |
+      ✅ RFE Tool Installation Complete
+      
+      Installed tools:
+      {% for tool in rfe_tools %}
+        - {{ tool }}
+      {% endfor %}
+      
+      Test: tam-rfe-chat --help

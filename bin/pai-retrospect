@@ -1,0 +1,348 @@
+#!/bin/bash
+#
+# pai-retrospect: Development Retrospection Tool
+# Systematic learning from every project
+#
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_header() {
+    echo -e "${BLUE}================================================${NC}"
+    echo -e "${BLUE}$1${NC}"
+    echo -e "${BLUE}================================================${NC}"
+}
+
+print_success() { echo -e "${GREEN}✅ $1${NC}"; }
+print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+
+# Configuration
+RETRO_DIR="$HOME/pai/retrospectives"
+CURRENT_DATE=$(date +%Y-%m-%d)
+
+# Ensure directories exist
+mkdir -p "$RETRO_DIR"
+
+# Parse arguments
+MODE="project"
+PROJECT_NAME=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --project)
+            MODE="project"
+            shift
+            ;;
+        --weekly)
+            MODE="weekly"
+            shift
+            ;;
+        --monthly)
+            MODE="monthly"
+            shift
+            ;;
+        --quarterly)
+            MODE="quarterly"
+            shift
+            ;;
+        *)
+            PROJECT_NAME="$1"
+            shift
+            ;;
+    esac
+done
+
+print_header "Development Retrospection"
+echo ""
+
+case $MODE in
+    project)
+        # Project retrospection
+        if [ -z "$PROJECT_NAME" ]; then
+            # Auto-detect from Git
+            if git rev-parse --git-dir > /dev/null 2>&1; then
+                PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel)")
+                print_info "Detected project: $PROJECT_NAME"
+            else
+                echo "Usage: pai-retrospect [--project] <project-name>"
+                exit 1
+            fi
+        fi
+        
+        RETRO_FILE="$RETRO_DIR/$CURRENT_DATE-$PROJECT_NAME.md"
+        
+        print_info "Creating project retrospection for: $PROJECT_NAME"
+        echo ""
+        
+        # Gather automatic metrics
+        if git rev-parse --git-dir > /dev/null 2>&1; then
+            COMMITS=$(git rev-list --count HEAD)
+            CONTRIBUTORS=$(git log --format='%an' | sort -u | wc -l)
+            FIRST_COMMIT=$(git log --reverse --format='%ai' | head -1 | cut -d' ' -f1)
+            LAST_COMMIT=$(git log --format='%ai' | head -1 | cut -d' ' -f1)
+            
+            # Calculate lines of code
+            TOTAL_LINES=$(find . -name "*.py" -o -name "*.sh" -o -name "*.yml" 2>/dev/null | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "N/A")
+        else
+            COMMITS="N/A"
+            CONTRIBUTORS="N/A"
+            FIRST_COMMIT="N/A"
+            LAST_COMMIT="N/A"
+            TOTAL_LINES="N/A"
+        fi
+        
+        # Create retrospection file
+        cat > "$RETRO_FILE" << 'RETRO_TEMPLATE'
+# Project Retrospection: PROJECT_NAME_PLACEHOLDER
+
+**Date:** DATE_PLACEHOLDER
+**Duration:** FIRST_COMMIT_PLACEHOLDER to LAST_COMMIT_PLACEHOLDER
+**Contributors:** CONTRIBUTORS_PLACEHOLDER
+**Commits:** COMMITS_PLACEHOLDER
+
+---
+
+## 1. What Did We Build?
+
+**Summary:** 
+
+**Components:**
+- Component 1: 
+- Component 2: 
+- Component 3: 
+
+**Metrics:**
+- Lines of code: TOTAL_LINES_PLACEHOLDER
+- Commits: COMMITS_PLACEHOLDER
+- Duration: (calculate from dates above)
+
+---
+
+## 2. What Went Well? ✅
+
+### Technical Wins
+
+
+### Process Wins
+
+
+### Tools That Helped
+
+
+---
+
+## 3. What Went Wrong? ❌
+
+### Technical Issues
+
+
+### Process Issues
+
+
+### Time Wasters
+
+
+---
+
+## 4. Geerling Test Results
+
+**Did we check for existing solutions?**
+- [ ] Searched Ansible Galaxy
+- [ ] Searched PyPI  
+- [ ] Searched GitHub (1000+ stars)
+- [ ] Checked Geerling repos
+- [ ] Checked Unix tools
+
+**What we found and used:**
+
+
+**What we should have found but didn't:**
+
+
+---
+
+## 5. Framework Effectiveness
+
+### What Worked (Keep)
+
+
+### What Didn't Work (Change)
+
+
+### What's Missing (Add)
+
+
+---
+
+## 6. Lessons Learned
+
+### Technical Lessons
+1. **Lesson:**
+   - What we learned:
+   - Apply next time:
+   - Framework update:
+
+### Process Lessons
+1. **Lesson:**
+   - What we learned:
+   - Apply next time:
+   - Framework update:
+
+---
+
+## 7. Metrics
+
+### Development Speed
+- Traditional estimate: [MONTHS]
+- Actual time: [WEEKS/DAYS]
+- Speedup: [X]x faster
+
+### Code Reuse
+- Total code: TOTAL_LINES_PLACEHOLDER lines
+- Custom code: [LINES] ([%])
+- Reused code: [LINES] ([%])
+
+---
+
+## 8. Action Items
+
+### Framework Updates
+- [ ] Update pattern:
+- [ ] Add to checklist:
+- [ ] Create new tool:
+
+### Process Improvements
+- [ ] Change process:
+- [ ] Add automation:
+
+### Learning Goals
+- [ ] Study:
+- [ ] Explore:
+
+---
+
+## 9. Share Knowledge
+
+**Blog post topic:**
+
+
+**Internal presentation:**
+
+
+---
+
+## 10. Next Project Prep
+
+**What we'll do differently:**
+
+
+**What we'll keep:**
+
+
+**New patterns to try:**
+
+
+RETRO_TEMPLATE
+        
+        # Replace placeholders
+        sed -i "s/PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "$RETRO_FILE"
+        sed -i "s/DATE_PLACEHOLDER/$CURRENT_DATE/g" "$RETRO_FILE"
+        sed -i "s/FIRST_COMMIT_PLACEHOLDER/$FIRST_COMMIT/g" "$RETRO_FILE"
+        sed -i "s/LAST_COMMIT_PLACEHOLDER/$LAST_COMMIT/g" "$RETRO_FILE"
+        sed -i "s/CONTRIBUTORS_PLACEHOLDER/$CONTRIBUTORS/g" "$RETRO_FILE"
+        sed -i "s/COMMITS_PLACEHOLDER/$COMMITS/g" "$RETRO_FILE"
+        sed -i "s/TOTAL_LINES_PLACEHOLDER/$TOTAL_LINES/g" "$RETRO_FILE"
+        
+        # Open in editor
+        ${EDITOR:-kwrite} "$RETRO_FILE" &
+        
+        print_success "Retrospection created: $RETRO_FILE"
+        echo ""
+        print_info "Next steps:"
+        echo "  1. Fill out retrospection"
+        echo "  2. Review with team"
+        echo "  3. Update framework based on lessons"
+        echo "  4. Run: pai-retrospect-analyze"
+        ;;
+        
+    weekly)
+        print_info "Weekly retrospection"
+        echo ""
+        print_info "This week you worked on:"
+        
+        # Show Git activity from all repos in pai
+        if [ -d "$HOME/pai" ]; then
+            for repo in $(find "$HOME/pai" -name ".git" -type d 2>/dev/null); do
+                repo_dir=$(dirname "$repo")
+                echo ""
+                echo "Repository: $(basename "$repo_dir")"
+                (cd "$repo_dir" && git log --since="1 week ago" --oneline --author="$(git config user.name)" 2>/dev/null || echo "No recent commits")
+            done
+        fi
+        
+        echo ""
+        print_info "Quick reflection:"
+        read -p "Biggest win this week: " win
+        read -p "Biggest challenge: " challenge
+        read -p "One thing to improve: " improve
+        
+        WEEKLY_FILE="$RETRO_DIR/weekly-$CURRENT_DATE.md"
+        cat > "$WEEKLY_FILE" << WEEKLY_RETRO
+# Weekly Retrospection: $CURRENT_DATE
+
+**Win:** $win
+**Challenge:** $challenge
+**Improve:** $improve
+
+---
+
+WEEKLY_RETRO
+        
+        print_success "Weekly retrospection saved: $WEEKLY_FILE"
+        ;;
+        
+    monthly)
+        print_header "Monthly Retrospection"
+        echo ""
+        print_info "Analyzing last month's retrospections..."
+        
+        # Show all retrospections from last month
+        RETROS=$(find "$RETRO_DIR" -name "*.md" -mtime -30 -type f 2>/dev/null || echo "")
+        
+        if [ -n "$RETROS" ]; then
+            echo "$RETROS"
+        else
+            print_warning "No retrospections found in last 30 days"
+        fi
+        
+        echo ""
+        print_info "Patterns across projects:"
+        echo "  1. What patterns repeated?"
+        echo "  2. What's working consistently?"
+        echo "  3. What needs framework-level fix?"
+        echo ""
+        print_info "Run: pai-retrospect-analyze for detailed patterns"
+        ;;
+        
+    quarterly)
+        print_header "Quarterly Strategic Retrospection"
+        echo ""
+        print_info "Big picture review:"
+        echo "  1. Review all quarterly retrospections"
+        echo "  2. Identify major trends"
+        echo "  3. Plan framework evolution"
+        echo "  4. Set learning goals"
+        echo ""
+        print_info "Run: pai-retrospect-analyze for insights"
+        ;;
+esac
+
+echo ""
+print_success "Retrospection complete!"

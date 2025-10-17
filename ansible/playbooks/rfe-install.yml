@@ -1,0 +1,80 @@
+---
+# Install RFE Bug Tracker Automation Tool
+# Philosophy: 80% Geerling roles, 20% our business logic
+
+- name: Install RFE Tool
+  hosts: localhost
+  connection: local
+  
+  vars_prompt:
+    - name: install_location
+      prompt: "Install for (1) current user only or (2) system-wide?"
+      default: "1"
+      private: no
+  
+  pre_tasks:
+    - name: Set installation scope
+      ansible.builtin.set_fact:
+        become_required: "{{ install_location == '2' }}"
+    
+    - name: Display installation info
+      ansible.builtin.debug:
+        msg: |
+          Installing RFE Tool
+          Target: {{ rfe_install_dir }}
+          Platform: {{ ansible_os_family }}
+          Python: {{ ansible_python_interpreter }}
+  
+  roles:
+    # ========================================
+    # Proven Roles (Geerling handles complexity)
+    # ========================================
+    
+    # 1. Git (cross-platform)
+    - role: geerlingguy.git
+      vars:
+        git_install_from_source: false
+    
+    # 2. Python/Pip (cross-platform)
+    - role: geerlingguy.pip
+      vars:
+        pip_install_packages: "{{ python_packages }}"
+    
+    # 3. Homebrew (macOS only)
+    - role: geerlingguy.homebrew
+      vars:
+        homebrew_installed_packages: "{{ homebrew_installed_packages }}"
+      when: ansible_os_family == "Darwin"
+    
+    # ========================================
+    # Custom Role (Our business logic only)
+    # ========================================
+    
+    # 4. Install RFE Tool
+    - role: rfe_install
+  
+  post_tasks:
+    - name: Display installation summary
+      ansible.builtin.debug:
+        msg: |
+          ✅ RFE Tool Installation Complete
+          
+          Infrastructure (handled by Geerling):
+            - Git installed ✅
+            - Python {{ python_version }}+ ✅
+            - Dependencies installed ✅
+            {% if ansible_os_family == "Darwin" %}
+            - Homebrew packages ✅
+            {% endif %}
+          
+          RFE Tools (our logic):
+            {% for tool in rfe_tools %}
+            - {{ tool }} ✅
+            {% endfor %}
+          
+          Test: tam-rfe-chat --help
+          
+          Next Steps:
+            1. Configure: tam-rfe-onboard-intelligent
+            2. Test: tam-rfe-verify --full
+            3. Use: tam-rfe-tui

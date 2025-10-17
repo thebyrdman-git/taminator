@@ -1,0 +1,47 @@
+---
+# Proven Ansible Roles (Jeff Geerling + Community)
+# Philosophy: Build on Giants' Shoulders
+
+roles:
+  # System Infrastructure
+  - name: geerlingguy.docker
+    version: 7.4.1
+    # Handles: Docker/Podman installation, cross-platform
+  
+  - name: geerlingguy.security
+    version: 3.2.0
+    # Handles: System hardening, SSH config, firewall basics
+  
+  - name: geerlingguy.firewall
+    version: 3.2.1
+    # Handles: Firewalld/iptables across distributions
+  
+  - name: geerlingguy.pip
+    version: 3.0.0
+    # Handles: Python pip, virtualenv, cross-platform
+  
+  - name: geerlingguy.git
+    version: 3.2.0
+    # Handles: Git installation, cross-platform
+  
+  - name: geerlingguy.homebrew
+    version: 4.2.1
+    # Handles: macOS package management
+
+collections:
+  # Official Collections
+  - name: ansible.posix
+    # POSIX-compliant tasks (selinux, firewalld, etc.)
+  
+  - name: community.general
+    # General utilities, cross-platform modules
+  
+  - name: containers.podman
+    # Official Red Hat Podman collection
+  
+  - name: community.docker
+    # Docker utilities and modules
+
+# Installation:
+# ansible-galaxy install -r requirements.yml
+# ansible-galaxy collection install -r requirements.yml

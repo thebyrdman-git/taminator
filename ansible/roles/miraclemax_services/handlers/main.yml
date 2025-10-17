@@ -1,0 +1,17 @@
+---
+- name: restart traefik
+  ansible.builtin.command:
+    cmd: podman restart traefik
+  ignore_errors: true
+
+- name: reload traefik config
+  ansible.builtin.command:
+    cmd: podman exec traefik traefik-reload
+  ignore_errors: true
+
+- name: restart services
+  ansible.builtin.command:
+    cmd: podman-compose -f {{ miraclemax_compose_dir }}/{{ item.name }}.yml restart
+  loop: "{{ miraclemax_services }}"
+  when: item.name in miraclemax_services_enabled
+  ignore_errors: true

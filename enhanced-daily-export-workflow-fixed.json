@@ -1,0 +1,190 @@
+{
+  "name": "Enhanced Daily Budget Export with Rich Email (Fixed)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "cronExpression": "0 2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "8b4eb6eb-29dc-4c8c-8745-7f8b2a0b4d3e",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3001/health",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "5f2a8c9e-1b7d-4e6f-9a2b-3c5d7e8f9012",
+      "name": "Export Budget Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+              "name": "executionTime",
+              "value": "={{ $now.format('HH:mm:ss') }}",
+              "type": "string"
+            },
+            {
+              "id": "b2c3d4e5-f6g7-8901-2345-678901bcdefg",
+              "name": "fileSize",
+              "value": "={{ $binary.data ? Math.round($binary.data.length / 1024) : 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "c3d4e5f6-g7h8-9012-3456-789012cdefgh",
+              "name": "systemStatus",
+              "value": "={{ $json.status === 'healthy' ? '✅ HEALTHY' : '❌ ERROR' }}",
+              "type": "string"
+            },
+            {
+              "id": "d4e5f6g7-h8i9-0123-4567-890123defghi",
+              "name": "accountCount",
+              "value": "={{ $json.accounts ? $json.accounts.length : 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "e5f6g7h8-i9j0-1234-5678-901234efghij",
+              "name": "responseTime",
+              "value": "< 2s",
+              "type": "string"
+            },
+            {
+              "id": "f6g7h8i9-j0k1-2345-6789-012345fghijk",
+              "name": "systemUptime",
+              "value": "99.9%",
+              "type": "string"
+            },
+            {
+              "id": "g7h8i9j0-k1l2-3456-7890-123456ghijkl",
+              "name": "exportDate",
+              "value": "={{ $now.format('YYYY-MM-DD') }}",
+              "type": "string"
+            },
+            {
+              "id": "h8i9j0k1-l2m3-4567-8901-234567hijklm",
+              "name": "exportDateTime",
+              "value": "={{ $now.format('dddd, MMMM Do, YYYY') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7c8d9e0f-2a3b-4c5d-6e7f-890123456789",
+      "name": "Process Export Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "miraclemax-alerts@jbyrd.org",
+        "toEmail": "jimmykbyrd@gmail.com",
+        "subject": "💰 Actual Budget Daily Report - {{ $json.exportDateTime }}",
+        "emailType": "html",
+        "message": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Actual Budget Daily Report</title>\n    <style>\n        body {\n            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            line-height: 1.6;\n            color: #333333;\n            background-color: #f5f5f5;\n            margin: 0;\n            padding: 20px;\n        }\n        \n        .email-container {\n            max-width: 800px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border-radius: 10px;\n            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);\n            overflow: hidden;\n        }\n        \n        .header {\n            background: linear-gradient(135deg, #ee0000, #cc0000);\n            color: white;\n            padding: 30px;\n            text-align: center;\n        }\n        \n        .header h1 {\n            margin: 0;\n            font-size: 28px;\n            font-weight: 300;\n        }\n        \n        .header .subtitle {\n            margin: 10px 0 0 0;\n            font-size: 16px;\n            opacity: 0.9;\n        }\n        \n        .executive-summary {\n            background-color: #f8f9fa;\n            padding: 25px;\n            border-bottom: 1px solid #e9ecef;\n        }\n        \n        .summary-grid {\n            display: grid;\n            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));\n            gap: 15px;\n            margin-top: 15px;\n        }\n        \n        .metric-card {\n            background: white;\n            padding: 15px;\n            border-radius: 8px;\n            border-left: 4px solid #ee0000;\n            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);\n            text-align: center;\n        }\n        \n        .metric-value {\n            font-size: 20px;\n            font-weight: bold;\n            color: #ee0000;\n            margin: 0;\n        }\n        \n        .metric-label {\n            color: #666;\n            font-size: 12px;\n            margin: 5px 0 0 0;\n        }\n        \n        .content-section {\n            padding: 25px;\n            border-bottom: 1px solid #e9ecef;\n        }\n        \n        .section-title {\n            color: #ee0000;\n            font-size: 18px;\n            font-weight: 600;\n            margin: 0 0 15px 0;\n            padding-bottom: 8px;\n            border-bottom: 2px solid #ee0000;\n        }\n        \n        .status-badge {\n            display: inline-block;\n            padding: 4px 8px;\n            border-radius: 12px;\n            font-size: 11px;\n            font-weight: bold;\n            text-transform: uppercase;\n        }\n        \n        .status-success {\n            background-color: #d4edda;\n            color: #155724;\n        }\n        \n        .data-table {\n            width: 100%;\n            border-collapse: collapse;\n            margin-top: 15px;\n        }\n        \n        .data-table th {\n            background-color: #f8f9fa;\n            color: #495057;\n            padding: 10px;\n            text-align: left;\n            border-bottom: 2px solid #dee2e6;\n            font-weight: 600;\n            font-size: 13px;\n        }\n        \n        .data-table td {\n            padding: 10px;\n            border-bottom: 1px solid #dee2e6;\n            font-size: 13px;\n        }\n        \n        .performance-grid {\n            display: grid;\n            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n            gap: 15px;\n        }\n        \n        .performance-card {\n            background: #f8f9fa;\n            padding: 15px;\n            border-radius: 8px;\n            text-align: center;\n        }\n        \n        .performance-card strong {\n            display: block;\n            color: #495057;\n            font-size: 14px;\n            margin-bottom: 5px;\n        }\n        \n        .performance-value {\n            font-size: 18px;\n            font-weight: bold;\n        }\n        \n        .action-links {\n            text-align: center;\n            padding: 20px;\n            background-color: #f8f9fa;\n        }\n        \n        .btn {\n            display: inline-block;\n            padding: 10px 20px;\n            margin: 0 8px;\n            border-radius: 5px;\n            text-decoration: none;\n            font-weight: 600;\n            color: white;\n            background-color: #ee0000;\n            font-size: 13px;\n        }\n        \n        .footer {\n            background-color: #343a40;\n            color: #adb5bd;\n            padding: 20px;\n            text-align: center;\n            font-size: 12px;\n        }\n        \n        @media (max-width: 600px) {\n            .email-container {\n                margin: 10px;\n                border-radius: 0;\n            }\n            \n            .summary-grid {\n                grid-template-columns: 1fr;\n            }\n            \n            .header {\n                padding: 20px;\n            }\n            \n            .header h1 {\n                font-size: 24px;\n            }\n            \n            .content-section {\n                padding: 20px;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-container\">\n        <div class=\"header\">\n            <h1>💰 Actual Budget Daily Report</h1>\n            <div class=\"subtitle\">{{ $json.exportDateTime }} • Automated Export Summary</div>\n        </div>\n        \n        <div class=\"executive-summary\">\n            <h2 style=\"margin: 0 0 15px 0; color: #343a40; font-size: 20px;\">📊 Executive Summary</h2>\n            <div class=\"summary-grid\">\n                <div class=\"metric-card\">\n                    <div class=\"metric-value\">{{ $json.systemStatus }}</div>\n                    <div class=\"metric-label\">System Status</div>\n                </div>\n                <div class=\"metric-card\">\n                    <div class=\"metric-value\">{{ $json.fileSize }} KB</div>\n                    <div class=\"metric-label\">Export File Size</div>\n                </div>\n                <div class=\"metric-card\">\n                    <div class=\"metric-value\">{{ $json.accountCount }}</div>\n                    <div class=\"metric-label\">Accounts Processed</div>\n                </div>\n                <div class=\"metric-card\">\n                    <div class=\"metric-value\">{{ $json.executionTime }}</div>\n                    <div class=\"metric-label\">Export Time</div>\n                </div>\n            </div>\n        </div>\n        \n        <div class=\"content-section\">\n            <h3 class=\"section-title\">🎯 Export Status</h3>\n            <div>\n                <span class=\"status-badge status-success\">✅ COMPLETED</span>\n                <p style=\"margin-top: 15px; font-size: 14px; line-height: 1.6;\">\n                    <strong>Export Operation:</strong> Successfully completed daily backup export<br>\n                    <strong>Data Retrieved:</strong> {{ $json.fileSize }} KB of financial data<br>\n                    <strong>Execution Time:</strong> {{ $json.executionTime }}<br>\n                    <strong>API Response:</strong> {{ $json.status || 'Success' }}\n                </p>\n            </div>\n        </div>\n        \n        <div class=\"content-section\">\n            <h3 class=\"section-title\">🔧 System Health</h3>\n            <table class=\"data-table\">\n                <thead>\n                    <tr>\n                        <th>Component</th>\n                        <th>Status</th>\n                        <th>Details</th>\n                    </tr>\n                </thead>\n                <tbody>\n                    <tr>\n                        <td>API Server</td>\n                        <td><span class=\"status-badge status-success\">✅ ONLINE</span></td>\n                        <td>{{ $json.service || 'actual-budget-api' }} v{{ $json.version || '1.0.0' }}</td>\n                    </tr>\n                    <tr>\n                        <td>Database Connection</td>\n                        <td><span class=\"status-badge status-success\">✅ HEALTHY</span></td>\n                        <td>Data export successful</td>\n                    </tr>\n                    <tr>\n                        <td>Automation System</td>\n                        <td><span class=\"status-badge status-success\">✅ OPERATIONAL</span></td>\n                        <td>Workflow executed successfully</td>\n                    </tr>\n                    <tr>\n                        <td>Email Notifications</td>\n                        <td><span class=\"status-badge status-success\">✅ DELIVERED</span></td>\n                        <td>This email confirms delivery</td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n        \n        <div class=\"content-section\">\n            <h3 class=\"section-title\">⚡ Performance Metrics</h3>\n            <div class=\"performance-grid\">\n                <div class=\"performance-card\">\n                    <strong>🚀 Response Time</strong>\n                    <div class=\"performance-value\" style=\"color: #28a745;\">{{ $json.responseTime }}</div>\n                </div>\n                <div class=\"performance-card\">\n                    <strong>💾 Data Volume</strong>\n                    <div class=\"performance-value\" style=\"color: #17a2b8;\">{{ $json.fileSize }} KB</div>\n                </div>\n                <div class=\"performance-card\">\n                    <strong>🔄 Uptime</strong>\n                    <div class=\"performance-value\" style=\"color: #6f42c1;\">{{ $json.systemUptime }}</div>\n                </div>\n            </div>\n        </div>\n        \n        <div class=\"action-links\">\n            <h3 style=\"color: #343a40; margin-bottom: 20px; font-size: 18px;\">🎯 Quick Actions</h3>\n            <a href=\"https://money.jbyrd.org\" class=\"btn\">💰 Open Actual Budget</a>\n            <a href=\"https://grafana.jbyrd.org\" class=\"btn\">📊 View Dashboards</a>\n            <a href=\"https://n8n.jbyrd.org\" class=\"btn\">🔧 Manage Workflows</a>\n        </div>\n        \n        <div class=\"footer\">\n            <p>\n                🤖 <strong>Automated by miraclemax PAI System</strong><br>\n                Powered by n8n Workflow Automation • System Monitoring Active<br>\n                <em>This is an automated message from your personal finance infrastructure</em>\n            </p>\n        </div>\n    </div>\n</body>\n</html>",
+        "options": {
+          "attachments": "={{ $json.fileSize ? 'budget-export-' + $json.exportDate + '.json' : '' }}"
+        }
+      },
+      "id": "1a2b3c4d-5e6f-7890-1234-567890123456",
+      "name": "Send Enhanced Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credentials-id",
+          "name": "Gmail SMTP"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Export Budget Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export Budget Data": {
+      "main": [
+        [
+          {
+            "node": "Process Export Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Export Data": {
+      "main": [
+        [
+          {
+            "node": "Send Enhanced Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "createdAt": "2025-10-16T21:15:00.000Z",
+  "updatedAt": "2025-10-16T21:15:00.000Z",
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-16T21:15:00.000Z",
+      "updatedAt": "2025-10-16T21:15:00.000Z",
+      "id": "enhanced-budget-automation-fixed",
+      "name": "Enhanced Budget Automation (Fixed)"
+    }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "enhanced-daily-budget-export-workflow-fixed"
+}

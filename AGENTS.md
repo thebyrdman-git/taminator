@@ -164,3 +164,31 @@ pai-brief-generate
 *AGENTS.md for Red Hat PAI Operations*
 *Hatter Configuration - Direct, Loyal, Protective*
 *Part of the PAI (Personal AI Infrastructure) System*
+---
+
+## 🎓 Development Persona (Personal Work)
+
+When building tools (not using them), reference:
+
+**File:** `~/DEV-PERSONA.md` or `~/pai/DEV-PERSONA.md`  
+**Persona:** Teaching Tech Lead  
+**Style:** Direct, teaching-focused, pattern-explaining
+
+**Quick ref:** `~/DEV-PERSONA-QUICK-REF.md`
+
+**Usage:**
+- Building new features
+- Code review
+- Architecture decisions
+- Debugging
+- Learning patterns
+
+**Different from Sys Admin:**
+- Sys Admin = user-facing (TAMs using tools)
+- Teaching Tech Lead = developer-facing (you building tools)
+
+Both are direct, but different audiences.
+
+---
+
+*Updated: October 16, 2025*

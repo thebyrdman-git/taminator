@@ -1,0 +1,294 @@
+#!/bin/bash
+#
+# pai-dev-checklist: Pre-Development Checklist
+# Philosophy: Build on Giants' Shoulders - Check Before Coding
+#
+# Usage: pai-dev-checklist "feature description"
+#
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Configuration
+SEARCH_TIMEOUT=10
+MIN_STARS=1000
+
+print_header() {
+    echo -e "${BLUE}================================================${NC}"
+    echo -e "${BLUE}$1${NC}"
+    echo -e "${BLUE}================================================${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+# Check if feature description provided
+if [ $# -eq 0 ]; then
+    echo "Usage: pai-dev-checklist 'feature description'"
+    echo ""
+    echo "Example: pai-dev-checklist 'http client for REST APIs'"
+    exit 1
+fi
+
+FEATURE="$*"
+
+print_header "Pre-Development Checklist: $FEATURE"
+echo ""
+
+# Step 1: Ansible Galaxy Search
+print_info "Step 1: Checking Ansible Galaxy..."
+echo ""
+
+if command -v ansible-galaxy &> /dev/null; then
+    print_success "ansible-galaxy available"
+    
+    echo "Searching for roles..."
+    ansible_results=$(ansible-galaxy search "$FEATURE" --platforms EL 2>/dev/null | head -20 || echo "")
+    
+    if [ -n "$ansible_results" ]; then
+        echo "$ansible_results"
+        echo ""
+        print_warning "Found Ansible roles - consider using instead of custom code"
+    else
+        print_info "No Ansible roles found"
+    fi
+else
+    print_warning "ansible-galaxy not installed (install with: pip install ansible)"
+fi
+
+echo ""
+
+# Step 2: PyPI Search
+print_info "Step 2: Checking PyPI (Python packages)..."
+echo ""
+
+if command -v pip &> /dev/null; then
+    print_success "pip available"
+    
+    echo "Searching PyPI..."
+    # Use pip index to search (newer method)
+    pypi_results=$(pip index versions "$FEATURE" 2>/dev/null | head -10 || echo "")
+    
+    if [ -n "$pypi_results" ]; then
+        echo "$pypi_results"
+        echo ""
+        print_warning "Found Python packages - consider using instead of custom code"
+    else
+        print_info "No exact PyPI matches - try manual search: https://pypi.org/search/?q=$FEATURE"
+    fi
+else
+    print_warning "pip not installed"
+fi
+
+echo ""
+
+# Step 3: GitHub Search
+print_info "Step 3: Checking GitHub (${MIN_STARS}+ stars)..."
+echo ""
+
+# Create search URL
+GITHUB_SEARCH_URL="https://github.com/search?q=$(echo "$FEATURE" | sed 's/ /+/g')+stars%3A%3E${MIN_STARS}&type=repositories"
+
+echo "Search URL: $GITHUB_SEARCH_URL"
+print_info "Opening browser to GitHub search..."
+
+if command -v xdg-open &> /dev/null; then
+    xdg-open "$GITHUB_SEARCH_URL" 2>/dev/null &
+elif command -v open &> /dev/null; then
+    open "$GITHUB_SEARCH_URL" 2>/dev/null &
+else
+    print_warning "Could not open browser automatically"
+fi
+
+echo ""
+
+# Step 4: Jeff Geerling Check
+print_info "Step 4: Checking Jeff Geerling's roles..."
+echo ""
+
+GEERLING_URL="https://github.com/geerlingguy?tab=repositories&q=$(echo "$FEATURE" | sed 's/ /+/g')"
+
+echo "Search URL: $GEERLING_URL"
+print_info "Opening browser to Geerling's repos..."
+
+if command -v xdg-open &> /dev/null; then
+    xdg-open "$GEERLING_URL" 2>/dev/null &
+elif command -v open &> /dev/null; then
+    open "$GEERLING_URL" 2>/dev/null &
+fi
+
+echo ""
+
+# Step 5: Standard Unix Tools Check
+print_info "Step 5: Checking standard Unix tools..."
+echo ""
+
+# Common tool mappings
+declare -A TOOL_MAP=(
+    ["json"]="jq"
+    ["yaml"]="yq"
+    ["http"]="curl wget"
+    ["search"]="grep ripgrep"
+    ["terminal"]="dialog whiptail"
+    ["interactive"]="fzf"
+)
+
+found_tools=()
+
+for keyword in "${!TOOL_MAP[@]}"; do
+    if [[ "$FEATURE" == *"$keyword"* ]]; then
+        tools="${TOOL_MAP[$keyword]}"
+        for tool in $tools; do
+            if command -v "$tool" &> /dev/null; then
+                found_tools+=("$tool")
+                print_success "$tool available (consider using instead of custom code)"
+            fi
+        done
+    fi
+done
+
+if [ ${#found_tools[@]} -eq 0 ]; then
+    print_info "No obvious standard tool matches"
+fi
+
+echo ""
+
+# Step 6: Decision Framework
+print_header "Decision Framework"
+echo ""
+
+echo "Answer these questions:"
+echo ""
+echo "1. Did you find a proven solution above? (Ansible/PyPI/GitHub/Geerling/Unix)"
+echo "   → ${GREEN}YES${NC}: Use it, you're done!"
+echo "   → ${RED}NO${NC}: Continue to question 2"
+echo ""
+echo "2. Is this business-specific logic? (TAM workflows, customer intelligence)"
+echo "   → ${GREEN}YES${NC}: OK to build custom"
+echo "   → ${RED}NO${NC}: Search more, probably exists"
+echo ""
+echo "3. Can you build it in < 200 lines?"
+echo "   → ${GREEN}YES${NC}: OK to build custom"
+echo "   → ${RED}NO${NC}: You're reimplementing infrastructure, use existing"
+echo ""
+echo "4. Does it have no maintenance burden?"
+echo "   → ${GREEN}YES${NC}: OK to build custom"
+echo "   → ${RED}NO${NC}: Use proven solution instead"
+echo ""
+
+print_header "Code Review Checklist"
+echo ""
+echo "Before committing your code, verify:"
+echo ""
+echo "  [ ] Uses proven libraries for infrastructure?"
+echo "  [ ] Custom code < 200 lines?"
+echo "  [ ] Focused on business logic only?"
+echo "  [ ] No reimplemented HTTP/JSON/auth?"
+echo "  [ ] Dependencies maintained (< 3 months old)?"
+echo "  [ ] Ansible-installable (or will be)?"
+echo "  [ ] Works on RHEL 9 + macOS?"
+echo ""
+
+print_header "Recommended Reading"
+echo ""
+echo "Philosophy: $HOME/pai/docs/TOOL-DEVELOPMENT-PHILOSOPHY.md"
+echo ""
+
+# Step 7: Create ticket for tracking
+print_info "Creating decision log..."
+echo ""
+
+DECISION_LOG="/tmp/pai-dev-checklist-$(date +%Y%m%d-%H%M%S).md"
+
+cat > "$DECISION_LOG" << DECISION
+# Development Decision Log
+
+**Feature:** $FEATURE  
+**Date:** $(date)  
+**Checklist Run:** $(basename "$0")
+
+## Search Results
+
+### Ansible Galaxy
+\`\`\`
+$ansible_results
+\`\`\`
+
+### PyPI
+\`\`\`
+$pypi_results
+\`\`\`
+
+### GitHub
+Search: $GITHUB_SEARCH_URL
+
+### Jeff Geerling
+Search: $GEERLING_URL
+
+### Standard Tools
+$(printf '%s\n' "${found_tools[@]}")
+
+## Decision
+
+**Use Existing Solution?** [ ] YES  [ ] NO
+
+**If YES, which one?**
+
+
+**If NO, why not?**
+
+
+**Custom code justification:**
+- [ ] Business-specific logic
+- [ ] < 200 lines
+- [ ] No maintenance burden
+- [ ] No proven alternative exists
+
+## Implementation Plan
+
+**Proven tools to use:**
+
+
+**Custom code to write:**
+
+
+**Estimated effort:**
+
+
+DECISION
+
+print_success "Decision log created: $DECISION_LOG"
+echo ""
+print_info "Review and save this log with your code"
+
+echo ""
+print_header "Next Steps"
+echo ""
+
+echo "1. Review search results above"
+echo "2. Make your decision (use existing vs. build custom)"
+echo "3. Fill out decision log: $DECISION_LOG"
+echo "4. If building custom, keep it < 200 lines"
+echo "5. Run checklist again before committing"
+echo ""
+
+print_success "Pre-development checklist complete!"

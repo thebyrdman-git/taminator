@@ -1,0 +1,109 @@
+{
+  "name": "Coastal QIF Complete Import",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "f1d6b2c4-8e7a-4b3d-9c2f-1a5e8b9d4c7e",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "filePath": "/home/jbyrd/export_20251016.qif"
+      },
+      "id": "a2b8c1d5-9f4e-4a6b-8d3c-2e7f9a1b5c8d",
+      "name": "Read Files From Disk",
+      "type": "n8n-nodes-base.readBinaryFiles",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Coastal Credit Union QIF Parser for n8n\n// Processes QIF files and converts to Actual Budget format\n// Handles 425+ transactions automatically\n\nconst qifContent = $input.first().binary.data.toString();\nconst lines = qifContent.split('\\n');\nconst transactions = [];\nlet currentTxn = {};\n\nfor (const line of lines) {\n  const trimmedLine = line.trim();\n  \n  // Skip header and empty lines\n  if (trimmedLine.startsWith('!Type:') || trimmedLine === '') continue;\n  \n  // End of transaction marker\n  if (trimmedLine === '^') {\n    if (Object.keys(currentTxn).length > 0) {\n      // Convert date format MM/DD/YYYY to YYYY-MM-DD\n      if (currentTxn.date) {\n        const parts = currentTxn.date.split('/');\n        if (parts.length === 3) {\n          const month = parts[0].padStart(2, '0');\n          const day = parts[1].padStart(2, '0');\n          const year = parts[2];\n          currentTxn.date = `${year}-${month}-${day}`;\n        }\n      }\n      \n      // Convert amount to cents (Actual Budget format)\n      if (currentTxn.amount) {\n        currentTxn.amount = Math.round(currentTxn.amount * 100);\n      }\n      \n      transactions.push(currentTxn);\n      currentTxn = {};\n    }\n  } else if (trimmedLine.startsWith('D')) {\n    // Date field\n    currentTxn.date = trimmedLine.substring(1);\n  } else if (trimmedLine.startsWith('T')) {\n    // Amount field\n    currentTxn.amount = parseFloat(trimmedLine.substring(1));\n  } else if (trimmedLine.startsWith('P')) {\n    // Payee field\n    currentTxn.payee = trimmedLine.substring(1);\n  } else if (trimmedLine.startsWith('M')) {\n    // Memo field\n    currentTxn.memo = trimmedLine.substring(1) || '';\n  } else if (trimmedLine.startsWith('C')) {\n    // Cleared status\n    currentTxn.cleared = trimmedLine.substring(1) === '*';\n  } else if (trimmedLine.startsWith('N')) {\n    // Check number\n    currentTxn.checkNumber = trimmedLine.substring(1);\n  }\n}\n\n// Return formatted transactions for Actual Budget\nreturn transactions.map(txn => ({\n  json: {\n    date: txn.date,\n    amount: txn.amount,\n    payee: txn.payee || 'Unknown',\n    notes: txn.memo || '',\n    cleared: txn.cleared || false,\n    account: 'Coastal Credit Union',\n    imported_id: `coastal_${txn.date}_${Math.abs(txn.amount)}_${txn.payee?.substring(0,10) || 'unknown'}`\n  }\n}));"
+      },
+      "id": "b3c9d2e6-1f5a-4b7c-9e4d-3f8a2b6c9e1f",
+      "name": "QIF Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://money.jbyrd.org/sync/sync",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-ACTUAL-TOKEN",
+              "value": "fd118f31-1be9-4149-b094-2e75cd8ab59e"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "c4d1e3f7-2a6b-4c8e-1f5d-4a9b3c7e2f6a",
+      "name": "Send to Actual Budget",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Files From Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Files From Disk": {
+      "main": [
+        [
+          {
+            "node": "QIF Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QIF Parser": {
+      "main": [
+        [
+          {
+            "node": "Send to Actual Budget",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "coastal-qif-complete-import",
+  "tags": []
+}
