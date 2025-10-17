@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+"""
+TAM RFE Customer Onboarding Sync
+Syncs customer onboarding requests from Google Sheets to local configuration
+"""
+
+import sys
+from pathlib import Path
+
+print("=" * 60)
+print("TAM RFE Customer Onboarding Sync")
+print("=" * 60)
+print()
+print("Status: [STUB] - Full implementation coming soon!")
+print()
+print("This tool will:")
+print("  1. Connect to Google Sheets")
+print("  2. Fetch pending customer onboardings")
+print("  3. Validate data (account numbers, names, etc.)")
+print("  4. Generate customers.conf entries")
+print("  5. Update tamscripts.config")
+print("  6. Send confirmation emails to TAMs")
+print()
+print("For now, use: tam-rfe-onboard-intelligent")
+print()
+print("Implementation details: docs/GOOGLE-FORM-INTEGRATION.md")
+print()
+
+sys.exit(0)
