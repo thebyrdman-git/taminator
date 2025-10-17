@@ -78,7 +78,8 @@ add_customer_to_conf() {
     # Check if customer already exists
     if grep -q "^${customer_key}:" "$CUSTOMERS_CONF" 2>/dev/null; then
         print_info "Customer $customer_key already exists in customers.conf, updating..."
-        sed -i "/^${customer_key}:/d" "$CUSTOMERS_CONF"
+        # Cross-platform sed (macOS requires backup extension)
+        sed -i.bak "/^${customer_key}:/d" "$CUSTOMERS_CONF" && rm -f "${CUSTOMERS_CONF}.bak"
     fi
     
     # Add to customers.conf

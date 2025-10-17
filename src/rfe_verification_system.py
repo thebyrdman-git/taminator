@@ -20,7 +20,7 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import traceback
 
-class TestResult(Enum):
+class TestStatus(Enum):
     """Test result status"""
     PASS = "PASS"
     FAIL = "FAIL"
@@ -51,7 +51,7 @@ class TestCase:
 class TestResult:
     """Represents a test result"""
     test_name: str
-    status: TestResult
+    status: TestStatus
     execution_time: float
     output: str
     error: Optional[str] = None
@@ -332,7 +332,7 @@ class RFEVerificationSystem:
                         if test_case.expected_result in result.stdout:
                             return TestResult(
                                 test_name=test_case.name,
-                                status=TestResult.PASS,
+                                status=TestStatus.PASS,
                                 execution_time=execution_time,
                                 output=result.stdout,
                                 timestamp=datetime.now().isoformat(),
@@ -366,7 +366,7 @@ class RFEVerificationSystem:
         execution_time = time.time() - start_time
         return TestResult(
             test_name=test_case.name,
-            status=TestResult.FAIL,
+            status=TestStatus.FAIL,
             execution_time=execution_time,
             output="",
             error=last_error,
@@ -396,7 +396,7 @@ class RFEVerificationSystem:
             self.test_results.append(result)
             
             # Log result
-            status_icon = "✅" if result.status == TestResult.PASS else "❌" if result.status == TestResult.FAIL else "⚠️"
+            status_icon = "✅" if result.status == TestStatus.PASS else "❌" if result.status == TestStatus.FAIL else "⚠️"
             self.logger.info(f"{status_icon} {test_case.name}: {result.status.value} ({result.execution_time:.2f}s)")
             
             if result.error:
@@ -416,10 +416,10 @@ class RFEVerificationSystem:
         
         self.test_summary = {
             'total_tests': len(self.test_results),
-            'passed': len([r for r in self.test_results if r.status == TestResult.PASS]),
-            'failed': len([r for r in self.test_results if r.status == TestResult.FAIL]),
-            'warnings': len([r for r in self.test_results if r.status == TestResult.WARN]),
-            'skipped': len([r for r in self.test_results if r.status == TestResult.SKIP]),
+            'passed': len([r for r in self.test_results if r.status == TestStatus.PASS]),
+            'failed': len([r for r in self.test_results if r.status == TestStatus.FAIL]),
+            'warnings': len([r for r in self.test_results if r.status == TestStatus.WARN]),
+            'skipped': len([r for r in self.test_results if r.status == TestStatus.SKIP]),
             'execution_time': execution_time
         }
     
@@ -439,14 +439,14 @@ class RFEVerificationSystem:
             category_results = [r for r in self.test_results if r.test_name in [t.name for t in tests]]
             category_stats[category] = {
                 'total': len(category_results),
-                'passed': len([r for r in category_results if r.status == TestResult.PASS]),
-                'failed': len([r for r in category_results if r.status == TestResult.FAIL]),
-                'success_rate': len([r for r in category_results if r.status == TestResult.PASS]) / len(category_results) * 100 if category_results else 0
+                'passed': len([r for r in category_results if r.status == TestStatus.PASS]),
+                'failed': len([r for r in category_results if r.status == TestStatus.FAIL]),
+                'success_rate': len([r for r in category_results if r.status == TestStatus.PASS]) / len(category_results) * 100 if category_results else 0
             }
         
         # Determine overall health
         critical_tests = [r for r in self.test_results if any(t.severity == TestSeverity.CRITICAL and t.name == r.test_name for t in self.test_cases)]
-        critical_failures = [r for r in critical_tests if r.status == TestResult.FAIL]
+        critical_failures = [r for r in critical_tests if r.status == TestStatus.FAIL]
         
         if critical_failures:
             overall_health = "CRITICAL_FAILURE"
@@ -472,7 +472,7 @@ class RFEVerificationSystem:
         recommendations = []
         
         # Check for critical failures
-        critical_failures = [r for r in self.test_results if r.status == TestResult.FAIL and any(t.severity == TestSeverity.CRITICAL and t.name == r.test_name for t in self.test_cases)]
+        critical_failures = [r for r in self.test_results if r.status == TestStatus.FAIL and any(t.severity == TestSeverity.CRITICAL and t.name == r.test_name for t in self.test_cases)]
         
         if critical_failures:
             recommendations.append("🚨 CRITICAL: Fix critical test failures before using the tool")
@@ -480,17 +480,17 @@ class RFEVerificationSystem:
                 recommendations.append(f"   - {failure.test_name}: {failure.error}")
         
         # Check for connectivity issues
-        connectivity_failures = [r for r in self.test_results if r.status == TestResult.FAIL and "connectivity" in r.test_name]
+        connectivity_failures = [r for r in self.test_results if r.status == TestStatus.FAIL and "connectivity" in r.test_name]
         if connectivity_failures:
             recommendations.append("🌐 NETWORK: Check Red Hat VPN connection and network access")
         
         # Check for authentication issues
-        auth_failures = [r for r in self.test_results if r.status == TestResult.FAIL and "authentication" in r.test_name]
+        auth_failures = [r for r in self.test_results if r.status == TestStatus.FAIL and "authentication" in r.test_name]
         if auth_failures:
             recommendations.append("🔐 AUTH: Verify Red Hat SSO credentials and rhcase configuration")
         
         # Check for dependency issues
-        dep_failures = [r for r in self.test_results if r.status == TestResult.FAIL and "dependencies" in r.test_name]
+        dep_failures = [r for r in self.test_results if r.status == TestStatus.FAIL and "dependencies" in r.test_name]
         if dep_failures:
             recommendations.append("📦 DEPS: Install missing Python dependencies")
         
