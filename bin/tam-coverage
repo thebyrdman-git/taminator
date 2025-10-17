@@ -78,7 +78,7 @@ class CoverageAnnouncer:
         
         # Post to CPG if requested
         if post_cpg and self.customer:
-            self._post_to_cpg(announcement)
+            self._post_to_cpg(ann_file)
         
         # Email if requested
         if send_email:
@@ -381,10 +381,27 @@ Contact {self.tam_name}: {self.tam_email}
         
         return output_file
     
-    def _post_to_cpg(self, announcement: str):
+    def _post_to_cpg(self, announcement_file: Path):
         """Post announcement to CPG"""
-        print(f"  📤 CPG posting coming soon...")
-        print(f"     Would post to {self.customer}'s private group")
+        if not self.customer:
+            print(f"  ⚠️  No customer specified, skipping CPG posting")
+            return
+        
+        print(f"  📤 Posting announcement to CPG...")
+        
+        try:
+            from foundation.cpg_handler import get_cpg_handler
+            
+            handler = get_cpg_handler()
+            
+            if handler.post_coverage_announcement(self.customer, announcement_file):
+                print(f"  ✅ Posted to {self.customer}'s private group")
+            else:
+                print(f"  ⚠️  CPG posting failed. Announcement saved to file")
+                print(f"  ℹ️  Configure CPG: Set CPG_* environment variables or create cpg.conf")
+        except Exception as e:
+            print(f"  ⚠️  CPG error: {e}")
+            print(f"  ℹ️  Announcement saved to file instead")
     
     def _send_email(self, announcement: str, email: str):
         """Send announcement via email"""

@@ -351,9 +351,26 @@ class T3Reader:
     
     def _post_to_cpg(self, articles: List[Dict]):
         """Post articles to Customer Portal Private Groups"""
-        print(f"  📤 Posting to CPG...")
-        print(f"  ℹ️  CPG integration coming soon")
-        print(f"     Will post {len(articles)} articles to {self.customer}'s private group")
+        print(f"  📤 Posting {len(articles)} articles to CPG...")
+        
+        try:
+            from foundation.cpg_handler import get_cpg_handler
+            
+            handler = get_cpg_handler()
+            success_count = 0
+            
+            for article in articles[:5]:  # Post top 5 most relevant
+                if handler.post_t3_article(self.customer, article):
+                    success_count += 1
+            
+            if success_count > 0:
+                print(f"  ✅ Posted {success_count} article(s) to {self.customer}'s private group")
+            else:
+                print(f"  ⚠️  CPG posting failed. Articles saved to file")
+                print(f"  ℹ️  Configure CPG: Set CPG_* environment variables or create cpg.conf")
+        except Exception as e:
+            print(f"  ⚠️  CPG error: {e}")
+            print(f"  ℹ️  Articles saved to file instead")
     
     def _send_email(self, report: str, email: str):
         """Send report via email"""
