@@ -1,8 +1,8 @@
-# Lego-Style Service Architecture
+# Composable Service Architecture
 
-**Philosophy:** Adding services = snapping Lego blocks together  
-**Goal:** Zero-config, self-wiring, plug-and-play infrastructure  
-**Inspiration:** Kubernetes Helm charts, but simpler
+**Philosophy:** Declarative service composition with automatic orchestration  
+**Goal:** Minimal configuration, automatic service discovery, declarative deployment  
+**Inspiration:** Kubernetes Helm charts with Docker Compose simplicity
 
 ---
 
@@ -24,7 +24,7 @@
 ... (painful)
 ```
 
-### Lego Infrastructure (Simple)
+### Composable Infrastructure (Declarative)
 ```yaml
 # 1 step to add a service:
 services:
@@ -37,9 +37,9 @@ services:
 
 ---
 
-## Part 1: Lego Block Types
+## Part 1: Service Component Types
 
-### Block Type: WebApp
+### Component Type: WebApp
 **What it includes:** HTTP service with Traefik routing
 
 ```yaml
@@ -54,7 +54,7 @@ auto_includes:
   - Restart on failure
 ```
 
-### Block Type: Database
+### Component Type: Database
 **What it includes:** Persistent data service
 
 ```yaml
@@ -68,7 +68,7 @@ auto_includes:
   - Log aggregation
 ```
 
-### Block Type: Worker
+### Component Type: Worker
 **What it includes:** Background task processor
 
 ```yaml
@@ -81,7 +81,7 @@ auto_includes:
   - Log aggregation
 ```
 
-### Block Type: Utility
+### Component Type: Utility
 **What it includes:** Support service (monitoring, logging, etc.)
 
 ```yaml
@@ -94,14 +94,14 @@ auto_includes:
 
 ---
 
-## Part 2: Service Catalog (Lego Sets)
+## Part 2: Service Catalog
 
-### Pre-Built Lego Blocks (Just Use)
+### Pre-Configured Service Components
 
 ```yaml
 # ~/pai/ansible/service-catalog.yml
 ---
-# Finance Blocks
+# Finance Services
 actual_budget:
   name: actual-budget
   type: webapp
@@ -111,7 +111,7 @@ actual_budget:
   description: "Personal finance management"
   tags: [finance, webapp]
 
-# Automation Blocks  
+# Automation Services  
 n8n:
   name: n8n
   type: webapp
@@ -121,7 +121,7 @@ n8n:
   description: "Workflow automation"
   tags: [automation, webapp]
 
-# Database Blocks
+# Database Services
 redis:
   name: redis
   type: database
@@ -140,7 +140,7 @@ postgres:
   description: "Relational database"
   tags: [database]
 
-# Dashboard Blocks
+# Dashboard Services
 homer:
   name: homer
   type: webapp
@@ -159,7 +159,7 @@ grafana:
   description: "Metrics dashboard"
   tags: [monitoring, webapp]
 
-# Monitoring Blocks
+# Monitoring Services
 prometheus:
   name: prometheus
   type: utility
@@ -178,7 +178,7 @@ loki:
   description: "Log aggregation"
   tags: [monitoring, logging]
 
-# Management Blocks
+# Management Services
 portainer:
   name: portainer
   type: webapp
@@ -188,7 +188,7 @@ portainer:
   description: "Container management"
   tags: [management, webapp]
 
-# Media Blocks
+# Media Services
 plex:
   name: plex
   type: webapp
@@ -198,7 +198,7 @@ plex:
   description: "Media server"
   tags: [media, webapp]
   
-# Development Blocks
+# Development Services
 code_server:
   name: code-server
   type: webapp
@@ -208,12 +208,12 @@ code_server:
   description: "VS Code in browser"
   tags: [development, webapp]
 
-# More blocks available...
+# More services available...
 ```
 
 ---
 
-## Part 3: Snap-Together System
+## Part 3: Service Composition
 
 ### How to Add a Service (3 Ways)
 
@@ -275,9 +275,9 @@ pai-service-add --interactive
 
 ---
 
-## Part 4: Self-Wiring Magic
+## Part 4: Automatic Service Discovery
 
-### What Happens Automatically
+### Dynamic Configuration Generation
 
 ```yaml
 # You write this:
@@ -487,7 +487,7 @@ ssh miraclemax "podman ps --format 'table {{.Names}}\t{{.Status}}'"
 
 ---
 
-## Part 6: Advanced Lego Features
+## Part 6: Advanced Service Composition Features
 
 ### Feature: Service Dependencies
 
@@ -511,7 +511,7 @@ pai-service-add n8n
 # System deploys: redis → postgres → n8n (in order)
 ```
 
-### Feature: Service Stacks (Lego Sets)
+### Feature: Service Stacks (Predefined Compositions)
 
 ```yaml
 # Predefined stacks
@@ -591,14 +591,14 @@ services_enabled:
 
 ---
 
-## Part 7: The Lego Ansible Role
+## Part 7: The Service Composition Ansible Role
 
-### Role: lego_service
+### Role: composable_service
 
 ```yaml
-# roles/lego_service/tasks/main.yml
+# roles/composable_service/tasks/main.yml
 ---
-# The magic that makes Lego blocks work
+# Automatic service discovery and composition
 
 - name: Load service catalog
   ansible.builtin.include_vars:
@@ -626,7 +626,7 @@ services_enabled:
 ### Template: webapp.yml.j2
 
 ```jinja2
-# roles/lego_service/templates/webapp.yml.j2
+# roles/composable_service/templates/webapp.yml.j2
 ---
 version: '3'
 
@@ -692,10 +692,10 @@ volumes:
 ### Scenario 1: New User Adding Services
 
 ```bash
-# 1. List available blocks
+# 1. List available components
 $ pai-service-list
 
-📦 Available Lego Blocks (Service Catalog)
+📦 Available Service Components (Service Catalog)
 ==========================================
 
 ## WEBAPP
@@ -732,16 +732,16 @@ $ pai-deploy
 
 PLAY [Deploy miraclemax Infrastructure] *************************
 
-TASK [lego_service : Load service catalog] **********************
+TASK [composable_service : Load service catalog] **********************
 ok: [miraclemax]
 
-TASK [lego_service : Generate service configurations] ***********
+TASK [composable_service : Generate service configurations] ***********
 changed: [miraclemax] => (item=actual-budget)
 changed: [miraclemax] => (item=redis)
 changed: [miraclemax] => (item=postgres)
 changed: [miraclemax] => (item=n8n)
 
-TASK [lego_service : Deploy services] ***************************
+TASK [composable_service : Deploy services] ***************************
 changed: [miraclemax] => (item=redis)
 changed: [miraclemax] => (item=postgres)
 changed: [miraclemax] => (item=actual-budget)
@@ -796,7 +796,7 @@ $ pai-deploy
 
 ### Developer Experience
 
-| Before (Manual) | After (Lego) |
+| Before (Manual) | After (Composable) |
 |----------------|--------------|
 | 30 min to add service | 30 seconds |
 | 50 lines of config | 2 lines |
@@ -819,8 +819,8 @@ $ pai-deploy
 
 | Aspect | Lines of Code |
 |--------|---------------|
-| **Service catalog** | ~500 (reusable blocks) |
-| **Lego role** | ~200 (automation) |
+| **Service catalog** | ~500 (reusable components) |
+| **Composable service role** | ~200 (automation) |
 | **Templates** | ~100 per type |
 | **Your service config** | **2 lines** ✅ |
 
@@ -828,7 +828,7 @@ $ pai-deploy
 
 ---
 
-## Part 10: Future Lego Features
+## Part 10: Future Service Composition Features
 
 ### Auto-Discovery Services
 ```bash
@@ -839,7 +839,7 @@ pai-service-scan mycompany/
 # from image labels and documentation
 ```
 
-### Visual Lego Builder
+### Visual Service Composer
 ```bash
 # TUI for building service configurations
 pai-service-build
@@ -850,18 +850,18 @@ pai-service-build
 
 ### Service Health Dashboard
 ```bash
-# Real-time Lego block status
+# Real-time service component status
 pai-service-health
 
 # Shows: running, stopped, unhealthy, updating
-# Color-coded like real Lego blocks
+# Visual status indicators for all services
 ```
 
 ---
 
 ## Bottom Line
 
-### The Lego Principle
+### The Composable Service Principle
 
 **Traditional Infrastructure:**
 ```
@@ -874,7 +874,7 @@ Service = 50 lines of manual config
 = 2 hours of work, error-prone
 ```
 
-**Lego Infrastructure:**
+**Composable Infrastructure:**
 ```
 Service = 2 lines in catalog
         + Type (webapp/database/worker)
@@ -883,11 +883,11 @@ Service = 2 lines in catalog
 
 ### Why It Works
 
-1. **Catalog:** Pre-built blocks (like Lego instruction manuals)
-2. **Types:** Smart defaults per service type
-3. **Auto-wiring:** Services connect automatically
-4. **Templates:** One template → all services
-5. **Tools:** Simple CLI (`pai-service-add`)
+1. **Service Catalog:** Pre-configured service definitions
+2. **Type System:** Smart defaults per service type (webapp/database/worker/utility)
+3. **Service Discovery:** Automatic routing and configuration
+4. **Templates:** Reusable Jinja2 templates for all service types
+5. **CLI Tools:** Simple commands (`pai-service-add`, `pai-deploy`)
 
 ### The Result
 
@@ -896,16 +896,16 @@ Service = 2 lines in catalog
 pai-service-add actual-budget && pai-deploy
 ```
 
-**Is literally as easy as:**
-- Snapping a Lego block onto your build
-- Takes 30 seconds
-- Zero configuration needed
-- Production-ready immediately
+**Provides:**
+- Declarative service composition
+- Sub-minute deployment time
+- Centralized configuration management
+- Production-ready with best practices built-in
 
-**That's the power of modular, plug-and-play infrastructure.**
+**This demonstrates the power of composable, declarative infrastructure.**
 
 ---
 
-*Philosophy: Infrastructure as Lego Blocks*  
-*Inspiration: Kubernetes simplicity + Docker Compose ease*  
-*Result: 30-second service deployments, zero config*
+*Philosophy: Composable Service Architecture*  
+*Pattern: Microservices + Service Mesh + Declarative Configuration*  
+*Result: Sub-minute service deployments, minimal configuration*
