@@ -1,0 +1,167 @@
+# Email Template Configuration for TAM RFE Scheduler
+# TAMs can customize these templates to get exactly the information they need
+
+# Default template - comprehensive case analysis
+default:
+  name: "Comprehensive Case Report"
+  subject: "[RFE Report] {customer} - {total_cases} cases | {high_priority} high priority"
+  sections:
+    - type: summary
+      enabled: true
+      fields:
+        - total_cases
+        - rfes
+        - bugs
+        - high_priority
+        - aging_cases
+    - type: priority_breakdown
+      enabled: true
+      show_counts: true
+      show_percentages: true
+    - type: aging_analysis
+      enabled: true
+      thresholds: [7, 14, 30, 60]
+      alert_on: 30
+    - type: case_list
+      enabled: true
+      max_cases: 20
+      sort_by: priority
+      fields:
+        - case_number
+        - title
+        - severity
+        - status
+        - age_days
+        - last_update
+        - component
+    - type: action_items
+      enabled: true
+      auto_generate: true
+    - type: trends
+      enabled: true
+      compare_period: "7d"
+
+# Minimal template - just the essentials
+minimal:
+  name: "Quick Status Check"
+  subject: "[Quick] {customer} - {total_cases} cases"
+  sections:
+    - type: summary
+      enabled: true
+      fields:
+        - total_cases
+        - high_priority
+    - type: case_list
+      enabled: true
+      max_cases: 10
+      sort_by: priority
+      fields:
+        - case_number
+        - title
+        - severity
+
+# Priority-focused template
+priority_focused:
+  name: "Priority Cases Only"
+  subject: "[Priority] {customer} - {high_priority} cases need attention"
+  filters:
+    severity: ["Urgent", "High"]
+  sections:
+    - type: summary
+      enabled: true
+      fields:
+        - high_priority
+        - aging_cases
+    - type: case_list
+      enabled: true
+      sort_by: age
+      fields:
+        - case_number
+        - title
+        - severity
+        - age_days
+        - last_update
+        - owner
+    - type: action_items
+      enabled: true
+      auto_generate: true
+
+# Executive summary template
+executive:
+  name: "Executive Summary"
+  subject: "[Executive] {customer} Status - {total_cases} total"
+  sections:
+    - type: summary
+      enabled: true
+      fields:
+        - total_cases
+        - rfes
+        - bugs
+        - high_priority
+        - resolved_this_week
+    - type: trends
+      enabled: true
+      compare_period: "30d"
+      metrics:
+        - case_volume
+        - resolution_rate
+        - average_age
+    - type: top_issues
+      enabled: true
+      count: 5
+      sort_by: impact
+
+# Custom template options that TAMs can mix and match
+template_options:
+  summary_fields:
+    - total_cases: "Total open cases"
+    - rfes: "Feature requests"
+    - bugs: "Bug reports"
+    - high_priority: "High priority cases"
+    - aging_cases: "Cases aging >30 days"
+    - resolved_this_week: "Resolved this week"
+    - new_this_week: "New this week"
+  
+  case_list_fields:
+    - case_number: "Case number"
+    - title: "Case title"
+    - severity: "Priority/severity"
+    - status: "Current status"
+    - age_days: "Age in days"
+    - last_update: "Last update date"
+    - component: "Product component"
+    - owner: "Case owner"
+    - customer_contact: "Customer contact"
+    - escalation_status: "Escalation flag"
+  
+  analysis_types:
+    - aging_analysis: "Show cases by age buckets"
+    - priority_breakdown: "Priority distribution"
+    - component_breakdown: "Cases by component"
+    - trends: "Trend analysis vs previous period"
+    - action_items: "Auto-generated action items"
+    - top_issues: "Most impactful issues"
+  
+  sorting_options:
+    - priority: "Sort by priority (High to Low)"
+    - age: "Sort by age (Oldest first)"
+    - updated: "Sort by last update (Recent first)"
+    - severity: "Sort by severity"
+  
+  alert_conditions:
+    - aging_threshold: "Alert if cases exceed age threshold"
+    - priority_spike: "Alert if high priority cases increase"
+    - no_update: "Alert if no updates in X days"
+    - sla_breach: "Alert on SLA breach risk"
+
+# Email formatting options
+formatting:
+  html_enabled: true
+  include_charts: true
+  color_coding:
+    urgent: "#FF0000"
+    high: "#FF6600"
+    medium: "#FFAA00"
+    low: "#00AA00"
+  case_link_format: "https://access.redhat.com/support/cases/{case_number}"
+

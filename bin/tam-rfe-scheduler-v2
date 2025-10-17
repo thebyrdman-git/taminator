@@ -1,0 +1,394 @@
+#!/usr/bin/env python3
+"""
+TAM RFE Scheduler v2 - Enhanced with detailed emails and customizable templates
+Allows TAMs to get exactly the case information and analysis they want
+"""
+
+import sys
+import os
+import yaml
+import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Any
+import subprocess
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+try:
+    from foundation.platform import platform
+except ImportError:
+    # Fallback for systems without foundation module
+    class platform:
+        @staticmethod
+        def config_dir(app_name="rfe-tool"):
+            return Path.home() / ".config" / app_name
+
+# Configuration
+CONFIG_DIR = platform.config_dir("rfe-tool")
+TEMPLATE_CONFIG = CONFIG_DIR / "email-templates.yaml"
+SCHEDULE_CONFIG = CONFIG_DIR / "schedule.yaml"
+
+
+class CaseData:
+    """Represent case data for analysis"""
+    def __init__(self, case_dict: Dict):
+        self.number = case_dict.get('case_number', '')
+        self.title = case_dict.get('title', '')
+        self.severity = case_dict.get('severity', 'Medium')
+        self.status = case_dict.get('status', 'Open')
+        self.age_days = case_dict.get('age_days', 0)
+        self.last_update = case_dict.get('last_update', '')
+        self.component = case_dict.get('component', 'Unknown')
+        self.owner = case_dict.get('owner', '')
+
+
+class EmailTemplate:
+    """Generate customized email reports"""
+    
+    def __init__(self, template_config: Dict):
+        self.config = template_config
+        self.name = template_config.get('name', 'Default Report')
+        self.subject_template = template_config.get('subject', '[RFE Report] {customer}')
+        self.sections = template_config.get('sections', [])
+    
+    def generate_html(self, customer: str, cases: List[CaseData], metadata: Dict) -> str:
+        """Generate HTML email content"""
+        html_parts = [self._html_header()]
+        
+        for section in self.sections:
+            if not section.get('enabled', True):
+                continue
+            
+            section_type = section['type']
+            if section_type == 'summary':
+                html_parts.append(self._generate_summary(cases, metadata, section))
+            elif section_type == 'priority_breakdown':
+                html_parts.append(self._generate_priority_breakdown(cases, section))
+            elif section_type == 'aging_analysis':
+                html_parts.append(self._generate_aging_analysis(cases, section))
+            elif section_type == 'case_list':
+                html_parts.append(self._generate_case_list(cases, section))
+            elif section_type == 'action_items':
+                html_parts.append(self._generate_action_items(cases, section))
+            elif section_type == 'trends':
+                html_parts.append(self._generate_trends(cases, metadata, section))
+        
+        html_parts.append(self._html_footer())
+        return '\n'.join(html_parts)
+    
+    def _html_header(self) -> str:
+        return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }}
+        .container {{ background-color: white; padding: 20px; border-radius: 8px; max-width: 1000px; margin: auto; }}
+        h1 {{ color: #EE0000; border-bottom: 3px solid #EE0000; padding-bottom: 10px; }}
+        h2 {{ color: #333; margin-top: 25px; border-left: 4px solid #EE0000; padding-left: 10px; }}
+        .summary {{ background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+        .metric {{ display: inline-block; margin: 10px 20px 10px 0; }}
+        .metric-label {{ font-weight: bold; color: #666; }}
+        .metric-value {{ font-size: 24px; color: #EE0000; font-weight: bold; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
+        th {{ background: #EE0000; color: white; padding: 12px; text-align: left; }}
+        td {{ padding: 10px; border-bottom: 1px solid #ddd; }}
+        tr:hover {{ background-color: #f5f5f5; }}
+        .urgent {{ background-color: #ffebee; }}
+        .high {{ background-color: #fff3e0; }}
+        .alert {{ background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 15px 0; }}
+        .footer {{ margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd; color: #666; font-size: 12px; }}
+    </style>
+</head>
+<body>
+<div class="container">
+<h1>{self.name}</h1>
+<p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+"""
+    
+    def _html_footer(self) -> str:
+        return """
+<div class="footer">
+<p>This is an automated report from TAM RFE Automation Tool</p>
+<p>Configure your templates: <code>tam-rfe-template-customizer</code></p>
+</div>
+</div>
+</body>
+</html>
+"""
+    
+    def _generate_summary(self, cases: List[CaseData], metadata: Dict, section: Dict) -> str:
+        fields = section.get('fields', [])
+        total = len(cases)
+        rfes = len([c for c in cases if 'RFE' in c.status or 'Enhancement' in c.status])
+        bugs = total - rfes
+        high_priority = len([c for c in cases if c.severity in ['Urgent', 'High']])
+        aging = len([c for c in cases if c.age_days > 30])
+        
+        metrics = {
+            'total_cases': (total, 'Total Cases'),
+            'rfes': (rfes, 'Feature Requests'),
+            'bugs': (bugs, 'Bugs'),
+            'high_priority': (high_priority, 'High Priority'),
+            'aging_cases': (aging, 'Aging >30 days'),
+        }
+        
+        html = '<h2>Summary</h2><div class="summary">'
+        for field in fields:
+            if field in metrics:
+                value, label = metrics[field]
+                html += f'<div class="metric"><span class="metric-label">{label}:</span> <span class="metric-value">{value}</span></div>'
+        html += '</div>'
+        
+        if aging > 0:
+            html += f'<div class="alert">[WARN] Alert: {aging} cases aging beyond 30 days</div>'
+        
+        return html
+    
+    def _generate_priority_breakdown(self, cases: List[CaseData], section: Dict) -> str:
+        priority_counts = {}
+        for case in cases:
+            priority_counts[case.severity] = priority_counts.get(case.severity, 0) + 1
+        
+        html = '<h2>Priority Breakdown</h2><table><tr><th>Priority</th><th>Count</th>'
+        if section.get('show_percentages'):
+            html += '<th>Percentage</th>'
+        html += '</tr>'
+        
+        for priority in ['Urgent', 'High', 'Medium', 'Low']:
+            count = priority_counts.get(priority, 0)
+            html += f'<tr><td>{priority}</td><td>{count}</td>'
+            if section.get('show_percentages'):
+                pct = (count / len(cases) * 100) if cases else 0
+                html += f'<td>{pct:.1f}%</td>'
+            html += '</tr>'
+        
+        html += '</table>'
+        return html
+    
+    def _generate_aging_analysis(self, cases: List[CaseData], section: Dict) -> str:
+        thresholds = section.get('thresholds', [7, 14, 30, 60])
+        buckets = {f'0-{thresholds[0]}': 0}
+        
+        for i, threshold in enumerate(thresholds):
+            if i < len(thresholds) - 1:
+                buckets[f'{threshold}-{thresholds[i+1]}'] = 0
+            else:
+                buckets[f'{threshold}+'] = 0
+        
+        for case in cases:
+            age = case.age_days
+            placed = False
+            for i, threshold in enumerate(thresholds):
+                if age < threshold:
+                    if i == 0:
+                        buckets[f'0-{threshold}'] += 1
+                    else:
+                        buckets[f'{thresholds[i-1]}-{threshold}'] += 1
+                    placed = True
+                    break
+            if not placed:
+                buckets[f'{thresholds[-1]}+'] += 1
+        
+        html = '<h2>Aging Analysis</h2><table><tr><th>Age Range (days)</th><th>Count</th></tr>'
+        for bucket, count in buckets.items():
+            html += f'<tr><td>{bucket}</td><td>{count}</td></tr>'
+        html += '</table>'
+        
+        alert_threshold = section.get('alert_on', 30)
+        old_cases = len([c for c in cases if c.age_days > alert_threshold])
+        if old_cases > 0:
+            html += f'<div class="alert">[OK] Alert: {old_cases} cases older than {alert_threshold} days</div>'
+        
+        return html
+    
+    def _generate_case_list(self, cases: List[CaseData], section: Dict) -> str:
+        max_cases = section.get('max_cases', 20)
+        sort_by = section.get('sort_by', 'priority')
+        fields = section.get('fields', ['case_number', 'title', 'severity', 'age_days'])
+        
+        # Sort cases
+        if sort_by == 'priority':
+            priority_order = {'Urgent': 0, 'High': 1, 'Medium': 2, 'Low': 3}
+            sorted_cases = sorted(cases, key=lambda c: priority_order.get(c.severity, 4))
+        elif sort_by == 'age':
+            sorted_cases = sorted(cases, key=lambda c: c.age_days, reverse=True)
+        else:
+            sorted_cases = cases
+        
+        html = f'<h2>Case List (Top {min(max_cases, len(cases))})</h2><table><tr>'
+        
+        field_labels = {
+            'case_number': 'Case #',
+            'title': 'Title',
+            'severity': 'Priority',
+            'status': 'Status',
+            'age_days': 'Age',
+            'last_update': 'Last Update',
+            'component': 'Component',
+            'owner': 'Owner',
+        }
+        
+        for field in fields:
+            html += f'<th>{field_labels.get(field, field)}</th>'
+        html += '</tr>'
+        
+        for case in sorted_cases[:max_cases]:
+            row_class = ''
+            if case.severity == 'Urgent':
+                row_class = ' class="urgent"'
+            elif case.severity == 'High':
+                row_class = ' class="high"'
+            
+            html += f'<tr{row_class}>'
+            for field in fields:
+                value = getattr(case, field, '')
+                if field == 'case_number':
+                    html += f'<td><a href="https://access.redhat.com/support/cases/{value}">{value}</a></td>'
+                elif field == 'age_days':
+                    html += f'<td>{value}d</td>'
+                else:
+                    html += f'<td>{value}</td>'
+            html += '</tr>'
+        
+        html += '</table>'
+        return html
+    
+    def _generate_action_items(self, cases: List[CaseData], section: Dict) -> str:
+        high_priority = [c for c in cases if c.severity in ['Urgent', 'High']]
+        aging = [c for c in cases if c.age_days > 30]
+        no_update = [c for c in cases if c.age_days > 14 and (datetime.now() - datetime.strptime(c.last_update, '%Y-%m-%d') if c.last_update else timedelta(days=999)).days > 7]
+        
+        html = '<h2>Recommended Actions</h2><ul>'
+        
+        if high_priority:
+            html += f'<li><strong>Review {len(high_priority)} high priority cases</strong> - Ensure they have active engagement</li>'
+        
+        if aging:
+            html += f'<li><strong>Address {len(aging)} aging cases</strong> - Cases over 30 days need attention</li>'
+        
+        if no_update:
+            html += f'<li><strong>Update {len(no_update)} stale cases</strong> - No updates in last 7+ days</li>'
+        
+        html += '</ul>'
+        return html
+    
+    def _generate_trends(self, cases: List[CaseData], metadata: Dict, section: Dict) -> str:
+        html = '<h2>Trends</h2>'
+        html += '<p><em>Trend analysis vs previous period coming soon...</em></p>'
+        return html
+
+
+def load_template_config(template_name: str = 'default') -> Dict:
+    """Load email template configuration"""
+    try:
+        with open(TEMPLATE_CONFIG) as f:
+            config = yaml.safe_load(f)
+        return config.get(template_name, config.get('default', {}))
+    except FileNotFoundError:
+        print(f"[WARN] Template config not found, using default")
+        return {
+            'name': 'Default Report',
+            'subject': '[RFE Report] {customer}',
+            'sections': [
+                {'type': 'summary', 'enabled': True, 'fields': ['total_cases', 'high_priority']},
+                {'type': 'case_list', 'enabled': True, 'max_cases': 10}
+            ]
+        }
+
+
+def fetch_cases(customer: str) -> List[CaseData]:
+    """Fetch case data for customer"""
+    # TODO: Integrate with actual rhcase/tam-rfe-chat
+    # For now, return mock data
+    print(f"[OK] Fetching cases for {customer}...")
+    
+    # Mock data
+    mock_cases = [
+        {'case_number': '12345', 'title': 'Database performance issue', 'severity': 'Urgent', 'status': 'Open', 'age_days': 45, 'last_update': '2025-10-10', 'component': 'Database'},
+        {'case_number': '12346', 'title': 'Feature request: Auto-scaling', 'severity': 'High', 'status': 'Open', 'age_days': 20, 'last_update': '2025-10-15', 'component': 'Platform'},
+        {'case_number': '12347', 'title': 'UI bug in dashboard', 'severity': 'Medium', 'status': 'Open', 'age_days': 10, 'last_update': '2025-10-16', 'component': 'UI'},
+    ]
+    
+    return [CaseData(c) for c in mock_cases]
+
+
+def send_email(to_address: str, subject: str, html_content: str):
+    """Send HTML email"""
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = os.environ.get('SMTP_FROM', 'noreply@example.com')
+        msg['To'] = to_address
+        
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+        
+        # Send via SMTP
+        smtp_server = os.environ.get('SMTP_SERVER', 'localhost')
+        smtp_port = int(os.environ.get('SMTP_PORT', 25))
+        
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.send_message(msg)
+        
+        print(f"[OK] Email sent to {to_address}")
+    except Exception as e:
+        print(f"[FAIL] Failed to send email: {e}")
+
+
+def main():
+    print("=" * 60)
+    print("TAM RFE Scheduler v2 - Enhanced Email Reports")
+    print("=" * 60)
+    print()
+    
+    # Parse arguments
+    customer = sys.argv[1] if len(sys.argv) > 1 else 'test-customer'
+    template_name = sys.argv[2] if len(sys.argv) > 2 else 'default'
+    email_to = sys.argv[3] if len(sys.argv) > 3 else os.environ.get('EMAIL_TO', 'tam@example.com')
+    
+    print(f"Customer: {customer}")
+    print(f"Template: {template_name}")
+    print(f"Email: {email_to}")
+    print()
+    
+    # Load template
+    template_config = load_template_config(template_name)
+    template = EmailTemplate(template_config)
+    
+    # Fetch case data
+    cases = fetch_cases(customer)
+    print(f"[OK] Found {len(cases)} cases")
+    
+    # Generate email
+    metadata = {'customer': customer, 'generated_at': datetime.now().isoformat()}
+    html_content = template.generate_html(customer, cases, metadata)
+    
+    # Generate subject
+    subject = template.subject_template.format(
+        customer=customer,
+        total_cases=len(cases),
+        high_priority=len([c for c in cases if c.severity in ['Urgent', 'High']])
+    )
+    
+    # Send email
+    print()
+    print("Sending email...")
+    send_email(email_to, subject, html_content)
+    
+    print()
+    print("[OK] Report generation complete!")
+    print()
+    print("Customize your templates:")
+    print("  tam-rfe-template-customizer")
+    print()
+
+
+if __name__ == '__main__':
+    main()
+
