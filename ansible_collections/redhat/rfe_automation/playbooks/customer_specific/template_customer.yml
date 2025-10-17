@@ -6,50 +6,50 @@
   hosts: localhost
   gather_facts: yes
   become: no
-  
+
   vars:
     # CUSTOMER-SPECIFIC SETTINGS - MODIFY THESE
     customer_name: "CUSTOMER_NAME"           # Replace with actual customer name
     account_name: "ACCOUNT_NAME"             # Replace with actual account name
     account_number: "ACCOUNT_NUMBER"         # Replace with actual account number
     priority_components: ["COMPONENT1", "COMPONENT2"]  # Replace with actual priority components
-    
+
     # Global settings
     ansible_python_interpreter: /usr/bin/python3
     report_timestamp: "{{ ansible_date_time.epoch }}"
-    
+
     # Default paths
     rhcase_path: "{{ rhcase_path | default('rhcase') }}"
     output_dir: "{{ output_dir | default('./output') }}"
     logs_dir: "{{ logs_dir | default('./logs') }}"
-    
+
     # Report configuration
     report_types: "{{ report_types | default(['rfe_bug_tracker', 'active_cases']) }}"
-    
+
     # Validation settings
     validation_threshold: "{{ validation_threshold | default(0.99) }}"
     data_quality_threshold: "{{ data_quality_threshold | default(0.95) }}"
-    
+
     # Notification settings
     notifications_enabled: "{{ notifications_enabled | default(false) }}"
     notification_methods: "{{ notification_methods | default(['email']) }}"
-    
+
     # Portal settings
     portal_posting_enabled: "{{ portal_posting_enabled | default(false) }}"
     portal_auto_post: "{{ portal_auto_post | default(false) }}"
-    
+
     # CUSTOMER-SPECIFIC EMAIL CONFIGURATION - MODIFY THESE
     email_recipients:
       - "{{ customer_contact_email | default('customer-contact@customer.com') }}"
       - "{{ tam_email | default('tam@redhat.com') }}"
     email_cc_recipients:
       - "tam-operations@redhat.com"
-    
+
     # CUSTOMER-SPECIFIC SLACK CONFIGURATION - MODIFY THESE
     slack_channel: "#customer-tam-alerts"
     slack_username: "Customer RFE Automation"
     slack_icon_emoji: ":office:"
-    
+
     # CUSTOMER-SPECIFIC PORTAL CONFIGURATION - MODIFY THESE
     portal_sections:
       rfe_bug_tracker:
@@ -60,7 +60,7 @@
         enabled: true
         section_id: "customer-active-cases"
         title_template: "{{ customer_name }} Active Cases Report - {{ ansible_date_time.date }}"
-    
+
     # CUSTOMER-SPECIFIC NOTIFICATION TEMPLATES - MODIFY THESE
     notification_templates:
       rfe_bug_tracker:
@@ -73,19 +73,19 @@
         email_template: "email_active_cases_report.j2"
         slack_template: "slack_active_cases_report.j2"
         teams_template: "teams_active_cases_report.j2"
-    
+
     # Validation settings
     notification_validation_enabled: true
     notification_recipient_validation: true
     portal_validation_enabled: true
     portal_duplicate_detection: true
-    
+
     # Retry settings
     notification_retry_attempts: 3
     notification_retry_delay: 5
     portal_retry_attempts: 3
     portal_retry_delay: 5
-    
+
   pre_tasks:
     - name: Display customer workflow information
       debug:
@@ -98,7 +98,7 @@
           📧 Notifications: {{ 'Enabled' if notifications_enabled else 'Disabled' }} ({{ notification_methods | join(', ') }})
           🌐 Portal Posting: {{ 'Enabled' if portal_posting_enabled else 'Disabled' }}
           ✅ Validation Threshold: {{ (validation_threshold * 100) | round(1) }}%
-    
+
     - name: Validate customer-specific requirements
       assert:
         that:
@@ -108,7 +108,7 @@
           - priority_components | length > 0
           - priority_components[0] != "COMPONENT1"
         fail_msg: "Please customize the customer-specific settings in this playbook before running."
-    
+
     - name: Create customer-specific output directories
       file:
         path: "{{ item }}"
@@ -231,7 +231,7 @@
           ✅ Data Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}%
           📁 Output Directory: {{ output_dir }}/{{ customer_name | lower }}/
           📋 Logs Directory: {{ logs_dir }}/{{ customer_name | lower }}/
-    
+
     - name: Save customer workflow results
       copy:
         content: |
@@ -291,7 +291,7 @@
           }
         dest: "{{ output_dir }}/{{ customer_name | lower }}/{{ customer_name | lower }}_workflow_results_{{ ansible_date_time.epoch }}.json"
         mode: '0644'
-    
+
     - name: Log customer workflow completion
       lineinfile:
         path: "{{ logs_dir }}/{{ customer_name | lower }}/{{ customer_name | lower }}_workflow_history.log"

@@ -24,7 +24,7 @@
   register: portal_rfe_bug_post
   retries: "{{ portal_retry_attempts }}"
   delay: "{{ portal_retry_delay }}"
-  when: 
+  when:
     - portal_posting_enabled
     - portal_sections.rfe_bug_tracker.enabled
     - "'rfe_bug_tracker' in (report_types | default([]))"
@@ -54,7 +54,7 @@
   register: portal_active_cases_post
   retries: "{{ portal_retry_attempts }}"
   delay: "{{ portal_retry_delay }}"
-  when: 
+  when:
     - portal_posting_enabled
     - portal_sections.active_cases.enabled
     - "'active_cases' in (report_types | default([]))"
@@ -71,7 +71,7 @@
   loop:
     - "{{ portal_rfe_bug_post | default({}) }}"
     - "{{ portal_active_cases_post | default({}) }}"
-  when: 
+  when:
     - portal_posting_enabled
     - item is defined
     - item.status == 201
@@ -87,7 +87,7 @@
   loop:
     - "{{ portal_rfe_bug_post | default({}) }}"
     - "{{ portal_active_cases_post | default({}) }}"
-  when: 
+  when:
     - portal_posting_enabled
     - item is defined
     - item.status != 201

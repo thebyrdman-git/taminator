@@ -110,18 +110,18 @@
           📊 RFE/Bug Reports Generated with JIRA Status (Final Approach):
           - RFE/Bug Report: {{ output_dir }}/{{ customer }}_jira_status_final_rfe_bug_report.md
           - Active Cases Report: {{ output_dir }}/{{ customer }}_jira_status_final_active_cases_report.md
-          
+
           📈 Final Summary:
           - Total Cases Processed: {{ all_cases | length }}
           - Active RFEs: {{ active_rfes | length }}
           - Active Bugs: {{ active_bugs | length }}
           - Open Troubleshooting Cases: {{ all_active_cases | length }}
           - Priority Cases: {{ priority_active_cases | length }}
-          
+
           🎯 Status Column Logic:
           - Cases with externalTrackers field: Shows JIRA status from external trackers
           - Cases without externalTrackers field: Shows support case status
-          
+
           ✅ JIRA status integration completed
       tags: [always]
 

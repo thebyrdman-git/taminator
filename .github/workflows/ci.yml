@@ -21,31 +21,31 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ansible-lint yamllint molecule[docker] docker
-          
+
       - name: Run yamllint
         run: |
           yamllint .
-          
+
       - name: Run ansible-lint
         run: |
           ansible-lint --version
           ansible-lint .
-          
+
       - name: Validate Ansible syntax
         run: |
           ansible-playbook --syntax-check generate_reports_smart.yml
           ansible-playbook --syntax-check generate_reports_with_vars.yml
-          
+
       - name: Check custom modules syntax
         run: |
           python -m py_compile ansible_collections/redhat/rfe_automation/plugins/modules/rfe_case_collector.py
@@ -60,27 +60,27 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ansible molecule[docker] docker
-          
+
       - name: Start Docker daemon
         run: |
           sudo systemctl start docker
           sudo docker --version
-          
+
       - name: Run Molecule tests
         run: |
           cd tests/molecule/default
           molecule test
-          
+
       - name: Upload Molecule logs
         uses: actions/upload-artifact@v3
         if: failure()
@@ -96,22 +96,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ansible
-          
+
       - name: Create test environment
         run: |
           mkdir -p test_output
           mkdir -p test_logs
-          
+
       - name: Run integration tests (dry-run)
         run: |
           # Test with mock data
@@ -119,12 +119,12 @@ jobs:
             -e "customer=jpmc" \
             -e "report_types=['rfe_bug_tracker']" \
             --check --diff
-            
+
       - name: Validate output structure
         run: |
           # Check that output directories would be created
           test -d test_output || echo "Output directory structure validated"
-          
+
       - name: Test vars file validation
         run: |
           # Validate accounts.yml structure
@@ -146,12 +146,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Run Bandit security scan
         uses: securecodewarrior/github-action-bandit@v1
         with:
           path: "ansible_collections/redhat/rfe_automation/plugins/modules/"
-          
+
       - name: Check for secrets
         run: |
           # Check for potential secrets in code
@@ -169,11 +169,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Check README exists
         run: |
           test -f README.md || (echo "README.md missing" && exit 1)
-          
+
       - name: Check documentation completeness
         run: |
           # Check that all modules have documentation
@@ -184,7 +184,7 @@ jobs:
             fi
           done
           echo "All modules have documentation"
-          
+
       - name: Validate Markdown
         run: |
           # Check README and other markdown files
@@ -203,27 +203,27 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          
+
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ansible-core
-          
+
       - name: Build Ansible collection
         run: |
           ansible-galaxy collection build ansible_collections/redhat/rfe_automation/
-          
+
       - name: Upload collection artifact
         uses: actions/upload-artifact@v3
         with:
           name: rfe-automation-collection
           path: redhat-rfe_automation-*.tar.gz
-          
+
       - name: Create release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
@@ -245,7 +245,7 @@ jobs:
         run: |
           echo "✅ All CI/CD checks passed successfully!"
           echo "🚀 RFE Automation Tool is ready for deployment"
-          
+
       - name: Notify failure
         if: ${{ needs.lint.result == 'failure' || needs.molecule.result == 'failure' || needs.integration.result == 'failure' || needs.security.result == 'failure' || needs.docs.result == 'failure' }}
         run: |

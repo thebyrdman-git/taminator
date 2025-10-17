@@ -6,50 +6,50 @@
   hosts: localhost
   gather_facts: yes
   become: no
-  
+
   vars:
     # JPMC-specific settings
     customer_name: "JPMC"
     account_name: "JPMC"
     account_number: "334224"
     priority_components: ["Ansible"]
-    
+
     # Global settings
     ansible_python_interpreter: /usr/bin/python3
     report_timestamp: "{{ ansible_date_time.epoch }}"
-    
+
     # Default paths
     rhcase_path: "{{ rhcase_path | default('rhcase') }}"
     output_dir: "{{ output_dir | default('./output') }}"
     logs_dir: "{{ logs_dir | default('./logs') }}"
-    
+
     # JPMC report configuration
     report_types: "{{ report_types | default(['rfe_bug_tracker', 'active_cases']) }}"
-    
+
     # JPMC validation settings (strict for enterprise customer)
     validation_threshold: "{{ validation_threshold | default(0.99) }}"
     data_quality_threshold: "{{ data_quality_threshold | default(0.95) }}"
-    
+
     # JPMC notification settings
     notifications_enabled: "{{ notifications_enabled | default(true) }}"
     notification_methods: "{{ notification_methods | default(['email', 'slack']) }}"
-    
+
     # JPMC portal settings
     portal_posting_enabled: "{{ portal_posting_enabled | default(true) }}"
     portal_auto_post: "{{ portal_auto_post | default(true) }}"
-    
+
     # JPMC-specific email configuration
     email_recipients:
       - "{{ customer_contact_email | default('jpmc-tam-team@jpmchase.com') }}"
       - "{{ tam_email | default('jbyrd@redhat.com') }}"
     email_cc_recipients:
       - "tam-operations@redhat.com"
-    
+
     # JPMC-specific Slack configuration
     slack_channel: "#jpmc-tam-alerts"
     slack_username: "JPMC RFE Automation"
     slack_icon_emoji: ":bank:"
-    
+
     # JPMC-specific portal configuration
     portal_sections:
       rfe_bug_tracker:
@@ -60,7 +60,7 @@
         enabled: true
         section_id: "jpmc-active-cases"
         title_template: "JPMC Active Cases Report - {{ ansible_date_time.date }}"
-    
+
     # JPMC-specific notification templates
     notification_templates:
       rfe_bug_tracker:
@@ -73,19 +73,19 @@
         email_template: "email_active_cases_report.j2"
         slack_template: "slack_active_cases_report.j2"
         teams_template: "teams_active_cases_report.j2"
-    
+
     # JPMC-specific validation settings
     notification_validation_enabled: true
     notification_recipient_validation: true
     portal_validation_enabled: true
     portal_duplicate_detection: true
-    
+
     # JPMC-specific retry settings (more aggressive for enterprise)
     notification_retry_attempts: 5
     notification_retry_delay: 3
     portal_retry_attempts: 5
     portal_retry_delay: 3
-    
+
   pre_tasks:
     - name: Display JPMC workflow information
       debug:
@@ -99,7 +99,7 @@
           🌐 Portal Posting: {{ 'Enabled' if portal_posting_enabled else 'Disabled' }}
           ✅ Validation Threshold: {{ (validation_threshold * 100) | round(1) }}%
           🔄 Retry Attempts: {{ notification_retry_attempts }} (notifications), {{ portal_retry_attempts }} (portal)
-    
+
     - name: Validate JPMC-specific requirements
       assert:
         that:
@@ -108,7 +108,7 @@
           - "Ansible" in priority_components
           - validation_threshold >= 0.99
         fail_msg: "JPMC-specific validation failed. Check customer_name, account_number, and priority_components."
-    
+
     - name: Create JPMC-specific output directories
       file:
         path: "{{ item }}"
@@ -231,7 +231,7 @@
           ✅ Data Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}%
           📁 Output Directory: {{ output_dir }}/jpmc/
           📋 Logs Directory: {{ logs_dir }}/jpmc/
-    
+
     - name: Save JPMC workflow results
       copy:
         content: |
@@ -291,7 +291,7 @@
           }
         dest: "{{ output_dir }}/jpmc/jpmc_workflow_results_{{ ansible_date_time.epoch }}.json"
         mode: '0644'
-    
+
     - name: Log JPMC workflow completion
       lineinfile:
         path: "{{ logs_dir }}/jpmc/jpmc_workflow_history.log"

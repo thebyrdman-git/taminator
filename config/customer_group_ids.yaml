@@ -7,22 +7,22 @@ customers:
     group_id: "4357341"
     account_number: "838043"
     confidence: "confirmed"
-    
+
   tdbank:
     name: "TD Bank"
     group_id: "7028358"
     account_number: "1912101"
     confidence: "extracted"
-    
+
   jpmc:
     name: "JP Morgan Chase"
     group_id: "6956770"
     account_number: "334224"
     confidence: "confirmed"
-    
+
   fanniemae:
     name: "Fannie Mae"
     group_id: "7095107"
     account_number: "1460290"
     confidence: "confirmed"
-    
+

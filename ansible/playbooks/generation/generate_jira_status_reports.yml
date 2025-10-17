@@ -116,7 +116,7 @@
           - RFE/Bug Report: {{ output_dir }}/{{ customer }}_jira_status_rfe_bug_report.md
           - Active Cases Report: {{ output_dir }}/{{ customer }}_jira_status_active_cases_report.md
           - External Tracker Summary: {{ output_dir }}/{{ customer }}_jira_status_external_tracker_summary.md
-          
+
           📈 Final Summary:
           - Total Cases Processed: {{ all_cases | length }}
           - Cases with External Trackers: {{ external_tracker_detection.statistics.cases_with_trackers_count }}
@@ -124,11 +124,11 @@
           - Active Bugs (ALL bugs included): {{ active_bugs | length }}
           - Open Troubleshooting Cases (excluding external trackers): {{ all_active_cases | length }}
           - Priority Cases: {{ priority_active_cases | length }}
-          
+
           🎯 Status Column Logic:
           - Cases with JIRA trackers: Shows JIRA status (e.g., "In Progress", "Done")
           - Cases without JIRA trackers: Shows support case status (e.g., "Waiting on Engineering")
-          
+
           ✅ JIRA status integration completed
       tags: [always]
 

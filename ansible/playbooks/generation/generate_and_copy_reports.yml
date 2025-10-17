@@ -107,11 +107,11 @@
           📊 Reports Generated and Copied:
           - RFE/Bug Report: {{ output_dir }}/{{ customer }}_rfe_bug_report.md
           - Active Cases Report: {{ output_dir }}/{{ customer }}_active_cases_report.md
-          
+
           📋 Copy/Paste Status:
           - RFE/Bug Report: {{ '✅ Copied to clipboard' if rfe_copy_result.copied_to_clipboard else '❌ Clipboard not available' }}
           - Active Cases Report: {{ '✅ Copied to clipboard' if active_copy_result.copied_to_clipboard else '❌ Clipboard not available' }}
-          
+
           📈 Summary:
           - Active RFEs: {{ active_rfes | length }}
           - Active Bugs: {{ active_bugs | length }}

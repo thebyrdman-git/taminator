@@ -4,7 +4,7 @@
   hosts: localhost
   gather_facts: yes
   become: no
-  
+
   vars:
     customer_name: "JPMC"
     account_name: "jpmc"
@@ -16,6 +16,6 @@
     validation_threshold: 0.99
     data_quality_threshold: 0.95
     report_types: ["rfe_bug_tracker"]
-    
+
   roles:
     - role: ansible_collections/redhat/rfe_automation/roles/rfe_bug_tracker

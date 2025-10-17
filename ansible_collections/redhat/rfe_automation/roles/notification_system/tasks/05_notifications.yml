@@ -18,7 +18,7 @@
   register: email_rfe_bug_result
   retries: "{{ notification_retry_attempts }}"
   delay: "{{ notification_retry_delay }}"
-  when: 
+  when:
     - notifications_enabled
     - 'email' in notification_methods
     - email_enabled
@@ -45,7 +45,7 @@
   register: email_active_cases_result
   retries: "{{ notification_retry_attempts }}"
   delay: "{{ notification_retry_delay }}"
-  when: 
+  when:
     - notifications_enabled
     - 'email' in notification_methods
     - email_enabled
@@ -65,7 +65,7 @@
   register: slack_rfe_bug_result
   retries: "{{ notification_retry_attempts }}"
   delay: "{{ notification_retry_delay }}"
-  when: 
+  when:
     - notifications_enabled
     - 'slack' in notification_methods
     - slack_enabled
@@ -84,7 +84,7 @@
   register: slack_active_cases_result
   retries: "{{ notification_retry_attempts }}"
   delay: "{{ notification_retry_delay }}"
-  when: 
+  when:
     - notifications_enabled
     - 'slack' in notification_methods
     - slack_enabled
@@ -103,7 +103,7 @@
   register: teams_rfe_bug_result
   retries: "{{ notification_retry_attempts }}"
   delay: "{{ notification_retry_delay }}"
-  when: 
+  when:
     - notifications_enabled
     - 'teams' in notification_methods
     - teams_enabled
@@ -122,7 +122,7 @@
   register: teams_active_cases_result
   retries: "{{ notification_retry_attempts }}"
   delay: "{{ notification_retry_delay }}"
-  when: 
+  when:
     - notifications_enabled
     - 'teams' in notification_methods
     - teams_enabled
@@ -152,7 +152,7 @@
   register: webhook_rfe_bug_result
   retries: "{{ notification_retry_attempts }}"
   delay: "{{ notification_retry_delay }}"
-  when: 
+  when:
     - notifications_enabled
     - 'webhook' in notification_methods
     - webhook_enabled
@@ -183,7 +183,7 @@
   register: webhook_active_cases_result
   retries: "{{ notification_retry_attempts }}"
   delay: "{{ notification_retry_delay }}"
-  when: 
+  when:
     - notifications_enabled
     - 'webhook' in notification_methods
     - webhook_enabled
@@ -208,7 +208,7 @@
     - { method: "teams", report_type: "active_cases", result: "{{ teams_active_cases_result | default({}) }}" }
     - { method: "webhook", report_type: "rfe_bug_tracker", result: "{{ webhook_rfe_bug_result | default({}) }}" }
     - { method: "webhook", report_type: "active_cases", result: "{{ webhook_active_cases_result | default({}) }}" }
-  when: 
+  when:
     - notifications_enabled
     - item.result is defined
     - item.result.changed | default(false)
@@ -231,7 +231,7 @@
     - { method: "teams", report_type: "active_cases", result: "{{ teams_active_cases_result | default({}) }}" }
     - { method: "webhook", report_type: "rfe_bug_tracker", result: "{{ webhook_rfe_bug_result | default({}) }}" }
     - { method: "webhook", report_type: "active_cases", result: "{{ webhook_active_cases_result | default({}) }}" }
-  when: 
+  when:
     - notifications_enabled
     - item.result is defined
     - item.result.failed | default(false)

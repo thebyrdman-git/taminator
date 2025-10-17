@@ -6,14 +6,14 @@
   hosts: enhanced_tam_portfolio
   gather_facts: yes
   become: no
-  
+
   vars:
     # Override these on command line: -e "report_types=['rfe_bug_tracker']"
     report_types: "{{ report_types | default(['rfe_bug_tracker', 'active_cases']) }}"
     output_dir: "./output"
     logs_dir: "./logs"
     rhcase_path: "rhcase"
-    
+
   pre_tasks:
     - name: Display enhanced TAM portfolio information
       debug:
@@ -28,7 +28,7 @@
           🔍 Validation Results: {{ validation_results }}
       run_once: true
       tags: [portfolio, info]
-      
+
     - name: Display multi-TAM coordination information
       debug:
         msg: |
@@ -39,7 +39,7 @@
       run_once: true
       when: coordination is defined
       tags: [portfolio, coordination]
-      
+
     - name: Display enhanced portfolio suggestions
       debug:
         msg: |
@@ -51,7 +51,7 @@
       run_once: true
       when: suggestions is defined
       tags: [portfolio, suggestions]
-      
+
     - name: Display current account information
       debug:
         msg: |
@@ -67,7 +67,7 @@
           ✅ Validated: {{ validated }}
           📝 Notes: {{ notes }}
       tags: [account, info]
-      
+
     - name: Create account-specific output directories
       file:
         path: "{{ item }}"
@@ -77,7 +77,7 @@
         - "{{ output_dir }}/{{ customer_name | replace(' ', '_') }}/{{ account_number }}"
         - "{{ logs_dir }}/{{ customer_name | replace(' ', '_') }}/{{ account_number }}"
       tags: [setup]
-      
+
   tasks:
     - name: Collect cases using smart module
       redhat.rfe_automation.rfe_case_collector:
@@ -89,7 +89,7 @@
         validate_data: true
       register: collected_cases
       tags: [data_collection]
-      
+
     - name: Display collection results
       debug:
         msg: |
@@ -100,7 +100,7 @@
           🎯 Products: {{ products | join(', ') }}
           ⚖️  Account Weight: {{ account_weight }}
       tags: [data_collection, info]
-      
+
     - name: Process case data using smart module
       redhat.rfe_automation.rfe_data_processor:
         cases: "{{ collected_cases.cases }}"
@@ -111,7 +111,7 @@
         priority_components: "{{ priority_components | default(products) }}"
       register: processed_data
       tags: [data_processing]
-      
+
     - name: Display processing results
       debug:
         msg: |
@@ -125,7 +125,7 @@
           🤝 Coverage Model: {{ coverage_model }}
           👤 TAM Role: {{ tam_role }}
       tags: [data_processing, info]
-      
+
     - name: Generate RFE/Bug Tracker Report
       redhat.rfe_automation.rfe_report_generator:
         report_type: "rfe_bug_tracker"
@@ -142,7 +142,7 @@
       register: rfe_report
       when: "'rfe_bug_tracker' in report_types"
       tags: [report_generation, rfe_bug_tracker]
-      
+
     - name: Generate Active Cases Report
       redhat.rfe_automation.rfe_report_generator:
         report_type: "active_cases"
@@ -157,7 +157,7 @@
       register: active_cases_report
       when: "'active_cases' in report_types"
       tags: [report_generation, active_cases]
-      
+
     - name: Display account report generation summary
       debug:
         msg: |
@@ -174,7 +174,7 @@
           📄 Active Cases Report: {{ active_cases_report.report_files | length }} files generated
           {% endif %}
       tags: [summary]
-      
+
   post_tasks:
     - name: Display enhanced TAM portfolio summary
       debug:
@@ -190,7 +190,7 @@
           🚀 Using: Enhanced TAM Portfolio + Smart Custom Modules
       run_once: true
       tags: [summary, final]
-      
+
     - name: Generate enhanced TAM portfolio summary report
       template:
         src: enhanced_tam_portfolio_summary.j2

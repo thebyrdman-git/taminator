@@ -14,7 +14,7 @@
     active_bugs: "{{ active_bugs | default([]) }}"
     closed_cases: "{{ closed_cases | default([]) }}"
     data_quality_score: "{{ data_quality_score | default(0.0) }}"
-  when: 
+  when:
     - portal_posting_enabled
     - portal_sections.rfe_bug_tracker.enabled
     - "'rfe_bug_tracker' in (report_types | default([]))"
@@ -33,7 +33,7 @@
     priority_active_cases: "{{ priority_active_cases | default([]) }}"
     cases_with_external_trackers: "{{ cases_with_external_trackers | default([]) }}"
     data_quality_score: "{{ data_quality_score | default(0.0) }}"
-  when: 
+  when:
     - portal_posting_enabled
     - portal_sections.active_cases.enabled
     - "'active_cases' in (report_types | default([]))"

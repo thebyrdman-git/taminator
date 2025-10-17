@@ -27,7 +27,7 @@
 - name: Set active cases from file content
   set_fact:
     all_cases: "{{ (active_cases_file.content | b64decode) | from_json }}"
-  when: 
+  when:
     - active_cases_output.rc == 0
     - active_cases_file is defined
   tags: [data_collection, active_cases]
@@ -35,7 +35,7 @@
 - name: Set empty cases if error or no file
   set_fact:
     all_cases: []
-  when: 
+  when:
     - active_cases_output.rc != 0
     - or active_cases_file is not defined
   tags: [data_collection, active_cases]

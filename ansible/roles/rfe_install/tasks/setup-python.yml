@@ -41,4 +41,3 @@
       - "{% if rfe_use_venv %}Venv location: {{ rfe_venv_dir }}{% endif %}"
       - "Packages installed: {{ rfe_python_packages | length }}"
 
-

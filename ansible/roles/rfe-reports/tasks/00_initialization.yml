@@ -8,7 +8,7 @@
         execution_id: "{{ ansible_date_time.epoch }}"
         execution_start: "{{ ansible_date_time.iso8601 }}"
         customer_context: "{{ customer_name | lower }}"
-      
+
     - name: Create execution directories
       file:
         path: "{{ item }}"
@@ -20,14 +20,14 @@
         - "{{ system_config.temp_dir }}"
         - "{{ system_config.backup_dir }}"
       notify: reload configuration
-      
+
     - name: Initialize execution log
       lineinfile:
         path: "{{ system_config.logs_dir }}/execution.log"
         line: "{{ ansible_date_time.iso8601 }} - START - {{ customer_name }} - Execution ID: {{ execution_id }}"
         create: yes
         mode: '{{ system_config.file_permissions.files }}'
-      
+
     - name: Validate environment
       assert:
         that:
@@ -35,7 +35,7 @@
           - system_config is defined
           - tool_config is defined
         fail_msg: "Required configuration variables are missing"
-      
+
     - name: Display execution banner
       debug:
         msg: |
@@ -47,7 +47,7 @@
           🎯 Components: {{ priority_components | join(', ') }}
           ⚙️ Environment: {{ environment }}
           🔧 Tool Version: {{ tool_config.version }}
-          
+
   rescue:
     - name: Log initialization failure
       lineinfile:
@@ -55,18 +55,18 @@
         line: "{{ ansible_date_time.iso8601 }} - INIT_FAILURE - {{ customer_name }} - {{ ansible_failed_result.msg }}"
         create: yes
         mode: '{{ system_config.file_permissions.files }}'
-      
+
     - name: Send initialization failure notification
       include_tasks: ../tasks/notifications.yml
       vars:
         notification_type: "failure"
         customer_name: "{{ customer_name }}"
         error_message: "Initialization failed: {{ ansible_failed_result.msg }}"
-      
+
     - name: Fail with initialization error
       fail:
         msg: "Initialization failed: {{ ansible_failed_result.msg }}"
-  
+
   always:
     - name: Log initialization completion
       lineinfile:

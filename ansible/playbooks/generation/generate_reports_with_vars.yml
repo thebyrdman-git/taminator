@@ -4,14 +4,14 @@
   hosts: localhost
   gather_facts: yes
   become: no
-  
+
   vars_files:
     - vars/accounts.yml
-    
+
   vars:
     # Override these on command line: -e "customer=jpmc"
     customer: "{{ customer | default('jpmc') }}"
-    
+
   pre_tasks:
     - name: Validate customer account exists
       assert:
@@ -19,7 +19,7 @@
           - customer in accounts
         fail_msg: "Customer '{{ customer }}' not found in accounts.yml. Available customers: {{ accounts.keys() | list }}"
       tags: [validation]
-      
+
     - name: Set customer-specific variables
       set_fact:
         customer_config: "{{ accounts[customer] }}"
@@ -36,7 +36,7 @@
         notifications_enabled: "{{ notifications.enabled }}"
         portal_posting_enabled: "{{ portal.enabled }}"
       tags: [setup]
-      
+
     - name: Display customer configuration
       debug:
         msg: |
@@ -47,16 +47,16 @@
           📊 Reports: {{ report_types | join(', ') }}
           ✅ Validation: {{ (validation_threshold | float * 100) | round(1) }}%
       tags: [setup, info]
-      
+
   roles:
     - role: ansible_collections/redhat/rfe_automation/roles/rfe_bug_tracker
       when: "'rfe_bug_tracker' in report_types"
       tags: [rfe_bug_tracker]
-      
+
     - role: ansible_collections/redhat/rfe_automation/roles/active_cases
       when: "'active_cases' in report_types"
       tags: [active_cases]
-      
+
   post_tasks:
     - name: Display completion summary
       debug:

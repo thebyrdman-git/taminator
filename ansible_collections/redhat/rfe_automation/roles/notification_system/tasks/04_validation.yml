@@ -6,7 +6,7 @@
     path: "{{ item }}"
   register: notification_content_files
   loop: "{{ notification_metadata.content_files.values() | map('values') | flatten | list }}"
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
   tags: [validation, content]
@@ -17,7 +17,7 @@
       - item.stat.exists
     fail_msg: "Notification content file does not exist: {{ item.item }}"
   loop: "{{ notification_content_files.results }}"
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
     - notification_content_files is defined
@@ -29,7 +29,7 @@
       - item.stat.size > 0
     fail_msg: "Notification content file is empty: {{ item.item }}"
   loop: "{{ notification_content_files.results }}"
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
     - notification_content_files is defined
@@ -45,7 +45,7 @@
       - item | regex_search('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$')
     fail_msg: "Invalid email address: {{ item }}"
   loop: "{{ email_recipients }}"
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
     - notification_recipient_validation
@@ -59,7 +59,7 @@
       - slack_webhook_url | length > 0
       - slack_webhook_url | regex_search('^https://hooks\\.slack\\.com/')
     fail_msg: "Invalid Slack webhook URL format"
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
     - 'slack' in notification_methods
@@ -73,7 +73,7 @@
       - teams_webhook_url | length > 0
       - teams_webhook_url | regex_search('^https://[^/]+\\.webhook\\.office\\.com/')
     fail_msg: "Invalid Teams webhook URL format"
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
     - 'teams' in notification_methods
@@ -87,7 +87,7 @@
       - webhook_url | length > 0
       - webhook_url | regex_search('^https?://')
     fail_msg: "Invalid webhook URL format"
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
     - 'webhook' in notification_methods
@@ -98,7 +98,7 @@
   stat:
     path: "{{ logs_dir }}/notifications/notification_history.log"
   register: notification_history_file
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
   tags: [validation, cooldown]
@@ -109,7 +109,7 @@
     grep "{{ customer_name }}" | \
     tail -n 1
   register: last_notification
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
     - notification_history_file.stat.exists
@@ -118,7 +118,7 @@
 - name: Calculate time since last notification
   set_fact:
     time_since_last_notification: "{{ (ansible_date_time.epoch | int) - (last_notification.stdout.split(' - ')[0] | int) }}"
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
     - last_notification is defined
@@ -128,7 +128,7 @@
 - name: Check if notification cooldown is active
   set_fact:
     notification_cooldown_active: "{{ time_since_last_notification | default(999999) < notification_cooldown }}"
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
   tags: [validation, cooldown]
@@ -141,7 +141,7 @@
       ⏱️  Time since last notification: {{ (time_since_last_notification | default(0) / 3600) | round(2) }} hours
       ⏱️  Cooldown period: {{ (notification_cooldown / 3600) | round(2) }} hours
       📋 Notifications will be skipped to avoid spam.
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
     - notification_cooldown_active | default(false)
@@ -153,7 +153,7 @@
       - notification_triggers is defined
       - notification_triggers.keys() | length > 0
     fail_msg: "Notification triggers not configured"
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
   tags: [validation, triggers]
@@ -168,7 +168,7 @@
       🔔 Teams Webhook: {{ 'Valid' if (teams_webhook_url is defined) else 'Not Configured' }}
       🌐 Webhook URL: {{ 'Valid' if (webhook_url is defined) else 'Not Configured' }}
       ⏰ Cooldown Status: {{ 'Active' if (notification_cooldown_active | default(false)) else 'Ready' }}
-  when: 
+  when:
     - notifications_enabled
     - notification_validation_enabled
   tags: [validation, summary]

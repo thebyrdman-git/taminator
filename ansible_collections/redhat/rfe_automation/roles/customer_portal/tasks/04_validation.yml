@@ -6,7 +6,7 @@
     path: "{{ item.content_file }}"
   register: portal_content_files
   loop: "{{ portal_metadata.sections.values() | selectattr('enabled') | list }}"
-  when: 
+  when:
     - portal_posting_enabled
     - portal_validation_enabled
   tags: [validation, content]
@@ -17,7 +17,7 @@
       - item.stat.exists
     fail_msg: "Portal content file does not exist: {{ item.item.content_file }}"
   loop: "{{ portal_content_files.results }}"
-  when: 
+  when:
     - portal_posting_enabled
     - portal_validation_enabled
     - portal_content_files is defined
@@ -29,7 +29,7 @@
       - item.stat.size > 0
     fail_msg: "Portal content file is empty: {{ item.item.content_file }}"
   loop: "{{ portal_content_files.results }}"
-  when: 
+  when:
     - portal_posting_enabled
     - portal_validation_enabled
     - portal_content_files is defined
@@ -47,7 +47,7 @@
       date_range: "last_24_hours"
     status_code: [200, 404]
   register: portal_duplicate_check
-  when: 
+  when:
     - portal_posting_enabled
     - portal_validation_enabled
     - portal_duplicate_detection
@@ -57,7 +57,7 @@
 - name: Detect duplicate portal posts
   set_fact:
     portal_duplicate_posts: "{{ portal_duplicate_check.json.posts | selectattr('title', 'match', '.*' + customer_name + '.*') | list }}"
-  when: 
+  when:
     - portal_posting_enabled
     - portal_validation_enabled
     - portal_duplicate_detection
@@ -73,7 +73,7 @@
       - {{ post.title }} ({{ post.created_date }})
       {% endfor %}
       Consider reviewing before posting new content.
-  when: 
+  when:
     - portal_posting_enabled
     - portal_validation_enabled
     - portal_duplicate_detection
@@ -86,7 +86,7 @@
     that:
       - portal_auth_token is defined or portal_auth_key is defined
     fail_msg: "Portal authentication not configured properly"
-  when: 
+  when:
     - portal_posting_enabled
     - portal_validation_enabled
   tags: [validation, auth]
@@ -99,7 +99,7 @@
       🔐 Authentication: Validated
       🔍 Duplicate Check: {{ 'Completed' if portal_duplicate_detection else 'Skipped' }}
       📊 Duplicates Found: {{ portal_duplicate_posts | default([]) | length }}
-  when: 
+  when:
     - portal_posting_enabled
     - portal_validation_enabled
   tags: [validation, summary]

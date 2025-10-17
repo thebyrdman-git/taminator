@@ -171,18 +171,18 @@
           📊 Bulletproof Reports Generated Successfully:
           - RFE/Bug Report: {{ output_dir }}/{{ customer }}_rfe_bug_report.md
           - Active Cases Report: {{ output_dir }}/{{ customer }}_active_cases_report.md
-          
+
           📈 Data Quality Scores:
           - RFE/Bug Template: {{ (rfe_bug_validation.data_quality_score | float * 100) | round(1) }}%
           - Active Cases Template: {{ (active_cases_validation.data_quality_score | float * 100) | round(1) }}%
-          
+
           📋 Summary:
           - Active RFEs: {{ active_rfes | length }}
           - Active Bugs: {{ active_bugs | length }}
           - Open Troubleshooting Cases: {{ all_active_cases | length }}
           - Priority Cases: {{ priority_active_cases | length }}
           - Total Cases Processed: {{ all_cases | length }}
-          
+
           ✅ All validations passed - Reports are bulletproof!
       tags: [always]
 

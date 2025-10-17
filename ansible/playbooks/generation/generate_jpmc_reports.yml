@@ -3,7 +3,7 @@
   hosts: localhost
   gather_facts: yes
   become: no
-  
+
   vars:
     customer_name: "JPMC"
     account_name: "JPMC"
@@ -14,6 +14,6 @@
     logs_dir: "/home/jbyrd/pai/rfe-automation-clean/logs"
     report_types: ["rfe_bug_tracker", "active_cases"]
     validation_threshold: 0.99
-    
+
   roles:
     - role: rfe-reports

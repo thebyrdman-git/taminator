@@ -11,7 +11,7 @@
 - name: Load portal API credentials
   include_vars:
     file: "{{ project_root }}/.env"
-  when: 
+  when:
     - portal_api_enabled
     - env_file_check.stat.exists
   tags: [portal_posting, credentials_load]
@@ -33,7 +33,7 @@
         - "rfe-report"
         - "{{ ansible_date_time.date }}"
   register: portal_post_result
-  when: 
+  when:
     - portal_api_enabled
     - portal_api_token is defined
     - portal_api_token != ""

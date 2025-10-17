@@ -7,10 +7,10 @@ customers:
     group_id: "4357341"
     account_number: "838043"
     confidence: "confirmed"
-    
+
   tdbank:
     name: "TD Bank"
     group_id: "7028358"
     account_number: "1912101"
     confidence: "extracted"
-    
+

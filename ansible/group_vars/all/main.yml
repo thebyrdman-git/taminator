@@ -9,13 +9,13 @@ system_config:
   logs_dir: "{{ system_config.project_root }}/logs"
   temp_dir: "{{ system_config.project_root }}/tmp"
   backup_dir: "{{ system_config.project_root }}/backups"
-  
+
   # File permissions
   file_permissions:
     directories: '0755'
     files: '0644'
     scripts: '0755'
-  
+
   # Retention policies
   retention:
     logs_days: 30
@@ -26,7 +26,7 @@ system_config:
 tool_config:
   version: "2.0.0"
   name: "tam-rfe-automation"
-  
+
   # Default settings
   defaults:
     validation_threshold: 0.99
@@ -34,7 +34,7 @@ tool_config:
     output_format: "markdown"
     include_closed_cases: true
     max_cases_per_report: 1000
-  
+
   # Performance settings
   performance:
     max_parallel_customers: 3
@@ -49,7 +49,7 @@ validation_config:
   strict_mode: true
   accuracy_threshold: 0.99
   consistency_threshold: 0.995
-  
+
   # Validation rules
   rules:
     require_case_numbers: true
@@ -65,7 +65,7 @@ notification_config:
     email: true
     slack: false
     portal: true
-  
+
   # Notification templates
   templates:
     success: "✅ RFE report generated successfully for {{ customer_name }}"
@@ -79,7 +79,7 @@ logging_config:
   rotation:
     max_size: "10MB"
     backup_count: 5
-  
+
   # Log categories
   categories:
     system: "system.log"

@@ -63,4 +63,3 @@ rfe_enable_completion: true
 rfe_max_parallel_customers: 3
 rfe_api_timeout: 60
 
-

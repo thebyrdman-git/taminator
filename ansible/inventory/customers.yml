@@ -15,7 +15,7 @@ all:
             contact_email: "tam@jpmc.com"
             business_units:
               - "Investment Banking"
-              - "Commercial Banking" 
+              - "Commercial Banking"
               - "Asset Management"
             priority_components:
               - "OpenShift"

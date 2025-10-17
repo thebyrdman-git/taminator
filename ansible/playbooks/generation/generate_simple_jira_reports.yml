@@ -120,16 +120,16 @@
         msg: |
           📊 Simple RFE/Bug Report Generated:
           - RFE/Bug Report: {{ output_dir }}/{{ customer }}_simple_jira_rfe_bug_report.md
-          
+
           📈 Summary:
           - Total Cases Processed: {{ all_cases | length }}
           - Active RFEs: {{ active_rfes | length }}
           - Active Bugs: {{ active_bugs | length }}
-          
+
           🎯 Next Steps:
           - JIRA ID extraction needs to be implemented
           - External tracker detection needs to be fixed
-          
+
           ✅ Simple report generation completed
       tags: [always]
 

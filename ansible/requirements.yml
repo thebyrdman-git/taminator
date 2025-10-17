@@ -21,10 +21,9 @@ roles:
   - src: geerlingguy.homebrew
     version: 5.0.0
 
-  # Red Hat VPN Configurator (our Lego block)
+  # Red Hat VPN Configurator (modular component)
   - src: https://gitlab.cee.redhat.com/jbyrd/red-hat-vpn-configurator.git
     scm: git
     version: main
     name: redhat_vpn
-
 

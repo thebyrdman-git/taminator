@@ -17,7 +17,7 @@
     notification_include_summary: "{{ notification_include_summary }}"
     notification_include_details: "{{ notification_include_details }}"
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
-  when: 
+  when:
     - notifications_enabled
     - 'email' in notification_methods
     - "'rfe_bug_tracker' in (report_types | default([]))"
@@ -39,7 +39,7 @@
     notification_include_summary: "{{ notification_include_summary }}"
     notification_include_details: "{{ notification_include_details }}"
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
-  when: 
+  when:
     - notifications_enabled
     - 'email' in notification_methods
     - "'active_cases' in (report_types | default([]))"
@@ -63,7 +63,7 @@
     slack_icon_emoji: "{{ slack_icon_emoji }}"
     notification_include_summary: "{{ notification_include_summary }}"
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
-  when: 
+  when:
     - notifications_enabled
     - 'slack' in notification_methods
     - "'rfe_bug_tracker' in (report_types | default([]))"
@@ -87,7 +87,7 @@
     slack_icon_emoji: "{{ slack_icon_emoji }}"
     notification_include_summary: "{{ notification_include_summary }}"
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
-  when: 
+  when:
     - notifications_enabled
     - 'slack' in notification_methods
     - "'active_cases' in (report_types | default([]))"
@@ -109,7 +109,7 @@
     teams_theme_color: "{{ teams_theme_color }}"
     notification_include_summary: "{{ notification_include_summary }}"
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
-  when: 
+  when:
     - notifications_enabled
     - 'teams' in notification_methods
     - "'rfe_bug_tracker' in (report_types | default([]))"
@@ -131,7 +131,7 @@
     teams_theme_color: "{{ teams_theme_color }}"
     notification_include_summary: "{{ notification_include_summary }}"
     notification_max_cases_per_notification: "{{ notification_max_cases_per_notification }}"
-  when: 
+  when:
     - notifications_enabled
     - 'teams' in notification_methods
     - "'active_cases' in (report_types | default([]))"

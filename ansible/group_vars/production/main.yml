@@ -10,7 +10,7 @@ production_config:
   ha_enabled: true
   backup_enabled: true
   monitoring_enabled: true
-  
+
   # Performance optimization
   performance:
     max_parallel_customers: 5
@@ -18,19 +18,19 @@ production_config:
     api_timeout: 120
     retry_attempts: 5
     retry_delay: 10
-  
+
   # Security
   security:
     encryption_enabled: true
     audit_logging: true
     access_control: true
-  
+
   # Monitoring
   monitoring:
     health_checks: true
     metrics_collection: true
     alerting_enabled: true
-  
+
   # Backup and recovery
   backup:
     frequency: "daily"
@@ -50,7 +50,7 @@ validation_config:
   strict_mode: true
   accuracy_threshold: 0.995
   consistency_threshold: 0.999
-  
+
   # Enhanced validation rules
   rules:
     require_case_numbers: true
@@ -68,7 +68,7 @@ notification_config:
     slack: true
     portal: true
     pagerduty: true
-  
+
   # Production alerting
   alerting:
     critical_errors: true

@@ -30,7 +30,7 @@ accounts:
     renewal_status: "Active"
     syb_booked_amt: "$100,380.00"
     notes: "Primary Ansible customer - large enterprise deployment"
-    
+
   - customer_name: "Bank of America"
     account_numbers: ["54545"]
     tam_role: "Primary"
@@ -46,7 +46,7 @@ accounts:
     renewal_status: "Active"
     syb_booked_amt: "$100,380.00"
     notes: "Ansible coverage - shared with Platform, OpenShift, Middleware TAMs"
-    
+
   - customer_name: "BNY"
     account_numbers: ["729650"]
     tam_role: "Primary"
@@ -62,7 +62,7 @@ accounts:
     renewal_status: "Active"
     syb_booked_amt: "$113,400.00"
     notes: "Ansible coverage - shared with Platform, OpenShift TAMs"
-    
+
   - customer_name: "Citigroup"
     account_numbers: ["6231835"]
     tam_role: "Primary"
@@ -94,7 +94,7 @@ coordination:
           products: ["Middleware"]
           role: "Primary"
       coordination_notes: "Weekly sync calls, shared account strategy"
-      
+
     - customer_name: "BNY"
       other_tams:
         - name: "Julian Holmes"
@@ -113,7 +113,7 @@ backup_coverage:
       backup_tam: "Peter Sagat"
       accounts: ["334224", "54545", "729650", "6231835"]
       reason: "Holiday coverage"
-  
+
 # Account Prioritization
 prioritization:
   high_priority: ["6231835"]  # Citigroup - Dedicated, Weight 4

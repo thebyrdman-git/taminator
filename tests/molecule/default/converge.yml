@@ -4,7 +4,7 @@
   hosts: all
   gather_facts: yes
   become: yes
-  
+
   vars:
     # Test variables
     customer_name: "TestCustomer"
@@ -17,7 +17,7 @@
     validation_threshold: 0.95
     data_quality_threshold: 0.90
     report_types: ["rfe_bug_tracker", "active_cases"]
-    
+
     # Mock case data for testing
     mock_cases:
       - caseNumber: "TEST001"
@@ -70,7 +70,7 @@
         internalStatus: "Waiting on PM"
         description: "Test case with https://issues.redhat.com/browse/TEST-123"
         tags: "test,external"
-  
+
   pre_tasks:
     - name: Install required packages
       package:
@@ -80,7 +80,7 @@
           - curl
         state: present
       when: ansible_os_family == "RedHat"
-      
+
     - name: Install required packages (Debian)
       apt:
         name:
@@ -90,7 +90,7 @@
         state: present
         update_cache: yes
       when: ansible_os_family == "Debian"
-      
+
     - name: Create mock rhcase script
       copy:
         content: |
@@ -166,18 +166,22 @@
           fi
         dest: /usr/local/bin/rhcase
         mode: '0755'
-        
+
   tasks:
     - name: Test RFE Case Collector Module
       redhat.rfe_automation.rfe_case_collector:
         account_number: "{{ account_number }}"
         sbr_groups: "{{ priority_components }}"
-        case_types: ["Feature / Enhancement Request", "Defect / Bug", "Account / Customer Service Request", "Configuration Issue"]
+        case_types:
+          - "Feature / Enhancement Request"
+          - "Defect / Bug"
+          - "Account / Customer Service Request"
+          - "Configuration Issue"
         rhcase_path: "{{ rhcase_path }}"
         include_closed: false
         validate_data: true
       register: collected_cases
-      
+
     - name: Verify case collection results
       assert:
         that:
@@ -186,7 +190,7 @@
           - collected_cases.data_quality_score >= 0.95
           - collected_cases.cases | length == 4
         fail_msg: "Case collection failed validation"
-        
+
     - name: Test RFE Data Processor Module
       redhat.rfe_automation.rfe_data_processor:
         cases: "{{ collected_cases.cases }}"
@@ -196,7 +200,7 @@
         external_tracker_patterns: ["issues.redhat.com", "jira.redhat.com"]
         priority_components: "{{ priority_components }}"
       register: processed_data
-      
+
     - name: Verify data processing results
       assert:
         that:
@@ -207,7 +211,7 @@
           - processed_data.statistics.all_active_cases_count == 1
           - processed_data.statistics.priority_active_cases_count == 1
         fail_msg: "Data processing failed validation"
-        
+
     - name: Test RFE Report Generator Module (RFE/Bug Tracker)
       redhat.rfe_automation.rfe_report_generator:
         report_type: "rfe_bug_tracker"
@@ -222,7 +226,7 @@
         output_formats: ["markdown", "json"]
         include_timestamp: false
       register: rfe_report
-      
+
     - name: Verify RFE report generation
       assert:
         that:
@@ -230,7 +234,7 @@
           - rfe_report.report_files | length == 2
           - rfe_report.report_summary.total_cases == 2
         fail_msg: "RFE report generation failed validation"
-        
+
     - name: Test RFE Report Generator Module (Active Cases)
       redhat.rfe_automation.rfe_report_generator:
         report_type: "active_cases"
@@ -243,7 +247,7 @@
         output_formats: ["markdown", "json"]
         include_timestamp: false
       register: active_cases_report
-      
+
     - name: Verify Active Cases report generation
       assert:
         that:
@@ -251,51 +255,57 @@
           - active_cases_report.report_files | length == 2
           - active_cases_report.report_summary.total_cases == 1
         fail_msg: "Active Cases report generation failed validation"
-        
+
     - name: Verify report files exist
       stat:
         path: "{{ item.path }}"
       register: report_files_stat
       loop: "{{ rfe_report.report_files + active_cases_report.report_files }}"
-      
+
     - name: Check all report files were created
       assert:
         that:
           - report_files_stat.results | selectattr('stat.exists') | list | length == 4
         fail_msg: "Not all report files were created"
-        
+
     - name: Verify report file contents (Markdown)
       slurp:
         src: "{{ item.path }}"
       register: markdown_content
-      loop: "{{ (rfe_report.report_files + active_cases_report.report_files) | selectattr('format', 'equalto', 'markdown') | list }}"
-      
+      loop: >-
+        {{ (rfe_report.report_files + active_cases_report.report_files)
+        | selectattr('format', 'equalto', 'markdown') | list }}
+
     - name: Check Markdown report content
       assert:
         that:
           - markdown_content.results | selectattr('content', 'defined') | list | length == 2
-          - "'RFE/Bug Tracker Report' in (markdown_content.results[0].content | b64decode)" or "'Active Cases Report' in (markdown_content.results[0].content | b64decode)"
+          - >-
+            'RFE/Bug Tracker Report' in (markdown_content.results[0].content | b64decode)
+            or 'Active Cases Report' in (markdown_content.results[0].content | b64decode)
         fail_msg: "Markdown report content validation failed"
-        
+
     - name: Verify report file contents (JSON)
       slurp:
         src: "{{ item.path }}"
       register: json_content
-      loop: "{{ (rfe_report.report_files + active_cases_report.report_files) | selectattr('format', 'equalto', 'json') | list }}"
-      
+      loop: >-
+        {{ (rfe_report.report_files + active_cases_report.report_files)
+        | selectattr('format', 'equalto', 'json') | list }}
+
     - name: Check JSON report content
       assert:
         that:
           - json_content.results | selectattr('content', 'defined') | list | length == 2
         fail_msg: "JSON report content validation failed"
-        
+
   post_tasks:
     - name: Display test results summary
       debug:
         msg: |
           🧪 Molecule Test Results Summary:
           ✅ Case Collection: {{ collected_cases.filtered_cases }}/{{ collected_cases.total_cases }} cases
-          ✅ Data Processing: {{ processed_data.statistics.active_rfes_count }} RFEs, {{ processed_data.statistics.active_bugs_count }} Bugs
+          [OK] Data Processing: {{ processed_data.statistics.active_rfes_count }} RFEs, {{ processed_data.statistics.active_bugs_count }} Bugs
           ✅ Report Generation: {{ rfe_report.report_files | length + active_cases_report.report_files | length }} files
           ✅ Data Quality: {{ (collected_cases.data_quality_score * 100) | round(1) }}%
           🎯 All tests passed successfully!

@@ -5,7 +5,7 @@ deployment:
   name: "RFE Bug Tracker Automation System"
   version: "1.0.0"
   environment: "production"
-  
+
 # System Requirements
 requirements:
   python_version: "3.8+"
@@ -28,16 +28,16 @@ customers:
     portal_edit_url: "https://access.redhat.com/groups/node/7047245/edit"
     enabled: true
     confidence: "confirmed"
-    
+
   tdbank:
     name: "TD Bank"
-    account_number: "1912101" 
+    account_number: "1912101"
     group_id: "7028358"
     portal_edit_url: "https://access.redhat.com/groups/node/7073164/edit"
     enabled: true
     confidence: "extracted"
     note: "Sandbox environment - production group ID TBD"
-    
+
   jpmc:
     name: "JP Morgan Chase"
     account_number: "334224"
@@ -45,7 +45,7 @@ customers:
     portal_edit_url: null
     enabled: false
     confidence: "manual_discovery_required"
-    
+
   fanniemae:
     name: "Fannie Mae"
     account_number: "1460290"
@@ -60,12 +60,12 @@ components:
     tool: "rhcase"
     method: "SBR Group filtering (Ansible)"
     authentication: "existing rhcase config"
-    
+
   content_generation:
     template_system: "CustomerTemplateRenderer"
     format: "3-table structure (Active RFE, Active Bug, Closed History)"
     customization: "customer-specific styling"
-    
+
   portal_posting:
     method: "hybrid (API-first with browser fallback)"
     api_client: "RedHatCPPGAPIClient"
@@ -79,14 +79,14 @@ validation:
   template_rendering: true
   customer_data_access: true
   portal_access: true
-  
+
 # Operational Settings
 operations:
   schedule: "manual (daily automation pending Phase 2)"
   monitoring: "pending Phase 1 completion"
   error_handling: "basic (enhanced in Phase 2)"
   cleanup: "manual (automated in Phase 3)"
-  
+
 # Security & Compliance
 security:
   customer_notifications: "disabled (silent portal updates)"
@@ -97,7 +97,7 @@ security:
 # Deployment Status
 status:
   wells_fargo: "ready_for_production"
-  td_bank: "ready_for_testing" 
+  td_bank: "ready_for_testing"
   jpmc: "awaiting_group_id_discovery"
   fannie_mae: "awaiting_group_id_discovery"
   overall_readiness: "50% production ready"

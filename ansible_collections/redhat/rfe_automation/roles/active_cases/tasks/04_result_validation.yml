@@ -61,7 +61,7 @@
       - {{ component }}
       {% endfor %}
       This may indicate data filtering issues.
-  when: 
+  when:
     - all_cases | length > 0
     - missing_priority_components | length > 0
   tags: [result_validation, distribution]
@@ -110,7 +110,7 @@
 - name: Fail on critical active cases anomalies
   fail:
     msg: "Critical active cases anomalies detected: {{ suspicious_active_cases_results | join(', ') }}"
-  when: 
+  when:
     - suspicious_active_cases_results | length > 0
     - zero_active_cases_anomaly
   tags: [result_validation, critical]

@@ -8,7 +8,7 @@
   loop:
     - "{{ output_dir }}/portal/rfe_bug_portal_content_{{ ansible_date_time.epoch }}.md"
     - "{{ output_dir }}/portal/active_cases_portal_content_{{ ansible_date_time.epoch }}.md"
-  when: 
+  when:
     - portal_posting_enabled
     - not portal_keep_temp_files | default(false)
   tags: [cleanup, temp_files]

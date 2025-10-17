@@ -13,7 +13,7 @@ accounts:
     vertical: "Financial Services"
     tam_owner: "Jimmy Byrd"
     contact_email: "adam.j.moore@jpmchase.com"
-    
+
   # Template for adding new customers
   # customer_key:
   #   customer_name: "Customer Display Name"
@@ -33,7 +33,7 @@ defaults:
   validation_threshold: 0.99
   data_quality_threshold: 0.95
   report_types: ["rfe_bug_tracker", "active_cases"]
-  
+
 # Notification settings
 notifications:
   enabled: false
@@ -49,7 +49,7 @@ notifications:
   teams:
     enabled: false
     webhook_url: ""
-    
+
 # Portal settings
 portal:
   enabled: false
@@ -58,7 +58,7 @@ portal:
   authentication:
     method: "bearer_token"
     token_file: "~/.config/pai/secrets/portal_token"
-    
+
 # Validation settings
 validation:
   strict_mode: true

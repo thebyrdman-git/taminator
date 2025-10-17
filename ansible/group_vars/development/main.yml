@@ -11,7 +11,7 @@ development_config:
     strict_mode: false
     accuracy_threshold: 0.85
     consistency_threshold: 0.90
-  
+
   # Performance settings for development
   performance:
     max_parallel_customers: 1
@@ -19,7 +19,7 @@ development_config:
     api_timeout: 30
     retry_attempts: 2
     retry_delay: 2
-  
+
   # Development features
   features:
     debug_mode: true
@@ -41,7 +41,7 @@ notification_config:
     slack: false
     portal: false
     console: true
-  
+
   # Development logging
   logging:
     level: "DEBUG"

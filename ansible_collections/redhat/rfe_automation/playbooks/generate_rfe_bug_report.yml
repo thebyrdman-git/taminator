@@ -6,32 +6,32 @@
   hosts: localhost
   gather_facts: yes
   become: no
-  
+
   vars:
     # Global settings
     ansible_python_interpreter: /usr/bin/python3
     report_timestamp: "{{ ansible_date_time.epoch }}"
-    
+
     # Default paths (can be overridden)
     rhcase_path: "{{ rhcase_path | default('rhcase') }}"
     output_dir: "{{ output_dir | default('./output') }}"
     logs_dir: "{{ logs_dir | default('./logs') }}"
-    
+
     # RFE/Bug specific settings
     report_types: ['rfe_bug_tracker']
-    
+
     # Default validation settings
     validation_threshold: "{{ validation_threshold | default(0.99) }}"
     data_quality_threshold: "{{ data_quality_threshold | default(0.95) }}"
-    
+
     # Default notification settings
     notifications_enabled: "{{ notifications_enabled | default(false) }}"
     notification_methods: "{{ notification_methods | default(['email']) }}"
-    
+
     # Default portal settings
     portal_posting_enabled: "{{ portal_posting_enabled | default(false) }}"
     portal_auto_post: "{{ portal_auto_post | default(false) }}"
-    
+
   pre_tasks:
     - name: Display RFE/Bug Tracker workflow information
       debug:
@@ -44,7 +44,7 @@
           📧 Notifications: {{ 'Enabled' if notifications_enabled else 'Disabled' }}
           🌐 Portal Posting: {{ 'Enabled' if portal_posting_enabled else 'Disabled' }}
           ✅ Validation Threshold: {{ (validation_threshold * 100) | round(1) }}%
-    
+
     - name: Validate required variables
       assert:
         that:
@@ -54,7 +54,7 @@
           - priority_components is defined
           - priority_components | length > 0
         fail_msg: "Missing required variables: customer_name, account_name, account_number, priority_components"
-    
+
     - name: Create output directories
       file:
         path: "{{ item }}"
@@ -153,7 +153,7 @@
           📧 Notifications: {{ 'Sent' if notifications_enabled else 'Skipped' }}
           🌐 Portal Posting: {{ 'Completed' if portal_posting_enabled else 'Skipped' }}
           📁 Output Directory: {{ output_dir }}/rfe_bug_tracker/
-    
+
     - name: Save RFE/Bug Tracker results
       copy:
         content: |
@@ -188,7 +188,7 @@
           }
         dest: "{{ output_dir }}/rfe_bug_tracker/rfe_bug_tracker_results_{{ ansible_date_time.epoch }}.json"
         mode: '0644'
-    
+
     - name: Log RFE/Bug Tracker completion
       lineinfile:
         path: "{{ logs_dir }}/rfe_bug_tracker/rfe_bug_tracker_history.log"

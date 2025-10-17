@@ -64,13 +64,13 @@
       shell: |
         case_number="{{ item.item.caseNumber }}"
         temp_file="/tmp/direct_case_${case_number}_{{ ansible_date_time.epoch }}.txt"
-        
+
         if grep -q "externalTrackers:" "$temp_file"; then
           # Extract JIRA information using more robust parsing
           jira_id=$(grep -A 20 "externalTrackers:" "$temp_file" | grep "'resourceKey':" | head -1 | sed "s/.*'resourceKey': '\([^']*\)'.*/\1/")
           jira_status=$(grep -A 20 "externalTrackers:" "$temp_file" | grep "'status':" | head -1 | sed "s/.*'status': '\([^']*\)'.*/\1/")
           jira_url=$(grep -A 20 "externalTrackers:" "$temp_file" | grep "'resourceURL':" | head -1 | sed "s/.*'resourceURL': '\([^']*\)'.*/\1/")
-          
+
           echo "Case $case_number: JIRA ID=$jira_id, Status=$jira_status, URL=$jira_url"
         else
           echo "Case $case_number: No external trackers"
@@ -133,19 +133,19 @@
           📊 RFE/Bug Reports Generated with Direct JIRA ID Extraction:
           - RFE/Bug Report: {{ output_dir }}/{{ customer }}_direct_jira_rfe_bug_report.md
           - Active Cases Report: {{ output_dir }}/{{ customer }}_direct_jira_active_cases_report.md
-          
+
           📈 Final Summary:
           - Total Cases Processed: {{ enriched_cases | length }}
           - Active RFEs: {{ active_rfes | length }}
           - Active Bugs: {{ active_bugs | length }}
           - Open Troubleshooting Cases: {{ all_active_cases | length }}
           - Priority Cases: {{ priority_active_cases | length }}
-          
+
           🎯 Direct JIRA ID Logic:
           - Cases with JIRA trackers: Shows actual JIRA ID (e.g., AAP-15272, RHEL-61730)
           - Cases without JIRA trackers: Shows support case number
           - Status shows JIRA status when available, support case status otherwise
-          
+
           ✅ Direct JIRA ID extraction completed
       tags: [always]
 

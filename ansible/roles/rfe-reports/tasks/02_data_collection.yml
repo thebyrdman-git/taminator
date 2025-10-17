@@ -26,7 +26,7 @@
 - name: Set RFE cases from file content
   set_fact:
     rfe_cases: "{{ (rfe_cases_file.content | b64decode) | from_json }}"
-  when: 
+  when:
     - rfe_cases_output.rc == 0
     - rfe_cases_file is defined
   tags: [data_collection, rfe_cases]
@@ -34,7 +34,7 @@
 - name: Set empty RFE cases if error or no file
   set_fact:
     rfe_cases: []
-  when: 
+  when:
     - rfe_cases_output.rc != 0
     - or rfe_cases_file is not defined
   tags: [data_collection, rfe_cases]
@@ -63,7 +63,7 @@
   set_fact:
     rfe_case_types: "{{ available_case_types | select('equalto', 'Feature / Enhancement Request') | list }}"
     bug_case_types: "{{ available_case_types | select('equalto', 'Defect / Bug') | list }}"
-  when: 
+  when:
     - rfe_cases | length > 0
     - rfe_case_types | length == 0
   tags: [data_collection, fallback_filtering]

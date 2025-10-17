@@ -93,7 +93,7 @@
           📊 Working Reports Generated:
           - RFE/Bug Report: {{ output_dir }}/{{ customer }}_rfe_bug_report.md
           - Active Cases Report: {{ output_dir }}/{{ customer }}_active_cases_report.md
-          
+
           📈 Summary:
           - Active RFEs: {{ active_rfes | length }}
           - Active Bugs: {{ active_bugs | length }}

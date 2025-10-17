@@ -5,7 +5,7 @@
   slurp:
     src: "{{ email_credentials_file | expanduser }}"
   register: email_credentials_content
-  when: 
+  when:
     - notifications_enabled
     - 'email' in notification_methods
     - email_enabled
@@ -15,7 +15,7 @@
   set_fact:
     email_username: "{{ (email_credentials_content.content | b64decode | from_json).username }}"
     email_password: "{{ (email_credentials_content.content | b64decode | from_json).password }}"
-  when: 
+  when:
     - notifications_enabled
     - 'email' in notification_methods
     - email_enabled
@@ -26,7 +26,7 @@
   slurp:
     src: "{{ slack_webhook_url_file | expanduser }}"
   register: slack_webhook_content
-  when: 
+  when:
     - notifications_enabled
     - 'slack' in notification_methods
     - slack_enabled
@@ -35,7 +35,7 @@
 - name: Set Slack webhook URL
   set_fact:
     slack_webhook_url: "{{ (slack_webhook_content.content | b64decode) | trim }}"
-  when: 
+  when:
     - notifications_enabled
     - 'slack' in notification_methods
     - slack_enabled
@@ -46,7 +46,7 @@
   slurp:
     src: "{{ teams_webhook_url_file | expanduser }}"
   register: teams_webhook_content
-  when: 
+  when:
     - notifications_enabled
     - 'teams' in notification_methods
     - teams_enabled
@@ -55,7 +55,7 @@
 - name: Set Teams webhook URL
   set_fact:
     teams_webhook_url: "{{ (teams_webhook_content.content | b64decode) | trim }}"
-  when: 
+  when:
     - notifications_enabled
     - 'teams' in notification_methods
     - teams_enabled
@@ -66,7 +66,7 @@
   slurp:
     src: "{{ webhook_url_file | expanduser }}"
   register: webhook_url_content
-  when: 
+  when:
     - notifications_enabled
     - 'webhook' in notification_methods
     - webhook_enabled
@@ -75,7 +75,7 @@
 - name: Set webhook URL
   set_fact:
     webhook_url: "{{ (webhook_url_content.content | b64decode) | trim }}"
-  when: 
+  when:
     - notifications_enabled
     - 'webhook' in notification_methods
     - webhook_enabled
@@ -93,7 +93,7 @@
     body: "This is a test email from the RFE Automation system."
     secure: "{{ 'starttls' if email_smtp_tls else 'never' }}"
   delegate_to: localhost
-  when: 
+  when:
     - notifications_enabled
     - 'email' in notification_methods
     - email_enabled
@@ -113,7 +113,7 @@
       icon_emoji: "{{ slack_icon_emoji }}"
     status_code: [200, 404]
   register: slack_test
-  when: 
+  when:
     - notifications_enabled
     - 'slack' in notification_methods
     - slack_enabled

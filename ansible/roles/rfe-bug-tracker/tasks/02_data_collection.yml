@@ -27,7 +27,7 @@
 - name: Set RFE/Bug cases from file content
   set_fact:
     rfe_bug_cases: "{{ (rfe_bug_cases_file.content | b64decode) | from_json }}"
-  when: 
+  when:
     - rfe_bug_cases_output.rc == 0
     - rfe_bug_cases_file is defined
   tags: [data_collection, rfe_bug_cases]
@@ -35,7 +35,7 @@
 - name: Set empty RFE/Bug cases if error or no file
   set_fact:
     rfe_bug_cases: []
-  when: 
+  when:
     - rfe_bug_cases_output.rc != 0
     - or rfe_bug_cases_file is not defined
   tags: [data_collection, rfe_bug_cases]

@@ -28,7 +28,7 @@ validation_config:
   accuracy_threshold: 0.99
   consistency_threshold: 0.995
   customer_report_threshold: 0.99
-  
+
   # Validation rules
   rules:
     require_case_numbers: true
@@ -64,7 +64,7 @@ notification_config:
     slack: false
     portal: true
     console: true
-  
+
   # Notification templates
   templates:
     success: "✅ RFE report generated successfully for {{ customer_name }}"
@@ -79,7 +79,7 @@ logging_config:
   rotation:
     max_size: "10MB"
     backup_count: 5
-  
+
   # Log categories
   categories:
     system: "system.log"
@@ -103,19 +103,19 @@ monitoring_config:
   health_checks: false
   metrics_collection: false
   alerting_enabled: false
-  
+
   # Report types to generate
   report_types:
     - "rfe_bug_tracker"
     - "active_cases"
-  
+
   # Health check settings
   system_health_checks:
     rhcase_connectivity: true
     api_connectivity: true
     disk_space: true
     memory_usage: true
-    
+
   # Metrics to collect
   metrics:
     execution_time: true
@@ -131,7 +131,7 @@ backup_config:
   retention_days: 30
   compression: true
   encryption: false
-  
+
   # Backup locations
   locations:
     reports: "{{ system_paths.backups_dir }}/reports"

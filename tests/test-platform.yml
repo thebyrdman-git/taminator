@@ -32,15 +32,15 @@
       "{{ platform.image }}" \
       bash -c '
         set -e
-        
+
         echo "=== Installing base prerequisites ==="
         dnf install -y {{ platform.base_packages | join(" ") }}
-        
+
         echo ""
         echo "=== Running install-improved.sh ==="
         cd /test
         ./install-improved.sh
-        
+
         echo ""
         echo "=== Verifying installation ==="
         if command -v rhcase &> /dev/null; then

@@ -27,17 +27,17 @@
         base_packages:
           - git
           - python3
-    
+
     project_dir: "{{ playbook_dir | dirname }}"
     test_base_dir: "{{ lookup('env', 'HOME') }}/.cache/rfe-tests"
-  
+
   tasks:
     - name: Create test directory
       file:
         path: "{{ test_base_dir }}"
         state: directory
         mode: '0755'
-    
+
     - name: Test installation on each platform
       include_tasks: test-platform.yml
       loop: "{{ test_platforms }}"

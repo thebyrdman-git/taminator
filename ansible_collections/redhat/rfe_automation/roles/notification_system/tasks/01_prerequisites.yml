@@ -59,7 +59,7 @@
       - email_recipients is defined
       - email_recipients | length > 0
     fail_msg: "Missing required email configuration"
-  when: 
+  when:
     - notifications_enabled
     - 'email' in notification_methods
   tags: [prerequisites, email_config]
@@ -70,7 +70,7 @@
       - slack_channel is defined
       - slack_webhook_url_file is defined
     fail_msg: "Missing required Slack configuration"
-  when: 
+  when:
     - notifications_enabled
     - 'slack' in notification_methods
   tags: [prerequisites, slack_config]

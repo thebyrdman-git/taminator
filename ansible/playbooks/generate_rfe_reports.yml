@@ -6,12 +6,12 @@
   hosts: localhost
   gather_facts: yes
   become: no
-  
+
   vars:
     # Global settings
     ansible_python_interpreter: /usr/bin/python3
     report_timestamp: "{{ ansible_date_time.epoch }}"
-    
+
   pre_tasks:
     - name: Display customer information
       debug:
@@ -28,7 +28,7 @@
         # Override role defaults with customer-specific settings
         validation_threshold: "{{ validation_threshold | default(0.99) }}"
         report_types: ['rfe_bug_tracker', 'active_cases']
-        
+
   post_tasks:
     - name: Generate execution summary
       template:
@@ -38,7 +38,7 @@
         execution_timestamp: "{{ ansible_date_time.iso8601 }}"
         customers_processed: "{{ groups['customers'] | length }}"
         total_hosts: "{{ ansible_play_hosts | length }}"
-        
+
     - name: Display completion message
       debug:
         msg: |
@@ -46,7 +46,7 @@
           📁 Reports saved to: {{ output_dir }}
           📊 Summary: {{ execution_summary_{{ ansible_date_time.epoch }}.md }}
           🔍 Check logs in: {{ logs_dir }}
-          
+
     - name: Clean up temporary files
       file:
         path: "{{ item }}"

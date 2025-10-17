@@ -9,21 +9,21 @@
     sys.path.append('src')
     from ultimate_rfe_portal_system import UltimateRFEPortalSystem
     import json
-    
+
     # Load the generated JSON report
     with open('{{ output_dir }}/{{ customer_name | lower }}_rfe_bug_report_{{ ansible_date_time.epoch }}.json', 'r') as f:
         report_data = json.load(f)
-    
+
     # Initialize validation system
     system = UltimateRFEPortalSystem()
-    
+
     # Validate content
     validation_result = system.validate_report_content(report_data, '{{ customer_name }}')
-    
+
     # Save validation results
     with open('{{ output_dir }}/{{ customer_name | lower }}_validation_{{ ansible_date_time.epoch }}.json', 'w') as f:
         json.dump(validation_result, f, indent=2)
-    
+
     # Print results for Ansible
     print(f'VALIDATION_STATUS={validation_result.get(\"validation_status\", \"unknown\")}')
     print(f'ACCURACY_SCORE={validation_result.get(\"accuracy_score\", 0.0)}')
@@ -54,7 +54,7 @@
       - Total Issues: {{ total_issues }}
       - Critical Issues: {{ critical_issues }}
       - High Issues: {{ high_issues }}
-      
+
       Review the validation report at: {{ output_dir }}/{{ customer_name | lower }}_validation_{{ ansible_date_time.epoch }}.json
   when: not validation_passed
 

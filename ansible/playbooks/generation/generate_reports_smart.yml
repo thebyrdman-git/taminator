@@ -4,14 +4,14 @@
   hosts: localhost
   gather_facts: yes
   become: no
-  
+
   vars_files:
     - vars/accounts.yml
-    
+
   vars:
     # Override these on command line: -e "customer=jpmc"
     customer: "{{ customer | default('jpmc') }}"
-    
+
   pre_tasks:
     - name: Validate customer account exists
       assert:
@@ -19,7 +19,7 @@
           - customer in accounts
         fail_msg: "Customer '{{ customer }}' not found in accounts.yml. Available customers: {{ accounts.keys() | list }}"
       tags: [validation]
-      
+
     - name: Set customer-specific variables
       set_fact:
         customer_config: "{{ accounts[customer] }}"
@@ -36,7 +36,7 @@
         notifications_enabled: "{{ notifications.enabled }}"
         portal_posting_enabled: "{{ portal.enabled }}"
       tags: [setup]
-      
+
     - name: Display customer configuration
       debug:
         msg: |
@@ -47,7 +47,7 @@
           📊 Reports: {{ report_types | join(', ') }}
           ✅ Validation: {{ (validation_threshold | float * 100) | round(1) }}%
       tags: [setup, info]
-      
+
   tasks:
     - name: Create output directories
       file:
@@ -58,7 +58,7 @@
         - "{{ output_dir }}"
         - "{{ logs_dir }}"
       tags: [setup]
-      
+
     - name: Collect cases using smart module
       redhat.rfe_automation.rfe_case_collector:
         account_number: "{{ account_number }}"
@@ -69,7 +69,7 @@
         validate_data: true
       register: collected_cases
       tags: [data_collection]
-      
+
     - name: Display collection results
       debug:
         msg: |
@@ -78,7 +78,7 @@
           ✅ Filtered Cases: {{ collected_cases.filtered_cases | default('N/A') }}
           ✅ Data Quality: {{ (collected_cases.data_quality_score | default(1.0) | float * 100) | round(1) }}%
       tags: [data_collection, info]
-      
+
     - name: Process case data using smart module
       redhat.rfe_automation.rfe_data_processor:
         cases: "{{ collected_cases.cases }}"
@@ -89,7 +89,7 @@
         priority_components: "{{ priority_components }}"
       register: processed_data
       tags: [data_processing]
-      
+
     - name: Display processing results
       debug:
         msg: |
@@ -101,7 +101,7 @@
           ✅ All Active Cases: {{ processed_data.statistics.all_active_cases_count | default('N/A') }}
           ✅ Priority Active Cases: {{ processed_data.statistics.priority_active_cases_count | default('N/A') }}
       tags: [data_processing, info]
-      
+
     - name: Generate RFE/Bug Tracker Report
       redhat.rfe_automation.rfe_report_generator:
         report_type: "rfe_bug_tracker"
@@ -118,7 +118,7 @@
       register: rfe_report
       when: "'rfe_bug_tracker' in report_types"
       tags: [report_generation, rfe_bug_tracker]
-      
+
     - name: Generate Active Cases Report
       redhat.rfe_automation.rfe_report_generator:
         report_type: "active_cases"
@@ -133,7 +133,7 @@
       register: active_cases_report
       when: "'active_cases' in report_types"
       tags: [report_generation, active_cases]
-      
+
     - name: Display report generation summary
       debug:
         msg: |
@@ -148,7 +148,7 @@
           📄 Active Cases Report: {{ active_cases_report.report_files | length }} files generated
           {% endif %}
       tags: [summary]
-      
+
   post_tasks:
     - name: Display final summary
       debug:

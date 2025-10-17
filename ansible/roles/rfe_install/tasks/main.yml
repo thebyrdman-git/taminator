@@ -59,4 +59,3 @@
       - "{% if rfe_setup_vpn %}VPN: Configured{% else %}VPN: Run separately if needed{% endif %}"
       - "{% if rfe_setup_kerberos %}Kerberos: Configured{% else %}Kerberos: Run 'kinit' manually{% endif %}"
 
-

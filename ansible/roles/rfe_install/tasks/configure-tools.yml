@@ -39,7 +39,7 @@
   command: >
     python3 -c "import keyring; keyring.set_password('rfe-tool', 'username', '{{ rfe_username }}')"
   become: false
-  when: 
+  when:
     - rfe_store_credentials
     - rfe_username != ""
   no_log: true
@@ -50,5 +50,4 @@
       - "Configuration directory: {{ rfe_config_dir }}"
       - "Customers config: {{ rfe_config_dir }}/customers.conf"
       - "{% if rfe_setup_kerberos %}Kerberos: Configured for {{ rfe_kerberos_realm }}{% endif %}"
-
 

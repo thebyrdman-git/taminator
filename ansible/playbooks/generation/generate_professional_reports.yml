@@ -93,14 +93,14 @@
           📊 Professional Reports Generated:
           - Professional RFE/Bug Report: {{ output_dir }}/{{ customer }}_professional_rfe_bug_report.md
           - Active Cases Report: {{ output_dir }}/{{ customer }}_active_cases_report.md
-          
+
           📈 Summary:
           - Active RFEs: {{ active_rfes | length }}
           - Active Bugs: {{ active_bugs | length }}
           - Open Troubleshooting Cases: {{ all_active_cases | length }}
           - Priority Cases: {{ priority_active_cases | length }}
           - Total Cases Processed: {{ all_cases | length }}
-          
+
           🎯 Professional format includes:
           - Component-based organization
           - Clickable case links

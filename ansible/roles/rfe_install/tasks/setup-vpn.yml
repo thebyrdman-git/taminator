@@ -10,15 +10,15 @@
   fail:
     msg: |
       VPN setup requested but redhat_vpn role not found.
-      
+
       Install it with:
         ansible-galaxy install -r requirements.yml
-      
+
       Or add to requirements.yml:
         - src: https://gitlab.cee.redhat.com/jbyrd/red-hat-vpn-configurator.git
           scm: git
           name: redhat_vpn
-  when: 
+  when:
     - rfe_setup_vpn
     - not vpn_role_exists.stat.exists
 
@@ -41,5 +41,4 @@
       {% else %}
       VPN setup skipped (set rfe_setup_vpn: true to enable)
       {% endif %}
-
 

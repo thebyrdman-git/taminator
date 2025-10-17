@@ -12,7 +12,7 @@
     - "{{ output_dir }}/notifications/active_cases_slack_content_{{ ansible_date_time.epoch }}.json"
     - "{{ output_dir }}/notifications/rfe_bug_teams_content_{{ ansible_date_time.epoch }}.json"
     - "{{ output_dir }}/notifications/active_cases_teams_content_{{ ansible_date_time.epoch }}.json"
-  when: 
+  when:
     - notifications_enabled
     - not notification_keep_temp_files | default(false)
   tags: [cleanup, temp_files]
@@ -109,7 +109,7 @@
     path: "{{ item.path }}"
     state: absent
   loop: "{{ old_notification_files.files }}"
-  when: 
+  when:
     - notifications_enabled
     - old_notification_files.files | length > 0
   tags: [cleanup, old_files]
@@ -131,7 +131,7 @@
         mv "$log_file.gz" "{{ logs_dir }}/notifications/archive/"
       fi
     done
-  when: 
+  when:
     - notifications_enabled
     - old_notification_logs.files | length > 0
   tags: [cleanup, old_logs]

@@ -10,7 +10,7 @@
     tool_name: "tam-rfe-automation"
     install_dir: "{{ ansible_env.HOME }}/{{ tool_name }}"
     python_version: "3.7"
-    
+
   tasks:
     - name: Display deployment banner
       debug:
@@ -205,7 +205,7 @@
               2. Download for your platform: {{ ansible_os_family }}
               3. Install following the platform-specific instructions
               4. Launch Cursor and sign in (free account is fine)
-              
+
               💡 Cursor IDE provides AI-powered assistance for working with the tool
           when: cursor_check.rc != 0
 
@@ -349,20 +349,20 @@
         msg: |
           🎉 TAM RFE Automation Tool Installation Complete!
           ================================================
-          
+
           🚀 Quick Start:
           1. Open terminal and run: {{ install_dir }}/bin/tam-rfe-chat
           2. Or use the desktop shortcut (Linux)
           3. Follow the guided onboarding process
           4. Generate your first report in minutes!
-          
+
           📚 Documentation:
           - User Guide: {{ install_dir }}/docs/BRAND-NEW-TAM-GUIDE.md
           - Getting Started: {{ install_dir }}/GETTING-STARTED.md
           - Prerequisites: {{ install_dir }}/docs/PREREQUISITES-GUIDE.md
-          
+
           💝 Built with passion for helping new TAMs succeed!
-          
+
           🆘 Need Help?
           - Run the tool and ask for assistance
           - Check the documentation in {{ install_dir }}/docs/

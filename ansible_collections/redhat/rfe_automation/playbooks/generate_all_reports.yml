@@ -7,32 +7,32 @@
   hosts: localhost
   gather_facts: yes
   become: no
-  
+
   vars:
     # Global settings
     ansible_python_interpreter: /usr/bin/python3
     report_timestamp: "{{ ansible_date_time.epoch }}"
-    
+
     # Default paths (can be overridden)
     rhcase_path: "{{ rhcase_path | default('rhcase') }}"
     output_dir: "{{ output_dir | default('./output') }}"
     logs_dir: "{{ logs_dir | default('./logs') }}"
-    
+
     # Default report types (can be overridden)
     report_types: "{{ report_types | default(['rfe_bug_tracker', 'active_cases']) }}"
-    
+
     # Default validation settings
     validation_threshold: "{{ validation_threshold | default(0.99) }}"
     data_quality_threshold: "{{ data_quality_threshold | default(0.95) }}"
-    
+
     # Default notification settings
     notifications_enabled: "{{ notifications_enabled | default(false) }}"
     notification_methods: "{{ notification_methods | default(['email']) }}"
-    
+
     # Default portal settings
     portal_posting_enabled: "{{ portal_posting_enabled | default(false) }}"
     portal_auto_post: "{{ portal_auto_post | default(false) }}"
-    
+
   pre_tasks:
     - name: Display workflow information
       debug:
@@ -45,7 +45,7 @@
           📧 Notifications: {{ 'Enabled' if notifications_enabled else 'Disabled' }}
           🌐 Portal Posting: {{ 'Enabled' if portal_posting_enabled else 'Disabled' }}
           ✅ Validation Threshold: {{ (validation_threshold * 100) | round(1) }}%
-    
+
     - name: Validate required variables
       assert:
         that:
@@ -55,7 +55,7 @@
           - priority_components is defined
           - priority_components | length > 0
         fail_msg: "Missing required variables: customer_name, account_name, account_number, priority_components"
-    
+
     - name: Create output directories
       file:
         path: "{{ item }}"
@@ -160,7 +160,7 @@
           ✅ Data Quality: {{ (data_quality_score | default(0.0) * 100) | round(1) }}%
           📁 Output Directory: {{ output_dir }}
           📋 Logs Directory: {{ logs_dir }}
-    
+
     - name: Save workflow results
       copy:
         content: |
@@ -207,7 +207,7 @@
           }
         dest: "{{ output_dir }}/workflow_results_{{ ansible_date_time.epoch }}.json"
         mode: '0644'
-    
+
     - name: Log workflow completion
       lineinfile:
         path: "{{ logs_dir }}/workflow_history.log"

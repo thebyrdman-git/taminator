@@ -18,7 +18,7 @@ accounts:
     vertical: "Financial Services"
     priority: "high"
     description: "Primary Ansible customer - large enterprise deployment"
-    
+
   - account_number: "838043"
     account_name: "wellsfargo"
     customer_name: "WELLS FARGO"
@@ -26,7 +26,7 @@ accounts:
     vertical: "Financial Services"
     priority: "high"
     description: "Major Ansible customer - complex multi-cluster environment"
-    
+
   - account_number: "6225030"
     account_name: "fanniemae"
     customer_name: "Fannie Mae"
@@ -34,7 +34,7 @@ accounts:
     vertical: "Financial Services"
     priority: "medium"
     description: "Ansible customer - growing adoption"
-    
+
   - account_number: "9691154"
     account_name: "tdbank"
     customer_name: "Td Bank Scarborough"
