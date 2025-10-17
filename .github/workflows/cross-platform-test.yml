@@ -44,7 +44,7 @@ jobs:
         run: python tests/test_directory_structure.py
       
       - name: Validate foundation module
-        run: python -c "from foundation.platform import platform; print(f'Platform detected: {platform.system()}')"
+        run: python -c "from foundation.platform import platform; print('Platform detected:', platform.system())"
       
       - name: Run installation test (Linux/macOS)
         if: runner.os != 'Windows'
