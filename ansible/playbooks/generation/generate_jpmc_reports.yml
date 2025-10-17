@@ -10,8 +10,8 @@
     account_number: "334224"
     priority_components: ["Ansible"]
     rhcase_path: "rhcase"
-    output_dir: "/home/jbyrd/pai/rfe-automation-clean/output"
-    logs_dir: "/home/jbyrd/pai/rfe-automation-clean/logs"
+    output_dir: "/home/jbyrd/taminator/output"
+    logs_dir: "/home/jbyrd/taminator/logs"
     report_types: ["rfe_bug_tracker", "active_cases"]
     validation_threshold: 0.99
 

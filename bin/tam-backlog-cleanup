@@ -76,7 +76,7 @@ class BacklogCleaner:
         
         return None
     
-    def cleanup(self) -> str:
+    def cleanup(self, post_to_salesforce: bool = False, slack_notify: bool = False) -> str:
         """Run backlog cleanup"""
         print(f"🧹 Cleaning backlog for {self.customer}...")
         
@@ -95,6 +95,14 @@ class BacklogCleaner:
         
         # Save report
         self._save_report(report)
+        
+        # Post to Salesforce if requested
+        if post_to_salesforce:
+            self._post_to_salesforce()
+        
+        # Post to Slack if requested
+        if slack_notify:
+            self._post_to_slack()
         
         return report
     
@@ -520,6 +528,84 @@ class BacklogCleaner:
         
         print(f"✅ Report saved: {output_file}")
     
+    def _post_to_salesforce(self):
+        """Post backlog cleanup actions to Salesforce"""
+        print(f"  💼 Posting cleanup updates to Salesforce...")
+        
+        if not (self.can_clean or self.needs_attention):
+            print(f"  ℹ️  No actionable cases to update")
+            return
+        
+        try:
+            from foundation.salesforce_handler import get_salesforce_handler
+            
+            handler = get_salesforce_handler()
+            updated_count = 0
+            
+            # Update closeable cases
+            for case in self.can_clean[:5]:
+                case_number = case.get('number')
+                if case_number:
+                    comment = f"""Backlog Cleanup - Identified for closure
+
+Reason: {case.get('close_reason', 'Automated cleanup identified')}
+Last update: {case.get('days_since_update', 'N/A')} days ago
+
+Please review for closure.
+
+---
+Posted automatically by Taminator"""
+                    if handler.add_case_comment(case_number, comment, is_public=False):
+                        updated_count += 1
+            
+            # Update attention-needed cases
+            for case in self.needs_attention[:5]:
+                case_number = case.get('number')
+                if case_number:
+                    comment = f"""Backlog Cleanup - Needs attention
+
+Status: {case.get('attention_reason', 'Requires manual review')}
+Age: {case.get('age_days', 'N/A')} days
+
+Please update case status.
+
+---
+Posted automatically by Taminator"""
+                    if handler.add_case_comment(case_number, comment, is_public=False):
+                        updated_count += 1
+            
+            if updated_count > 0:
+                print(f"  ✅ Updated {updated_count} case(s) in Salesforce")
+            else:
+                print(f"  ⚠️  Salesforce updates failed")
+                
+        except Exception as e:
+            print(f"  ⚠️  Salesforce error: {e}")
+    
+    def _post_to_slack(self):
+        """Post backlog report to Slack"""
+        print(f"  📢 Posting to Slack...")
+        
+        try:
+            from foundation.slack_handler import get_slack_handler
+            
+            handler = get_slack_handler()
+            health_score = self._calculate_backlog_health()
+            
+            if handler.post_backlog_alert(
+                customer=self.customer,
+                total_cases=self.stats["total_reviewed"],
+                closeable=len(self.can_clean),
+                breached=self.stats["breached"],
+                health_score=health_score
+            ):
+                print(f"  ✅ Posted to Slack")
+            else:
+                print(f"  ⚠️  Slack posting failed")
+                
+        except Exception as e:
+            print(f"  ⚠️  Slack error: {e}")
+    
     def _calculate_age_days(self, case: Dict) -> int:
         """Calculate case age in days from case data"""
         created_date = case.get("created_date") or case.get("opened_date") or case.get("created_at")
@@ -620,12 +706,16 @@ Time Saved: ~2 hours per cleanup
                        help='Print report to console')
     parser.add_argument('--email',
                        help='Email report to address')
+    parser.add_argument('--post-to-salesforce', action='store_true',
+                       help='Post cleanup actions to Salesforce')
+    parser.add_argument('--slack', action='store_true',
+                       help='Post backlog report to Slack')
     
     args = parser.parse_args()
     
     # Run cleanup
     cleaner = BacklogCleaner(args.customer, args.auto_clean)
-    report = cleaner.cleanup()
+    report = cleaner.cleanup(args.post_to_salesforce, args.slack)
     
     # Print if requested
     if args.print:

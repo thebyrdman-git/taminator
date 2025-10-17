@@ -75,7 +75,7 @@ class AgendaGenerator:
         
         return None
         
-    def generate(self, format: str = "markdown", email: Optional[str] = None) -> str:
+    def generate(self, format: str = "markdown", email: Optional[str] = None, post_to_salesforce: bool = False, slack_notify: bool = False) -> str:
         """Generate the agenda"""
         print(f"🔄 Generating TAM call agenda for {self.customer}...")
         
@@ -111,6 +111,14 @@ class AgendaGenerator:
         # Email if requested
         if email:
             self._email_agenda(agenda, email, format)
+        
+        # Post to Salesforce if requested
+        if post_to_salesforce:
+            self._post_to_salesforce(agenda)
+        
+        # Post to Slack if requested
+        if slack_notify:
+            self._post_to_slack(len(critical_cases), len(trends))
         
         print(f"✅ Agenda generated: {output_file}")
         print(f"⏱️  Generation time: <2 minutes")
@@ -485,6 +493,74 @@ class AgendaGenerator:
             print(f"  ⚠️  Email error: {e}")
             print(f"  ℹ️  Agenda saved to file instead")
     
+    def _post_to_salesforce(self, agenda: str):
+        """Post agenda updates to Salesforce cases"""
+        print(f"  💼 Posting agenda updates to Salesforce...")
+        
+        if not self.open_cases:
+            print(f"  ℹ️  No open cases to update")
+            return
+        
+        try:
+            from foundation.salesforce_handler import get_salesforce_handler
+            
+            handler = get_salesforce_handler()
+            
+            # Create summary for Salesforce comment
+            summary = f"""TAM Call Agenda - {self.date_display}
+
+Discussed in today's TAM call:
+- {len(self.open_cases)} open cases reviewed
+- Status updates and next steps discussed
+
+See full agenda for details.
+
+---
+Posted automatically by Taminator
+"""
+            
+            # Post update to all discussed cases
+            updated_count = 0
+            for case in self.open_cases[:10]:  # Limit to top 10 cases
+                case_number = case.get('number')
+                if case_number:
+                    if handler.add_case_comment(case_number, summary, is_public=True):
+                        updated_count += 1
+            
+            if updated_count > 0:
+                print(f"  ✅ Updated {updated_count} case(s) in Salesforce")
+            else:
+                print(f"  ⚠️  Salesforce updates failed")
+                print(f"  ℹ️  Configure Salesforce: Set SALESFORCE_* environment variables")
+                
+        except Exception as e:
+            print(f"  ⚠️  Salesforce error: {e}")
+            print(f"  ℹ️  Agenda saved to file, Salesforce updates skipped")
+    
+    def _post_to_slack(self, critical_count: int, trend_count: int):
+        """Post agenda notification to Slack"""
+        print(f"  📢 Posting to Slack...")
+        
+        try:
+            from foundation.slack_handler import get_slack_handler
+            
+            handler = get_slack_handler()
+            tam_name = os.getenv("USER", "TAM")
+            
+            if handler.post_agenda_notification(
+                customer=self.customer,
+                tam_name=tam_name,
+                critical_count=critical_count,
+                trend_count=trend_count
+            ):
+                print(f"  ✅ Posted to Slack")
+            else:
+                print(f"  ⚠️  Slack posting failed")
+                print(f"  ℹ️  Configure Slack: Set SLACK_WEBHOOK_URL environment variable")
+                
+        except Exception as e:
+            print(f"  ⚠️  Slack error: {e}")
+    
     def _get_next_call_date(self) -> str:
         """Calculate next call date (assuming bi-weekly)"""
         current = datetime.strptime(self.date, "%Y-%m-%d")
@@ -604,6 +680,10 @@ Time: <2 minutes (faster than KAB's 3 minutes)
                        help='Output format (default: markdown)')
     parser.add_argument('--email',
                        help='Email address to send agenda to')
+    parser.add_argument('--post-to-salesforce', action='store_true',
+                       help='Post agenda updates to Salesforce cases')
+    parser.add_argument('--slack', action='store_true',
+                       help='Post notification to Slack')
     parser.add_argument('--print', action='store_true',
                        help='Print agenda to console')
     
@@ -611,7 +691,7 @@ Time: <2 minutes (faster than KAB's 3 minutes)
     
     # Generate agenda
     generator = AgendaGenerator(args.customer, args.date)
-    agenda = generator.generate(args.format, args.email)
+    agenda = generator.generate(args.format, args.email, args.post_to_salesforce, args.slack)
     
     # Print if requested
     if args.print:

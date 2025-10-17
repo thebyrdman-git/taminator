@@ -10,7 +10,7 @@
     account_number: "{{ accounts[customer].account_number }}"
     priority_components: "{{ accounts[customer].priority_components }}"
     rhcase_path: "rhcase"
-    output_dir: "/home/jbyrd/pai/rfe-automation-clean/output"
+    output_dir: "/home/jbyrd/taminator/output"
 
   tasks:
     - name: Display customer configuration

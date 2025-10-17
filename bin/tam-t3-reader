@@ -64,7 +64,7 @@ class T3Reader:
         self.customer_products = set()
     
     def read_t3(self, filter_products: bool = True, post_cpg: bool = False, 
-                send_email: Optional[str] = None) -> str:
+                send_email: Optional[str] = None, post_to_salesforce: bool = False, slack_notify: bool = False) -> str:
         """Read and process T3 blog articles"""
         print(f"📰 Reading T3 blog...")
         
@@ -88,6 +88,14 @@ class T3Reader:
         # Email if requested
         if send_email:
             self._send_email(report, send_email)
+        
+        # Post to Salesforce if requested
+        if post_to_salesforce and self.customer:
+            self._post_to_salesforce(self.filtered_articles)
+        
+        # Post to Slack if requested
+        if slack_notify and self.customer:
+            self._post_to_slack(self.filtered_articles)
         
         # Save report
         self._save_report(report)
@@ -395,6 +403,75 @@ class T3Reader:
             print(f"  ⚠️  Email error: {e}")
             print(f"  ℹ️  Report saved to file instead")
     
+    def _post_to_salesforce(self, articles: List[Dict]):
+        """Post T3 article recommendations to Salesforce"""
+        if not self.customer:
+            print(f"  ⚠️  Customer required for Salesforce posting")
+            return
+        
+        print(f"  💼 Posting T3 recommendations to Salesforce...")
+        
+        try:
+            from foundation.salesforce_handler import get_salesforce_handler
+            
+            handler = get_salesforce_handler()
+            
+            # Create T3 recommendation summary
+            summary = f"""T3 Blog Recommendations - {datetime.now().strftime('%B %d, %Y')}
+
+Relevant technical articles for {self.customer}:
+
+"""
+            
+            for i, article in enumerate(articles[:3], 1):
+                summary += f"{i}. {article.get('title', 'Untitled')}\n"
+                summary += f"   Category: {article.get('category', 'General')}\n"
+                summary += f"   URL: {article.get('url', '#')}\n\n"
+            
+            summary += """---
+Posted automatically by Taminator
+
+T3 blog articles provide insights on Red Hat technologies, best practices, and customer success stories."""
+            
+            # Get a representative case to post to (first open case)
+            from foundation.rhcase_handler import get_rhcase_handler
+            rhcase_handler = get_rhcase_handler()
+            cases = rhcase_handler.get_open_cases(self.customer)
+            
+            if cases:
+                case_number = cases[0].get('number')
+                if case_number and handler.add_case_comment(case_number, summary, is_public=True):
+                    print(f"  ✅ Posted T3 recommendations to case {case_number}")
+                else:
+                    print(f"  ⚠️  Salesforce posting failed")
+            else:
+                print(f"  ℹ️  No open cases found to post T3 recommendations")
+                
+        except Exception as e:
+            print(f"  ⚠️  Salesforce error: {e}")
+    
+    def _post_to_slack(self, articles: List[Dict]):
+        """Post T3 recommendations to Slack"""
+        print(f"  📢 Posting to Slack...")
+        
+        try:
+            from foundation.slack_handler import get_slack_handler
+            
+            handler = get_slack_handler()
+            top_article = articles[0] if articles else None
+            
+            if handler.post_t3_recommendations(
+                customer=self.customer,
+                article_count=len(articles),
+                top_article=top_article
+            ):
+                print(f"  ✅ Posted to Slack")
+            else:
+                print(f"  ⚠️  Slack posting failed")
+                
+        except Exception as e:
+            print(f"  ⚠️  Slack error: {e}")
+    
     def _save_report(self, report: str, suffix: str = "") -> Path:
         """Save report to file"""
         output_dir = Path.home() / "tam-t3-reports"
@@ -543,6 +620,10 @@ Better than KAB t3:
                        help='Post articles to Customer Portal Private Groups')
     parser.add_argument('--email',
                        help='Email report to address')
+    parser.add_argument('--post-to-salesforce', action='store_true',
+                       help='Post T3 recommendations to Salesforce')
+    parser.add_argument('--slack', action='store_true',
+                       help='Post T3 recommendations to Slack')
     parser.add_argument('--print', action='store_true',
                        help='Print report to console')
     parser.add_argument('--no-filter', action='store_true',
@@ -560,7 +641,9 @@ Better than KAB t3:
         report = reader.read_t3(
             filter_products=not args.no_filter,
             post_cpg=args.post_cpg,
-            send_email=args.email
+            send_email=args.email,
+            post_to_salesforce=args.post_to_salesforce,
+            slack_notify=args.slack
         )
     
     # Print if requested

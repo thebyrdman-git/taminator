@@ -21,7 +21,6 @@
       prompt: "VPN profile path (leave empty to skip)"
       private: false
       default: ""
-      when: setup_vpn_prompt == "yes"
 
   pre_tasks:
     - name: Verify installation confirmed

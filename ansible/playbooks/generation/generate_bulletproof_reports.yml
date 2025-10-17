@@ -10,8 +10,8 @@
     account_number: "{{ accounts[customer].account_number }}"
     priority_components: "{{ accounts[customer].priority_components }}"
     rhcase_path: "rhcase"
-    output_dir: "/home/jbyrd/pai/rfe-automation-clean/output"
-    logs_dir: "/home/jbyrd/pai/rfe-automation-clean/logs"
+    output_dir: "/home/jbyrd/taminator/output"
+    logs_dir: "/home/jbyrd/taminator/logs"
     validation_threshold: 0.95
 
   tasks:

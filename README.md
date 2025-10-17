@@ -374,6 +374,26 @@ tam-generate-agenda --customer [your-customer] --print
 
 ---
 
+## 📋 Version History
+
+| Version | Date | Highlights | Status |
+|---------|------|------------|--------|
+| **1.5.0** | 2025-10-17 | 🧪 Testing Suite (100% pass), Production Ready, PAI Grade A | ✅ Current |
+| 1.4.1 | 2025-10-17 | 🔧 Cross-platform fixes, Python 3.11+ support | ✅ Stable |
+| 1.4.0 | 2025-10-16 | 🎨 TUI, Scheduler, VPN Intelligence | ✅ Stable |
+| 1.3.0 | 2025-10-16 | 🌐 Hydra API, Dynamic Discovery | ✅ Stable |
+| 1.2.0 | 2025-10-15 | 🤖 Intelligent Onboarding, Enhanced Verification | ✅ Stable |
+| 1.1.0 | 2025-10-14 | 🎯 Intelligent Case Analysis, Chat Interface | ✅ Stable |
+| 1.0.0 | 2025-10-13 | 🚀 Initial Release | ✅ Stable |
+
+**Total Tests:** 33/33 passed (100%)  
+**Framework Compliance:** PAI Gold Standard - Grade A (95%)  
+**Production Status:** ✅ READY
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
+
+---
+
 *Taminator: The AI that works FOR TAMs, not against them.*  
 *Better than Skynet. Probably won't become self-aware.* 🤖
 

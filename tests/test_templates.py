@@ -8,7 +8,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 from typing import Dict, List, Any
 
 class TemplateTester:
-    def __init__(self, template_dir: str = "/home/jbyrd/pai/rfe-automation-clean/templates"):
+    def __init__(self, template_dir: str = "/home/jbyrd/taminator/templates"):
         self.template_dir = template_dir
         self.env = Environment(loader=FileSystemLoader(template_dir))
         

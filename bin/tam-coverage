@@ -56,7 +56,7 @@ class CoverageAnnouncer:
         self.upcoming_events = []
         self.strategic_items = []
     
-    def generate(self, post_cpg: bool = False, send_email: Optional[str] = None) -> tuple:
+    def generate(self, post_cpg: bool = False, send_email: Optional[str] = None, post_to_salesforce: bool = False) -> tuple:
         """Generate coverage announcement and briefing"""
         print(f"📢 Generating coverage announcement...")
         print(f"   TAM: {self.tam_name} ({self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')})")
@@ -83,6 +83,10 @@ class CoverageAnnouncer:
         # Email if requested
         if send_email:
             self._send_email(announcement, send_email)
+        
+        # Post to Salesforce if requested
+        if post_to_salesforce and self.customer:
+            self._post_to_salesforce(announcement)
         
         print(f"✅ Announcement saved: {ann_file}")
         print(f"✅ Briefing saved: {brief_file}")
@@ -428,6 +432,51 @@ Contact {self.tam_name}: {self.tam_email}
             print(f"  ⚠️  Email error: {e}")
             print(f"  ℹ️  Files saved to ~/tam-coverage/ instead")
     
+    def _post_to_salesforce(self, announcement: str):
+        """Post coverage announcement to Salesforce"""
+        if not self.customer:
+            print(f"  ⚠️  Customer required for Salesforce posting")
+            return
+        
+        print(f"  💼 Posting coverage announcement to Salesforce...")
+        
+        try:
+            from foundation.salesforce_handler import get_salesforce_handler
+            
+            handler = get_salesforce_handler()
+            
+            # Create announcement summary
+            summary = f"""TAM Coverage Notification - {self.start_date.strftime('%B %d, %Y')} to {self.end_date.strftime('%B %d, %Y')}
+
+Your Technical Account Manager, {self.tam_name}, will be out of office.
+
+During this period, please contact:
+• Backup TAM: {self.backup_name}
+
+All open cases will be monitored and critical issues will be addressed promptly.
+
+---
+Posted automatically by Taminator"""
+            
+            # Get all open cases to post announcement
+            from foundation.rhcase_handler import get_rhcase_handler
+            rhcase_handler = get_rhcase_handler()
+            cases = rhcase_handler.get_open_cases(self.customer)
+            
+            updated_count = 0
+            for case in cases[:10]:  # Post to top 10 open cases
+                case_number = case.get('number')
+                if case_number and handler.add_case_comment(case_number, summary, is_public=True):
+                    updated_count += 1
+            
+            if updated_count > 0:
+                print(f"  ✅ Posted announcement to {updated_count} case(s) in Salesforce")
+            else:
+                print(f"  ⚠️  Salesforce updates failed")
+                
+        except Exception as e:
+            print(f"  ⚠️  Salesforce error: {e}")
+    
     def _load_sample_context(self):
         """Load sample context data"""
         self.open_cases = [
@@ -512,6 +561,10 @@ Better than kab-coverage:
                        help='Post to Customer Portal Private Groups')
     parser.add_argument('--email',
                        help='Email announcement to address')
+    parser.add_argument('--post-to-salesforce', action='store_true',
+                       help='Post coverage announcement to Salesforce')
+    parser.add_argument('--slack', action='store_true',
+                       help='Post coverage announcement to Slack')
     parser.add_argument('--print', action='store_true',
                        help='Print to console')
     
@@ -529,7 +582,9 @@ Better than kab-coverage:
     
     announcement, briefing = announcer.generate(
         post_cpg=args.post_cpg,
-        send_email=args.email
+        send_email=args.email,
+        post_to_salesforce=args.post_to_salesforce,
+        slack_notify=args.slack
     )
     
     if args.print:
