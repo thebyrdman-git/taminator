@@ -10,6 +10,15 @@
 4. Click "Get link"
 5. Share that link with TAMs
 
+### Pro Tip: Backup TAM Coverage
+
+When going on PTO, add your backup TAM to the CC field:
+- **Before PTO:** Add backup TAM to "CC report to" field
+- **After PTO:** Remove backup TAM from CC
+- **Duration:** Add at least 1 week before extended absence
+
+This ensures seamless customer coverage while you're out!
+
 ---
 
 ## Template 1: RHEL-Focused TAM 🐧

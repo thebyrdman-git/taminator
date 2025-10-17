@@ -121,7 +121,31 @@ CC report to: manager@redhat.com
 
 **Result:** TAM and manager both receive reports
 
-### Use Case 2: Team Collaboration
+### Use Case 2: Backup TAM Coverage
+
+**Scenario:** TAM going on vacation, backup TAM needs visibility
+
+**Setup:**
+```
+Send reports to: primary-tam@redhat.com
+CC report to: backup-tam@redhat.com
+```
+
+**Result:** Backup TAM stays informed and can cover during PTO
+
+**Why It's Important:**
+- Seamless coverage during vacations/PTO
+- Backup TAM already familiar with customer status
+- No knowledge gap when primary TAM is unavailable
+- Critical alerts don't get missed
+- Customer continuity maintained
+
+**Best Practice:**
+- Add backup TAM CC at least 1 week before PTO
+- Remove CC when returning from PTO
+- Use this for extended absences (>3 days)
+
+### Use Case 3: Team Collaboration
 
 **Scenario:** Multiple TAMs support the same customer
 
@@ -133,7 +157,7 @@ CC report to: backup-tam@redhat.com, specialist@redhat.com
 
 **Result:** Entire team stays informed
 
-### Use Case 3: Account Handoff
+### Use Case 4: Account Handoff
 
 **Scenario:** Transitioning customer to new TAM
 
@@ -145,7 +169,7 @@ CC report to: new-tam@redhat.com
 
 **Result:** Both TAMs receive reports during transition
 
-### Use Case 4: Product Specialist
+### Use Case 5: Product Specialist
 
 **Scenario:** Complex OpenShift cases need specialist review
 
@@ -157,7 +181,7 @@ CC report to: openshift-specialist@redhat.com
 
 **Result:** Specialist can proactively assist
 
-### Use Case 5: Practice Lead
+### Use Case 6: Practice Lead
 
 **Scenario:** Practice lead tracks all accounts in region
 
@@ -285,6 +309,7 @@ customers:
 
 ### DO ✅
 - CC your manager for oversight
+- CC backup TAM for coverage (especially before PTO)
 - CC colleagues who support the customer
 - CC product specialists for specific expertise
 - CC during account transitions
@@ -375,7 +400,16 @@ cc_reports_to:
   - "financial-services-lead@redhat.com"
 ```
 
-### Example 4: Transition Period
+### Example 4: Backup Coverage During PTO
+
+```yaml
+send_reports_to: "primary-tam@redhat.com"
+cc_reports_to:
+  - "backup-tam@redhat.com"
+# Add 1 week before PTO, remove when returning
+```
+
+### Example 5: Transition Period
 
 ```yaml
 send_reports_to: "outgoing-tam@redhat.com"
@@ -393,7 +427,7 @@ cc_reports_to:
 
 **Security:** @redhat.com only, automatic validation
 
-**Use Cases:** Manager oversight, team collaboration, handoffs, specialists
+**Use Cases:** Manager oversight, backup TAM coverage, team collaboration, handoffs, specialists
 
 **Setup:** Add in Google Form field or config file
 
