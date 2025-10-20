@@ -121,6 +121,23 @@ pai-slack-*               # Slack integration suite
 - **Slack**: Team communication and automation
 - **Email**: Customer communication processing
 
+## 🌐 Personal Web Presence
+
+### jbyrd.org (GitHub Pages)
+- **Hosting**: GitHub Pages (no longer MiracleMax)
+- **Repository**: https://github.com/thebyrdman-git/jbyrd.org
+- **Content**: 
+  - MySpace-themed landing page (main page)
+  - Links to all services and blog
+- **Note**: Only the MySpace page and blog page, hosted on GitHub
+
+### blog.jbyrd.org (GitHub Pages)
+- **Hosting**: GitHub Pages
+- **Repository**: https://github.com/thebyrdman-git/blog-jbyrd-org
+- **Technology**: Jekyll with Red Hat design system
+- **Content**: Technical blog for TAM insights, Ansible, infrastructure
+- **Styling**: Official Red Hat fonts, colors, and design principles
+
 ## 💻 Usage Examples
 
 ```bash
@@ -158,6 +175,54 @@ pai-brief-generate
 - **Compliance Questions**: Immediate policy reference with actionable guidance
 - **Tool Usage**: Execute pai- commands immediately with status reporting
 - **Progress Reporting**: Clean professional indicators, no theatrical flair
+
+### Infrastructure Context (MiracleMax)
+When working on personal infrastructure (`miraclemax.local`):
+- **Reference:** `/home/jbyrd/pai/contexts/sysadmin/miraclemax-infrastructure.md`
+- **Operations Guide:** `/home/jbyrd/pai/miraclemax-infrastructure/MIRACLEMAX-OPERATIONS.md`
+- **MANDATORY Methodology:**
+  - ✅ **ALWAYS use Ansible roles** - Never manual deployments
+  - ✅ **ALWAYS leverage community roles** - Build on giants' shoulders
+  - ✅ **ALWAYS use `containers.podman` collection** - For container deployments
+  - ✅ **ALWAYS run `--check --diff` first** - Before deploying
+  - ✅ **ALWAYS deploy incrementally** - One role at a time with tags
+  - ✅ **ALWAYS verify remote access** - Test service via Traefik/DNS before declaring complete
+  - ✅ **ALWAYS deploy monitoring** - Prometheus + Alertmanager with email alerts
+  - ✅ **ALWAYS enable self-healing** - Automatic restart for failed services
+  - ✅ **ALWAYS track versions** - Regular checks for latest stable releases
+  - ✅ **ALWAYS test backups** - Monthly restore verification required
+  - ✅ **ALWAYS scan for vulnerabilities** - Container image scanning before deployment
+  - ✅ **ALWAYS set resource limits** - CPU/memory limits on all containers
+  - ✅ **ALWAYS document changes** - Change log with rollback procedures
+  - ✅ **ALWAYS follow update schedule** - Monthly update window with staged rollout
+  - ❌ **NEVER write from scratch** - Find a community role first
+  - ❌ **NEVER deploy without testing** - Test in staging/local first
+- **Red Hat TAM Requirements:**
+  - ✅ **MUST have AAP 2.6 testing instance** - Native deployment for customer work
+  - ✅ **Test playbooks locally first** - Validate in AAP before customer deployment
+  - ✅ **Replicate customer environments** - Match AAP versions and configurations
+- **Enterprise Scoring (MANDATORY):**
+  - ✅ **Monthly assessment** - First Saturday of each month
+  - ✅ **Track against rubric** - ENTERPRISE-SCORING-RUBRIC.md
+  - ✅ **Minimum improvement** - +5 points per month
+  - ✅ **Target score** - 75/100 for home lab quality
+- **Key Principles:**
+  - Backup first, deploy incrementally
+  - Keep console access available during firewall changes
+  - Never touch NFS, fail2ban, or cloudalchemy monitoring roles
+  - Traefik and Backrest run as systemd services (not containers)
+  - Restart services: `systemctl restart traefik` or `systemctl restart backrest`
+- **Data Storage Rules:**
+  - Backup data → `/mnt/backup` (1.9TB) - Restic, Backrest, archives
+  - Large files → `/mnt/storage` (3.6TB) - VMs, media, datasets
+  - User configs → `/home` (353GB) - Keep under 50% utilization
+  - NEVER store backups or large files on `/home`
+- **Resilience Policy (MANDATORY):**
+  - ✅ **All containers** - MUST use `--restart=unless-stopped`
+  - ✅ **All systemd services** - MUST have `Restart=always` or `Restart=on-failure`
+  - ✅ **Watchdog monitoring** - Auto-restart failed services every 2 minutes
+  - ✅ **Email alerts** - Prometheus/Alertmanager notify on service failures
+- **Quick Deploy:** `cd ~/pai/miraclemax-infrastructure/ansible && ansible-playbook playbooks/site-safe.yml`
 
 ---
 
