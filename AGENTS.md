@@ -125,7 +125,7 @@ pai-slack-*               # Slack integration suite
 
 ### jbyrd.org (GitHub Pages)
 - **Hosting**: GitHub Pages (no longer MiracleMax)
-- **Repository**: https://github.com/thebyrdman-git/jbyrd.org
+- **Repository**: https://github.com/thebyrdman-git/myspace-jbyrd-org
 - **Content**: 
   - MySpace-themed landing page (main page)
   - Links to all services and blog
