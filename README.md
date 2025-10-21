@@ -1,8 +1,8 @@
-# 🤖 Taminator - RFE/Bug Tracker for Red Hat TAMs
+# 💀 Taminator - The Skynet TAMs Actually Want
 
 > *"Come with me if you want to save time."* - Taminator T-800
 
-**The Skynet TAMs actually want.** Because sometimes automation doesn't have to be scary.
+**Professional RFE/Bug tracking for Red Hat TAMs.** Because sometimes automation doesn't have to be scary.
 
 ---
 
