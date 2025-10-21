@@ -2,15 +2,15 @@
 
 > *"Come with me if you want to save time."* - Taminator T-800
 
-**Professional RFE/Bug tracking for Red Hat TAMs.** Because sometimes automation doesn't have to be scary.
+**Professional TAM automation and workflow tools for Red Hat.** Because sometimes automation doesn't have to be scary.
 
 ---
 
 ## 📋 TLDR
 
-**What:** Automates RFE/Bug tracking and report generation for Red Hat TAMs  
+**What:** Complete automation suite for Red Hat TAM workflows and customer engagement  
 **Why:** Saves 2-3 hours per customer per week  
-**How:** GUI or CLI - tracks JIRA, generates reports, posts to customer portals
+**How:** GUI or CLI - automated tracking, reporting, and customer portal management
 
 **Version:** v1.7.0 - Production Release with Complete GUI
 
