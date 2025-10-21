@@ -1,0 +1,227 @@
+# Taminator .gitignore
+# Prevents committing sensitive data and customer information
+
+# ============================================================
+# CRITICAL: Tokens and Credentials (NEVER COMMIT)
+# ============================================================
+
+# API Tokens (environment variables)
+.env
+.env.local
+.env.*.local
+
+# Token files
+*token*.txt
+*credentials*.txt
+*secrets*.txt
+
+# Keyring storage (should be system-level, but just in case)
+*.keyring
+keyring.cfg
+
+# Config files that might contain tokens
+config/secrets/
+~/.config/taminator/secrets/
+
+# ============================================================
+# CRITICAL: Customer Data (NEVER COMMIT)
+# ============================================================
+
+# Test customer data directory
+taminator-test-data/
+*/taminator-test-data/
+
+# Real customer reports
+**/customers/*.md
+customers/
+
+# Customer-specific directories
+tdbank/
+wellsfargo/
+fanniemae/
+testcustomer/
+testcustomer2/
+
+# Any file with customer names (common patterns)
+*-customer-*.md
+*_customer_*.md
+
+# Backup files (may contain customer data)
+*_backup_*.md
+*.backup
+*.bak
+
+# ============================================================
+# Python
+# ============================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ============================================================
+# Node.js / Electron
+# ============================================================
+
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Build output
+gui/dist/
+gui/build/
+gui/out/
+
+# Electron build artifacts
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.AppImage
+*.exe
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# ============================================================
+# IDE / Editor
+# ============================================================
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# ============================================================
+# Logs and temporary files
+# ============================================================
+
+*.log
+logs/
+temp/
+tmp/
+*.tmp
+
+# ============================================================
+# Testing artifacts
+# ============================================================
+
+test-results/
+screenshots/
+test-data/
+
+# ============================================================
+# Documentation build artifacts (if using Sphinx/MkDocs)
+# ============================================================
+
+docs/_build/
+site/
+
+# ============================================================
+# macOS
+# ============================================================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# ============================================================
+# Windows
+# ============================================================
+
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# ============================================================
+# Linux
+# ============================================================
+
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
