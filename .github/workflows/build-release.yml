@@ -25,33 +25,24 @@ jobs:
           cd taminator/gui
           npm ci
       
-      - name: Build macOS x64 DMG
+      - name: Build macOS DMG (both architectures)
         run: |
           cd taminator/gui
-          npm run build -- --mac --x64
-      
-      - name: Build macOS arm64 DMG
-        run: |
-          cd taminator/gui
-          npm run build -- --mac --arm64
+          npm run build -- --mac
       
       - name: List built files
         run: |
           cd taminator/gui
-          ls -lh dist/*.dmg || echo "No DMG files found"
+          echo "Contents of dist/:"
+          ls -lh dist/ || echo "No dist directory"
+          echo "DMG files:"
+          find dist/ -name "*.dmg" -exec ls -lh {} \; || echo "No DMG files found"
       
-      - name: Upload macOS x64 DMG
+      - name: Upload macOS DMG files
         uses: actions/upload-artifact@v4
         with:
-          name: macos-x64-dmg
-          path: taminator/gui/dist/*-x64.dmg
-          if-no-files-found: error
-      
-      - name: Upload macOS arm64 DMG
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-arm64-dmg
-          path: taminator/gui/dist/*-arm64.dmg
+          name: macos-dmg
+          path: taminator/gui/dist/*.dmg
           if-no-files-found: error
   
   build-linux:
@@ -131,8 +122,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            macos-x64-dmg/*.dmg
-            macos-arm64-dmg/*.dmg
+            macos-dmg/*.dmg
             linux-appimage/*.AppImage
             windows-installer/*.exe
           draft: false
