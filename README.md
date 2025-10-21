@@ -22,10 +22,10 @@
 
 | Platform | Architecture | Package Type | Download | Size |
 |----------|--------------|--------------|----------|------|
-| 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~122 MB |
-| 🍎 **macOS** | x64 (Intel) | DMG | Coming Soon | ~200 MB |
-| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | Coming Soon | ~190 MB |
-| 🪟 **Windows** | x64 | NSIS Installer | Coming Soon | ~150 MB |
+| 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0.AppImage) | ~118 MB |
+| 🍎 **macOS** | x64 (Intel) | DMG | [Download](https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0.dmg) | ~114 MB |
+| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Download](https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0-arm64.dmg) | ~109 MB |
+| 🪟 **Windows** | x64 | NSIS Installer | [Download](https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-Setup-1.7.0.exe) | ~89 MB |
 
 **[📥 View All Releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases)**
 
@@ -36,7 +36,7 @@
 ### 🐧 Linux
 ```bash
 # Download
-wget https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/download/v1.7.0/Taminator-1.7.0.AppImage
+wget https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0.AppImage
 
 # Install
 chmod +x Taminator-1.7.0.AppImage
@@ -45,12 +45,25 @@ chmod +x Taminator-1.7.0.AppImage
 
 ### 🍎 macOS
 ```bash
-# Coming soon! macOS builds will be added in future releases.
+# Download (Intel Macs)
+curl -LO https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0.dmg
+
+# Download (Apple Silicon M1/M2/M3)
+curl -LO https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0-arm64.dmg
+
+# Install
+open Taminator-1.7.0*.dmg
+# Drag Taminator to Applications folder
 ```
 
 ### 🪟 Windows
 ```powershell
-# Coming soon! Windows installer will be added in future releases.
+# Download
+Invoke-WebRequest -Uri "https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-Setup-1.7.0.exe" -OutFile "Taminator-Setup-1.7.0.exe"
+
+# Install
+.\Taminator-Setup-1.7.0.exe
+# Follow installation wizard
 ```
 
 ---
