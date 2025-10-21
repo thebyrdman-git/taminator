@@ -1,0 +1,46 @@
+---
+# Prepare Alma 9 VM for taminator testing
+- name: Prepare VM for Taminator Testing
+  hosts: alma9_vm
+  become: true
+  tasks:
+    - name: Install Python pip
+      dnf:
+        name:
+          - python3-pip
+          - python3-devel
+          - git
+        state: present
+
+    - name: Install jinja2 and requests (taminator dependencies)
+      pip:
+        name:
+          - jinja2
+          - requests
+          - rich
+        state: present
+        executable: pip3
+
+    - name: Display Python and pip versions
+      command: "{{ item }}"
+      loop:
+        - python3 --version
+        - pip3 --version
+      register: versions
+      changed_when: false
+
+    - name: Show versions
+      debug:
+        msg: "{{ versions.results | map(attribute='stdout') | list }}"
+
+    - name: Check if rhcase can be installed
+      command: pip3 install --user --dry-run rhcase
+      become: false
+      register: rhcase_check
+      changed_when: false
+      failed_when: false
+
+    - name: Show rhcase availability
+      debug:
+        msg: "rhcase installation check: {{ 'Available' if rhcase_check.rc == 0 else 'Not available (VPN may be required)' }}"
+

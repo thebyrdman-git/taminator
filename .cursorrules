@@ -64,6 +64,45 @@ All accessible via shell commands in /home/jbyrd/hatter-pai/bin/
 - **Compliance Questions**: Immediate reference to policies
 - **Tool Usage**: Execute pai- commands without asking permission
 
+## 🚨 GitLab Push Rules - MANDATORY (Taminator)
+
+**CRITICAL:** When pushing to Taminator GitLab repository:
+- ✅ **ONLY push files in:** `automation/rfe-bug-tracker/`, `ansible/vm-*.yml`, `.cursorrules`
+- ❌ **NEVER push:** Personal PAI projects, customer files, family-finance-app, contexts/, repositories/, miraclemax-infrastructure, red-hat-vpn-configurator
+- 📋 **Always verify before push:** `git diff --name-only origin/$(git branch --show-current)`
+- 🔒 **See:** `automation/rfe-bug-tracker/GITLAB-PUSH-RULES.md` for complete instructions
+
+## Testing Strategy (Taminator & PAI Tools)
+
+- **Use hybrid testing approach:**
+  - **Real testing:** User (Jimmy) tests with actual GUI and live workflows
+  - **Simulated testing:** Use automated tests, mock data, and CLI simulations when appropriate
+  
+- **When to use real testing:**
+  - GUI functionality and UX
+  - Authentication flows (VPN, Kerberos, tokens)
+  - End-to-end workflows
+  - Visual verification needed
+  
+- **When to use simulated testing:**
+  - Unit tests for core functions
+  - Security checks (pre-commit hooks, .gitignore)
+  - Error handling
+  - API responses (can mock)
+  
+- **Best practice:** Demonstrate both approaches - show real test, explain simulation strategy
+
+## Report Generation
+
+- **STOP and clarify scope/accuracy requirements before creating documents**
+- Report accuracy and accurate scope is just as important as tool functionality
+- Default assumption for RFE/BUG reports: TAM-to-Engineering technical communication
+  - **Audience:** Red Hat engineering teams (not customers)
+  - **Purpose:** Report specific bugs or enhancement needs discovered during customer engagements
+  - **Format:** Technical specifications with reproducible steps, customer impact, and business justification
+  - **Scope:** Issues discovered during TAM work with customers (e.g., "During TD Bank engagement, discovered...")
+  - **Not:** Generic deployment guides or customer-facing documentation
+
 ---
 
 This project is part of the global PAI system but specialized for Red Hat compliance and workflows. Always prioritize data protection, use approved models, and maintain audit trails.

@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+"""
+tam-rfe: Command-line interface for Taminator RFE tool.
+
+Usage:
+    tam-rfe check <customer>       # Check if report is up-to-date
+    tam-rfe update <customer>      # Update report with current statuses
+    tam-rfe post <customer>        # Post report to customer portal
+    tam-rfe onboard <customer>     # Onboard new customer
+    tam-rfe config                 # Manage configuration and tokens
+"""
+
+import sys
+import os
+
+# Add src to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from rich.console import Console
+
+console = Console()
+
+
+def main():
+    if len(sys.argv) < 2:
+        show_help()
+        return
+    
+    command = sys.argv[1]
+    
+    if command == 'check':
+        from taminator.commands.check import main as check_main
+        
+        # Parse arguments
+        test_data = '--test-data' in sys.argv
+        customer = None
+        
+        if not test_data and len(sys.argv) > 2:
+            customer = sys.argv[2]
+        
+        check_main(customer=customer, test_data=test_data)
+    
+    elif command == 'update':
+        from taminator.commands.update import main as update_main
+        
+        test_data = '--test-data' in sys.argv
+        auto_confirm = '--yes' in sys.argv or '-y' in sys.argv
+        customer = None
+        
+        if not test_data and len(sys.argv) > 2:
+            customer = sys.argv[2]
+        
+        update_main(customer=customer, test_data=test_data, auto_confirm=auto_confirm)
+    
+    elif command == 'post':
+        from taminator.commands.post import main as post_main
+        
+        dry_run = '--dry-run' in sys.argv
+        customer = None
+        
+        for arg in sys.argv[2:]:
+            if not arg.startswith('--'):
+                customer = arg
+                break
+        
+        post_main(customer=customer, dry_run=dry_run)
+    
+    elif command == 'onboard':
+        from taminator.commands.onboard import main as onboard_main
+        
+        customer = sys.argv[2] if len(sys.argv) > 2 else None
+        onboard_main(customer=customer)
+    
+    elif command == 'config':
+        from taminator.commands.config import main as config_main
+        
+        add_token = '--add-token' in sys.argv
+        test_tokens = '--test-tokens' in sys.argv
+        show_tokens = '--show-tokens' in sys.argv
+        
+        config_main(add_token=add_token, test_tokens=test_tokens, show_tokens=show_tokens)
+    
+    elif command == 'report-issue':
+        from taminator.commands.report_issue import main as report_issue_main
+        
+        bug = '--bug' in sys.argv
+        feature = '--feature' in sys.argv
+        
+        report_issue_main(bug=bug, feature=feature)
+    
+    elif command in ['-h', '--help', 'help']:
+        show_help()
+    
+    else:
+        console.print(f"\n❌ Unknown command: {command}\n", style="red bold")
+        show_help()
+
+
+def show_help():
+    help_text = """
+╔═══════════════════════════════════════════════════════════════╗
+║                        TAMINATOR                              ║
+║              The Skynet TAMs actually want. 🤖                ║
+╚═══════════════════════════════════════════════════════════════╝
+
+Usage:
+  tam-rfe <command> [options]
+
+Commands:
+  check <customer>       Check if customer report is up-to-date
+  update <customer>      Update report with current JIRA statuses
+  post <customer>        Post report to customer portal
+  onboard <customer>     Onboard new customer
+  config                 Manage configuration and tokens
+  report-issue           Submit bug report or feature request to GitHub
+
+Options:
+  --test-data           Use test data for demonstration
+  --help, -h            Show this help message
+
+Examples:
+  tam-rfe check tdbank
+  tam-rfe check --test-data
+  tam-rfe update wellsfargo
+  tam-rfe onboard newcustomer
+
+Authentication:
+  Taminator uses Auth-Box for secure authentication management.
+  On first use, you'll be prompted to configure required tokens.
+
+Documentation:
+  https://gitlab.cee.redhat.com/jbyrd/taminator
+"""
+    console.print(help_text, style="cyan")
+
+
+if __name__ == '__main__':
+    main()
+
