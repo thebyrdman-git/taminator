@@ -14,23 +14,40 @@
 
 **Quick Start:**
 
-### 🐧 Linux
+## 📥 Download Taminator v1.7.0
+
+| Platform | Architecture | Package Type | Download | Size |
+|----------|--------------|--------------|----------|------|
+| 🐧 **Linux** | x64 | AppImage | [Taminator-1.7.0.AppImage](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~180 MB |
+| 🍎 **macOS** | x64 (Intel) | DMG | [Taminator-1.7.0-x64.dmg](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~200 MB |
+| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Taminator-1.7.0-arm64.dmg](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~190 MB |
+| 🪟 **Windows** | x64 | NSIS Installer | [Taminator-Setup-1.7.0.exe](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~150 MB |
+
+### 🐧 Linux Installation
 ```bash
-# Download
+# Download - "I'll be back... with your report."
 wget https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/Taminator-1.7.0.AppImage
 
-# Install - "I'll be back... with your report."
+# Make executable and run
 chmod +x Taminator-1.7.0.AppImage
 ./Taminator-1.7.0.AppImage
+
+# Optional: Move to ~/Applications for system-wide access
+mkdir -p ~/Applications
+mv Taminator-1.7.0.AppImage ~/Applications/
 ```
 
-### 🍎 macOS
+### 🍎 macOS Installation
 ```bash
-# Download
-curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/Taminator-1.7.0.dmg
+# Download - "Come with me if you want to save time."
+# Intel Macs:
+curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/Taminator-1.7.0-x64.dmg
 
-# Install - "Come with me if you want to save time."
-open Taminator-1.7.0.dmg
+# Apple Silicon (M1/M2/M3):
+curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/Taminator-1.7.0-arm64.dmg
+
+# Install
+open Taminator-1.7.0*.dmg
 # Drag Taminator to Applications folder
 # Launch from Launchpad or Applications
 
@@ -38,20 +55,22 @@ open Taminator-1.7.0.dmg
 ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/tam-rfe
 ```
 
-### 🪟 Windows
+### 🪟 Windows Installation
 ```powershell
-# Download
+# Download - "I need your clothes, your boots, and your RFE reports."
 # Visit: https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases
 # Download: Taminator-Setup-1.7.0.exe
 
-# Install - "I need your clothes, your boots, and your RFE reports."
+# Install
 # 1. Double-click Taminator-Setup-1.7.0.exe
 # 2. Follow installation wizard
 # 3. Choose installation directory (optional)
-# 4. Create desktop shortcut (recommended)
-# 5. Launch from Start Menu or Desktop
+# 4. ✅ Create desktop shortcut (recommended)
+# 5. ✅ Create Start Menu shortcut
+# 6. ✅ Add to PATH (for CLI access)
+# 7. Launch from Start Menu or Desktop
 
-# CLI Access (optional - add to PATH during install)
+# CLI Access (if added to PATH)
 tam-rfe check --customer <name>
 ```
 
@@ -62,7 +81,7 @@ tam-rfe check --customer <name>
 ./tam-rfe post --customer <name>
 ```
 
-**[→ Full Getting Started Guide](GETTING-STARTED.md)** | **[📥 Download Latest](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases)**
+**[→ Full Getting Started Guide](GETTING-STARTED.md)** | **[📥 All Releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases)**
 
 ---
 
