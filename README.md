@@ -22,14 +22,12 @@
 
 | Platform | Architecture | Package Type | Download | Size |
 |----------|--------------|--------------|----------|------|
-| 🐧 **Linux** | x64 | AppImage | [GitHub](https://github.com/thebyrdman-git/taminator/releases) \| [GitLab](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~122 MB |
+| 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~122 MB |
 | 🍎 **macOS** | x64 (Intel) | DMG | Coming Soon | ~200 MB |
 | 🍎 **macOS** | arm64 (Apple Silicon) | DMG | Coming Soon | ~190 MB |
 | 🪟 **Windows** | x64 | NSIS Installer | Coming Soon | ~150 MB |
 
-**Download Locations:**
-- **🌐 GitHub (Public)**: [github.com/thebyrdman-git/taminator/releases](https://github.com/thebyrdman-git/taminator/releases) - For everyone
-- **🔴 GitLab (Internal)**: [gitlab.cee.redhat.com/jbyrd/taminator/-/releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) - For Red Hat employees
+**[📥 View All Releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases)**
 
 ---
 
@@ -37,11 +35,8 @@
 
 ### 🐧 Linux
 ```bash
-# Download from GitHub (public)
-wget https://github.com/thebyrdman-git/taminator/releases/download/v1.7.0/Taminator-1.7.0.AppImage
-
-# OR from GitLab (Red Hat internal)
-# wget https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/download/v1.7.0/Taminator-1.7.0.AppImage
+# Download
+wget https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/download/v1.7.0/Taminator-1.7.0.AppImage
 
 # Install
 chmod +x Taminator-1.7.0.AppImage

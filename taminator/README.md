@@ -18,10 +18,10 @@
 
 | Platform | Architecture | Package Type | Download | Size |
 |----------|--------------|--------------|----------|------|
-| 🐧 **Linux** | x64 | AppImage | [Taminator-1.7.0.AppImage](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~180 MB |
-| 🍎 **macOS** | x64 (Intel) | DMG | [Taminator-1.7.0-x64.dmg](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~200 MB |
-| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Taminator-1.7.0-arm64.dmg](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~190 MB |
-| 🪟 **Windows** | x64 | NSIS Installer | [Taminator-Setup-1.7.0.exe](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~150 MB |
+| 🐧 **Linux** | x64 | AppImage | [Taminator-1.7.0.AppImage](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~122 MB |
+| 🍎 **macOS** | x64 (Intel) | DMG | Coming Soon | ~200 MB |
+| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | Coming Soon | ~190 MB |
+| 🪟 **Windows** | x64 | NSIS Installer | Coming Soon | ~150 MB |
 
 ### 🐧 Linux Installation
 ```bash
