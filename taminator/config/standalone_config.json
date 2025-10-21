@@ -1,0 +1,277 @@
+{
+  "tool_info": {
+    "name": "TAM RFE Automation Tool - Standalone Version",
+    "version": "1.0.0",
+    "description": "Completely self-contained tool with embedded AI and all dependencies",
+    "author": "Red Hat TAM Team",
+    "license": "Red Hat Internal Use Only"
+  },
+  "embedded_components": {
+    "ai_assistant": {
+      "model": "embedded_dialogpt",
+      "personality": "tam_automation_assistant",
+      "capabilities": [
+        "natural_language_processing",
+        "prerequisite_checking",
+        "guided_onboarding",
+        "report_generation",
+        "troubleshooting"
+      ]
+    },
+    "redhat_integration": {
+      "rhcase_client": "embedded",
+      "portal_api_client": "embedded",
+      "authentication": "kerberos_sso",
+      "vpn_detection": "automatic"
+    },
+    "report_generator": {
+      "templates": [
+        "active_case_report",
+        "rfe_bug_tracker_report",
+        "executive_summary",
+        "customer_health_report"
+      ],
+      "formats": [
+        "markdown",
+        "html",
+        "pdf"
+      ],
+      "delivery_methods": [
+        "copy_paste",
+        "portal_posting",
+        "email",
+        "slack"
+      ]
+    }
+  },
+  "default_settings": {
+    "customers": [],
+    "default_sbr_groups": [
+      "Ansible",
+      "Ansible Automation Platform",
+      "OpenShift",
+      "OpenShift Container Platform",
+      "RHEL",
+      "Red Hat Enterprise Linux",
+      "Satellite",
+      "Red Hat Satellite"
+    ],
+    "default_time_range": "Last 30 days",
+    "report_formats": [
+      "standard",
+      "executive",
+      "technical",
+      "customer_friendly"
+    ],
+    "notification_preferences": {
+      "email": true,
+      "slack": false,
+      "portal": true
+    },
+    "automation_settings": {
+      "auto_generate": false,
+      "schedule": "weekly",
+      "time": "09:00",
+      "timezone": "UTC"
+    }
+  },
+  "prerequisites": {
+    "python": {
+      "required_version": "3.7+",
+      "description": "Runs the automation scripts",
+      "check_command": "python3 --version"
+    },
+    "cursor_ide": {
+      "required": false,
+      "description": "AI-powered editor for working with the tool",
+      "check_command": "cursor --version"
+    },
+    "rhcase": {
+      "required": true,
+      "description": "Red Hat case management - needed to find your cases",
+      "check_command": "rhcase --help"
+    },
+    "redhat_vpn": {
+      "required": true,
+      "description": "Required for Red Hat system access",
+      "check_command": "ping -c 1 access.redhat.com"
+    },
+    "rfe_tool": {
+      "required": true,
+      "description": "The main tool files",
+      "check_path": "./src"
+    }
+  },
+  "onboarding_flow": {
+    "steps": [
+      {
+        "step": 1,
+        "title": "Welcome and System Check",
+        "description": "Automatic prerequisite checking and welcome message",
+        "required": true
+      },
+      {
+        "step": 2,
+        "title": "Customer Information",
+        "description": "Collect customer names, account numbers, and group IDs",
+        "required": true
+      },
+      {
+        "step": 3,
+        "title": "SBR Group Configuration",
+        "description": "Set up SBR group preferences and filters",
+        "required": true
+      },
+      {
+        "step": 4,
+        "title": "Report Preferences",
+        "description": "Configure report formats, templates, and delivery methods",
+        "required": false
+      },
+      {
+        "step": 5,
+        "title": "Notification Settings",
+        "description": "Set up email, Slack, and portal notifications",
+        "required": false
+      },
+      {
+        "step": 6,
+        "title": "First Report Generation",
+        "description": "Generate and test first report with new configuration",
+        "required": true
+      }
+    ]
+  },
+  "multiple_choice_categories": {
+    "report_type": {
+      "options": [
+        "Active Case Report only",
+        "RFE/Bug Tracker Report only",
+        "Both reports (Active Case + RFE/Bug Tracker)"
+      ],
+      "description": "Select the type of report to generate"
+    },
+    "customer_selection": {
+      "options": [],
+      "description": "Choose which customer to generate reports for",
+      "dynamic": true
+    },
+    "sbr_groups": {
+      "options": [
+        "Ansible only (recommended for your setup)",
+        "Ansible + OpenShift",
+        "All SBR groups (Ansible, OpenShift, RHEL, Satellite)",
+        "Custom selection (specify)"
+      ],
+      "description": "Select which SBR groups to focus on"
+    },
+    "time_range": {
+      "options": [
+        "Last 7 days (recent activity)",
+        "Last 30 days (current month)",
+        "Last 90 days (quarterly view)",
+        "Last 6 months (semi-annual)",
+        "Custom range (specify dates)"
+      ],
+      "description": "Choose the time range for case analysis"
+    },
+    "case_status": {
+      "options": [
+        "Active cases only (Open, Waiting on Red Hat, In Progress)",
+        "All cases (Active + Closed)",
+        "Closed cases only (Resolved, Delivered, Complete)",
+        "High priority cases only",
+        "Custom status selection (specify)"
+      ],
+      "description": "Filter cases by status"
+    },
+    "report_format": {
+      "options": [
+        "Standard format (3-table structure)",
+        "Executive summary format (high-level overview)",
+        "Technical detailed format (comprehensive information)",
+        "Customer-friendly format (warm, approachable)",
+        "Your custom template (personalized)"
+      ],
+      "description": "Choose the report format and style"
+    },
+    "priority_levels": {
+      "options": [
+        "High priority cases only",
+        "High + Medium priority cases",
+        "All priority levels (High, Medium, Low)",
+        "Critical cases only (escalated)",
+        "Custom priority selection (specify)"
+      ],
+      "description": "Filter cases by priority level"
+    },
+    "case_types": {
+      "options": [
+        "RFE cases only",
+        "Bug cases only",
+        "Both RFE and Bug cases",
+        "Enhancement requests only",
+        "Critical issues only"
+      ],
+      "description": "Select which types of cases to include"
+    },
+    "delivery_method": {
+      "options": [
+        "Copy/Paste Markdown Template (full control)",
+        "Automatic Portal Posting (time savings)",
+        "Both options (show markdown AND auto-post)",
+        "Email to customer team",
+        "Multiple destinations (specify)"
+      ],
+      "description": "Choose how to deliver the report"
+    }
+  },
+  "passion_driven_support": {
+    "principles": [
+      "New TAM Success - Every new TAM should feel supported, confident, and successful",
+      "Tool Adoption - Every TAM should feel empowered to use tools effectively",
+      "Role Mastery - Every TAM should excel in their role with proper guidance",
+      "Confidence Building - Every TAM should feel capable and confident",
+      "Mentorship - Every TAM should have a patient, knowledgeable mentor",
+      "Growth Mindset - Every TAM should see challenges as opportunities to learn",
+      "Community - Every TAM should feel part of a supportive community"
+    ],
+    "behavioral_protocols": [
+      "ALWAYS prioritize new TAM needs over efficiency",
+      "ALWAYS celebrate small wins and progress",
+      "ALWAYS encourage questions and learning",
+      "ALWAYS support through challenges and setbacks",
+      "ALWAYS inspire confidence and growth",
+      "ALWAYS connect TAMs with resources and community",
+      "ALWAYS empower TAMs to succeed in their roles"
+    ],
+    "encouraging_phrases": [
+      "You've got this!",
+      "Every expert was once a beginner",
+      "I'm here to help you succeed",
+      "Your questions are valuable",
+      "Let's celebrate this win!",
+      "I love helping new TAMs succeed!",
+      "You're doing great!",
+      "I'm here to support you every step of the way!"
+    ]
+  },
+  "deployment": {
+    "platforms": [
+      "Windows",
+      "macOS",
+      "Linux"
+    ],
+    "requirements": {
+      "minimum_ram": "4GB",
+      "minimum_storage": "2GB",
+      "network": "Red Hat VPN access"
+    },
+    "installation": {
+      "method": "single_executable",
+      "no_installation_required": true,
+      "auto_configuration": true,
+      "portable": true
+    }
+  }
+}
