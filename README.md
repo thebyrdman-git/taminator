@@ -22,12 +22,14 @@
 
 | Platform | Architecture | Package Type | Download | Size |
 |----------|--------------|--------------|----------|------|
-| 🐧 **Linux** | x64 | AppImage | [Taminator-1.7.0.AppImage](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~180 MB |
-| 🍎 **macOS** | x64 (Intel) | DMG | [Taminator-1.7.0-x64.dmg](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~200 MB |
-| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Taminator-1.7.0-arm64.dmg](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~190 MB |
-| 🪟 **Windows** | x64 | NSIS Installer | [Taminator-Setup-1.7.0.exe](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~150 MB |
+| 🐧 **Linux** | x64 | AppImage | [GitHub](https://github.com/thebyrdman-git/taminator/releases) \| [GitLab](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | ~122 MB |
+| 🍎 **macOS** | x64 (Intel) | DMG | Coming Soon | ~200 MB |
+| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | Coming Soon | ~190 MB |
+| 🪟 **Windows** | x64 | NSIS Installer | Coming Soon | ~150 MB |
 
-**[📥 View All Releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases)**
+**Download Locations:**
+- **🌐 GitHub (Public)**: [github.com/thebyrdman-git/taminator/releases](https://github.com/thebyrdman-git/taminator/releases) - For everyone
+- **🔴 GitLab (Internal)**: [gitlab.cee.redhat.com/jbyrd/taminator/-/releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) - For Red Hat employees
 
 ---
 
@@ -35,27 +37,26 @@
 
 ### 🐧 Linux
 ```bash
-wget https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/Taminator-1.7.0.AppImage
+# Download from GitHub (public)
+wget https://github.com/thebyrdman-git/taminator/releases/download/v1.7.0/Taminator-1.7.0.AppImage
+
+# OR from GitLab (Red Hat internal)
+# wget https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/download/v1.7.0/Taminator-1.7.0.AppImage
+
+# Install
 chmod +x Taminator-1.7.0.AppImage
 ./Taminator-1.7.0.AppImage
 ```
 
 ### 🍎 macOS
 ```bash
-# Intel Macs
-curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/Taminator-1.7.0-x64.dmg
-
-# Apple Silicon (M1/M2/M3)
-curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/Taminator-1.7.0-arm64.dmg
-
-open Taminator-1.7.0*.dmg
-# Drag to Applications folder
+# Coming soon! macOS builds will be added in future releases.
 ```
 
 ### 🪟 Windows
-1. Download [Taminator-Setup-1.7.0.exe](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases)
-2. Double-click to install
-3. Launch from Start Menu
+```powershell
+# Coming soon! Windows installer will be added in future releases.
+```
 
 ---
 
