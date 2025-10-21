@@ -22,10 +22,10 @@
 
 | Platform | Architecture | Package Type | Download | Size |
 |----------|--------------|--------------|----------|------|
-| 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0.AppImage) | ~118 MB |
-| 🍎 **macOS** | x64 (Intel) | DMG | [Download](https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0.dmg) | ~114 MB |
-| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Download](https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0-arm64.dmg) | ~109 MB |
-| 🪟 **Windows** | x64 | NSIS Installer | [Download](https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-Setup-1.7.0.exe) | ~89 MB |
+| 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/46bf9dc3bf022424024cea45c256fbda/Taminator-1.7.0.AppImage) | ~118 MB |
+| 🍎 **macOS** | x64 (Intel) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/c3a3c2e23452207ba62f75b30537c8cb/Taminator-1.7.0.dmg) | ~114 MB |
+| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/2f28c17d57aa51285ba252420b0cd813/Taminator-1.7.0-arm64.dmg) | ~109 MB |
+| 🪟 **Windows** | x64 | NSIS Installer | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/93d3b425b7e5392bbf2aba50df80e5a5/Taminator_Setup_1.7.0.exe) | ~89 MB |
 
 **[📥 View All Releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases)**
 
@@ -36,7 +36,7 @@
 ### 🐧 Linux
 ```bash
 # Download
-wget https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0.AppImage
+wget https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/46bf9dc3bf022424024cea45c256fbda/Taminator-1.7.0.AppImage
 
 # Install
 chmod +x Taminator-1.7.0.AppImage
@@ -46,10 +46,10 @@ chmod +x Taminator-1.7.0.AppImage
 ### 🍎 macOS
 ```bash
 # Download (Intel Macs)
-curl -LO https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0.dmg
+curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/c3a3c2e23452207ba62f75b30537c8cb/Taminator-1.7.0.dmg
 
 # Download (Apple Silicon M1/M2/M3)
-curl -LO https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-1.7.0-arm64.dmg
+curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/2f28c17d57aa51285ba252420b0cd813/Taminator-1.7.0-arm64.dmg
 
 # Install
 open Taminator-1.7.0*.dmg
@@ -59,7 +59,7 @@ open Taminator-1.7.0*.dmg
 ### 🪟 Windows
 ```powershell
 # Download
-Invoke-WebRequest -Uri "https://gitlab.cee.redhat.com/api/v4/projects/149753/packages/generic/taminator/1.7.1/Taminator-Setup-1.7.0.exe" -OutFile "Taminator-Setup-1.7.0.exe"
+Invoke-WebRequest -Uri "https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/93d3b425b7e5392bbf2aba50df80e5a5/Taminator_Setup_1.7.0.exe" -OutFile "Taminator-Setup-1.7.0.exe"
 
 # Install
 .\Taminator-Setup-1.7.0.exe
