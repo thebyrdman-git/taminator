@@ -1,69 +1,83 @@
 # Taminator .gitignore
-# Prevents committing sensitive data and customer information
+# Security and User-Specific Files
 
-# ============================================================
-# CRITICAL: Tokens and Credentials (NEVER COMMIT)
-# ============================================================
+# ========================================
+# CRITICAL: Personal & Customer Data Protection
+# ========================================
 
-# API Tokens (environment variables)
+# Customer/Client Names (NEVER commit these)
+*td-bank*
+*td_bank*
+*wells*fargo*
+*wells_fargo*
+*fannie*mae*
+*fannie_mae*
+*jpmc*
+*chase*
+*bank*of*america*
+*citibank*
+*customer_*
+*client_*
+
+# Case Numbers and IDs
+case_[0-9]*
+*case-[0-9]*
+*case_[0-9]*
+
+# JIRA IDs (customer-specific)
+*AAP-[0-9]*
+*AAPRFE-[0-9]*
+jira_*.json
+
+# Personal Files
+*oauth_credentials*
+*youtube*token*
+*personal*
+*jimmy*
+*charles*
+*byrd*
+
+# API Tokens and Secrets
+*.token
+*_token.json
+*_token.txt
+secrets/
 .env
 .env.local
-.env.*.local
+*.key
+*.pem
+*_credentials.json
 
-# Token files
-*token*.txt
-*credentials*.txt
-*secrets*.txt
-
-# Keyring storage (should be system-level, but just in case)
-*.keyring
-keyring.cfg
-
-# Config files that might contain tokens
-config/secrets/
-~/.config/taminator/secrets/
-
-# ============================================================
-# CRITICAL: Customer Data (NEVER COMMIT)
-# ============================================================
-
-# Test customer data directory
-taminator-test-data/
-*/taminator-test-data/
-
-# Real customer reports
-**/customers/*.md
+# Customer Data Directories
 customers/
+customer_data/
+customer_configs/
+reports/
+output/
+*.report.md
+*_analysis.md
+*_response.md
 
-# Customer-specific directories
-tdbank/
-wellsfargo/
-fanniemae/
-testcustomer/
-testcustomer2/
+# User-Specific Configurations
+config/user_*.yaml
+config/user_*.json
+config/*_ids.yaml
+config/*_ids.json
+config/customer_group_ids.yaml
+config/customer_group_ids.json
 
-# Any file with customer names (common patterns)
-*-customer-*.md
-*_customer_*.md
+# Real Customer Examples (use sanitized examples only)
+examples/*real*
+examples/*actual*
+examples/*prod*
 
-# Backup files (may contain customer data)
-*_backup_*.md
-*.backup
-*.bak
-
-# ============================================================
+# ========================================
 # Python
-# ============================================================
-
-# Byte-compiled / optimized / DLL files
+# ========================================
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -77,151 +91,69 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# PyInstaller
-*.manifest
-*.spec
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# Virtual environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-
-# ============================================================
-# Node.js / Electron
-# ============================================================
-
-# Dependencies
-node_modules/
-jspm_packages/
-
-# Build output
-gui/dist/
-gui/build/
-gui/out/
-
-# Electron build artifacts
-*.dmg
-*.pkg
-*.deb
-*.rpm
-*.AppImage
-*.exe
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-
-# OS
-.DS_Store
-.AppleDouble
-.LSOverride
-Thumbs.db
-
-# ============================================================
-# IDE / Editor
-# ============================================================
-
+# ========================================
+# IDEs and Editors
+# ========================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.project
-.pydevproject
-.settings/
+.cursorrules
 
-# ============================================================
-# Logs and temporary files
-# ============================================================
+# ========================================
+# OS Files
+# ========================================
+.DS_Store
+Thumbs.db
+desktop.ini
 
+# ========================================
+# Testing
+# ========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ========================================
+# Logs and Temp Files
+# ========================================
 *.log
 logs/
-temp/
 tmp/
+temp/
 *.tmp
 
-# ============================================================
-# Testing artifacts
-# ============================================================
+# ========================================
+# Node/GUI Build
+# ========================================
+node_modules/
+dist/
+*.tsbuildinfo
+.cache/
 
-test-results/
-screenshots/
-test-data/
-
-# ============================================================
-# Documentation build artifacts (if using Sphinx/MkDocs)
-# ============================================================
-
-docs/_build/
-site/
-
-# ============================================================
-# macOS
-# ============================================================
-
-.DS_Store
-.AppleDouble
-.LSOverride
-Icon
-._*
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-
-# ============================================================
-# Windows
-# ============================================================
-
-Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-ehthumbs_vista.db
-*.stackdump
-[Dd]esktop.ini
-$RECYCLE.BIN/
-*.cab
+# ========================================
+# Build Artifacts (keep source only)
+# ========================================
+gui/dist/
+*.AppImage
+*.deb
+*.rpm
+*.dmg
+*.exe
 *.msi
-*.msix
-*.msm
-*.msp
-*.lnk
+*.pkg
 
-# ============================================================
-# Linux
-# ============================================================
-
+# ========================================
+# Backup Files
+# ========================================
+*.bak
+*.backup
 *~
-.fuse_hidden*
-.directory
-.Trash-*
-.nfs*
-
+*.orig
