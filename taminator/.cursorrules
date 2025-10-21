@@ -1,0 +1,296 @@
+# Taminator Project - Cursor AI Rules
+
+## 🎯 Project Context
+
+You are working on **Taminator** - a production RFE/Bug tracking tool for Red Hat TAMs.
+
+**Project Type:** Production tool used by Red Hat TAM team  
+**Tech Stack:** Python (CLI), Electron + React + PatternFly (GUI)  
+**Users:** Red Hat Technical Account Managers (TAMs)  
+**Purpose:** Automate RFE/Bug tracking, save 2-3 hours per customer per week
+
+---
+
+## 🏭 Production Project Standards (MANDATORY)
+
+**This is a PRODUCTION project. Every commit must be production-ready.**
+
+### Before ANY Commit - Ask:
+1. ❓ Is this code production-ready?
+2. ❓ Is it tested and working?
+3. ❓ Is it documented?
+4. ❓ Does it maintain backwards compatibility?
+5. ❓ Are there any debug artifacts to remove?
+6. ❓ Will this break existing TAM workflows?
+
+**If ANY answer is NO, do NOT commit.**
+
+### Quality Requirements
+- ✅ **Professional Standards**: Treat like shipped Red Hat product
+- ✅ **Code Quality**: Clean, documented, maintainable code only
+- ✅ **Testing Required**: All features must be tested before commit
+- ✅ **Documentation**: Update README, GETTING-STARTED for all changes
+- ✅ **No Debug Code**: Remove console.log, test data, debugging artifacts
+- ✅ **Semantic Versioning**: Increment version properly (major.minor.patch)
+- ✅ **Changelog**: Document all changes in CHANGELOG or commit messages
+- ✅ **Security First**: Never commit secrets, tokens, or customer data
+- ✅ **Backwards Compatible**: Don't break existing TAM workflows
+- ✅ **Professional Commits**: Clear commit messages, logical grouping
+
+---
+
+## 🔒 Security Rules (CRITICAL)
+
+### NEVER Commit These
+
+**Customer/Client Names:**
+- ❌ td-bank, wells-fargo, fannie-mae, jpmc, chase, citibank
+- ❌ Any identifiable customer or bank names
+- ✅ OK in `examples/` with "EXAMPLE" disclaimer only
+
+**Case Numbers:**
+- ❌ case_04275428, case-12345678
+- ✅ Use "case_########" in docs
+
+**JIRA IDs:**
+- ❌ Real IDs: AAP-12345, AAPRFE-1234
+- ✅ Patterns in docs: "AAP-#####"
+
+**API Tokens/Secrets:**
+- ❌ Any tokens, passwords, API keys
+- ❌ .env files with real values
+- ✅ .env.example with placeholders
+
+**Personal Information:**
+- ❌ Personal file names, email addresses (except jbyrd@redhat.com as example)
+- ❌ OAuth credentials, SSH keys
+
+**Configuration with Real Data:**
+- ❌ Config files with production values
+- ✅ Template files with dummy data
+
+### Pre-Commit Hook
+
+The pre-commit hook automatically blocks commits containing:
+1. Customer names
+2. Case numbers
+3. JIRA IDs
+4. API tokens
+5. Personal files
+6. Email addresses
+
+**If blocked:** Remove violations and retry. Never use `--no-verify` unless emergency.
+
+---
+
+## 📋 Communication Style
+
+**For ALL responses:**
+- **TLDR Format**: Issue replies must be straight-to-the-point, no fluff
+- **Professional Directness**: No cliches, no "You're absolutely right!"
+- **Action-Oriented**: Tell what to do, not just explain
+
+**When documenting features:**
+- Add TLDR at top with: What, Why, How
+- Quick start code examples
+- Reference full docs for details
+
+**Example TLDR:**
+```markdown
+## 📋 TLDR
+
+**What:** Feature description in one line
+**Why:** Problem it solves
+**How:** Quick start command
+
+```bash
+# Basic usage
+./command --option
+```
+
+**[→ Full Documentation](#details)**
+```
+
+---
+
+## 🧪 Testing Strategy
+
+**Hybrid approach: Real + Simulated**
+
+### Real Testing (Required)
+- GUI functionality and UX
+- Authentication flows (VPN, Kerberos, tokens)
+- End-to-end workflows
+- Visual verification
+
+### Simulated Testing (Acceptable)
+- Unit tests for core functions
+- Security checks (pre-commit hooks, .gitignore)
+- Error handling
+- API responses (can mock)
+
+### Before Committing
+```bash
+# Test the feature
+./tam-rfe check --customer example-customer  # CLI
+./Taminator-*.AppImage                       # GUI
+
+# Verify no errors
+```
+
+---
+
+## 📂 Repository Structure
+
+```
+taminator/
+├── README.md              # Main documentation (with TLDR)
+├── GETTING-STARTED.md     # Quick start guide (with TLDR)
+├── CONTRIBUTING.md        # Contributor guide
+├── GITLAB-PUSH-RULES.md   # Push rules
+├── SECURITY-PROTECTION-LAYERS.md  # Security details
+├── gui/                   # Electron GUI
+│   ├── index.html
+│   ├── main.js
+│   ├── package.json
+│   └── public/
+├── src/                   # Python source
+│   └── taminator/
+│       ├── commands/      # CLI commands
+│       ├── core/          # Core modules (auth, etc.)
+│       └── tests/         # Unit tests
+├── docs/                  # Feature specs
+├── examples/              # Example usage (dummy data only)
+├── templates/             # Report templates
+├── ansible/               # VM test environment
+└── tam-rfe                # CLI entry point
+```
+
+---
+
+## 🚨 GitLab Push Rules (MANDATORY)
+
+### Pre-Push Audit (Required EVERY push)
+
+```bash
+# 1. Check what files will be pushed
+git ls-files | head -50
+git ls-files | wc -l
+
+# 2. Verify root directory structure
+git ls-files | cut -d/ -f1 | sort -u
+# Expected: ansible, README.md, taminator ONLY
+
+# 3. Check for personal files
+git ls-files | grep -iE "(fannie|wells|fargo|td-bank|oauth|youtube)" || echo "✅ Clean"
+
+# 4. Check for customer data
+git ls-files | grep -iE "case_[0-9]" || echo "✅ Clean"
+
+# 5. Get user confirmation before pushing
+```
+
+### Allowed Files ONLY
+- ✅ `taminator/` - All Taminator files
+- ✅ `ansible/vm-*.yml` - Test environment
+- ✅ `ansible/vm-inventory.ini` - Test inventory
+- ✅ `README.md` - Root documentation
+
+### If Audit Fails
+**STOP immediately. Reset and fix violations.**
+
+---
+
+## 💻 Code Style
+
+### Python
+```python
+# Good: Typed, documented, clean
+def fetch_jira_status(issue_id: str) -> dict:
+    """
+    Fetch JIRA issue status from Red Hat JIRA.
+    
+    Args:
+        issue_id: JIRA issue ID (e.g., "AAP-12345")
+    
+    Returns:
+        dict: Issue status and metadata
+    """
+    pass
+
+# Bad: No types, no docs
+def get_status(id):
+    return fetch(id)
+```
+
+### JavaScript/GUI
+```javascript
+// Good: Clear, no debug code
+function checkAuthStatus() {
+  const vpnConnected = checkVPN();
+  const kerberosValid = checkKerberos();
+  return { vpnConnected, kerberosValid };
+}
+
+// Bad: Debug code left in
+function checkAuthStatus() {
+  console.log('Checking auth...');
+  return checkVPN();
+}
+```
+
+### Remove Before Commit
+- ❌ console.log() / print() debug statements
+- ❌ TODO comments without JIRA tickets
+- ❌ Commented-out code blocks
+- ❌ Test data in production code
+- ❌ Hardcoded paths or URLs
+
+---
+
+## 🔄 Contribution Workflow
+
+1. **Setup:** `./setup.sh` (installs pre-commit hook)
+2. **Branch:** `git checkout -b feature/my-feature`
+3. **Develop:** Write + test + document
+4. **Commit:** Automatic pre-commit hook runs
+5. **Audit:** Run pre-push audit (see above)
+6. **Push:** `git push origin feature/my-feature`
+7. **MR:** Create merge request on GitLab
+
+---
+
+## 📋 Version Management
+
+**Semantic Versioning:** MAJOR.MINOR.PATCH
+
+- **MAJOR:** Breaking changes
+- **MINOR:** New features (backwards compatible)
+- **PATCH:** Bug fixes
+
+**Update:** `gui/package.json` version field
+
+---
+
+## 🎯 Key Principles
+
+1. **Production Quality:** Every commit ships to TAMs
+2. **Security First:** No tokens, no customer data, ever
+3. **Test Everything:** Real + simulated testing
+4. **Document All:** TLDR + full docs
+5. **TLDR Format:** Straight-to-the-point, no fluff
+6. **Audit Before Push:** Mandatory pre-push checks
+7. **Backwards Compatible:** Don't break TAM workflows
+
+---
+
+## 📞 Getting Help
+
+- **Issues:** Create GitLab issue
+- **Security:** Email jbyrd@redhat.com (never public)
+- **Workflow Questions:** See CONTRIBUTING.md
+
+---
+
+**Remember: This is production software. TAMs depend on this tool daily.**
+

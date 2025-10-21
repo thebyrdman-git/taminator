@@ -1,8 +1,19 @@
 # 🚨 GitLab Push Rules - MANDATORY
 
+## 📋 TLDR
+
+**For Contributors:** See [CONTRIBUTING.md](CONTRIBUTING.md) - Complete push rules and security guide  
+**This doc:** Detailed push rules for Taminator repository
+
+**Rule:** ONLY push `taminator/` and `ansible/vm-*.yml` files  
+**Block:** Customer names, case numbers, personal files  
+**Mandatory:** Run audit before EVERY push
+
+---
+
 ## ⚠️ CRITICAL: Only Taminator Files
 
-**NEVER push files outside the `automation/rfe-bug-tracker/` directory to the Taminator GitLab repository.**
+**NEVER push files outside `taminator/` directory to the Taminator GitLab repository.**
 
 This repository is ONLY for Taminator - the RFE/Bug tracking tool. Personal PAI projects, customer data, and other files must NOT be pushed.
 

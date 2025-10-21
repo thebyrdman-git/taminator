@@ -1,5 +1,20 @@
 # 🔒 Taminator Security Protection Layers
 
+## 📋 TLDR
+
+**For Contributors:** See [CONTRIBUTING.md](CONTRIBUTING.md) - Complete security and contribution guide  
+**For TAM Users:** This document is for developers only. If you're using Taminator, see [README.md](README.md)
+
+**Security Layers:**
+1. .gitignore → Passive blocking
+2. Pre-commit hook → Active scanning  
+3. Manual audit → Required before push
+4. Code review → Human verification
+
+**Blocks:** Customer names, case numbers, tokens, personal files
+
+---
+
 ## Overview
 
 Taminator has **4 layers of protection** to prevent personal and customer data from being committed to the repository.
