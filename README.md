@@ -46,20 +46,14 @@ mv ~/Downloads/Taminator-1.7.0.AppImage ~/Applications/
 # Download from link above (opens in browser, click "Download" button)
 # "Come with me if you want to save time."
 
-# 1. Install from Downloads
+# Install from Downloads
 open ~/Downloads/Taminator-1.7.0*.dmg
 # Drag Taminator to Applications folder
-
-# 2. REQUIRED: Bypass Gatekeeper (app not code-signed)
-xattr -cr /Applications/Taminator.app
-
-# 3. Launch from Launchpad or Applications
+# Launch from Launchpad or Applications
 
 # CLI Access (optional)
 ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/tam-rfe
 ```
-
-**Alternative Gatekeeper bypass:** Right-click `Taminator.app` → **Open** → Click **"Open"** in security dialog.
 
 ### 🪟 Windows Installation
 ```powershell
