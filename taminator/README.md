@@ -14,22 +14,22 @@
 
 **Quick Start:**
 
-## 📥 Download Taminator v1.9.1
+## 📥 Download Taminator v1.9.2
 
 ### GitLab CEE (Red Hat Internal)
 **⚠️ Requires:** Red Hat VPN + GitLab CEE login
 
-**Release Page:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/v1.9.1
+**Release Page:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/v1.9.2
 
-- 🐧 **Linux:** `Taminator-1.9.1.AppImage` (~120 MB)
+- 🐧 **Linux:** `Taminator-1.9.2.AppImage` (~120 MB)
 - 🍎 **macOS Intel:** Coming soon via GitHub CI/CD
 - 🍎 **macOS Apple Silicon:** Coming soon via GitHub CI/CD
 - 🪟 **Windows:** Coming soon via GitHub CI/CD
 
 ### GitHub (Public - No VPN Required)
-**Release Page:** https://github.com/thebyrdman-git/taminator-ci/releases/tag/v1.9.1
+**Release Page:** https://github.com/thebyrdman-git/taminator-ci/releases/tag/v1.9.2
 
-- 🐧 **Linux:** `Taminator-1.9.1.AppImage` (~120 MB) ✅ Available now
+- 🐧 **Linux:** `Taminator-1.9.2.AppImage` (~120 MB) ✅ Available now
 - 🍎 **macOS Intel/Apple Silicon:** 🔄 Building via CI/CD
 - 🪟 **Windows:** 🔄 Building via CI/CD
 
@@ -39,17 +39,17 @@
 # "I'll be back... with your report."
 
 # Quick install (from GitHub - no VPN required):
-curl -L https://github.com/thebyrdman-git/taminator-ci/releases/download/v1.9.1/Taminator-1.9.1.AppImage -o Taminator.AppImage
+curl -L https://github.com/thebyrdman-git/taminator-ci/releases/download/v1.9.2/Taminator-1.9.2.AppImage -o Taminator.AppImage
 chmod +x Taminator.AppImage
 ./Taminator.AppImage
 
 # Or manual install:
-chmod +x ~/Downloads/Taminator-1.9.1.AppImage
-~/Downloads/Taminator-1.9.1.AppImage
+chmod +x ~/Downloads/Taminator-1.9.2.AppImage
+~/Downloads/Taminator-1.9.2.AppImage
 
 # Optional: Move to ~/Applications for system-wide access
 mkdir -p ~/Applications
-mv ~/Downloads/Taminator-1.9.1.AppImage ~/Applications/
+mv ~/Downloads/Taminator-1.9.2.AppImage ~/Applications/
 ```
 
 ### 🍎 macOS Installation
@@ -61,7 +61,7 @@ mv ~/Downloads/Taminator-1.9.1.AppImage ~/Applications/
 # https://github.com/thebyrdman-git/taminator-ci/releases
 
 # When available:
-# open ~/Downloads/Taminator-1.9.1*.dmg
+# open ~/Downloads/Taminator-1.9.2*.dmg
 # Drag Taminator to Applications folder
 # Launch from Launchpad or Applications
 ```
@@ -75,7 +75,7 @@ mv ~/Downloads/Taminator-1.9.1.AppImage ~/Applications/
 # https://github.com/thebyrdman-git/taminator-ci/releases
 
 # When available:
-# Double-click Taminator_Setup_1.9.1.exe
+# Double-click Taminator_Setup_1.9.2.exe
 # Follow installation wizard
 # Launch from Start Menu or Desktop
 ```
@@ -103,7 +103,8 @@ mv ~/Downloads/Taminator-1.9.1.AppImage ~/Applications/
 
 | Version | Release Date | Key Features | Status |
 |---------|--------------|--------------|--------|
-| **v1.9.1** | Oct 2025 | PatternFly 6, KB/T3 API, Clippy, Auth Box, Python bundled | 🟢 Current |
+| **v1.9.2** | Oct 2025 | Core stability, setup wizards, dynamic customer mgmt, empty states | 🟢 Current |
+| v1.9.1 | Oct 2025 | PatternFly 6, KB/T3 API, Clippy, Auth Box, Python bundled | ⚪ Previous |
 | v1.7.0 | Oct 2025 | Complete GUI redesign, Auth-Box, GitHub integration | ⚪ Previous |
 | v1.6.0 | Sep 2025 | Desktop integration, AppImage packaging | ✅ Stable |
 | v1.5.0 | Aug 2025 | Enhanced reporting, multi-customer support | ✅ Stable |
@@ -114,7 +115,7 @@ mv ~/Downloads/Taminator-1.9.1.AppImage ~/Applications/
 | v1.0.0 | Mar 2025 | Initial release, basic RFE tracking | ✅ Stable |
 
 ###  Project Status
-- **Version**: 1.9.1 (Production Release) - *"Advanced prototype. You could say we're... ahead of schedule."*
+- **Version**: 1.9.2 (Production Release) - *"No fate but what we ship."*
 - **Status**: Production-ready with complete GUI
 - **Platforms**: 🐧 Linux (AppImage) | 🍎 macOS (DMG) | 🪟 Windows (NSIS Installer)
 - **Architecture**: Intel/AMD (x64) + Apple Silicon (arm64)
@@ -348,7 +349,7 @@ This personal project is developed with the following principles:
 **The Skynet TAMs Actually Want™**
 
 **💝 Built with passion for helping TAMs succeed**  
-*v1.9.1 - Production Release - October 2025*
+*v1.9.2 - Production Release - October 2025*
 
 ---
 
