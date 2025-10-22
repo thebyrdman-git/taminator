@@ -431,30 +431,27 @@
       document.getElementById('page-title').textContent = 'Dashboard';
       setActiveNav(0);
       
-      document.getElementById('content').innerHTML = `
-        <h2 style="margin-bottom: 24px; font-size: 28px; font-weight: 700;">👋 Welcome, Jimmy</h2>
+      // Load customers from localStorage
+      const customers = JSON.parse(localStorage.getItem('taminator_customers') || '[]');
         
+      document.getElementById('content').innerHTML = `
         <div class="dashboard-grid">
           <div class="card">
             <div class="card-title">📊 Customers</div>
-            <div class="card-content">
+            <div class="card-content" id="dashboard-customers">
+              ${customers.length > 0 ? customers.map(customer => `
               <div class="status-item">
-                <span class="status-label">Acme Corp</span>
-                <span class="status-badge success">✓ Up-to-date</span>
+                  <span class="status-label">${customer.name}</span>
+                  <span class="status-badge success">✓ Tracked</span>
               </div>
-              <div class="status-item">
-                <span class="status-label">Global Tech</span>
-                <span class="status-badge warning">⚠ Needs update</span>
+              `).join('') : `
+                <div style="text-align: center; padding: 32px 16px; color: #6A6E73;">
+                  <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                  <p style="margin-bottom: 16px;"><strong>No customers onboarded yet</strong></p>
+                  <p style="font-size: 14px;">Get started by adding your first customer to track RFEs and bugs.</p>
               </div>
-              <div class="status-item">
-                <span class="status-label">TechCo Industries</span>
-                <span class="status-badge success">✓ Up-to-date</span>
+              `}
               </div>
-              <div class="status-item">
-                <span class="status-label">MegaCorp Solutions</span>
-                <span class="status-badge success">✓ Up-to-date</span>
-              </div>
-            </div>
             <button class="btn btn-primary" style="width: 100%; margin-top: 16px;" onclick="showOnboard()">+ Add Customer</button>
           </div>
 
@@ -467,28 +464,16 @@
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">📝 Recent Activity</div>
-          <div class="card-content">
-            <div class="status-item">
-              <span>✅ Checked Acme Corp report</span>
-              <span style="color: #6A6E73; font-size: 13px;">2 hours ago</span>
-            </div>
-            <div class="status-item">
-              <span>✅ Updated Global Tech report</span>
-              <span style="color: #6A6E73; font-size: 13px;">1 day ago</span>
-            </div>
-            <div class="status-item">
-              <span>⚠️ Portal token expires in 2 days</span>
-              <span style="color: #6A6E73; font-size: 13px;">Just now</span>
-            </div>
-          </div>
-        </div>
-
         <div style="margin-top: 24px; display: flex; gap: 12px;">
-          <button class="btn btn-primary" onclick="alert('Check All Reports - Coming soon!')">Check All Reports</button>
-          <button class="btn btn-secondary" onclick="refreshAuth()">Run Auth Audit</button>
-          <button class="btn btn-secondary" onclick="showConfig()">View Settings</button>
+          <button class="btn btn-primary" onclick="showCheck()">
+            ✅ Check Reports
+          </button>
+          <button class="btn btn-secondary" onclick="showAuth()">
+            🔐 Configure Auth
+          </button>
+          <button class="btn btn-secondary" onclick="showHelp()">
+            ❓ Setup Guide
+          </button>
         </div>
       `;
 
@@ -499,19 +484,36 @@
       document.getElementById('page-title').textContent = 'Check Reports';
       setActiveNav(1);
       
+      // Load customers from localStorage
+      const customers = JSON.parse(localStorage.getItem('taminator_customers') || '[]');
+      
       document.getElementById('content').innerHTML = `
         <div class="check-reports-container">
           <h2 style="margin-bottom: 24px;">📋 Check Report Status</h2>
           
+          ${customers.length === 0 ? `
+            <div class="card">
+              <div class="card-content" style="text-align: center; padding: 48px 24px;">
+                <div style="font-size: 64px; margin-bottom: 16px;">📋</div>
+                <h3 style="color: #6A6E73; margin-bottom: 16px;">No Customers Onboarded</h3>
+                <p style="color: #6A6E73; max-width: 500px; margin: 0 auto 24px auto;">
+                  You need to onboard at least one customer before checking reports. 
+                  Click the button below to get started.
+                </p>
+                <button class="btn btn-primary" onclick="showOnboard()">
+                  ➕ Onboard Customer
+                </button>
+              </div>
+            </div>
+          ` : `
           <div class="card">
             <div class="card-title">Select Customer</div>
             <div class="card-content">
               <select id="check-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
                 <option value="">Select a customer...</option>
-                <option value="acme-corp">Acme Corp</option>
-                <option value="global-tech">Global Tech</option>
-                <option value="techco">TechCo Industries</option>
-                <option value="megacorp">MegaCorp Solutions</option>
+                ${customers.map(customer => `
+                  <option value="${customer.slug}">${customer.name}</option>
+                `).join('')}
               </select>
               
               <button class="btn btn-primary" onclick="runCheckReport()">
@@ -529,6 +531,7 @@
               </div>
             </div>
           </div>
+          `}
         </div>
       `;
     }
@@ -600,19 +603,36 @@
       document.getElementById('page-title').textContent = 'Update Reports';
       setActiveNav(2);
       
+      // Load customers from localStorage
+      const customers = JSON.parse(localStorage.getItem('taminator_customers') || '[]');
+      
       document.getElementById('content').innerHTML = `
         <div class="update-reports-container">
           <h2 style="margin-bottom: 24px;">🔄 Update Reports</h2>
           
+          ${customers.length === 0 ? `
+            <div class="card">
+              <div class="card-content" style="text-align: center; padding: 48px 24px;">
+                <div style="font-size: 64px; margin-bottom: 16px;">🔄</div>
+                <h3 style="color: #6A6E73; margin-bottom: 16px;">No Customers Onboarded</h3>
+                <p style="color: #6A6E73; max-width: 500px; margin: 0 auto 24px auto;">
+                  You need to onboard at least one customer before updating reports. 
+                  Click the button below to get started.
+                </p>
+                <button class="btn btn-primary" onclick="showOnboard()">
+                  ➕ Onboard Customer
+                </button>
+              </div>
+            </div>
+          ` : `
           <div class="card">
             <div class="card-title">Select Customer to Update</div>
             <div class="card-content">
               <select id="update-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
                 <option value="">Select a customer...</option>
-                <option value="acme-corp">Acme Corp</option>
-                <option value="global-tech">Global Tech</option>
-                <option value="techco">TechCo Industries</option>
-                <option value="megacorp">MegaCorp Solutions</option>
+                ${customers.map(customer => `
+                  <option value="${customer.slug}">${customer.name}</option>
+                `).join('')}
               </select>
               
               <div style="margin: 16px 0;">
@@ -641,6 +661,7 @@
               </div>
             </div>
           </div>
+          `}
         </div>
       `;
     }
@@ -709,19 +730,36 @@
       document.getElementById('page-title').textContent = 'Post to Portal';
       setActiveNav(3);
       
+      // Load customers from localStorage
+      const customers = JSON.parse(localStorage.getItem('taminator_customers') || '[]');
+      
       document.getElementById('content').innerHTML = `
         <div class="post-portal-container">
           <h2 style="margin-bottom: 24px;">📤 Post to Customer Portal</h2>
           
+          ${customers.length === 0 ? `
+            <div class="card">
+              <div class="card-content" style="text-align: center; padding: 48px 24px;">
+                <div style="font-size: 64px; margin-bottom: 16px;">📤</div>
+                <h3 style="color: #6A6E73; margin-bottom: 16px;">No Customers Onboarded</h3>
+                <p style="color: #6A6E73; max-width: 500px; margin: 0 auto 24px auto;">
+                  You need to onboard at least one customer before posting reports. 
+                  Click the button below to get started.
+                </p>
+                <button class="btn btn-primary" onclick="showOnboard()">
+                  ➕ Onboard Customer
+                </button>
+              </div>
+            </div>
+          ` : `
           <div class="card">
             <div class="card-title">Select Report to Publish</div>
             <div class="card-content">
               <select id="post-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
                 <option value="">Select a customer...</option>
-                <option value="acme-corp">Acme Corp</option>
-                <option value="global-tech">Global Tech</option>
-                <option value="techco">TechCo Industries</option>
-                <option value="megacorp">MegaCorp Solutions</option>
+                ${customers.map(customer => `
+                  <option value="${customer.slug}">${customer.name}</option>
+                `).join('')}
               </select>
               
               <div style="margin: 16px 0;">
@@ -754,6 +792,7 @@
               </div>
             </div>
           </div>
+          `}
         </div>
       `;
     }
