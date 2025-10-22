@@ -113,44 +113,66 @@ class ReportUpdater:
 
 
 @auth_required([AuthType.VPN, AuthType.JIRA_TOKEN])
-def update_customer_report(customer_name: str, auto_confirm: bool = False):
+def update_customer_report(customer_name: str, auto_confirm: bool = False, json_output: bool = False):
     """
     Update customer RFE report with current JIRA statuses.
     
     Args:
         customer_name: Customer name
         auto_confirm: Skip confirmation prompts (for automation)
-    """
-    console.print()
-    console.print("╔════════════════════════════════════════════════════════════╗", style="cyan bold")
-    console.print(f"║  tam-rfe update: {customer_name.upper():^40} ║", style="cyan bold")
-    console.print("╚════════════════════════════════════════════════════════════╝", style="cyan bold")
-    console.print()
+        json_output: If True, return JSON dict instead of printing
     
+    Returns:
+        Dict if json_output=True, None otherwise
+    """
     # Find report file
-    console.print(f"🔍 Searching for {customer_name} report...", style="cyan")
+    if not json_output:
+        console.print()
+        console.print("╔════════════════════════════════════════════════════════════╗", style="cyan bold")
+        console.print(f"║  tam-rfe update: {customer_name.upper():^40} ║", style="cyan bold")
+        console.print("╚════════════════════════════════════════════════════════════╝", style="cyan bold")
+        console.print()
+        console.print(f"🔍 Searching for {customer_name} report...", style="cyan")
+    
     report_path = CustomerReportParser.find_report(customer_name)
     
     if not report_path:
+        if json_output:
+            return {
+                "success": False,
+                "error": f"Report not found for customer: {customer_name}",
+                "updated_count": 0,
+                "changes": [],
+                "report_path": ""
+            }
         console.print(f"\n❌ Report not found for customer: {customer_name}", style="red bold")
         console.print(f"\nSearched in:", style="yellow")
         console.print(f"  • ~/taminator-test-data/{customer_name}.md")
         console.print(f"  • ~/Documents/rh/customers/{customer_name}.md")
-        return
+        return None
     
-    console.print(f"✅ Found report: {report_path}", style="green")
-    console.print()
+    if not json_output:
+        console.print(f"✅ Found report: {report_path}", style="green")
+        console.print()
+        console.print("📋 Parsing report...", style="cyan")
     
     # Extract JIRA issues from report
-    console.print("📋 Parsing report...", style="cyan")
     issues = CustomerReportParser.extract_jira_issues(report_path)
     
     if not issues:
+        if json_output:
+            return {
+                "success": True,
+                "updated_count": 0,
+                "changes": [],
+                "report_path": str(report_path)
+            }
         console.print("\n⚠️  No JIRA issues found in report", style="yellow")
-        return
+        return None
     
-    console.print(f"✅ Found {len(issues)} JIRA issues in report", style="green")
-    console.print()
+    if not json_output:
+        console.print(f"✅ Found {len(issues)} JIRA issues in report", style="green")
+        console.print()
     
     # Fetch current statuses from JIRA
     jira_token = auth_box.get_token(AuthType.JIRA_TOKEN)
@@ -159,7 +181,8 @@ def update_customer_report(customer_name: str, auto_confirm: bool = False):
     issue_keys = [issue[0] for issue in issues]
     current_statuses = jira_client.get_multiple_statuses(issue_keys)
     
-    console.print()
+    if not json_output:
+        console.print()
     
     # Check what will change
     changes = []
@@ -176,39 +199,60 @@ def update_customer_report(customer_name: str, auto_confirm: bool = False):
                 })
     
     if not changes:
+        if json_output:
+            return {
+                "success": True,
+                "updated_count": 0,
+                "changes": [],
+                "report_path": str(report_path),
+                "message": "Report is already up-to-date"
+            }
         console.print("✅ Report is already up-to-date! No changes needed.\n", style="green bold")
-        return
+        return None
     
     # Display proposed changes
-    console.print(f"📝 Found {len(changes)} status change(s) to apply:\n", style="cyan bold")
+    if not json_output:
+        console.print(f"📝 Found {len(changes)} status change(s) to apply:\n", style="cyan bold")
+        
+        for change in changes:
+            console.print(f"  • {change['jira_id']}: ", style="white", end="")
+            console.print(f"[yellow]{change['old']}[/yellow] → [green]{change['new']}[/green]")
+        
+        console.print()
     
-    for change in changes:
-        console.print(f"  • {change['jira_id']}: ", style="white", end="")
-        console.print(f"[yellow]{change['old']}[/yellow] → [green]{change['new']}[/green]")
-    
-    console.print()
-    
-    # Confirm update
-    if not auto_confirm:
+    # Confirm update (auto-confirm in JSON mode)
+    if not auto_confirm and not json_output:
         if not Confirm.ask("Apply these updates to the report?", default=True):
             console.print("\n❌ Update cancelled.\n", style="yellow")
-            return
+            return None
     
-    console.print()
+    if not json_output:
+        console.print()
+        console.print("💾 Creating backup...", style="cyan")
     
     # Create backup
-    console.print("💾 Creating backup...", style="cyan")
     backup_path = ReportUpdater.create_backup(report_path)
-    console.print(f"✅ Backup created: {backup_path}", style="green")
-    console.print()
+    
+    if not json_output:
+        console.print(f"✅ Backup created: {backup_path}", style="green")
+        console.print()
+        console.print("📝 Updating report...", style="cyan")
     
     # Update report
-    console.print("📝 Updating report...", style="cyan")
     updates_made, new_content = ReportUpdater.update_report_file(report_path, current_statuses)
     
     # Write updated content
     with open(report_path, 'w') as f:
         f.write(new_content)
+    
+    if json_output:
+        return {
+            "success": True,
+            "updated_count": updates_made,
+            "changes": changes,
+            "report_path": str(report_path),
+            "backup_path": str(backup_path)
+        }
     
     console.print(f"✅ Report updated successfully!", style="green bold")
     console.print()
@@ -236,42 +280,66 @@ def update_customer_report(customer_name: str, auto_confirm: bool = False):
             console.print("\n" + "="*70 + "\n")
             console.print(new_content)
             console.print("\n" + "="*70 + "\n")
+    
+    return None
 
 
 # CLI entry point
-def main(customer: str = None, test_data: bool = False, auto_confirm: bool = False):
+def main(customer: str = None, test_data: bool = False, auto_confirm: bool = False, json_output: bool = False):
     """Main entry point for tam-rfe update command."""
     
     if test_data:
         # Use test customer
         customer = 'testcustomer'
-        console.print("\n🧪 Using test data...\n", style="cyan bold")
+        if not json_output:
+            console.print("\n🧪 Using test data...\n", style="cyan bold")
     
     if not customer:
-        console.print("\n❌ Error: Customer name required", style="red bold")
-        console.print("\nUsage:", style="cyan")
-        console.print("  tam-rfe update <customer>")
-        console.print("  tam-rfe update --test-data")
-        console.print("\nExamples:", style="cyan")
-        console.print("  tam-rfe update tdbank")
-        console.print("  tam-rfe update testcustomer")
-        console.print("  tam-rfe update --test-data")
+        if json_output:
+            import json
+            print(json.dumps({
+                "success": False,
+                "error": "Customer name required",
+                "updated_count": 0,
+                "changes": [],
+                "report_path": ""
+            }))
+        else:
+            console.print("\n❌ Error: Customer name required", style="red bold")
+            console.print("\nUsage:", style="cyan")
+            console.print("  tam-rfe update <customer>")
+            console.print("  tam-rfe update --test-data")
+            console.print("  tam-rfe update --customer <name> --json")
+            console.print("\nExamples:", style="cyan")
+            console.print("  tam-rfe update tdbank")
+            console.print("  tam-rfe update testcustomer")
+            console.print("  tam-rfe update --test-data")
+            console.print("  tam-rfe update --customer tdbank --json")
         return
     
-    update_customer_report(customer, auto_confirm=auto_confirm)
+    result = update_customer_report(customer, auto_confirm=auto_confirm or json_output, json_output=json_output)
+    
+    if json_output and result:
+        import json
+        print(json.dumps(result))
 
 
 if __name__ == '__main__':
     import sys
     
     # Simple argument parsing
-    test_data = '--test-data' in sys.argv
-    auto_confirm = '--yes' in sys.argv or '-y' in sys.argv
+    customer_val = None
+    json_mode = '--json' in sys.argv
+    test_mode = '--test-data' in sys.argv
+    auto_confirm_mode = '--yes' in sys.argv or '-y' in sys.argv
     
-    if test_data:
-        main(test_data=True, auto_confirm=auto_confirm)
+    # Extract customer name
+    if '--customer' in sys.argv:
+        idx = sys.argv.index('--customer')
+        if idx + 1 < len(sys.argv):
+            customer_val = sys.argv[idx + 1]
     elif len(sys.argv) > 1 and not sys.argv[1].startswith('--'):
-        main(customer=sys.argv[1], auto_confirm=auto_confirm)
-    else:
-        main()
+        customer_val = sys.argv[1]
+    
+    main(customer=customer_val, test_data=test_mode, auto_confirm=auto_confirm_mode, json_output=json_mode)
 

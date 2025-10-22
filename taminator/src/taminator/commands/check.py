@@ -192,44 +192,69 @@ class CustomerReportParser:
 
 
 @auth_required([AuthType.VPN, AuthType.JIRA_TOKEN])
-def check_customer_report(customer_name: str):
+def check_customer_report(customer_name: str, json_output: bool = False):
     """
     Check if customer RFE report is up-to-date.
     
     Args:
         customer_name: Customer name
-    """
-    console.print()
-    console.print("╔════════════════════════════════════════════════════════════╗", style="cyan bold")
-    console.print(f"║  tam-rfe check: {customer_name.upper():^42} ║", style="cyan bold")
-    console.print("╚════════════════════════════════════════════════════════════╝", style="cyan bold")
-    console.print()
+        json_output: If True, return JSON dict instead of printing
     
+    Returns:
+        Dict if json_output=True, None otherwise
+    """
     # Find report file
-    console.print(f"🔍 Searching for {customer_name} report...", style="cyan")
+    if not json_output:
+        console.print()
+        console.print("╔════════════════════════════════════════════════════════════╗", style="cyan bold")
+        console.print(f"║  tam-rfe check: {customer_name.upper():^42} ║", style="cyan bold")
+        console.print("╚════════════════════════════════════════════════════════════╝", style="cyan bold")
+        console.print()
+        console.print(f"🔍 Searching for {customer_name} report...", style="cyan")
+    
     report_path = CustomerReportParser.find_report(customer_name)
     
     if not report_path:
+        if json_output:
+            return {
+                "success": False,
+                "error": f"Report not found for customer: {customer_name}",
+                "issues": [],
+                "summary": {}
+            }
         console.print(f"\n❌ Report not found for customer: {customer_name}", style="red bold")
         console.print(f"\nSearched in:", style="yellow")
         console.print(f"  • ~/taminator-test-data/{customer_name}.md")
         console.print(f"  • ~/Documents/rh/customers/{customer_name}.md")
         console.print(f"\nTip: Use --test-data flag to test with sample data", style="cyan")
-        return
+        return None
     
-    console.print(f"✅ Found report: {report_path}", style="green")
-    console.print()
+    if not json_output:
+        console.print(f"✅ Found report: {report_path}", style="green")
+        console.print()
+        console.print("📋 Parsing report...", style="cyan")
     
     # Extract JIRA issues from report
-    console.print("📋 Parsing report...", style="cyan")
     issues = CustomerReportParser.extract_jira_issues(report_path)
     
     if not issues:
+        if json_output:
+            return {
+                "success": True,
+                "issues": [],
+                "summary": {
+                    "total": 0,
+                    "matching": 0,
+                    "outdated": 0,
+                    "errors": 0
+                }
+            }
         console.print("\n⚠️  No JIRA issues found in report", style="yellow")
-        return
+        return None
     
-    console.print(f"✅ Found {len(issues)} JIRA issues in report", style="green")
-    console.print()
+    if not json_output:
+        console.print(f"✅ Found {len(issues)} JIRA issues in report", style="green")
+        console.print()
     
     # Fetch current statuses from JIRA
     jira_token = auth_box.get_token(AuthType.JIRA_TOKEN)
@@ -238,13 +263,63 @@ def check_customer_report(customer_name: str):
     issue_keys = [issue[0] for issue in issues]
     current_statuses = jira_client.get_multiple_statuses(issue_keys)
     
+    # Build results
+    if json_output:
+        results = []
+        matching = 0
+        outdated = 0
+        errors = 0
+        
+        for jira_id, reported_status in issues:
+            current_info = current_statuses.get(jira_id, {})
+            current_status = current_info.get('status', 'UNKNOWN')
+            
+            # Normalize statuses for comparison
+            reported_normalized = reported_status.strip().lower()
+            current_normalized = current_status.strip().lower()
+            
+            if current_status == 'ERROR':
+                match = False
+                errors += 1
+                notes = current_info.get('error', 'API error')
+            elif current_status == 'NOT_FOUND':
+                match = False
+                errors += 1
+                notes = "Issue not found"
+            elif reported_normalized == current_normalized:
+                match = True
+                matching += 1
+                notes = "Up-to-date"
+            else:
+                match = False
+                outdated += 1
+                notes = "Status changed"
+            
+            results.append({
+                "jira_id": jira_id,
+                "title": current_info.get('summary', ''),
+                "local_status": reported_status,
+                "live_status": current_status,
+                "match": match,
+                "notes": notes
+            })
+        
+        return {
+            "success": True,
+            "issues": results,
+            "summary": {
+                "total": len(issues),
+                "matching": matching,
+                "outdated": outdated,
+                "errors": errors
+            }
+        }
+    
+    # Console output
     console.print()
-    
-    # Compare and display results
     display_comparison_table(issues, current_statuses)
-    
-    # Summary
     display_summary(issues, current_statuses)
+    return None
 
 
 def display_comparison_table(report_issues: List[Tuple[str, str]], current_statuses: Dict[str, Dict]):
@@ -387,36 +462,59 @@ Summary: 5 total cases (3 RFE, 2 Bug)
 
 
 # CLI entry point
-def main(customer: str = None, test_data: bool = False):
+def main(customer: str = None, test_data: bool = False, json_output: bool = False):
     """Main entry point for tam-rfe check command."""
     
     if test_data:
-        console.print("\n🧪 Creating test data...\n", style="cyan bold")
+        if not json_output:
+            console.print("\n🧪 Creating test data...\n", style="cyan bold")
         create_test_data()
         customer = 'testcustomer'
     
     if not customer:
-        console.print("\n❌ Error: Customer name required", style="red bold")
-        console.print("\nUsage:", style="cyan")
-        console.print("  tam-rfe check <customer>")
-        console.print("  tam-rfe check --test-data")
-        console.print("\nExamples:", style="cyan")
-        console.print("  tam-rfe check tdbank")
-        console.print("  tam-rfe check testcustomer")
-        console.print("  tam-rfe check --test-data  # Use sample data")
+        if json_output:
+            import json
+            print(json.dumps({
+                "success": False,
+                "error": "Customer name required",
+                "issues": [],
+                "summary": {}
+            }))
+        else:
+            console.print("\n❌ Error: Customer name required", style="red bold")
+            console.print("\nUsage:", style="cyan")
+            console.print("  tam-rfe check <customer>")
+            console.print("  tam-rfe check --test-data")
+            console.print("  tam-rfe check --customer <name> --json")
+            console.print("\nExamples:", style="cyan")
+            console.print("  tam-rfe check tdbank")
+            console.print("  tam-rfe check testcustomer")
+            console.print("  tam-rfe check --test-data  # Use sample data")
+            console.print("  tam-rfe check --customer tdbank --json  # JSON output")
         return
     
-    check_customer_report(customer)
+    result = check_customer_report(customer, json_output=json_output)
+    
+    if json_output and result:
+        import json
+        print(json.dumps(result))
 
 
 if __name__ == '__main__':
     import sys
     
     # Simple argument parsing
-    if '--test-data' in sys.argv:
-        main(test_data=True)
-    elif len(sys.argv) > 1:
-        main(customer=sys.argv[1])
-    else:
-        main()
+    customer_val = None
+    json_mode = '--json' in sys.argv
+    test_mode = '--test-data' in sys.argv
+    
+    # Extract customer name
+    if '--customer' in sys.argv:
+        idx = sys.argv.index('--customer')
+        if idx + 1 < len(sys.argv):
+            customer_val = sys.argv[idx + 1]
+    elif len(sys.argv) > 1 and not sys.argv[1].startswith('--'):
+        customer_val = sys.argv[1]
+    
+    main(customer=customer_val, test_data=test_mode, json_output=json_mode)
 
