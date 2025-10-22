@@ -16,39 +16,39 @@
 
 ## 📥 Download Taminator v1.7.0
 
-**⚠️ Requires:** Red Hat VPN + GitLab CEE login
+**⚠️ Download Method:** Browser only (Red Hat VPN + GitLab CEE login required)
 
-| Platform | Architecture | Package Type | Download | Size |
-|----------|--------------|--------------|----------|------|
-| 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.AppImage) | ~118 MB |
-| 🍎 **macOS** | x64 (Intel) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.dmg) | ~114 MB |
-| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0-arm64.dmg) | ~109 MB |
-| 🪟 **Windows** | x64 | NSIS Installer | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator_Setup_1.7.0.exe) | ~89 MB |
+### How to Download:
+1. **Connect to Red Hat VPN**
+2. **Log into GitLab:** https://gitlab.cee.redhat.com/jbyrd/taminator
+3. **Browse files:** Click on the file you need:
+   - 🐧 Linux: `Taminator-1.7.0.AppImage` (~118 MB)
+   - 🍎 macOS Intel: `Taminator-1.7.0.dmg` (~114 MB)
+   - 🍎 macOS Apple Silicon: `Taminator-1.7.0-arm64.dmg` (~109 MB)
+   - 🪟 Windows: `Taminator_Setup_1.7.0.exe` (~89 MB)
+4. **Click "Download"** button in GitLab's file view
 
 ### 🐧 Linux Installation
 ```bash
-# Download - "I'll be back... with your report."
-# Visit: https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.AppImage
-# (Must be logged into GitLab CEE - Red Hat VPN required)
+# After downloading from GitLab (browser required - see above)
+# "I'll be back... with your report."
 
-# After download, make executable and run
-chmod +x Taminator-1.7.0.AppImage
-./Taminator-1.7.0.AppImage
+# Make executable and run
+chmod +x ~/Downloads/Taminator-1.7.0.AppImage
+~/Downloads/Taminator-1.7.0.AppImage
 
 # Optional: Move to ~/Applications for system-wide access
 mkdir -p ~/Applications
-mv Taminator-1.7.0.AppImage ~/Applications/
+mv ~/Downloads/Taminator-1.7.0.AppImage ~/Applications/
 ```
 
 ### 🍎 macOS Installation
 ```bash
-# Download - "Come with me if you want to save time."
-# Intel Macs: https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.dmg
-# Apple Silicon: https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0-arm64.dmg
-# (Must be logged into GitLab CEE - Red Hat VPN required)
+# After downloading from GitLab (browser required - see above)
+# "Come with me if you want to save time."
 
-# After download, install
-open Taminator-1.7.0*.dmg
+# Install from Downloads
+open ~/Downloads/Taminator-1.7.0*.dmg
 # Drag Taminator to Applications folder
 # Launch from Launchpad or Applications
 
@@ -58,12 +58,11 @@ ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/
 
 ### 🪟 Windows Installation
 ```powershell
-# Download - "I need your clothes, your boots, and your RFE reports."
-# Visit: https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator_Setup_1.7.0.exe
-# (Must be logged into GitLab CEE - Red Hat VPN required)
+# After downloading from GitLab (browser required - see above)
+# "I need your clothes, your boots, and your RFE reports."
 
-# After download, install
-# 1. Double-click Taminator_Setup_1.7.0.exe
+# Run installer from Downloads
+# 1. Double-click Taminator_Setup_1.7.0.exe in Downloads folder
 # 2. Follow installation wizard
 # 3. Choose installation directory (optional)
 # 4. ✅ Create desktop shortcut (recommended)
