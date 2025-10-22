@@ -16,21 +16,20 @@
 
 ## 📥 Download Taminator v1.7.0
 
-**⚠️ Download Method:** Browser only (Red Hat VPN + GitLab CEE login required)
+**⚠️ Requires:** Red Hat VPN + GitLab CEE login
 
-### How to Download:
-1. **Connect to Red Hat VPN**
-2. **Log into GitLab:** https://gitlab.cee.redhat.com/jbyrd/taminator
-3. **Browse files:** Click on the file you need:
-   - 🐧 Linux: `Taminator-1.7.0.AppImage` (~118 MB)
-   - 🍎 macOS Intel: `Taminator-1.7.0.dmg` (~114 MB)
-   - 🍎 macOS Apple Silicon: `Taminator-1.7.0-arm64.dmg` (~109 MB)
-   - 🪟 Windows: `Taminator_Setup_1.7.0.exe` (~89 MB)
-4. **Click "Download"** button in GitLab's file view
+| Platform | Architecture | Package Type | Download | Size |
+|----------|--------------|--------------|----------|------|
+| 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/Taminator-1.7.0.AppImage?ref_type=heads) | ~118 MB |
+| 🍎 **macOS** | x64 (Intel) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/Taminator-1.7.0.dmg?ref_type=heads) | ~114 MB |
+| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/Taminator-1.7.0-arm64.dmg?ref_type=heads) | ~109 MB |
+| 🪟 **Windows** | x64 | NSIS Installer | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/Taminator_Setup_1.7.0.exe?ref_type=heads) | ~89 MB |
+
+*Click the download link → Click the "Download" button on the GitLab file page*
 
 ### 🐧 Linux Installation
 ```bash
-# After downloading from GitLab (browser required - see above)
+# Download from link above (opens in browser, click "Download" button)
 # "I'll be back... with your report."
 
 # Make executable and run
@@ -44,7 +43,7 @@ mv ~/Downloads/Taminator-1.7.0.AppImage ~/Applications/
 
 ### 🍎 macOS Installation
 ```bash
-# After downloading from GitLab (browser required - see above)
+# Download from link above (opens in browser, click "Download" button)
 # "Come with me if you want to save time."
 
 # Install from Downloads
@@ -58,7 +57,7 @@ ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/
 
 ### 🪟 Windows Installation
 ```powershell
-# After downloading from GitLab (browser required - see above)
+# Download from link above (opens in browser, click "Download" button)
 # "I need your clothes, your boots, and your RFE reports."
 
 # Run installer from Downloads
