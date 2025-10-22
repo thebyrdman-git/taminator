@@ -140,6 +140,43 @@
       overflow-y: auto;
     }
 
+    /* Accordion Styles */
+    .accordion-button {
+      width: 100%;
+      padding: 12px 16px;
+      background: #F5F5F5;
+      border: 1px solid #D2D2D2;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Red Hat Text', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #151515;
+      transition: all 0.2s ease;
+    }
+    
+    .accordion-button:hover {
+      background: #E7E7E7;
+      border-color: #0066CC;
+    }
+    
+    .accordion-icon {
+      font-size: 12px;
+      transition: transform 0.2s ease;
+    }
+    
+    .accordion-content {
+      padding: 16px;
+      border: 1px solid #D2D2D2;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      background: #FFFFFF;
+      margin-top: -4px;
+    }
+
     /* Dashboard Cards */
     .dashboard-grid {
       display: grid;
@@ -328,6 +365,10 @@
           <span class="nav-icon">⚙️</span>
           <span>Settings</span>
         </div>
+        <div class="nav-item" onclick="showHelp()" data-tooltip="Getting started guides and setup wizards">
+          <span class="nav-icon">❓</span>
+          <span>Help & Setup</span>
+        </div>
         <div class="nav-item" onclick="showReportIssue()">
           <span class="nav-icon">🐛</span>
           <span>Report Issue</span>
@@ -376,6 +417,11 @@
         fetchT3Blogs().catch(error => {
           console.error('Background T3 fetch failed:', error);
         });
+        
+        // Check if first run and show welcome wizard
+        setTimeout(() => {
+          checkFirstRun();
+        }, 1000); // Delay to let dashboard load first
       } catch (error) {
         console.error('Error loading dashboard:', error);
       }
@@ -393,19 +439,19 @@
             <div class="card-title">📊 Customers</div>
             <div class="card-content">
               <div class="status-item">
-                <span class="status-label">TD Bank</span>
+                <span class="status-label">Acme Corp</span>
                 <span class="status-badge success">✓ Up-to-date</span>
               </div>
               <div class="status-item">
-                <span class="status-label">Wells Fargo</span>
+                <span class="status-label">Global Tech</span>
                 <span class="status-badge warning">⚠ Needs update</span>
               </div>
               <div class="status-item">
-                <span class="status-label">JPMC</span>
+                <span class="status-label">TechCo Industries</span>
                 <span class="status-badge success">✓ Up-to-date</span>
               </div>
               <div class="status-item">
-                <span class="status-label">Fannie Mae</span>
+                <span class="status-label">MegaCorp Solutions</span>
                 <span class="status-badge success">✓ Up-to-date</span>
               </div>
             </div>
@@ -425,11 +471,11 @@
           <div class="card-title">📝 Recent Activity</div>
           <div class="card-content">
             <div class="status-item">
-              <span>✅ Checked TD Bank report</span>
+              <span>✅ Checked Acme Corp report</span>
               <span style="color: #6A6E73; font-size: 13px;">2 hours ago</span>
             </div>
             <div class="status-item">
-              <span>✅ Updated Wells Fargo report</span>
+              <span>✅ Updated Global Tech report</span>
               <span style="color: #6A6E73; font-size: 13px;">1 day ago</span>
             </div>
             <div class="status-item">
@@ -462,10 +508,10 @@
             <div class="card-content">
               <select id="check-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
                 <option value="">Select a customer...</option>
-                <option value="td-bank">TD Bank</option>
-                <option value="wells-fargo">Wells Fargo</option>
-                <option value="jpmc">JPMC</option>
-                <option value="fannie-mae">Fannie Mae</option>
+                <option value="acme-corp">Acme Corp</option>
+                <option value="global-tech">Global Tech</option>
+                <option value="techco">TechCo Industries</option>
+                <option value="megacorp">MegaCorp Solutions</option>
               </select>
               
               <button class="btn btn-primary" onclick="runCheckReport()">
@@ -563,10 +609,10 @@
             <div class="card-content">
               <select id="update-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
                 <option value="">Select a customer...</option>
-                <option value="td-bank">TD Bank</option>
-                <option value="wells-fargo">Wells Fargo</option>
-                <option value="jpmc">JPMC</option>
-                <option value="fannie-mae">Fannie Mae</option>
+                <option value="acme-corp">Acme Corp</option>
+                <option value="global-tech">Global Tech</option>
+                <option value="techco">TechCo Industries</option>
+                <option value="megacorp">MegaCorp Solutions</option>
               </select>
               
               <div style="margin: 16px 0;">
@@ -672,10 +718,10 @@
             <div class="card-content">
               <select id="post-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
                 <option value="">Select a customer...</option>
-                <option value="td-bank">TD Bank</option>
-                <option value="wells-fargo">Wells Fargo</option>
-                <option value="jpmc">JPMC</option>
-                <option value="fannie-mae">Fannie Mae</option>
+                <option value="acme-corp">Acme Corp</option>
+                <option value="global-tech">Global Tech</option>
+                <option value="techco">TechCo Industries</option>
+                <option value="megacorp">MegaCorp Solutions</option>
               </select>
               
               <div style="margin: 16px 0;">
@@ -1038,7 +1084,7 @@
 
     async function showConfig() {
       document.getElementById('page-title').textContent = 'Settings';
-      setActiveNav(6);
+      setActiveNav(9);
       
       document.getElementById('content').innerHTML = `
         <div class="settings-container">
@@ -1173,6 +1219,350 @@
       alert('Directory selection dialog would open here (Not yet implemented)');
     }
     
+    function showHelp() {
+      document.getElementById('page-title').textContent = 'Help & Setup';
+      setActiveNav(10);
+
+      document.getElementById('content').innerHTML = `
+        <div class="help-container">
+          <h2 style="margin-bottom: 24px;">❓ Help & Setup Wizards</h2>
+
+          <!-- Quick Start Guide -->
+          <div class="card">
+            <div class="card-title">🚀 Quick Start Guide</div>
+            <div class="card-content">
+              <p style="margin-bottom: 16px; color: #6A6E73;">
+                Welcome to Taminator! Here's how to get started in 3 steps:
+              </p>
+              
+              <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="padding: 16px; background: #F5F5F5; border-radius: 8px; border-left: 4px solid #0066CC;">
+                  <h4 style="margin: 0 0 8px 0; color: #0066CC;">Step 1: Connect to VPN</h4>
+                  <p style="margin: 0; color: #151515;">
+                    Connect to <strong>Red Hat VPN</strong> before using Taminator. Most features require VPN access to reach internal APIs.
+                  </p>
+          </div>
+
+                <div style="padding: 16px; background: #F5F5F5; border-radius: 8px; border-left: 4px solid #F0AB00;">
+                  <h4 style="margin: 0 0 8px 0; color: #F0AB00;">Step 2: Configure Tokens</h4>
+                  <p style="margin: 0 0 8px 0; color: #151515;">
+                    Navigate to <strong>Auth Box</strong> and add your API tokens:
+                  </p>
+                  <ul style="margin: 0; padding-left: 20px; color: #151515;">
+                    <li><strong>Customer Portal Token</strong> - For KB search and T3 blog access</li>
+                    <li><strong>JIRA Token</strong> - For RFE/Bug status checking</li>
+                    <li><strong>GitHub Token</strong> - For bug report submissions</li>
+                  </ul>
+                  <button class="btn btn-primary" onclick="showAuth()" style="margin-top: 12px;">
+                    🔐 Go to Auth Box
+                  </button>
+            </div>
+
+                <div style="padding: 16px; background: #F5F5F5; border-radius: 8px; border-left: 4px solid #3E8635;">
+                  <h4 style="margin: 0 0 8px 0; color: #3E8635;">Step 3: Onboard Your First Customer</h4>
+                  <p style="margin: 0 0 8px 0; color: #151515;">
+                    Navigate to <strong>Onboarding Wizard</strong> to add customer information and start tracking RFEs/Bugs.
+                  </p>
+                  <button class="btn btn-primary" onclick="showOnboard()" style="margin-top: 12px;">
+                    🎯 Start Onboarding
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Token Setup Wizards -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-title">🔑 Token Setup Wizards</div>
+            <div class="card-content">
+              <p style="margin-bottom: 16px; color: #6A6E73;">
+                Step-by-step guides to get your API tokens:
+              </p>
+              
+              <div class="accordion-item" style="margin-bottom: 16px;">
+                <button class="accordion-button" onclick="toggleAccordion('portal-token-guide')">
+                  <span>📘 Customer Portal Token (rh_jwt)</span>
+                  <span class="accordion-icon">▼</span>
+              </button>
+                <div id="portal-token-guide" class="accordion-content" style="display: none;">
+                  <ol style="margin: 0; padding-left: 20px; color: #151515;">
+                    <li>Connect to <strong>Red Hat VPN</strong></li>
+                    <li>Open your browser and navigate to <a href="https://access.redhat.com" target="_blank">https://access.redhat.com</a></li>
+                    <li>Log in with your Red Hat credentials</li>
+                    <li>Open <strong>Developer Tools</strong> (F12 or Ctrl+Shift+I)</li>
+                    <li>Go to the <strong>Application</strong> tab (Chrome) or <strong>Storage</strong> tab (Firefox)</li>
+                    <li>Expand <strong>Cookies</strong> → <code>https://access.redhat.com</code></li>
+                    <li>Find the cookie named <code>rh_jwt</code></li>
+                    <li>Copy the entire <strong>Value</strong> (very long string starting with "ey...")</li>
+                    <li>Go to <strong>Auth Box</strong> and paste it in the "Customer Portal Token" field</li>
+                    <li>Click <strong>Save</strong> and then <strong>Test</strong> to verify</li>
+                  </ol>
+                  <div style="margin-top: 12px; padding: 12px; background: #FFF3CD; border-radius: 4px;">
+                    <strong>💡 Tip:</strong> This token expires after ~24 hours. You'll need to refresh it daily.
+            </div>
+                </div>
+              </div>
+              
+              <div class="accordion-item" style="margin-bottom: 16px;">
+                <button class="accordion-button" onclick="toggleAccordion('jira-token-guide')">
+                  <span>🎫 JIRA Token</span>
+                  <span class="accordion-icon">▼</span>
+                </button>
+                <div id="jira-token-guide" class="accordion-content" style="display: none;">
+                  <ol style="margin: 0; padding-left: 20px; color: #151515;">
+                    <li>Connect to <strong>Red Hat VPN</strong></li>
+                    <li>Navigate to <a href="https://issues.redhat.com" target="_blank">https://issues.redhat.com</a></li>
+                    <li>Log in with your Red Hat credentials</li>
+                    <li>Click your profile icon (top-right) → <strong>Profile</strong></li>
+                    <li>Select <strong>Personal Access Tokens</strong></li>
+                    <li>Click <strong>Create token</strong></li>
+                    <li>Give it a name (e.g., "Taminator") and set expiration (recommend 1 year)</li>
+                    <li>Copy the generated token (you won't see it again!)</li>
+                    <li>Go to <strong>Auth Box</strong> and paste it in the "JIRA Token" field</li>
+                    <li>Click <strong>Save</strong> and then <strong>Test</strong> to verify</li>
+                  </ol>
+                  <div style="margin-top: 12px; padding: 12px; background: #FFF3CD; border-radius: 4px;">
+                    <strong>⚠️ Important:</strong> Store this token securely. Taminator encrypts it locally.
+            </div>
+          </div>
+        </div>
+              
+              <div class="accordion-item">
+                <button class="accordion-button" onclick="toggleAccordion('github-token-guide')">
+                  <span>🐙 GitHub Token</span>
+                  <span class="accordion-icon">▼</span>
+            </button>
+                <div id="github-token-guide" class="accordion-content" style="display: none;">
+                  <ol style="margin: 0; padding-left: 20px; color: #151515;">
+                    <li>Navigate to <a href="https://github.com/settings/tokens" target="_blank">https://github.com/settings/tokens</a></li>
+                    <li>Click <strong>Generate new token</strong> → <strong>Generate new token (classic)</strong></li>
+                    <li>Give it a note (e.g., "Taminator Bug Reports")</li>
+                    <li>Select expiration (recommend 1 year)</li>
+                    <li>Check the <strong>repo</strong> scope (full control of private repositories)</li>
+                    <li>Scroll down and click <strong>Generate token</strong></li>
+                    <li>Copy the token (starts with "ghp_")</li>
+                    <li>Go to <strong>Auth Box</strong> and paste it in the "GitHub Token" field</li>
+                    <li>Click <strong>Save</strong> and then <strong>Test</strong> to verify</li>
+                  </ol>
+                  <div style="margin-top: 12px; padding: 12px; background: #E7F1FA; border-radius: 4px;">
+                    <strong>📌 Note:</strong> GitHub tokens are used for submitting Taminator bug reports.
+          </div>
+              </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feature Walkthroughs -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-title">📋 Feature Walkthroughs</div>
+            <div class="card-content">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                <div style="padding: 16px; border: 1px solid #D2D2D2; border-radius: 8px;">
+                  <h4 style="margin: 0 0 8px 0;">📊 Check Reports</h4>
+                  <p style="margin: 0 0 12px 0; color: #6A6E73; font-size: 14px;">
+                    Verify your customer RFE/Bug reports against live JIRA data (read-only).
+                  </p>
+                  <button class="btn btn-secondary" onclick="showCheckReports()">Learn More</button>
+                </div>
+                
+                <div style="padding: 16px; border: 1px solid #D2D2D2; border-radius: 8px;">
+                  <h4 style="margin: 0 0 8px 0;">🔄 Update Reports</h4>
+                  <p style="margin: 0 0 12px 0; color: #6A6E73; font-size: 14px;">
+                    Sync your local reports with latest JIRA statuses (writes changes).
+                  </p>
+                  <button class="btn btn-secondary" onclick="showUpdateReports()">Learn More</button>
+          </div>
+                
+                <div style="padding: 16px; border: 1px solid #D2D2D2; border-radius: 8px;">
+                  <h4 style="margin: 0 0 8px 0;">📰 T3 Distribution</h4>
+                  <p style="margin: 0 0 12px 0; color: #6A6E73; font-size: 14px;">
+                    Browse and share Red Hat internal technical blog posts.
+                  </p>
+                  <button class="btn btn-secondary" onclick="showT3()">Learn More</button>
+          </div>
+                
+                <div style="padding: 16px; border: 1px solid #D2D2D2; border-radius: 8px;">
+                  <h4 style="margin: 0 0 8px 0;">📚 KB Search</h4>
+                  <p style="margin: 0 0 12px 0; color: #6A6E73; font-size: 14px;">
+                    Search Red Hat Knowledge Base articles and solutions.
+                  </p>
+                  <button class="btn btn-secondary" onclick="showKAB()">Learn More</button>
+                </div>
+              </div>
+              </div>
+            </div>
+
+          <!-- Troubleshooting -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-title">🔧 Troubleshooting</div>
+            <div class="card-content">
+              <div class="accordion-item" style="margin-bottom: 16px;">
+                <button class="accordion-button" onclick="toggleAccordion('trouble-demo-data')">
+                  <span>Q: Why am I seeing demo data?</span>
+                  <span class="accordion-icon">▼</span>
+              </button>
+                <div id="trouble-demo-data" class="accordion-content" style="display: none;">
+                  <p style="margin: 0; color: #151515;">
+                    <strong>A:</strong> Demo data appears when your tokens aren't configured or have expired. 
+                    Go to <strong>Auth Box</strong>, save your Portal Token, and click <strong>Test</strong> to verify authentication.
+                  </p>
+            </div>
+          </div>
+              
+              <div class="accordion-item" style="margin-bottom: 16px;">
+                <button class="accordion-button" onclick="toggleAccordion('trouble-no-results')">
+                  <span>Q: KB search returns no results</span>
+                  <span class="accordion-icon">▼</span>
+            </button>
+                <div id="trouble-no-results" class="accordion-content" style="display: none;">
+                  <p style="margin: 0 0 8px 0; color: #151515;">
+                    <strong>A:</strong> KB search requires both VPN and a valid Portal Token. Check:
+                  </p>
+                  <ul style="margin: 0; padding-left: 20px; color: #151515;">
+                    <li>Are you connected to Red Hat VPN?</li>
+                    <li>Is your Portal Token saved in Auth Box?</li>
+                    <li>Try clicking the <strong>Test</strong> button in Auth Box</li>
+                    <li>If token is expired (>24 hours old), refresh it</li>
+                  </ul>
+          </div>
+              </div>
+
+              <div class="accordion-item">
+                <button class="accordion-button" onclick="toggleAccordion('trouble-check-fails')">
+                  <span>Q: Check Reports shows errors</span>
+                  <span class="accordion-icon">▼</span>
+                </button>
+                <div id="trouble-check-fails" class="accordion-content" style="display: none;">
+                  <p style="margin: 0 0 8px 0; color: #151515;">
+                    <strong>A:</strong> This feature requires JIRA token authentication. Make sure:
+                  </p>
+                  <ul style="margin: 0; padding-left: 20px; color: #151515;">
+                    <li>You're connected to Red Hat VPN</li>
+                    <li>Your JIRA token is saved in Auth Box</li>
+                    <li>You've onboarded at least one customer</li>
+                    <li>The customer has RFEs/Bugs in their report</li>
+                  </ul>
+                </div>
+                  </div>
+                  </div>
+                </div>
+
+          <!-- First-Time Setup Reminder -->
+          <div class="card" style="margin-top: 24px; background: linear-gradient(135deg, #0066CC 0%, #004080 100%); color: white;">
+            <div class="card-content">
+              <h3 style="margin: 0 0 12px 0; color: white;">🎯 Ready to Get Started?</h3>
+              <p style="margin: 0 0 16px 0;">
+                Follow the Quick Start Guide above to configure Taminator in less than 5 minutes!
+              </p>
+              <div style="display: flex; gap: 12px;">
+                <button class="btn btn-primary" onclick="showAuth()" style="background: white; color: #0066CC;">
+                  🔐 Configure Tokens
+                    </button>
+                <button class="btn btn-secondary" onclick="showOnboard()" style="background: rgba(255,255,255,0.2); border-color: white; color: white;">
+                  🎯 Onboard Customer
+                    </button>
+                  </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Accordion toggle helper
+    function toggleAccordion(id) {
+      const content = document.getElementById(id);
+      const button = content.previousElementSibling;
+      const icon = button.querySelector('.accordion-icon');
+      
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '▲';
+      } else {
+        content.style.display = 'none';
+        icon.textContent = '▼';
+      }
+    }
+    
+    // First-run detection
+    function checkFirstRun() {
+      const hasSeenWelcome = localStorage.getItem('taminator_welcomed');
+      if (!hasSeenWelcome) {
+        localStorage.setItem('taminator_welcomed', 'true');
+        showFirstRunWizard();
+      }
+    }
+    
+    // First-run wizard
+    function showFirstRunWizard() {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+      
+      overlay.innerHTML = `
+        <div style="background: white; border-radius: 8px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.3);">
+          <div style="padding: 32px; text-align: center;">
+            <div style="font-size: 64px; margin-bottom: 16px;">💀</div>
+            <h2 style="margin: 0 0 16px 0; color: #151515;">Welcome to Taminator!</h2>
+            <p style="color: #6A6E73; margin-bottom: 24px; font-size: 16px;">
+              The Skynet TAMs actually want. Let's get you set up in 3 easy steps.
+            </p>
+            
+            <div style="text-align: left; background: #F5F5F5; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+              <h3 style="margin: 0 0 16px 0; color: #151515; font-size: 18px;">✅ Quick Setup Checklist</h3>
+              <div style="display: flex; align-items: start; gap: 12px; margin-bottom: 12px;">
+                <span style="font-size: 24px;">1️⃣</span>
+                <div>
+                  <strong style="color: #151515;">Connect to VPN</strong>
+                  <p style="margin: 4px 0 0 0; color: #6A6E73; font-size: 14px;">
+                    Most features require Red Hat VPN access
+                  </p>
+          </div>
+              </div>
+              <div style="display: flex; align-items: start; gap: 12px; margin-bottom: 12px;">
+                <span style="font-size: 24px;">2️⃣</span>
+                <div>
+                  <strong style="color: #151515;">Configure Your Tokens</strong>
+                  <p style="margin: 4px 0 0 0; color: #6A6E73; font-size: 14px;">
+                    Portal, JIRA, and GitHub tokens in Auth Box
+                  </p>
+              </div>
+            </div>
+              <div style="display: flex; align-items: start; gap: 12px;">
+                <span style="font-size: 24px;">3️⃣</span>
+                <div>
+                  <strong style="color: #151515;">Onboard Your First Customer</strong>
+                  <p style="margin: 4px 0 0 0; color: #6A6E73; font-size: 14px;">
+                    Add customer info and start tracking RFEs/Bugs
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div style="display: flex; gap: 12px; justify-content: center;">
+              <button class="btn btn-primary" onclick="closeFirstRunWizard(); showHelp();" style="padding: 12px 24px; font-size: 16px;">
+                📖 View Setup Guide
+              </button>
+              <button class="btn btn-secondary" onclick="closeFirstRunWizard();" style="padding: 12px 24px; font-size: 16px;">
+                Skip for Now
+              </button>
+            </div>
+            
+            <p style="margin: 16px 0 0 0; color: #6A6E73; font-size: 13px;">
+              You can always access the setup guide from <strong>Help & Setup</strong> in the sidebar.
+            </p>
+            </div>
+          </div>
+        `;
+      
+      document.body.appendChild(overlay);
+    }
+    
+    function closeFirstRunWizard() {
+      const overlay = document.querySelector('div[style*="z-index: 10000"]');
+      if (overlay) {
+        overlay.remove();
+      }
+    }
+    
     function showClippy() {
       document.getElementById('page-title').textContent = 'Clippy Email Assistant';
       setActiveNav(8);
@@ -1205,7 +1595,7 @@
               <div style="margin-top: 24px;">
                 <button class="btn btn-secondary" onclick="showDashboard()">
                   ← Back to Dashboard
-              </button>
+                </button>
               </div>
             </div>
           </div>
@@ -1231,8 +1621,8 @@
               <p style="color: #6A6E73;">Loading T3 posts...</p>
             </div>
           </div>
-        </div>
-      `;
+          </div>
+        `;
       
       // Load cached T3 posts if available
       const cachedPosts = localStorage.getItem('t3_posts');
@@ -1294,10 +1684,10 @@
                 </ol>
                 <button class="btn btn-primary" onclick="showAuth()" style="margin-top: 8px;">
                   🔐 Go to Auth Box
-                </button>
+              </button>
                 </div>
-              </div>
             </div>
+          </div>
         `;
       }
       
@@ -1312,13 +1702,13 @@
               <span>📅 ${post.date}</span>
               <span style="color: ${severityColor};">🔥 ${post.severity}</span>
               <span>👥 ${post.scope}</span>
-            </div>
+          </div>
             <p style="margin: 0 0 12px 0; color: #151515;">${post.description}</p>
             ${post.url && post.url !== '#' && post.url !== '#auth-box' ? 
               `<a href="${post.url}" target="_blank" style="color: #0066CC; text-decoration: none;">View Post →</a>` : 
               ''}
-          </div>
-        `;
+        </div>
+      `;
       });
 
       html += '</div>';
@@ -1329,7 +1719,7 @@
     function showKAB() {
       document.getElementById('page-title').textContent = 'Knowledge Base';
       setActiveNav(7);
-
+      
       document.getElementById('content').innerHTML = `
         <h2 style="margin-bottom: 24px;">📚 Knowledge Base Articles</h2>
 
@@ -1346,8 +1736,8 @@
             <div id="kb-results-container">
               <p style="color: #6A6E73;">Enter a search term to find KB articles.</p>
                 </div>
-          </div>
-        </div>
+                </div>
+                </div>
       `;
     }
 
@@ -1392,7 +1782,7 @@
                 </ol>
                 <button class="btn btn-primary" onclick="showAuth()" style="margin-top: 8px;">
                   🔐 Go to Auth Box
-                </button>
+                    </button>
             </div>
           </div>
         </div>
@@ -1411,15 +1801,15 @@
               <span style="padding: 2px 8px; background: #F0F0F0; border-radius: 3px; font-size: 12px; margin-left: 12px;">
                 ${doc.type}
               </span>
-            </div>
+              </div>
             <div style="color: #6A6E73; font-size: 13px; margin-bottom: 8px;">
               <span>🏢 ${doc.product}</span>
               <span style="margin-left: 12px;">📅 ${doc.modified ? new Date(doc.modified).toLocaleDateString() : 'N/A'}</span>
-            </div>
+              </div>
             <p style="margin: 0 0 12px 0; color: #151515;">${doc.description}</p>
             <a href="${doc.url}" target="_blank" style="color: #0066CC; text-decoration: none;">View Article →</a>
-          </div>
-        `;
+        </div>
+      `;
       });
       
       html += '</div>';
@@ -1428,7 +1818,7 @@
 
     function showReportIssue() {
       document.getElementById('page-title').textContent = 'Report Issue';
-      setActiveNav(10);
+      setActiveNav(11);
       
       document.getElementById('content').innerHTML = `
         <h2 style="margin-bottom: 24px;">🐛 Report a Bug or Request a Feature</h2>
