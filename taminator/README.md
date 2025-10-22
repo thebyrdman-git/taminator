@@ -18,15 +18,15 @@
 
 | Platform | Architecture | Package Type | Download | Size |
 |----------|--------------|--------------|----------|------|
-| 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/46bf9dc3bf022424024cea45c256fbda/Taminator-1.7.0.AppImage) | ~118 MB |
-| 🍎 **macOS** | x64 (Intel) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/c3a3c2e23452207ba62f75b30537c8cb/Taminator-1.7.0.dmg) | ~114 MB |
-| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/2f28c17d57aa51285ba252420b0cd813/Taminator-1.7.0-arm64.dmg) | ~109 MB |
-| 🪟 **Windows** | x64 | NSIS Installer | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/uploads/93d3b425b7e5392bbf2aba50df80e5a5/Taminator_Setup_1.7.0.exe) | ~89 MB |
+| 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.AppImage) | ~118 MB |
+| 🍎 **macOS** | x64 (Intel) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.dmg) | ~114 MB |
+| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0-arm64.dmg) | ~109 MB |
+| 🪟 **Windows** | x64 | NSIS Installer | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator_Setup_1.7.0.exe) | ~89 MB |
 
 ### 🐧 Linux Installation
 ```bash
 # Download - "I'll be back... with your report."
-wget https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/Taminator-1.7.0.AppImage
+wget https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.AppImage
 
 # Make executable and run
 chmod +x Taminator-1.7.0.AppImage
@@ -41,10 +41,10 @@ mv Taminator-1.7.0.AppImage ~/Applications/
 ```bash
 # Download - "Come with me if you want to save time."
 # Intel Macs:
-curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/Taminator-1.7.0-x64.dmg
+curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.dmg
 
 # Apple Silicon (M1/M2/M3):
-curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/Taminator-1.7.0-arm64.dmg
+curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0-arm64.dmg
 
 # Install
 open Taminator-1.7.0*.dmg
@@ -58,11 +58,11 @@ ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/
 ### 🪟 Windows Installation
 ```powershell
 # Download - "I need your clothes, your boots, and your RFE reports."
-# Visit: https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases
-# Download: Taminator-Setup-1.7.0.exe
+# Visit: https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator_Setup_1.7.0.exe
+# Or download directly via browser
 
 # Install
-# 1. Double-click Taminator-Setup-1.7.0.exe
+# 1. Double-click Taminator_Setup_1.7.0.exe
 # 2. Follow installation wizard
 # 3. Choose installation directory (optional)
 # 4. ✅ Create desktop shortcut (recommended)
@@ -81,7 +81,7 @@ tam-rfe check --customer <name>
 ./tam-rfe post --customer <name>
 ```
 
-**[→ Full Getting Started Guide](GETTING-STARTED.md)** | **[📥 All Releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases)**
+**[→ Full Getting Started Guide](GETTING-STARTED.md)** | **[📥 All Downloads](https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main)**
 
 ---
 
