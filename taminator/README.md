@@ -18,20 +18,14 @@
 
 **⚠️ Requires:** Red Hat VPN + GitLab CEE login
 
-| Platform | Architecture | Package Type | Download | Size |
-|----------|--------------|--------------|----------|------|
-| 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/Taminator-1.7.0.AppImage?ref_type=heads) | ~118 MB |
-| 🍎 **macOS** | x64 (Intel) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/Taminator-1.7.0.dmg?ref_type=heads) | ~114 MB |
-| 🍎 **macOS** | arm64 (Apple Silicon) | DMG | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/Taminator-1.7.0-arm64.dmg?ref_type=heads) | ~109 MB |
-| 🪟 **Windows** | x64 | NSIS Installer | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/Taminator_Setup_1.7.0.exe?ref_type=heads) | ~89 MB |
+### Download Page
+**https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main**
 
-*Click the download link → Click the "Download" button on the GitLab file page*
-
-**Getting 404 errors?**
-1. **Verify VPN:** Must be connected to Red Hat VPN
-2. **Login to GitLab:** Visit https://gitlab.cee.redhat.com and sign in first
-3. **Clear cache:** Hard refresh (Ctrl+F5 / Cmd+Shift+R)
-4. **Try direct:** Go to https://gitlab.cee.redhat.com/jbyrd/taminator and browse to the file
+Click on the filename, then click the **Download** button:
+- 🐧 **Linux:** `Taminator-1.7.0.AppImage` (~118 MB)
+- 🍎 **macOS Intel:** `Taminator-1.7.0.dmg` (~114 MB)
+- 🍎 **macOS Apple Silicon:** `Taminator-1.7.0-arm64.dmg` (~109 MB)
+- 🪟 **Windows:** `Taminator_Setup_1.7.0.exe` (~89 MB)
 
 ### 🐧 Linux Installation
 ```bash
