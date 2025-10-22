@@ -704,3 +704,345 @@ ipcMain.handle('load-settings', async () => {
   }
 });
 
+// ============================================================================
+// RFE/Bug Report Management Handlers
+// ============================================================================
+
+/**
+ * Check Report Status - Compare local report with live JIRA data
+ */
+ipcMain.handle('check-report', async (event, { customer }) => {
+  return new Promise((resolve, reject) => {
+    // Determine correct path based on whether we're in development or production
+    let basePath, checkCommandPath, pythonEnv;
+    if (app.isPackaged) {
+      basePath = process.resourcesPath;
+      checkCommandPath = path.join(basePath, 'src/taminator/commands/check.py');
+      
+      const pythonPackagesPath = path.join(basePath, 'python_packages');
+      pythonEnv = {
+        ...process.env,
+        PYTHONPATH: pythonPackagesPath + (process.env.PYTHONPATH ? ':' + process.env.PYTHONPATH : '')
+      };
+    } else {
+      basePath = path.join(__dirname, '..');
+      checkCommandPath = path.join(basePath, 'src/taminator/commands/check.py');
+      pythonEnv = process.env;
+    }
+    
+    // Call check.py with customer parameter
+    const pythonProcess = spawn('python3', [checkCommandPath, '--customer', customer, '--json'], {
+      env: pythonEnv
+    });
+    
+    let stdout = '';
+    let stderr = '';
+    
+    pythonProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    pythonProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+      console.error('[check-report stderr]:', data.toString());
+    });
+    
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error('[check-report] Process exited with code:', code);
+        console.error('[check-report] stderr:', stderr);
+        resolve({
+          success: false,
+          error: `Check report failed: ${stderr || 'Unknown error'}`,
+          issues: []
+        });
+        return;
+      }
+      
+      try {
+        const result = JSON.parse(stdout);
+        resolve({
+          success: true,
+          issues: result.issues || [],
+          summary: result.summary || {}
+        });
+      } catch (error) {
+        console.error('[check-report] Failed to parse JSON:', error);
+        console.error('[check-report] stdout:', stdout);
+        resolve({
+          success: false,
+          error: `Failed to parse response: ${error.message}`,
+          issues: []
+        });
+      }
+    });
+    
+    pythonProcess.on('error', (error) => {
+      console.error('[check-report] Spawn error:', error);
+      resolve({
+        success: false,
+        error: `Failed to start check process: ${error.message}`,
+        issues: []
+      });
+    });
+  });
+});
+
+/**
+ * Update Report - Fetch latest JIRA data and update local report
+ */
+ipcMain.handle('update-report', async (event, { customer, preserveNotes, generateChangelog }) => {
+  return new Promise((resolve, reject) => {
+    let basePath, updateCommandPath, pythonEnv;
+    if (app.isPackaged) {
+      basePath = process.resourcesPath;
+      updateCommandPath = path.join(basePath, 'src/taminator/commands/update.py');
+      
+      const pythonPackagesPath = path.join(basePath, 'python_packages');
+      pythonEnv = {
+        ...process.env,
+        PYTHONPATH: pythonPackagesPath + (process.env.PYTHONPATH ? ':' + process.env.PYTHONPATH : '')
+      };
+    } else {
+      basePath = path.join(__dirname, '..');
+      updateCommandPath = path.join(basePath, 'src/taminator/commands/update.py');
+      pythonEnv = process.env;
+    }
+    
+    // Build args with options
+    const args = [updateCommandPath, '--customer', customer, '--json'];
+    if (preserveNotes) args.push('--preserve-notes');
+    if (generateChangelog) args.push('--generate-changelog');
+    
+    const pythonProcess = spawn('python3', args, {
+      env: pythonEnv
+    });
+    
+    let stdout = '';
+    let stderr = '';
+    
+    pythonProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    pythonProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+      console.error('[update-report stderr]:', data.toString());
+    });
+    
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error('[update-report] Process exited with code:', code);
+        console.error('[update-report] stderr:', stderr);
+        resolve({
+          success: false,
+          error: `Update report failed: ${stderr || 'Unknown error'}`,
+          updated_count: 0
+        });
+        return;
+      }
+      
+      try {
+        const result = JSON.parse(stdout);
+        resolve({
+          success: true,
+          updated_count: result.updated_count || 0,
+          changes: result.changes || [],
+          report_path: result.report_path || ''
+        });
+      } catch (error) {
+        console.error('[update-report] Failed to parse JSON:', error);
+        console.error('[update-report] stdout:', stdout);
+        resolve({
+          success: false,
+          error: `Failed to parse response: ${error.message}`,
+          updated_count: 0
+        });
+      }
+    });
+    
+    pythonProcess.on('error', (error) => {
+      console.error('[update-report] Spawn error:', error);
+      resolve({
+        success: false,
+        error: `Failed to start update process: ${error.message}`,
+        updated_count: 0
+      });
+    });
+  });
+});
+
+/**
+ * Post Report - Publish report to Customer Portal Group
+ */
+ipcMain.handle('post-report', async (event, { customer, preview, validate, notify }) => {
+  return new Promise((resolve, reject) => {
+    let basePath, postCommandPath, pythonEnv;
+    if (app.isPackaged) {
+      basePath = process.resourcesPath;
+      postCommandPath = path.join(basePath, 'src/taminator/commands/post.py');
+      
+      const pythonPackagesPath = path.join(basePath, 'python_packages');
+      pythonEnv = {
+        ...process.env,
+        PYTHONPATH: pythonPackagesPath + (process.env.PYTHONPATH ? ':' + process.env.PYTHONPATH : '')
+      };
+    } else {
+      basePath = path.join(__dirname, '..');
+      postCommandPath = path.join(basePath, 'src/taminator/commands/post.py');
+      pythonEnv = process.env;
+    }
+    
+    // Build args with options
+    const args = [postCommandPath, '--customer', customer, '--json'];
+    if (preview) args.push('--dry-run');
+    if (validate) args.push('--validate');
+    if (notify) args.push('--notify');
+    
+    const pythonProcess = spawn('python3', args, {
+      env: pythonEnv
+    });
+    
+    let stdout = '';
+    let stderr = '';
+    
+    pythonProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    pythonProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+      console.error('[post-report stderr]:', data.toString());
+    });
+    
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error('[post-report] Process exited with code:', code);
+        console.error('[post-report] stderr:', stderr);
+        resolve({
+          success: false,
+          error: `Post report failed: ${stderr || 'Unknown error'}`,
+          portal_url: ''
+        });
+        return;
+      }
+      
+      try {
+        const result = JSON.parse(stdout);
+        resolve({
+          success: true,
+          portal_url: result.portal_url || '',
+          discussion_id: result.discussion_id || '',
+          preview_mode: preview || false
+        });
+      } catch (error) {
+        console.error('[post-report] Failed to parse JSON:', error);
+        console.error('[post-report] stdout:', stdout);
+        resolve({
+          success: false,
+          error: `Failed to parse response: ${error.message}`,
+          portal_url: ''
+        });
+      }
+    });
+    
+    pythonProcess.on('error', (error) => {
+      console.error('[post-report] Spawn error:', error);
+      resolve({
+        success: false,
+        error: `Failed to start post process: ${error.message}`,
+        portal_url: ''
+      });
+    });
+  });
+});
+
+/**
+ * Onboard Generate - Generate initial RFE/Bug report for new customer
+ */
+ipcMain.handle('onboard-generate', async (event, customerData) => {
+  return new Promise((resolve, reject) => {
+    let basePath, onboardCommandPath, pythonEnv;
+    if (app.isPackaged) {
+      basePath = process.resourcesPath;
+      onboardCommandPath = path.join(basePath, 'src/taminator/commands/onboard.py');
+      
+      const pythonPackagesPath = path.join(basePath, 'python_packages');
+      pythonEnv = {
+        ...process.env,
+        PYTHONPATH: pythonPackagesPath + (process.env.PYTHONPATH ? ':' + process.env.PYTHONPATH : '')
+      };
+    } else {
+      basePath = path.join(__dirname, '..');
+      onboardCommandPath = path.join(basePath, 'src/taminator/commands/onboard.py');
+      pythonEnv = process.env;
+    }
+    
+    // For now, onboard-generate uses customerData from onboard-discover
+    // The actual generation will be handled by the onboard.py command
+    const args = [onboardCommandPath, '--json'];
+    
+    // If customerData was passed from onboard-discover, pass customer name
+    if (customerData && customerData.name) {
+      args.push('--customer', customerData.slug || customerData.name.toLowerCase().replace(/\s+/g, '-'));
+    }
+    
+    const pythonProcess = spawn('python3', args, {
+      env: pythonEnv
+    });
+    
+    let stdout = '';
+    let stderr = '';
+    
+    pythonProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    pythonProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+      console.error('[onboard-generate stderr]:', data.toString());
+    });
+    
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error('[onboard-generate] Process exited with code:', code);
+        console.error('[onboard-generate] stderr:', stderr);
+        resolve({
+          success: false,
+          error: `Onboard generation failed: ${stderr || 'Unknown error'}`,
+          report_path: ''
+        });
+        return;
+      }
+      
+      try {
+        const result = JSON.parse(stdout);
+        resolve({
+          success: true,
+          report_path: result.report_path || '',
+          customer: result.customer || {},
+          rfes_found: result.rfes_found || 0,
+          bugs_found: result.bugs_found || 0
+        });
+      } catch (error) {
+        console.error('[onboard-generate] Failed to parse JSON:', error);
+        console.error('[onboard-generate] stdout:', stdout);
+        resolve({
+          success: false,
+          error: `Failed to parse response: ${error.message}`,
+          report_path: ''
+        });
+      }
+    });
+    
+    pythonProcess.on('error', (error) => {
+      console.error('[onboard-generate] Spawn error:', error);
+      resolve({
+        success: false,
+        error: `Failed to start onboard process: ${error.message}`,
+        report_path: ''
+      });
+    });
+  });
+});
+
