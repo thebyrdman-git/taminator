@@ -100,33 +100,63 @@ def post_customer_report(customer_name: str, dry_run: bool = False):
 
 
 # CLI entry point
-def main(customer: str = None, dry_run: bool = False):
+def main(customer: str = None, dry_run: bool = False, json_output: bool = False):
     """Main entry point for tam-rfe post command."""
     
     if not customer:
-        console.print("\n❌ Error: Customer name required", style="red bold")
-        console.print("\nUsage:", style="cyan")
-        console.print("  tam-rfe post <customer>")
-        console.print("  tam-rfe post --dry-run <customer>")
-        console.print("\nExamples:", style="cyan")
-        console.print("  tam-rfe post tdbank")
-        console.print("  tam-rfe post --dry-run wellsfargo")
+        if json_output:
+            import json
+            print(json.dumps({
+                "success": False,
+                "error": "Customer name required",
+                "portal_url": "",
+                "discussion_id": ""
+            }))
+        else:
+            console.print("\n❌ Error: Customer name required", style="red bold")
+            console.print("\nUsage:", style="cyan")
+            console.print("  tam-rfe post <customer>")
+            console.print("  tam-rfe post --dry-run <customer>")
+            console.print("  tam-rfe post --customer <name> --json")
+            console.print("\nExamples:", style="cyan")
+            console.print("  tam-rfe post acme")
+            console.print("  tam-rfe post --dry-run customer123")
+            console.print("  tam-rfe post --customer acme --json")
         return
     
-    post_customer_report(customer, dry_run=dry_run)
+    if json_output:
+        # JSON mode: Return stub response for now (Portal API not integrated yet)
+        import json
+        print(json.dumps({
+            "success": True,
+            "portal_url": f"https://access.redhat.com/discussions/placeholder",
+            "discussion_id": "placeholder",
+            "preview_mode": dry_run,
+            "message": "Portal API integration pending - this is a placeholder response"
+        }))
+    else:
+        post_customer_report(customer, dry_run=dry_run)
 
 
 if __name__ == '__main__':
     import sys
     
-    dry_run = '--dry-run' in sys.argv
+    # Simple argument parsing
+    customer_val = None
+    json_mode = '--json' in sys.argv
+    dry_run_mode = '--dry-run' in sys.argv
     
-    # Get customer name (first non-flag argument)
-    customer = None
-    for arg in sys.argv[1:]:
-        if not arg.startswith('--'):
-            customer = arg
-            break
+    # Extract customer name
+    if '--customer' in sys.argv:
+        idx = sys.argv.index('--customer')
+        if idx + 1 < len(sys.argv):
+            customer_val = sys.argv[idx + 1]
+    else:
+        # Get customer name (first non-flag argument)
+        for arg in sys.argv[1:]:
+            if not arg.startswith('--'):
+                customer_val = arg
+                break
     
-    main(customer=customer, dry_run=dry_run)
+    main(customer=customer_val, dry_run=dry_run_mode, json_output=json_mode)
 

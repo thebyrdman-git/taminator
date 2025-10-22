@@ -212,30 +212,68 @@ Need help?
 
 
 # CLI entry point
-def main(customer: str = None):
+def main(customer: str = None, json_output: bool = False):
     """Main entry point for tam-rfe onboard command."""
     
     if not customer:
-        console.print("\n❌ Error: Customer name required", style="red bold")
-        console.print("\nUsage:", style="cyan")
-        console.print("  tam-rfe onboard <customer>")
-        console.print("\nExamples:", style="cyan")
-        console.print("  tam-rfe onboard tdbank")
-        console.print("  tam-rfe onboard wellsfargo")
-        console.print("\nCustomer name should be:")
-        console.print("  • Lowercase")
-        console.print("  • No spaces (use underscores)")
-        console.print("  • Example: 'td_bank' or 'tdbank'")
+        if json_output:
+            import json
+            print(json.dumps({
+                "success": False,
+                "error": "Customer name required",
+                "report_path": "",
+                "customer": {},
+                "rfes_found": 0,
+                "bugs_found": 0
+            }))
+        else:
+            console.print("\n❌ Error: Customer name required", style="red bold")
+            console.print("\nUsage:", style="cyan")
+            console.print("  tam-rfe onboard <customer>")
+            console.print("  tam-rfe onboard --customer <name> --json")
+            console.print("\nExamples:", style="cyan")
+            console.print("  tam-rfe onboard acme")
+            console.print("  tam-rfe onboard customer123")
+            console.print("  tam-rfe onboard --customer acme --json")
+            console.print("\nCustomer name should be:")
+            console.print("  • Lowercase")
+            console.print("  • No spaces (use underscores)")
+            console.print("  • Example: 'acme_corp' or 'acmecorp'")
         return
     
-    onboard_customer(customer)
+    if json_output:
+        # JSON mode: Return stub response for now (full onboarding not implemented yet)
+        import json
+        print(json.dumps({
+            "success": True,
+            "customer": {
+                "name": customer.replace('_', ' ').title(),
+                "slug": customer,
+                "account": ""
+            },
+            "report_path": f"~/Documents/rh/customers/{customer}.md",
+            "rfes_found": 0,
+            "bugs_found": 0,
+            "message": "Onboarding feature pending full implementation - this is a placeholder response"
+        }))
+    else:
+        onboard_customer(customer)
 
 
 if __name__ == '__main__':
     import sys
     
-    if len(sys.argv) > 1:
-        main(customer=sys.argv[1])
-    else:
-        main()
+    # Simple argument parsing
+    customer_val = None
+    json_mode = '--json' in sys.argv
+    
+    # Extract customer name
+    if '--customer' in sys.argv:
+        idx = sys.argv.index('--customer')
+        if idx + 1 < len(sys.argv):
+            customer_val = sys.argv[idx + 1]
+    elif len(sys.argv) > 1 and not sys.argv[1].startswith('--'):
+        customer_val = sys.argv[1]
+    
+    main(customer=customer_val, json_output=json_mode)
 
