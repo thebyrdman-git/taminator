@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Taminator
+Comment=The Skynet TAMs actually want - RFE/Bug tracking tool for Red Hat TAMs
+GenericName=RFE Tool
+Exec=taminator %U
+Icon=taminator
+Terminal=false
+Categories=Development;Utility;
+Keywords=rfe;bug;jira;redhat;tam;
+StartupWMClass=Taminator
+MimeType=x-scheme-handler/taminator;
+

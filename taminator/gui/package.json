@@ -1,0 +1,92 @@
+{
+  "name": "taminator-gui",
+  "version": "1.9.1",
+  "description": "Taminator RFE Tool - GUI Application",
+  "homepage": "https://github.com/thebyrdman-git/taminator",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "dev": "electron . --dev"
+  },
+  "author": "Jimmy Byrd",
+  "license": "ISC",
+  "dependencies": {
+    "@patternfly/react-core": "^5.4.2",
+    "@patternfly/react-icons": "^5.4.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.redhat.taminator",
+    "productName": "Taminator",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "public/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../src",
+        "to": "src"
+      },
+      {
+        "from": "../gui_auth_check.py",
+        "to": "gui_auth_check.py"
+      },
+      {
+        "from": "../python_packages",
+        "to": "python_packages"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "type": "distribution"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "category": "Development",
+      "icon": "build/icon.png",
+      "maintainer": "jbyrd@redhat.com",
+      "vendor": "Red Hat",
+      "synopsis": "The Skynet TAMs actually want",
+      "description": "RFE/Bug tracking tool for Red Hat TAMs"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Taminator"
+    }
+  }
+}

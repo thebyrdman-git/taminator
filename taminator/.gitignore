@@ -1,0 +1,158 @@
+# Taminator .gitignore
+# Security and User-Specific Files
+
+# ========================================
+# CRITICAL: Personal & Customer Data Protection
+# ========================================
+
+# Customer/Client Names (NEVER commit these)
+*td-bank*
+*td_bank*
+*wells*fargo*
+*wells_fargo*
+*fannie*mae*
+*fannie_mae*
+*jpmc*
+*chase*
+*bank*of*america*
+*citibank*
+*customer_*
+*client_*
+
+# Case Numbers and IDs
+case_[0-9]*
+*case-[0-9]*
+*case_[0-9]*
+
+# JIRA IDs (customer-specific)
+*AAP-[0-9]*
+*AAPRFE-[0-9]*
+jira_*.json
+
+# Personal Files
+*oauth_credentials*
+*youtube*token*
+*personal*
+*jimmy*
+*charles*
+*byrd*
+
+# API Tokens and Secrets
+*.token
+*_token.json
+*_token.txt
+secrets/
+.env
+.env.local
+*.key
+*.pem
+*_credentials.json
+
+# Customer Data Directories
+customers/
+customer_data/
+customer_configs/
+reports/
+output/
+*.report.md
+*_analysis.md
+*_response.md
+
+# User-Specific Configurations
+config/user_*.yaml
+config/user_*.json
+config/*_ids.yaml
+config/*_ids.json
+config/customer_group_ids.yaml
+config/customer_group_ids.json
+
+# Real Customer Examples (use sanitized examples only)
+examples/*real*
+examples/*actual*
+examples/*prod*
+
+# ========================================
+# Python
+# ========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ========================================
+# IDEs and Editors
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========================================
+# OS Files
+# ========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================================
+# Testing
+# ========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ========================================
+# Logs and Temp Files
+# ========================================
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+
+# ========================================
+# Node/GUI Build
+# ========================================
+node_modules/
+dist/
+*.tsbuildinfo
+.cache/
+
+# ========================================
+# Build Artifacts (keep source only)
+# ========================================
+gui/dist/
+*.AppImage
+*.deb
+*.rpm
+*.dmg
+*.exe
+*.msi
+*.pkg
+
+# ========================================
+# Backup Files
+# ========================================
+*.bak
+*.backup
+*~
+*.orig

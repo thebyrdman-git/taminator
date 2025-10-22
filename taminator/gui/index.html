@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taminator</title>
+  <link rel="stylesheet" href="https://unpkg.com/@patternfly/patternfly@5/patternfly.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Red Hat Text', 'RedHatText', 'Overpass', sans-serif;
+      background-color: #F5F5F5;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background-color: #212427;
+      color: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+    }
+
+    .sidebar-header {
+      padding: 24px 20px;
+      border-bottom: 1px solid #292E34;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    
+    .logo-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .logo-text {
+      font-size: 20px;
+      font-weight: 700;
+      font-family: 'Red Hat Display', sans-serif;
+    }
+
+    .logo-subtitle {
+      font-size: 11px;
+      color: #C8C8C8;
+      margin-top: 4px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px 0;
+    }
+
+    .nav-item {
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #FFFFFF;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover {
+      background-color: #292E34;
+    }
+
+    .nav-item.active {
+      background-color: #292E34;
+      border-left-color: #EE0000;
+      font-weight: 600;
+    }
+
+    .nav-icon {
+      font-size: 18px;
+      width: 20px;
+      text-align: center;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      background-color: #FFFFFF;
+      padding: 16px 32px;
+      border-bottom: 1px solid #D2D2D2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-title {
+      font-size: 24px;
+      font-weight: 700;
+      font-family: 'Red Hat Display', sans-serif;
+      color: #151515;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .content-area {
+      flex: 1;
+      padding: 32px;
+      overflow-y: auto;
+    }
+
+    /* Dashboard Cards */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: #FFFFFF;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #151515;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-content {
+      color: #6A6E73;
+    }
+
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #F0F0F0;
+    }
+
+    .status-item:last-child {
+      border-bottom: none;
+    }
+
+    .status-label {
+      font-weight: 500;
+      color: #151515;
+    }
+
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .status-badge.success {
+      background-color: #F0F9F0;
+      color: #3E8635;
+    }
+
+    .status-badge.warning {
+      background-color: #FFF8E6;
+      color: #795600;
+    }
+
+    .status-badge.error {
+      background-color: #FFEAEA;
+      color: #C9190B;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+      font-family: 'Red Hat Text', sans-serif;
+    }
+
+    .btn-primary {
+      background-color: #EE0000;
+      color: #FFFFFF;
+    }
+
+    .btn-primary:hover {
+      background-color: #C9190B;
+    }
+
+    .btn-secondary {
+      background-color: #F0F0F0;
+      color: #151515;
+    }
+
+    .btn-secondary:hover {
+      background-color: #E0E0E0;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      background-color: #FFFFFF;
+      padding: 12px 32px;
+      border-top: 1px solid #D2D2D2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #6A6E73;
+    }
+
+    .status-bar-left {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+
+    /* Loading spinner */
+    .spinner {
+      border: 3px solid #F0F0F0;
+      border-top: 3px solid #EE0000;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-container">
+          <div class="logo-icon">
+            <img src="public/terminator-icon.png" alt="Taminator">
+          </div>
+          <div>
+            <div class="logo-text">Taminator</div>
+            <div class="logo-subtitle">The Skynet TAMs actually want. 🤖</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="sidebar-nav">
+        <div class="nav-item active" onclick="showDashboard()">
+          <span class="nav-icon">🏠</span>
+          <span>Home</span>
+        </div>
+        <div class="nav-item" onclick="showCheck()">
+          <span class="nav-icon">✅</span>
+          <span>Check</span>
+        </div>
+        <div class="nav-item" onclick="showUpdate()">
+          <span class="nav-icon">🔄</span>
+          <span>Update</span>
+        </div>
+        <div class="nav-item" onclick="showPost()">
+          <span class="nav-icon">📤</span>
+          <span>Post</span>
+        </div>
+        <div class="nav-item" onclick="showOnboard()">
+          <span class="nav-icon">➕</span>
+          <span>Onboard</span>
+        </div>
+        <div class="nav-item" onclick="showAuth()" data-tooltip="Manage API tokens and authentication (VPN, Kerberos, JIRA, GitHub)">
+          <span class="nav-icon">🔐</span>
+          <span>Auth Box</span>
+        </div>
+        <div class="nav-item" onclick="showT3()" data-tooltip="Technical Topic Torrent - Red Hat internal blog distribution">
+          <span class="nav-icon">📰</span>
+          <span>T3</span>
+      </div>
+        <div class="nav-item" onclick="showKAB()" data-tooltip="Knowledge Base Article search and creation">
+        <span class="nav-icon">📚</span>
+          <span>KAB</span>
+      </div>
+        <div class="nav-item" onclick="showClippy()" data-tooltip="AI-powered customer email generator with Clippy personality">
+        <span class="nav-icon">📎</span>
+          <span>Clippy Email Generator</span>
+      </div>
+        <div class="nav-item" onclick="showConfig()" data-tooltip="Application settings and preferences">
+          <span class="nav-icon">⚙️</span>
+          <span>Settings</span>
+        </div>
+        <div class="nav-item" onclick="showReportIssue()">
+          <span class="nav-icon">🐛</span>
+          <span>Report Issue</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="header">
+        <div class="header-title" id="page-title">Dashboard</div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="refreshAuth()">
+            <span id="refresh-btn">🔄 Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="content-area" id="content">
+        <!-- Dashboard content loaded here -->
+      </div>
+
+      <div class="status-bar">
+        <div class="status-bar-left">
+          <span id="auth-status">✅ All authentication OK</span>
+          <span>|</span>
+          <span id="last-check">Last check: Loading...</span>
+        </div>
+        <div>Taminator v2.0.0-alpha</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    // Load dashboard on start
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM loaded, showing dashboard...');
+      try {
+        showDashboard();
+        refreshAuth();
+        
+        // Auto-fetch T3 posts on startup (background refresh)
+        console.log('Auto-fetching T3 posts...');
+        fetchT3Blogs().catch(error => {
+          console.error('Background T3 fetch failed:', error);
+        });
+      } catch (error) {
+        console.error('Error loading dashboard:', error);
+      }
+    });
+
+    function showDashboard() {
+      document.getElementById('page-title').textContent = 'Dashboard';
+      setActiveNav(0);
+      
+      document.getElementById('content').innerHTML = `
+        <h2 style="margin-bottom: 24px; font-size: 28px; font-weight: 700;">👋 Welcome, Jimmy</h2>
+        
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-title">📊 Customers</div>
+            <div class="card-content">
+              <div class="status-item">
+                <span class="status-label">TD Bank</span>
+                <span class="status-badge success">✓ Up-to-date</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">Wells Fargo</span>
+                <span class="status-badge warning">⚠ Needs update</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">JPMC</span>
+                <span class="status-badge success">✓ Up-to-date</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">Fannie Mae</span>
+                <span class="status-badge success">✓ Up-to-date</span>
+              </div>
+            </div>
+            <button class="btn btn-primary" style="width: 100%; margin-top: 16px;" onclick="showOnboard()">+ Add Customer</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">🔐 Auth Status</div>
+            <div class="card-content" id="auth-card">
+              <div class="spinner" style="margin: 20px auto;"></div>
+            </div>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 16px;" onclick="showAuth()">Manage Auth</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📝 Recent Activity</div>
+          <div class="card-content">
+            <div class="status-item">
+              <span>✅ Checked TD Bank report</span>
+              <span style="color: #6A6E73; font-size: 13px;">2 hours ago</span>
+            </div>
+            <div class="status-item">
+              <span>✅ Updated Wells Fargo report</span>
+              <span style="color: #6A6E73; font-size: 13px;">1 day ago</span>
+            </div>
+            <div class="status-item">
+              <span>⚠️ Portal token expires in 2 days</span>
+              <span style="color: #6A6E73; font-size: 13px;">Just now</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 24px; display: flex; gap: 12px;">
+          <button class="btn btn-primary" onclick="alert('Check All Reports - Coming soon!')">Check All Reports</button>
+          <button class="btn btn-secondary" onclick="refreshAuth()">Run Auth Audit</button>
+          <button class="btn btn-secondary" onclick="showConfig()">View Settings</button>
+        </div>
+      `;
+
+      loadAuthStatus();
+    }
+
+    function showCheck() {
+      document.getElementById('page-title').textContent = 'Check Reports';
+      setActiveNav(1);
+      
+      document.getElementById('content').innerHTML = `
+        <div class="check-reports-container">
+          <h2 style="margin-bottom: 24px;">📋 Check Report Status</h2>
+          
+          <div class="card">
+            <div class="card-title">Select Customer</div>
+            <div class="card-content">
+              <select id="check-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
+                <option value="">Select a customer...</option>
+                <option value="td-bank">TD Bank</option>
+                <option value="wells-fargo">Wells Fargo</option>
+                <option value="jpmc">JPMC</option>
+                <option value="fannie-mae">Fannie Mae</option>
+              </select>
+              
+              <button class="btn btn-primary" onclick="runCheckReport()">
+                ✅ Check Report Status
+              </button>
+            </div>
+          </div>
+          
+          <div id="check-results" style="display: none; margin-top: 24px;">
+            <div class="card">
+              <div class="card-title">📊 Status Comparison</div>
+              <div class="card-content">
+                <div class="spinner" style="margin: 20px auto;"></div>
+                <p style="text-align: center;">Checking JIRA for latest statuses...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    async function runCheckReport() {
+      const customer = document.getElementById('check-customer').value;
+      
+      if (!customer) {
+        alert('Please select a customer first!');
+        return;
+      }
+      
+      // Show results section
+      document.getElementById('check-results').style.display = 'block';
+      
+      try {
+        // Call backend to check report
+        const result = await ipcRenderer.invoke('check-report', { customer });
+        
+        // Display results
+        document.querySelector('#check-results .card-content').innerHTML = `
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background: #F5F5F5;">
+                <th style="padding: 12px; text-align: left;">JIRA ID</th>
+                <th style="padding: 12px; text-align: left;">Local Status</th>
+                <th style="padding: 12px; text-align: left;">Live Status</th>
+                <th style="padding: 12px; text-align: left;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${result.items.map(item => `
+                <tr style="border-bottom: 1px solid #F0F0F0;">
+                  <td style="padding: 12px;">${item.jira_id}</td>
+                  <td style="padding: 12px;">
+                    <span class="status-badge ${item.local_status_class}">${item.local_status}</span>
+                  </td>
+                  <td style="padding: 12px;">
+                    <span class="status-badge ${item.live_status_class}">${item.live_status}</span>
+                  </td>
+                  <td style="padding: 12px;">
+                    ${item.needs_update ? '<span class="status-badge warning">⚠ Update Needed</span>' : '<span class="status-badge success">✓ Up-to-date</span>'}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div style="margin-top: 24px;">
+            <button class="btn btn-primary" onclick="showUpdate()" ${result.needs_update ? '' : 'disabled'}>
+              🔄 Update Report
+            </button>
+            <button class="btn btn-secondary" onclick="showCheck()">
+              ✅ Check Again
+            </button>
+          </div>
+        `;
+        
+      } catch (error) {
+        document.querySelector('#check-results .card-content').innerHTML = `
+          <div style="color: #C9190B; padding: 16px;">
+            ❌ Error checking report: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    function showUpdate() {
+      document.getElementById('page-title').textContent = 'Update Reports';
+      setActiveNav(2);
+      
+      document.getElementById('content').innerHTML = `
+        <div class="update-reports-container">
+          <h2 style="margin-bottom: 24px;">🔄 Update Reports</h2>
+          
+          <div class="card">
+            <div class="card-title">Select Customer to Update</div>
+            <div class="card-content">
+              <select id="update-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
+                <option value="">Select a customer...</option>
+                <option value="td-bank">TD Bank</option>
+                <option value="wells-fargo">Wells Fargo</option>
+                <option value="jpmc">JPMC</option>
+                <option value="fannie-mae">Fannie Mae</option>
+              </select>
+              
+              <div style="margin: 16px 0;">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="update-preserve-notes" checked>
+                  <span>Preserve custom notes and comments</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                  <input type="checkbox" id="update-generate-changelog" checked>
+                  <span>Generate change log</span>
+                </label>
+              </div>
+              
+              <button class="btn btn-primary" onclick="runUpdateReport()">
+                🔄 Update Report from JIRA
+              </button>
+            </div>
+          </div>
+          
+          <div id="update-results" style="display: none; margin-top: 24px;">
+            <div class="card">
+              <div class="card-title">📝 Update Results</div>
+              <div class="card-content">
+                <div class="spinner" style="margin: 20px auto;"></div>
+                <p style="text-align: center;">Fetching latest data from JIRA...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    async function runUpdateReport() {
+      const customer = document.getElementById('update-customer').value;
+      const preserveNotes = document.getElementById('update-preserve-notes').checked;
+      const generateChangelog = document.getElementById('update-generate-changelog').checked;
+      
+      if (!customer) {
+        alert('Please select a customer first!');
+        return;
+      }
+      
+      document.getElementById('update-results').style.display = 'block';
+      
+      try {
+        const result = await ipcRenderer.invoke('update-report', { 
+          customer, 
+          preserveNotes, 
+          generateChangelog 
+        });
+        
+        document.querySelector('#update-results .card-content').innerHTML = `
+          <div style="background: #E7F8E7; border-left: 4px solid #3E8635; padding: 16px; margin-bottom: 16px;">
+            <h3 style="color: #3E8635; margin-bottom: 8px;">✅ Report Updated Successfully!</h3>
+            <p>Updated ${result.updated_count} RFE/Bug statuses</p>
+          </div>
+          
+          ${result.changelog ? `
+            <div style="margin-top: 16px;">
+              <h3 style="margin-bottom: 12px;">📋 Change Log</h3>
+              <div style="background: #F5F5F5; padding: 16px; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+                ${result.changelog.map(change => `
+                  <div style="padding: 8px 0; border-bottom: 1px solid #D2D2D2;">
+                    <strong>${change.jira_id}</strong>: ${change.old_status} → ${change.new_status}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+          
+          <div style="margin-top: 24px;">
+            <button class="btn btn-primary" onclick="showDashboard()">
+              🏠 Back to Dashboard
+            </button>
+            <button class="btn btn-secondary" onclick="showUpdate()">
+              🔄 Update Another
+            </button>
+          </div>
+        `;
+        
+      } catch (error) {
+        document.querySelector('#update-results .card-content').innerHTML = `
+          <div style="color: #C9190B; padding: 16px; background: #FFEAEA; border-radius: 4px;">
+            ❌ Error updating report: ${error.message}
+          </div>
+          <button class="btn btn-secondary" style="margin-top: 16px;" onclick="showUpdate()">
+            Try Again
+          </button>
+        `;
+      }
+    }
+
+    function showPost() {
+      document.getElementById('page-title').textContent = 'Post to Portal';
+      setActiveNav(3);
+      
+      document.getElementById('content').innerHTML = `
+        <div class="post-portal-container">
+          <h2 style="margin-bottom: 24px;">📤 Post to Customer Portal</h2>
+          
+          <div class="card">
+            <div class="card-title">Select Report to Publish</div>
+            <div class="card-content">
+              <select id="post-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
+                <option value="">Select a customer...</option>
+                <option value="td-bank">TD Bank</option>
+                <option value="wells-fargo">Wells Fargo</option>
+                <option value="jpmc">JPMC</option>
+                <option value="fannie-mae">Fannie Mae</option>
+              </select>
+              
+              <div style="margin: 16px 0;">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="post-preview" checked>
+                  <span>Preview before publishing</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                  <input type="checkbox" id="post-validate" checked>
+                  <span>Validate links and formatting</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                  <input type="checkbox" id="post-notify">
+                  <span>Send email notification to customer</span>
+                </label>
+              </div>
+              
+              <button class="btn btn-primary" onclick="runPostReport()">
+                📤 Publish to Portal
+              </button>
+            </div>
+          </div>
+          
+          <div id="post-results" style="display: none; margin-top: 24px;">
+            <div class="card">
+              <div class="card-title">📤 Publishing...</div>
+              <div class="card-content">
+                <div class="spinner" style="margin: 20px auto;"></div>
+                <p style="text-align: center;">Publishing report to Customer Portal...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    async function runPostReport() {
+      const customer = document.getElementById('post-customer').value;
+      const preview = document.getElementById('post-preview').checked;
+      const validate = document.getElementById('post-validate').checked;
+      const notify = document.getElementById('post-notify').checked;
+      
+      if (!customer) {
+        alert('Please select a customer first!');
+        return;
+      }
+      
+      document.getElementById('post-results').style.display = 'block';
+      
+      try {
+        const result = await ipcRenderer.invoke('post-report', { 
+          customer, 
+          preview, 
+          validate, 
+          notify 
+        });
+        
+        document.querySelector('#post-results .card-content').innerHTML = `
+          <div style="background: #E7F8E7; border-left: 4px solid #3E8635; padding: 16px; margin-bottom: 16px;">
+            <h3 style="color: #3E8635; margin-bottom: 8px;">✅ Report Published Successfully!</h3>
+            <p>Your report is now live on the Customer Portal</p>
+          </div>
+          
+          <div style="margin-top: 16px;">
+            <h3 style="margin-bottom: 12px;">📋 Publication Details</h3>
+            <div style="background: #F5F5F5; padding: 16px; border-radius: 4px;">
+              <div style="margin-bottom: 8px;">
+                <strong>Customer:</strong> ${result.customer_name}
+              </div>
+              <div style="margin-bottom: 8px;">
+                <strong>Portal URL:</strong> 
+                <a href="${result.portal_url}" target="_blank" style="color: #0066CC;">${result.portal_url}</a>
+              </div>
+              <div style="margin-bottom: 8px;">
+                <strong>Published:</strong> ${new Date().toLocaleString()}
+              </div>
+              ${notify ? '<div><strong>Email sent:</strong> ✓ Notification sent to customer</div>' : ''}
+            </div>
+          </div>
+          
+          <div style="margin-top: 24px;">
+            <button class="btn btn-primary" onclick="window.open('${result.portal_url}', '_blank')">
+              🔗 View on Portal
+            </button>
+            <button class="btn btn-secondary" onclick="showDashboard()">
+              🏠 Back to Dashboard
+            </button>
+          </div>
+        `;
+        
+      } catch (error) {
+        document.querySelector('#post-results .card-content').innerHTML = `
+          <div style="color: #C9190B; padding: 16px; background: #FFEAEA; border-radius: 4px;">
+            ❌ Error publishing report: ${error.message}
+          </div>
+          <button class="btn btn-secondary" style="margin-top: 16px;" onclick="showPost()">
+            Try Again
+          </button>
+        `;
+      }
+    }
+
+    function showOnboard() {
+      document.getElementById('page-title').textContent = 'Onboard Customer';
+      setActiveNav(4);
+      
+      document.getElementById('content').innerHTML = `
+        <div class="onboard-container">
+          <h2 style="margin-bottom: 24px;">➕ Onboard New Customer</h2>
+          
+          <div class="card">
+            <div class="card-title">Customer Onboarding Wizard</div>
+            <div class="card-content">
+              <div id="onboard-step-1" class="onboard-step">
+                <h3 style="margin-bottom: 16px;">Step 1: Customer Information</h3>
+                
+                <div style="margin-bottom: 16px;">
+                  <label style="display: block; margin-bottom: 4px; font-weight: 600;">Customer Name</label>
+                  <input type="text" id="onboard-name" placeholder="e.g., Acme Corporation" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                  <label style="display: block; margin-bottom: 4px; font-weight: 600;">Customer ID (slug)</label>
+                  <input type="text" id="onboard-slug" placeholder="e.g., acme-corp" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  <small style="color: #6A6E73;">Used for file names and identifiers</small>
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                  <label style="display: block; margin-bottom: 4px; font-weight: 600;">TAM Email</label>
+                  <input type="email" id="onboard-email" value="jbyrd@redhat.com" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                </div>
+                
+                <button class="btn btn-primary" onclick="onboardStep2()">
+                  Next: Discover RFEs →
+                </button>
+              </div>
+              
+              <div id="onboard-step-2" style="display: none;" class="onboard-step">
+                <h3 style="margin-bottom: 16px;">Step 2: Discover Existing RFEs/Bugs</h3>
+                <p style="margin-bottom: 16px;">Searching for existing RFE and Bug cases...</p>
+                <div class="spinner" style="margin: 20px auto;"></div>
+              </div>
+              
+              <div id="onboard-step-3" style="display: none;" class="onboard-step">
+                <h3 style="margin-bottom: 16px;">Step 3: Review & Generate</h3>
+                <div id="onboard-discovered-items"></div>
+                <button class="btn btn-primary" onclick="onboardGenerate()">
+                  ✅ Generate Initial Report
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    async function onboardStep2() {
+      const name = document.getElementById('onboard-name').value;
+      const slug = document.getElementById('onboard-slug').value;
+      const email = document.getElementById('onboard-email').value;
+      
+      if (!name || !slug || !email) {
+        alert('Please fill in all fields!');
+        return;
+      }
+      
+      document.getElementById('onboard-step-1').style.display = 'none';
+      document.getElementById('onboard-step-2').style.display = 'block';
+      
+      try {
+        const result = await ipcRenderer.invoke('onboard-discover', { name, slug, email });
+        
+        document.getElementById('onboard-step-2').style.display = 'none';
+        document.getElementById('onboard-step-3').style.display = 'block';
+        
+        document.getElementById('onboard-discovered-items').innerHTML = `
+          <div style="background: #E5F0FF; padding: 16px; border-radius: 4px; margin-bottom: 16px;">
+            <h4 style="margin-bottom: 8px;">📊 Discovery Results</h4>
+            <p>Found ${result.rfes.length} RFEs and ${result.bugs.length} Bugs</p>
+          </div>
+          
+          ${result.rfes.length > 0 ? `
+            <div style="margin-bottom: 16px;">
+              <h4>RFEs Found:</h4>
+              <ul>
+                ${result.rfes.map(rfe => `<li>${rfe.id} - ${rfe.title}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+          
+          ${result.bugs.length > 0 ? `
+            <div style="margin-bottom: 16px;">
+              <h4>Bugs Found:</h4>
+              <ul>
+                ${result.bugs.map(bug => `<li>${bug.id} - ${bug.title}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+        `;
+        
+      } catch (error) {
+        document.getElementById('onboard-step-2').innerHTML = `
+          <div style="color: #C9190B; padding: 16px;">
+            ❌ Error discovering RFEs/Bugs: ${error.message}
+          </div>
+          <button class="btn btn-secondary" onclick="showOnboard()">Start Over</button>
+        `;
+      }
+    }
+    
+    async function onboardGenerate() {
+      try {
+        const result = await ipcRenderer.invoke('onboard-generate');
+        
+        document.getElementById('onboard-step-3').innerHTML = `
+          <div style="background: #E7F8E7; border-left: 4px solid #3E8635; padding: 16px; margin-bottom: 16px;">
+            <h3 style="color: #3E8635; margin-bottom: 8px;">✅ Customer Onboarded Successfully!</h3>
+            <p>Initial report generated and saved</p>
+          </div>
+          
+          <div style="margin-top: 16px;">
+            <button class="btn btn-primary" onclick="showDashboard()">
+              🏠 Back to Dashboard
+            </button>
+            <button class="btn btn-secondary" onclick="showOnboard()">
+              ➕ Onboard Another
+            </button>
+          </div>
+        `;
+        
+      } catch (error) {
+        alert('Error generating report: ' + error.message);
+      }
+    }
+
+    function showAuth() {
+      document.getElementById('page-title').textContent = 'Authentication';
+      setActiveNav(5);
+      
+      document.getElementById('content').innerHTML = `
+        <div class="auth-container">
+          <h2 style="margin-bottom: 24px;">🔐 Authentication Management</h2>
+          
+          <div class="card">
+            <div class="card-title">API Tokens</div>
+            <div class="card-content">
+              <div style="margin-bottom: 24px;">
+                <h4 style="margin-bottom: 12px;">JIRA Token</h4>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                  <input type="password" id="auth-jira-token" placeholder="Enter JIRA API token" style="flex: 1; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  <button class="btn btn-secondary" onclick="toggleTokenVisibility('auth-jira-token')">👁️</button>
+                  <button class="btn btn-primary" onclick="saveToken('jira')">Save</button>
+                </div>
+                <small style="color: #6A6E73; display: block; margin-top: 4px;">
+                  Used for fetching RFE/Bug statuses from JIRA
+                </small>
+              </div>
+              
+              <div style="margin-bottom: 24px;">
+                <h4 style="margin-bottom: 12px;">Customer Portal Token</h4>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                  <input type="password" id="auth-portal-token" placeholder="Enter Portal API token" style="flex: 1; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  <button class="btn btn-secondary" onclick="toggleTokenVisibility('auth-portal-token')">👁️</button>
+                  <button class="btn btn-primary" onclick="saveToken('portal')">Save</button>
+                </div>
+                <small style="color: #6A6E73; display: block; margin-top: 4px;">
+                  Used for publishing reports to Customer Portal
+                </small>
+              </div>
+              
+              <div style="margin-bottom: 24px;">
+                <h4 style="margin-bottom: 12px;">GitHub Token</h4>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                  <input type="password" id="auth-github-token" placeholder="Enter GitHub Personal Access Token" style="flex: 1; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  <button class="btn btn-secondary" onclick="toggleTokenVisibility('auth-github-token')">👁️</button>
+                  <button class="btn btn-primary" onclick="saveToken('github')">Save</button>
+                </div>
+                <small style="color: #6A6E73; display: block; margin-top: 4px;">
+                  Used for submitting issues to GitHub
+                </small>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-title">Network Authentication</div>
+            <div class="card-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #F5F5F5; border-radius: 4px; margin-bottom: 12px;">
+                <div>
+                  <strong>VPN Connection</strong>
+                  <p style="margin: 4px 0 0 0; color: #6A6E73; font-size: 14px;">Red Hat VPN required for internal systems</p>
+                </div>
+                <span id="auth-vpn-status" class="status-badge">Checking...</span>
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #F5F5F5; border-radius: 4px;">
+                <div>
+                  <strong>Kerberos Ticket</strong>
+                  <p style="margin: 4px 0 0 0; color: #6A6E73; font-size: 14px;">Active ticket required for JIRA access</p>
+                </div>
+                <span id="auth-krb-status" class="status-badge">Checking...</span>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 24px;">
+            <button class="btn btn-primary" onclick="refreshAuthManagement()">
+              🔄 Refresh Status
+            </button>
+            <button class="btn btn-secondary" onclick="runAuthAudit()">
+              🔍 Run Full Audit
+            </button>
+          </div>
+        </div>
+      `;
+      
+      loadAuthManagement();
+    }
+    
+    async function loadAuthManagement() {
+      const status = await ipcRenderer.invoke('check-auth');
+      
+      document.getElementById('auth-vpn-status').className = status.vpn ? 'status-badge success' : 'status-badge error';
+      document.getElementById('auth-vpn-status').textContent = status.vpn ? '✓ Connected' : '✗ Disconnected';
+      
+      document.getElementById('auth-krb-status').className = status.kerberos ? 'status-badge success' : 'status-badge error';
+      document.getElementById('auth-krb-status').textContent = status.kerberos ? '✓ Valid' : '✗ Expired';
+    }
+    
+    function toggleTokenVisibility(inputId) {
+      const input = document.getElementById(inputId);
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+    
+    async function saveToken(type) {
+      const inputId = `auth-${type}-token`;
+      const token = document.getElementById(inputId).value;
+      
+      if (!token) {
+        alert('Please enter a token first!');
+        return;
+      }
+      
+      try {
+        await ipcRenderer.invoke('save-token', { type, token });
+        alert(`${type.toUpperCase()} token saved successfully!`);
+        document.getElementById(inputId).value = '';
+      } catch (error) {
+        alert(`Error saving token: ${error.message}`);
+      }
+    }
+    
+    function refreshAuthManagement() {
+      loadAuthManagement();
+    }
+    
+    async function runAuthAudit() {
+      alert('Running full authentication audit... (Not yet implemented)');
+    }
+
+    async function showConfig() {
+      document.getElementById('page-title').textContent = 'Settings';
+      setActiveNav(6);
+      
+      document.getElementById('content').innerHTML = `
+        <div class="settings-container">
+          <h2 style="margin-bottom: 24px;">⚙️ Settings</h2>
+          
+          <div class="card">
+            <div class="card-title">General Settings</div>
+            <div class="card-content">
+              <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 4px; font-weight: 600;">Default TAM Email</label>
+                <input type="email" id="settings-email" value="jbyrd@redhat.com" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="settings-auto-update" checked>
+                  <span>Automatically check for report updates on startup</span>
+                </label>
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="settings-notifications">
+                  <span>Enable desktop notifications</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-title">Report Settings</div>
+            <div class="card-content">
+              <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 4px; font-weight: 600;">Default Report Format</label>
+                <select id="settings-report-format" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  <option value="markdown">Markdown (.md)</option>
+                  <option value="html">HTML (.html)</option>
+                  <option value="pdf">PDF (.pdf)</option>
+                </select>
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="settings-include-timestamps" checked>
+                  <span>Include timestamps in reports</span>
+                </label>
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="settings-include-changelog" checked>
+                  <span>Generate change log on updates</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-title">Advanced Settings</div>
+            <div class="card-content">
+              <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 4px; font-weight: 600;">Reports Directory</label>
+                <div style="display: flex; gap: 12px;">
+                  <input type="text" id="settings-reports-dir" value="~/Documents/tam-reports" style="flex: 1; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;" readonly>
+                  <button class="btn btn-secondary" onclick="selectReportsDir()">Browse</button>
+                </div>
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 4px; font-weight: 600;">JIRA Query Timeout (seconds)</label>
+                <input type="number" id="settings-jira-timeout" value="30" min="5" max="120" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="settings-debug-mode">
+                  <span>Enable debug mode</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 24px; display: flex; gap: 12px;">
+            <button class="btn btn-primary" onclick="saveSettings()">
+              💾 Save Settings
+            </button>
+            <button class="btn btn-secondary" onclick="resetSettings()">
+              🔄 Reset to Defaults
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    
+    async function saveSettings() {
+      const settings = {
+        email: document.getElementById('settings-email').value,
+        autoUpdate: document.getElementById('settings-auto-update').checked,
+        notifications: document.getElementById('settings-notifications').checked,
+        reportFormat: document.getElementById('settings-report-format').value,
+        includeTimestamps: document.getElementById('settings-include-timestamps').checked,
+        includeChangelog: document.getElementById('settings-include-changelog').checked,
+        reportsDir: document.getElementById('settings-reports-dir').value,
+        jiraTimeout: document.getElementById('settings-jira-timeout').value,
+        debugMode: document.getElementById('settings-debug-mode').checked
+      };
+      
+      try {
+        await ipcRenderer.invoke('save-settings', settings);
+        alert('Settings saved successfully!');
+      } catch (error) {
+        alert('Error saving settings: ' + error.message);
+      }
+    }
+    
+    function resetSettings() {
+      if (confirm('Are you sure you want to reset all settings to defaults?')) {
+        document.getElementById('settings-email').value = 'jbyrd@redhat.com';
+        document.getElementById('settings-auto-update').checked = true;
+        document.getElementById('settings-notifications').checked = false;
+        document.getElementById('settings-report-format').value = 'markdown';
+        document.getElementById('settings-include-timestamps').checked = true;
+        document.getElementById('settings-include-changelog').checked = true;
+        document.getElementById('settings-reports-dir').value = '~/Documents/tam-reports';
+        document.getElementById('settings-jira-timeout').value = '30';
+        document.getElementById('settings-debug-mode').checked = false;
+        alert('Settings reset to defaults!');
+      }
+    }
+    
+    function selectReportsDir() {
+      alert('Directory selection dialog would open here (Not yet implemented)');
+    }
+    
+    function showClippy() {
+      document.getElementById('page-title').textContent = 'Clippy Email Assistant';
+      setActiveNav(8);
+
+      document.getElementById('content').innerHTML = `
+        <div class="clippy-container">
+          <h2 style="margin-bottom: 24px;">📎 Clippy Email Assistant</h2>
+          
+          <div class="card">
+            <div class="card-content" style="text-align: center; padding: 48px 24px;">
+              <div style="font-size: 64px; margin-bottom: 16px;">📎</div>
+              <h3 style="color: #6A6E73; margin-bottom: 16px;">Coming Soon!</h3>
+              <p style="color: #6A6E73; max-width: 500px; margin: 0 auto;">
+                Clippy, your favorite office assistant, will help you compose professional customer emails with AI-powered suggestions. 
+                This feature is currently in development and will be available soon!
+              </p>
+              
+              <div style="margin-top: 32px; padding: 24px; background: #F5F5F5; border-radius: 8px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                <h4 style="margin-bottom: 12px;">✨ Planned Features:</h4>
+                <ul style="text-align: left; color: #6A6E73;">
+                  <li>AI-powered email composition</li>
+                  <li>Customer context awareness</li>
+                  <li>Professional tone suggestions</li>
+                  <li>Classic Clippy personality & animations</li>
+                  <li>Email templates for common scenarios</li>
+                  <li>Windows XP theme integration</li>
+                </ul>
+          </div>
+
+              <div style="margin-top: 24px;">
+                <button class="btn btn-secondary" onclick="showDashboard()">
+                  ← Back to Dashboard
+              </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // T3 Distribution Page
+    function showT3() {
+      document.getElementById('page-title').textContent = 'T3 Distribution';
+      setActiveNav(6);
+
+      document.getElementById('content').innerHTML = `
+        <h2 style="margin-bottom: 24px;">📰 T3 Distribution</h2>
+        
+        <div class="card">
+          <div class="card-title">Latest T3 Posts</div>
+            <div class="card-content">
+            <button class="btn btn-primary" onclick="refreshT3Posts()" style="margin-bottom: 16px;">
+              🔄 Refresh T3 Posts
+                </button>
+            <div id="t3-posts-container">
+              <p style="color: #6A6E73;">Loading T3 posts...</p>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Load cached T3 posts if available
+      const cachedPosts = localStorage.getItem('t3_posts');
+      if (cachedPosts) {
+        renderT3Posts(JSON.parse(cachedPosts));
+      }
+    }
+    
+    async function refreshT3Posts() {
+      const container = document.getElementById('t3-posts-container');
+      container.innerHTML = '<p style="color: #6A6E73;">⏳ Fetching T3 posts...</p>';
+      
+      try {
+        const posts = await fetchT3Blogs();
+        renderT3Posts(posts);
+        localStorage.setItem('t3_posts', JSON.stringify(posts));
+      } catch (error) {
+        container.innerHTML = `<p style="color: #C9190B;">❌ Error: ${error.message}</p>`;
+      }
+    }
+    
+    async function fetchT3Blogs() {
+      const result = await ipcRenderer.invoke('fetch-t3-blogs');
+      if (!result || result.length === 0) {
+        throw new Error('No T3 posts found');
+      }
+      return result;
+    }
+    
+    function renderT3Posts(posts) {
+      const container = document.getElementById('t3-posts-container');
+      
+      if (!posts || posts.length === 0) {
+        container.innerHTML = '<p style="color: #6A6E73;">No T3 posts found.</p>';
+        return;
+      }
+
+      // Check if this is demo data (last post has #auth-box URL)
+      const isDemoData = posts.some(post => post.url === '#auth-box' || post.title.includes('Demo Data'));
+
+      let html = '';
+      
+      // Add demo data warning banner
+      if (isDemoData) {
+        html += `
+          <div style="background: #FFF3CD; border: 1px solid #F0AB00; border-radius: 4px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: start; gap: 12px;">
+              <span style="font-size: 24px;">⚠️</span>
+              <div>
+                <h3 style="margin: 0 0 8px 0; color: #151515; font-size: 16px;">Demo Data Shown</h3>
+                <p style="margin: 0 0 12px 0; color: #151515;">
+                  You're viewing sample T3 posts. To access real Red Hat Source T3 blog posts:
+                </p>
+                <ol style="margin: 0 0 12px 0; padding-left: 20px; color: #151515;">
+                  <li>Navigate to <strong>Auth Box</strong> in the sidebar</li>
+                  <li>Save your <strong>Customer Portal Token</strong> (rh_jwt cookie)</li>
+                  <li>Click <strong>Test</strong> to verify authentication</li>
+                  <li>Return here and click <strong>Refresh T3 Posts</strong></li>
+                </ol>
+                <button class="btn btn-primary" onclick="showAuth()" style="margin-top: 8px;">
+                  🔐 Go to Auth Box
+                </button>
+                </div>
+              </div>
+            </div>
+        `;
+      }
+      
+      html += '<div style="display: flex; flex-direction: column; gap: 16px;">';
+      
+      posts.forEach(post => {
+        const severityColor = post.severity === 'High' ? '#C9190B' : post.severity === 'Medium' ? '#F0AB00' : '#6A6E73';
+        html += `
+          <div style="border: 1px solid #D2D2D2; border-radius: 4px; padding: 16px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 16px;">${post.title}</h3>
+            <div style="display: flex; gap: 12px; margin-bottom: 12px; font-size: 13px; color: #6A6E73;">
+              <span>📅 ${post.date}</span>
+              <span style="color: ${severityColor};">🔥 ${post.severity}</span>
+              <span>👥 ${post.scope}</span>
+            </div>
+            <p style="margin: 0 0 12px 0; color: #151515;">${post.description}</p>
+            ${post.url && post.url !== '#' && post.url !== '#auth-box' ? 
+              `<a href="${post.url}" target="_blank" style="color: #0066CC; text-decoration: none;">View Post →</a>` : 
+              ''}
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      container.innerHTML = html;
+    }
+    
+    // KAB Page
+    function showKAB() {
+      document.getElementById('page-title').textContent = 'Knowledge Base';
+      setActiveNav(7);
+
+      document.getElementById('content').innerHTML = `
+        <h2 style="margin-bottom: 24px;">📚 Knowledge Base Articles</h2>
+
+          <div class="card">
+          <div class="card-title">Search KB Articles</div>
+            <div class="card-content">
+            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+              <input type="text" id="kb-search-input" placeholder="Search KB articles..." 
+                style="flex: 1; padding: 8px 12px; border: 1px solid #D2D2D2; border-radius: 4px;"
+                onkeypress="if(event.key==='Enter') searchKB()">
+              <button class="btn btn-primary" onclick="searchKB()">🔍 Search</button>
+              </div>
+
+            <div id="kb-results-container">
+              <p style="color: #6A6E73;">Enter a search term to find KB articles.</p>
+                </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function searchKB() {
+      const query = document.getElementById('kb-search-input').value.trim();
+      const container = document.getElementById('kb-results-container');
+      
+      if (!query) {
+        container.innerHTML = '<p style="color: #C9190B;">Please enter a search term.</p>';
+        return;
+      }
+
+      container.innerHTML = '<p style="color: #6A6E73;">⏳ Searching KB articles...</p>';
+      
+      try {
+        const result = await ipcRenderer.invoke('search-kb', { query, limit: 20 });
+        renderKBResults(result);
+      } catch (error) {
+        container.innerHTML = `<p style="color: #C9190B;">❌ Error: ${error.message}</p>`;
+      }
+    }
+    
+    function renderKBResults(result) {
+      const container = document.getElementById('kb-results-container');
+      
+      if (!result || !result.docs || result.docs.length === 0) {
+        container.innerHTML = `
+          <div style="background: #FFF3CD; border: 1px solid #F0AB00; border-radius: 4px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: start; gap: 12px;">
+              <span style="font-size: 24px;">⚠️</span>
+              <div>
+                <h3 style="margin: 0 0 8px 0; color: #151515; font-size: 16px;">No Results - Authentication Required</h3>
+                <p style="margin: 0 0 12px 0; color: #151515;">
+                  KB search requires a valid Customer Portal token. To access Red Hat Knowledge Base:
+                </p>
+                <ol style="margin: 0 0 12px 0; padding-left: 20px; color: #151515;">
+                  <li>Make sure you're connected to <strong>Red Hat VPN</strong></li>
+                  <li>Navigate to <strong>Auth Box</strong> in the sidebar</li>
+                  <li>Save your <strong>Customer Portal Token</strong> (rh_jwt cookie from access.redhat.com)</li>
+                  <li>Click <strong>Test</strong> to verify authentication</li>
+                  <li>Return here and try your search again</li>
+                </ol>
+                <button class="btn btn-primary" onclick="showAuth()" style="margin-top: 8px;">
+                  🔐 Go to Auth Box
+                </button>
+            </div>
+          </div>
+        </div>
+      `;
+        return;
+      }
+      
+      let html = `<p style="margin-bottom: 16px; color: #151515; font-weight: 600;">Found ${result.numFound} articles</p>`;
+      html += '<div style="display: flex; flex-direction: column; gap: 16px;">';
+      
+      result.docs.forEach(doc => {
+        html += `
+          <div style="border: 1px solid #D2D2D2; border-radius: 4px; padding: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+              <h3 style="margin: 0; font-size: 16px; flex: 1;">${doc.title}</h3>
+              <span style="padding: 2px 8px; background: #F0F0F0; border-radius: 3px; font-size: 12px; margin-left: 12px;">
+                ${doc.type}
+              </span>
+            </div>
+            <div style="color: #6A6E73; font-size: 13px; margin-bottom: 8px;">
+              <span>🏢 ${doc.product}</span>
+              <span style="margin-left: 12px;">📅 ${doc.modified ? new Date(doc.modified).toLocaleDateString() : 'N/A'}</span>
+            </div>
+            <p style="margin: 0 0 12px 0; color: #151515;">${doc.description}</p>
+            <a href="${doc.url}" target="_blank" style="color: #0066CC; text-decoration: none;">View Article →</a>
+          </div>
+        `;
+      });
+      
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function showReportIssue() {
+      document.getElementById('page-title').textContent = 'Report Issue';
+      setActiveNav(10);
+      
+      document.getElementById('content').innerHTML = `
+        <h2 style="margin-bottom: 24px;">🐛 Report a Bug or Request a Feature</h2>
+        
+        <p style="margin-bottom: 24px; color: #6A6E73;">
+          Help improve Taminator by reporting bugs or suggesting new features. 
+          Your feedback is submitted directly to the development team on GitHub.
+        </p>
+
+        <div class="card" style="max-width: 800px;">
+          <div class="card-title">Issue Type</div>
+          <div class="card-content">
+            <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+              <button class="btn btn-primary" style="flex: 1;" onclick="selectIssueType('bug')">
+                🐛 Bug Report
+              </button>
+              <button class="btn btn-secondary" style="flex: 1;" onclick="selectIssueType('feature')">
+                ✨ Feature Request
+              </button>
+            </div>
+
+            <div id="issue-form" style="display: none;">
+              <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Title *</label>
+                <input type="text" id="issue-title" placeholder="Brief summary of the issue or feature"
+                  style="width: 100%; padding: 12px; border: 1px solid #D2D2D2; border-radius: 4px; font-size: 14px;">
+              </div>
+
+              <div id="bug-fields" style="display: none;">
+                <div style="margin-bottom: 16px;">
+                  <label style="display: block; margin-bottom: 8px; font-weight: 600;">Description *</label>
+                  <textarea id="bug-description" rows="3" placeholder="What happened?"
+                    style="width: 100%; padding: 12px; border: 1px solid #D2D2D2; border-radius: 4px; font-size: 14px; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                  <label style="display: block; margin-bottom: 8px; font-weight: 600;">Steps to Reproduce *</label>
+                  <textarea id="bug-steps" rows="4" placeholder="1. Go to...&#10;2. Click on...&#10;3. See error..."
+                    style="width: 100%; padding: 12px; border: 1px solid #D2D2D2; border-radius: 4px; font-size: 14px; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                  <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Expected Behavior</label>
+                    <textarea id="bug-expected" rows="2" placeholder="What should happen?"
+                      style="width: 100%; padding: 12px; border: 1px solid #D2D2D2; border-radius: 4px; font-size: 14px; font-family: inherit; resize: vertical;"></textarea>
+                  </div>
+                  <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Actual Behavior</label>
+                    <textarea id="bug-actual" rows="2" placeholder="What actually happens?"
+                      style="width: 100%; padding: 12px; border: 1px solid #D2D2D2; border-radius: 4px; font-size: 14px; font-family: inherit; resize: vertical;"></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <div id="feature-fields" style="display: none;">
+                <div style="margin-bottom: 16px;">
+                  <label style="display: block; margin-bottom: 8px; font-weight: 600;">Feature Description *</label>
+                  <textarea id="feature-description" rows="3" placeholder="Describe the feature you'd like..."
+                    style="width: 100%; padding: 12px; border: 1px solid #D2D2D2; border-radius: 4px; font-size: 14px; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                  <label style="display: block; margin-bottom: 8px; font-weight: 600;">Use Case *</label>
+                  <textarea id="feature-usecase" rows="3" placeholder="What problem does this solve? How would you use it?"
+                    style="width: 100%; padding: 12px; border: 1px solid #D2D2D2; border-radius: 4px; font-size: 14px; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                  <label style="display: block; margin-bottom: 8px; font-weight: 600;">Alternatives Considered</label>
+                  <textarea id="feature-alternatives" rows="2" placeholder="Have you considered other solutions?"
+                    style="width: 100%; padding: 12px; border: 1px solid #D2D2D2; border-radius: 4px; font-size: 14px; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+              </div>
+
+              <div style="margin-top: 24px; display: flex; gap: 12px;">
+                <button class="btn btn-primary" onclick="submitIssue()">
+                  📤 Submit Issue
+                </button>
+                <button class="btn btn-secondary" onclick="cancelIssue()">
+                  Cancel
+                </button>
+              </div>
+
+              <div id="issue-status" style="margin-top: 16px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="max-width: 800px; margin-top: 24px;">
+          <div class="card-title">💡 Tips for Good Issue Reports</div>
+          <div class="card-content">
+            <p style="margin-bottom: 12px;">
+              <strong>Bug Reports:</strong> Include specific steps to reproduce, what you expected vs what happened, 
+              and your environment (OS, version).
+            </p>
+            <p>
+              <strong>Feature Requests:</strong> Explain the problem you're trying to solve, not just the solution. 
+              Describe how you would use the feature.
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
+    let currentIssueType = null;
+
+    function selectIssueType(type) {
+      currentIssueType = type;
+      document.getElementById('issue-form').style.display = 'block';
+      
+      // Hide/show relevant fields
+      document.getElementById('bug-fields').style.display = type === 'bug' ? 'block' : 'none';
+      document.getElementById('feature-fields').style.display = type === 'feature' ? 'block' : 'none';
+      
+      // Clear all fields
+      document.getElementById('issue-title').value = '';
+      if (type === 'bug') {
+        document.getElementById('bug-description').value = '';
+        document.getElementById('bug-steps').value = '';
+        document.getElementById('bug-expected').value = '';
+        document.getElementById('bug-actual').value = '';
+      } else {
+        document.getElementById('feature-description').value = '';
+        document.getElementById('feature-usecase').value = '';
+        document.getElementById('feature-alternatives').value = '';
+      }
+      
+      document.getElementById('issue-status').innerHTML = '';
+    }
+
+    async function submitIssue() {
+      const statusDiv = document.getElementById('issue-status');
+      statusDiv.innerHTML = '<div class="spinner" style="margin: 20px 0;"></div><p>Submitting issue...</p>';
+      
+      const title = document.getElementById('issue-title').value;
+      
+      if (!title) {
+        statusDiv.innerHTML = '<p style="color: #C9190B;">❌ Please enter a title</p>';
+        return;
+      }
+      
+      let body, labels;
+      
+      if (currentIssueType === 'bug') {
+        const description = document.getElementById('bug-description').value;
+        const steps = document.getElementById('bug-steps').value;
+        const expected = document.getElementById('bug-expected').value;
+        const actual = document.getElementById('bug-actual').value;
+        
+        if (!description || !steps) {
+          statusDiv.innerHTML = '<p style="color: #C9190B;">❌ Please fill in required fields</p>';
+          return;
+        }
+        
+        // Collect system info
+        const systemInfo = {
+          os: navigator.platform,
+          userAgent: navigator.userAgent,
+          taminator: '2.0.0-alpha',
+          interface: 'GUI'
+        };
+        
+        body = `## Bug Description
+
+\${description}
+
+## Steps to Reproduce
+
+\${steps}
+
+## Expected Behavior
+
+\${expected || 'N/A'}
+
+## Actual Behavior
+
+\${actual || 'N/A'}
+
+## System Information
+
+- **OS:** \${systemInfo.os}
+- **Taminator:** \${systemInfo.taminator}
+- **Interface:** \${systemInfo.interface}
+
+---
+
+*Reported via Taminator GUI*`;
+        
+        labels = ['bug'];
+        
+      } else {
+        const description = document.getElementById('feature-description').value;
+        const usecase = document.getElementById('feature-usecase').value;
+        const alternatives = document.getElementById('feature-alternatives').value;
+        
+        if (!description || !usecase) {
+          statusDiv.innerHTML = '<p style="color: #C9190B;">❌ Please fill in required fields</p>';
+          return;
+        }
+        
+        body = `## Feature Description
+
+\${description}
+
+## Use Case
+
+\${usecase}
+
+## Alternatives Considered
+
+\${alternatives || 'None specified'}
+
+---
+
+*Reported via Taminator GUI*`;
+        
+        labels = ['enhancement'];
+      }
+      
+      try {
+        // Call the Electron IPC to submit via CLI
+        const result = await ipcRenderer.invoke('submit-github-issue', {
+          title: title,
+          body: body,
+          labels: labels
+        });
+        
+        if (result.success) {
+          // Open GitLab in browser
+          require('electron').shell.openExternal(result.url);
+          
+          statusDiv.innerHTML = `
+            <div style="padding: 16px; background-color: #F0F9F0; border-left: 4px solid #3E8635; border-radius: 4px;">
+              <p style="color: #3E8635; font-weight: 600; margin-bottom: 8px;">✅ Opening GitLab in your browser...</p>
+              <p style="color: #151515; margin-bottom: 8px;">Complete the issue submission in your browser.</p>
+              <p style="color: #6A6E73; font-size: 13px;">If the browser didn't open, <a href="${result.url}" onclick="require('electron').shell.openExternal('${result.url}'); return false;" style="color: #0066CC; cursor: pointer;">click here</a>.</p>
+            </div>
+          `;
+          
+          // Clear form after 3 seconds
+          setTimeout(() => {
+            document.getElementById('issue-form').style.display = 'none';
+            currentIssueType = null;
+          }, 3000);
+          
+        } else {
+          statusDiv.innerHTML = `<p style="color: #C9190B;">❌ Failed to submit: \${result.error}</p>`;
+        }
+        
+      } catch (error) {
+        statusDiv.innerHTML = `<p style="color: #C9190B;">❌ Error: \${error.message}</p>`;
+      }
+    }
+
+    function cancelIssue() {
+      document.getElementById('issue-form').style.display = 'none';
+      currentIssueType = null;
+      document.getElementById('issue-status').innerHTML = '';
+    }
+
+    function setActiveNav(index) {
+      const navItems = document.querySelectorAll('.nav-item');
+      navItems.forEach((item, i) => {
+        if (i === index) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+    }
+
+    async function loadAuthStatus() {
+      try {
+        const authStatus = await ipcRenderer.invoke('check-auth');
+        
+        const authCard = document.getElementById('auth-card');
+        authCard.innerHTML = `
+          <div class="status-item">
+            <span class="status-label">JIRA Token</span>
+            <span class="status-badge ${authStatus.jira_token ? 'success' : 'error'}">
+              ${authStatus.jira_token ? '✓ Valid' : '✗ Not configured'}
+            </span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Portal Token</span>
+            <span class="status-badge ${authStatus.portal_token ? 'success' : 'error'}">
+              ${authStatus.portal_token ? '✓ Valid' : '✗ Not configured'}
+            </span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">VPN</span>
+            <span class="status-badge ${authStatus.vpn ? 'success' : 'error'}">
+              ${authStatus.vpn ? '✓ Connected' : '✗ Not connected'}
+            </span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Kerberos</span>
+            <span class="status-badge ${authStatus.kerberos ? 'success' : 'error'}">
+              ${authStatus.kerberos ? '✓ Valid' : '✗ No ticket'}
+            </span>
+          </div>
+        `;
+
+        // Update status bar
+        const authOK = authStatus.vpn && authStatus.kerberos;
+        document.getElementById('auth-status').innerHTML = authOK 
+          ? '✅ All authentication OK' 
+          : '⚠️ Authentication issues detected';
+        
+        document.getElementById('last-check').textContent = `Last check: ${new Date().toLocaleTimeString()}`;
+      } catch (error) {
+        console.error('Failed to load auth status:', error);
+      }
+    }
+
+    async function refreshAuth() {
+      document.getElementById('refresh-btn').innerHTML = '<div class="spinner"></div>';
+      await loadAuthStatus();
+      setTimeout(() => {
+        document.getElementById('refresh-btn').textContent = '🔄 Refresh';
+      }, 500);
+    }
+  </script>
+</body>
+</html>
+
