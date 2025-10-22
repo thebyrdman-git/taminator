@@ -49,21 +49,11 @@ mv ~/Downloads/Taminator-1.7.0.AppImage ~/Applications/
 # Install from Downloads
 open ~/Downloads/Taminator-1.7.0*.dmg
 # Drag Taminator to Applications folder
-
-# macOS will block the app (not code-signed)
-# Fix: Right-click app → Open → Click "Open" in dialog
-# OR remove quarantine:
-xattr -cr /Applications/Taminator.app
-
 # Launch from Launchpad or Applications
 
 # CLI Access (optional)
 ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/tam-rfe
 ```
-
-**⚠️ macOS "damaged" error?** App isn't code-signed. Fix:
-1. Right-click `Taminator.app` → **Open** → Click **"Open"** in the dialog
-2. Or run: `xattr -cr /Applications/Taminator.app`
 
 ### 🪟 Windows Installation
 ```powershell
