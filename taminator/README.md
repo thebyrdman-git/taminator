@@ -16,6 +16,8 @@
 
 ## 📥 Download Taminator v1.7.0
 
+**⚠️ Requires:** Red Hat VPN + GitLab CEE login
+
 | Platform | Architecture | Package Type | Download | Size |
 |----------|--------------|--------------|----------|------|
 | 🐧 **Linux** | x64 | AppImage | [Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.AppImage) | ~118 MB |
@@ -26,9 +28,10 @@
 ### 🐧 Linux Installation
 ```bash
 # Download - "I'll be back... with your report."
-wget https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.AppImage
+# Visit: https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.AppImage
+# (Must be logged into GitLab CEE - Red Hat VPN required)
 
-# Make executable and run
+# After download, make executable and run
 chmod +x Taminator-1.7.0.AppImage
 ./Taminator-1.7.0.AppImage
 
@@ -40,13 +43,11 @@ mv Taminator-1.7.0.AppImage ~/Applications/
 ### 🍎 macOS Installation
 ```bash
 # Download - "Come with me if you want to save time."
-# Intel Macs:
-curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.dmg
+# Intel Macs: https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0.dmg
+# Apple Silicon: https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0-arm64.dmg
+# (Must be logged into GitLab CEE - Red Hat VPN required)
 
-# Apple Silicon (M1/M2/M3):
-curl -LO https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator-1.7.0-arm64.dmg
-
-# Install
+# After download, install
 open Taminator-1.7.0*.dmg
 # Drag Taminator to Applications folder
 # Launch from Launchpad or Applications
@@ -59,9 +60,9 @@ ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/
 ```powershell
 # Download - "I need your clothes, your boots, and your RFE reports."
 # Visit: https://gitlab.cee.redhat.com/jbyrd/taminator/-/raw/main/Taminator_Setup_1.7.0.exe
-# Or download directly via browser
+# (Must be logged into GitLab CEE - Red Hat VPN required)
 
-# Install
+# After download, install
 # 1. Double-click Taminator_Setup_1.7.0.exe
 # 2. Follow installation wizard
 # 3. Choose installation directory (optional)
