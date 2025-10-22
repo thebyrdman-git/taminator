@@ -42,18 +42,32 @@ mv ~/Downloads/Taminator-1.7.0.AppImage ~/Applications/
 ```
 
 ### 🍎 macOS Installation
-```bash
-# Download from link above (opens in browser, click "Download" button)
-# "Come with me if you want to save time."
 
-# Install from Downloads
+**⚠️ IMPORTANT:** App is not code-signed. Follow these steps exactly:
+
+```bash
+# 1. Open DMG
 open ~/Downloads/Taminator-1.7.0*.dmg
-# Drag Taminator to Applications folder
-# Launch from Launchpad or Applications
+
+# 2. Remove quarantine from mounted app BEFORE dragging
+sudo xattr -cr /Volumes/Taminator*/Taminator.app
+
+# 3. Drag to Applications folder
+
+# 4. Remove quarantine from installed app
+sudo xattr -cr /Applications/Taminator.app
+
+# 5. Launch
+open /Applications/Taminator.app
 
 # CLI Access (optional)
 ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/tam-rfe
 ```
+
+**If still getting "damaged" error:**
+1. Right-click `Taminator.app` in Applications → **Open** (not double-click)
+2. Click **"Open"** in the security warning dialog
+3. macOS will remember and allow future launches
 
 ### 🪟 Windows Installation
 ```powershell
