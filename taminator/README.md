@@ -27,6 +27,12 @@
 
 *Click the download link → Click the "Download" button on the GitLab file page*
 
+**Getting 404 errors?**
+1. **Verify VPN:** Must be connected to Red Hat VPN
+2. **Login to GitLab:** Visit https://gitlab.cee.redhat.com and sign in first
+3. **Clear cache:** Hard refresh (Ctrl+F5 / Cmd+Shift+R)
+4. **Try direct:** Go to https://gitlab.cee.redhat.com/jbyrd/taminator and browse to the file
+
 ### 🐧 Linux Installation
 ```bash
 # Download from link above (opens in browser, click "Download" button)
