@@ -14,42 +14,63 @@
 
 **Quick Start:**
 
-## 📥 Download Taminator v1.7.0
+## 📥 Download Taminator v1.9.2
 
 **⚠️ Requires:** Red Hat VPN + GitLab CEE login
 
-### Download Page
-**https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main**
+### Download via Git (Recommended)
 
-Click on the filename, then click the **Download** button:
-- 🐧 **Linux:** `Taminator-1.7.0.AppImage` (~118 MB)
-- 🍎 **macOS Intel:** `Taminator-1.7.0.dmg` (~114 MB)
-- 🍎 **macOS Apple Silicon:** `Taminator-1.7.0-arm64.dmg` (~109 MB)
-- 🪟 **Windows:** `Taminator_Setup_1.7.0.exe` (~89 MB)
+Files are stored using Git LFS. Clone the repository to download:
+
+```bash
+# Clone with Git LFS support
+git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git
+cd taminator/releases/v1.9.2/
+
+# Files available:
+# - Taminator-1.9.2.AppImage (116 MB) - Linux
+# - Taminator-1.9.2.dmg (111 MB) - macOS Universal
+# - Taminator-Setup-1.9.2.exe (88 MB) - Windows
+```
+
+### Alternative: GitLab Web Interface
+
+1. Visit: **https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main/releases/v1.9.2**
+2. Click on the filename
+3. Click the **Download** button
+
+- 🐧 **Linux:** `Taminator-1.9.2.AppImage` (116 MB)
+- 🍎 **macOS:** `Taminator-1.9.2.dmg` (111 MB - Universal: Intel + Apple Silicon)
+- 🪟 **Windows:** `Taminator-Setup-1.9.2.exe` (88 MB)
 
 ### 🐧 Linux Installation
 ```bash
-# Download from link above (opens in browser, click "Download" button)
-# "I'll be back... with your report."
+# If you cloned via Git:
+cd taminator/releases/v1.9.2/
+chmod +x Taminator-1.9.2.AppImage
+./Taminator-1.9.2.AppImage
 
-# Make executable and run
-chmod +x ~/Downloads/Taminator-1.7.0.AppImage
-~/Downloads/Taminator-1.7.0.AppImage
+# If you downloaded from GitLab web:
+chmod +x ~/Downloads/Taminator-1.9.2.AppImage
+~/Downloads/Taminator-1.9.2.AppImage
 
 # Optional: Move to ~/Applications for system-wide access
 mkdir -p ~/Applications
-mv ~/Downloads/Taminator-1.7.0.AppImage ~/Applications/
+mv Taminator-1.9.2.AppImage ~/Applications/
 ```
 
 ### 🍎 macOS Installation
 ```bash
-# Download from link above (opens in browser, click "Download" button)
-# "Come with me if you want to save time."
+# If you cloned via Git:
+cd taminator/releases/v1.9.2/
+open Taminator-1.9.2.dmg
 
-# Install from Downloads
-open ~/Downloads/Taminator-1.7.0*.dmg
+# If you downloaded from GitLab web:
+open ~/Downloads/Taminator-1.9.2.dmg
+
 # Drag Taminator to Applications folder
-# Launch from Launchpad or Applications
+# First launch: Right-click → Open (to bypass Gatekeeper)
+# Works on both Intel and Apple Silicon Macs
 
 # CLI Access (optional)
 ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/tam-rfe
@@ -57,17 +78,19 @@ ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/
 
 ### 🪟 Windows Installation
 ```powershell
-# Download from link above (opens in browser, click "Download" button)
-# "I need your clothes, your boots, and your RFE reports."
+# If you cloned via Git:
+cd taminator\releases\v1.9.2\
+.\Taminator-Setup-1.9.2.exe
 
-# Run installer from Downloads
-# 1. Double-click Taminator_Setup_1.7.0.exe in Downloads folder
-# 2. Follow installation wizard
-# 3. Choose installation directory (optional)
-# 4. ✅ Create desktop shortcut (recommended)
-# 5. ✅ Create Start Menu shortcut
-# 6. ✅ Add to PATH (for CLI access)
-# 7. Launch from Start Menu or Desktop
+# If you downloaded from GitLab web:
+# Double-click Taminator-Setup-1.9.2.exe in Downloads folder
+
+# Follow installation wizard:
+# 1. Choose installation directory (optional)
+# 2. ✅ Create desktop shortcut (recommended)
+# 3. ✅ Create Start Menu shortcut
+# 4. ✅ Add to PATH (for CLI access)
+# 5. Launch from Start Menu or Desktop
 
 # CLI Access (if added to PATH)
 tam-rfe check --customer <name>
