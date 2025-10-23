@@ -4,7 +4,7 @@ name: Electron Build & Release
 on:
   push:
     tags:
-      - 'v*.*.*'  # Triggers on version tags like v1.9.2
+      - 'v*.*.*'  # Triggers on version tags like v1.9.5
   workflow_dispatch:  # Manual trigger for testing
 
 permissions:
@@ -45,8 +45,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: gui/package-lock.json
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -136,4 +134,3 @@ jobs:
           echo ""
           echo "📦 Artifacts:"
           find artifacts/ -type f -exec basename {} \;
-
