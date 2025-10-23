@@ -190,6 +190,28 @@ git ls-files | grep -iE "case_[0-9]" || echo "✅ Clean"
 # 5. Get user confirmation before pushing
 ```
 
+### Git LFS Release File Management
+
+**MANDATORY: Upload release files ONE AT A TIME**
+
+```bash
+# ✅ CORRECT: Upload one file per commit
+git add releases/v1.9.2/Taminator-1.9.2.AppImage
+git commit -m "Add Linux AppImage v1.9.2 via Git LFS"
+git push rfe-repo HEAD:main
+
+# Wait for upload to complete, then next file:
+git add releases/v1.9.2/Taminator-1.9.2.dmg
+git commit -m "Add macOS DMG v1.9.2 via Git LFS"
+git push rfe-repo HEAD:main
+
+# ❌ WRONG: Do NOT add multiple large files in one commit
+git add releases/v1.9.2/*.AppImage releases/v1.9.2/*.dmg releases/v1.9.2/*.exe
+git commit -m "Add all release files"  # This will fail or timeout
+```
+
+**Why:** Git LFS uploads can timeout or fail when pushing multiple large files simultaneously. Sequential uploads are more reliable.
+
 ### Allowed Files ONLY
 - ✅ `taminator/` - All Taminator files
 - ✅ `ansible/vm-*.yml` - Test environment
