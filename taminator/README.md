@@ -36,10 +36,12 @@ ls -lh  # See all 3 files
 4. **Click the Download button**
 
 Files available:
-- 🐧 `Taminator-1.9.2-x86_64.AppImage` (116 MB) - Linux Intel/AMD
-- 🐧 `Taminator-1.9.2-arm64.AppImage` (116 MB) - Linux ARM64 ⭐ **Fedora on MacBook Pro**
+- 🐧 `Taminator-1.9.2.AppImage` (116 MB) - Linux Intel/AMD (x86_64)
+- 🐧 `Taminator-1.9.2-arm64.AppImage` (118 MB) - Linux ARM64 ⭐ **Fedora on MacBook Pro**
 - 🍎 `Taminator-1.9.2.dmg` (111 MB) - macOS (Intel + Apple Silicon)
 - 🪟 `Taminator-Setup-1.9.2.exe` (88 MB) - Windows
+
+**All files available in repository:** `taminator/releases/v1.9.2/`
 
 ---
 
@@ -67,8 +69,8 @@ chmod +x Taminator-1.9.2-arm64.AppImage
 ./Taminator-1.9.2-arm64.AppImage
 
 # For x86_64 (Intel/AMD):
-chmod +x Taminator-1.9.2-x86_64.AppImage
-./Taminator-1.9.2-x86_64.AppImage
+chmod +x Taminator-1.9.2.AppImage
+./Taminator-1.9.2.AppImage
 
 # Optional: Install system-wide
 mkdir -p ~/Applications
