@@ -1,0 +1,139 @@
+---
+name: Electron Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.9.2
+  workflow_dispatch:  # Manual trigger for testing
+
+permissions:
+  contents: write  # Required for creating releases
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds
+          - os: Linux
+            runner: ubuntu-latest
+            build_target: linux
+            artifact_pattern: 'gui/dist/*.AppImage'
+          
+          # Windows builds
+          - os: Windows
+            runner: windows-latest
+            build_target: win
+            artifact_pattern: 'gui/dist/*.exe'
+          
+          # macOS builds (Universal - Intel + Apple Silicon)
+          - os: macOS
+            runner: macos-latest
+            build_target: mac
+            artifact_pattern: 'gui/dist/*.dmg'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: gui/package-lock.json
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Install Node dependencies
+        working-directory: gui
+        run: npm ci
+      
+      - name: Build Electron app (${{ matrix.os }})
+        working-directory: gui
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm run build:${{ matrix.build_target }}
+      
+      - name: List dist directory (debug)
+        working-directory: gui
+        run: ls -la dist/
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-${{ matrix.os }}-${{ github.ref_name }}
+          path: ${{ matrix.artifact_pattern }}
+          retention-days: 30
+  
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      
+      - name: List artifacts (debug)
+        run: |
+          echo "Artifacts downloaded:"
+          find artifacts/ -type f
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+      
+      - name: Read release notes
+        id: release_notes
+        run: |
+          if [ -f "v${{ steps.version.outputs.version }}-release-notes.md" ]; then
+            echo "notes_file=v${{ steps.version.outputs.version }}-release-notes.md" >> $GITHUB_OUTPUT
+          else
+            echo "notes_file=" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Taminator v${{ steps.version.outputs.version }}
+          body_path: ${{ steps.release_notes.outputs.notes_file }}
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/**/*.AppImage
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Release Summary
+        run: |
+          echo "✅ Release created successfully!"
+          echo "🔗 https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          echo ""
+          echo "📦 Artifacts:"
+          find artifacts/ -type f -exec basename {} \;
+
