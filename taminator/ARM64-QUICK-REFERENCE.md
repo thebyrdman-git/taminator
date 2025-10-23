@@ -10,17 +10,20 @@
 # 1. Check architecture
 uname -m  # Should show: aarch64
 
-# 2. Download
+# 2. Download from repository
 git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git
 cd taminator/releases/v1.9.2/
+ls -lh Taminator-1.9.2-arm64.AppImage
 
 # 3. Run
-chmod +x Taminator-*-arm64.AppImage
-./Taminator-*-arm64.AppImage
+chmod +x Taminator-1.9.2-arm64.AppImage
+./Taminator-1.9.2-arm64.AppImage
 
 # 4. If "fuse" error
 sudo dnf install fuse fuse-libs
 ```
+
+**Or download via web:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main/taminator/releases/v1.9.2
 
 **Full Guide:** [docs/ARM64-FEDORA-MACBOOK.md](docs/ARM64-FEDORA-MACBOOK.md)
 

@@ -30,10 +30,9 @@ ls -lh  # See all 3 files
 
 ### Option B: Manual Download via GitLab
 
-1. **Navigate to:** https://gitlab.cee.redhat.com/jbyrd/taminator
-2. **Browse to:** `taminator` → `releases` → `v1.9.2`
-3. **Click on the file** you need
-4. **Click the Download button**
+1. **Browse to:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main/taminator/releases/v1.9.2
+2. **Click on the file** you need
+3. **Click the Download button**
 
 Files available:
 - 🐧 `Taminator-1.9.2.AppImage` (116 MB) - Linux Intel/AMD (x86_64)
@@ -143,7 +142,7 @@ tam-rfe check --customer <name>
 
 | Version | Release Date | Key Features | Status |
 |---------|--------------|--------------|--------|
-| **v1.9.2** | Oct 2025 | Cross-platform release, Git LFS distribution | 🟢 Current |
+| **v1.9.2** | Oct 2025 | Cross-platform release, ARM64 AppImage, Git LFS | 🟢 Current |
 | **v1.7.0** | Oct 2025 | Complete GUI redesign, Auth-Box integration | ✅ Stable |
 | v1.6.0 | Sep 2025 | Desktop integration, AppImage packaging | ✅ Stable |
 | v1.5.0 | Aug 2025 | Enhanced reporting, multi-customer support | ✅ Stable |

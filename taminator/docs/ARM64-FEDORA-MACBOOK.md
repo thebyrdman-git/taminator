@@ -28,13 +28,21 @@ If you see `aarch64`, you need the ARM64 build.
 
 ### 2. Download ARM64 AppImage
 
+**Option A: Clone Repository (Recommended)**
 ```bash
 # From GitLab (requires Red Hat VPN)
 cd ~/Downloads
 git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git
 cd taminator/releases/v1.9.2/
 ls -lh Taminator-*-arm64.AppImage
+# You'll see: Taminator-1.9.2-arm64.AppImage (118 MB)
 ```
+
+**Option B: Direct Download via GitLab Web UI**
+1. Navigate to: https://gitlab.cee.redhat.com/jbyrd/taminator
+2. Browse to: `taminator` → `releases` → `v1.9.2`
+3. Click: `Taminator-1.9.2-arm64.AppImage`
+4. Click: Download button
 
 ### 3. Install and Run
 
@@ -216,6 +224,22 @@ ls -lh releases/v*/Taminator-*-arm64.AppImage
 ### Auto-Update (Future Feature)
 
 Built-in update checking is planned for v2.0.
+
+---
+
+## Download Locations
+
+### Repository Files (v1.9.2)
+**Available now in repository:**
+- `releases/v1.9.2/Taminator-1.9.2-arm64.AppImage` (118 MB)
+- Tracked in Git LFS
+- Visible in GitLab file browser
+
+### CI/CD Artifacts (v1.9.3+)
+**Future releases automatically built:**
+- Pipeline generates ARM64 AppImage
+- Attached to GitLab Releases
+- Both manual and automated options available
 
 ---
 
