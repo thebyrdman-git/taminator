@@ -36,7 +36,8 @@ ls -lh  # See all 3 files
 4. **Click the Download button**
 
 Files available:
-- 🐧 `Taminator-1.9.2.AppImage` (116 MB) - Linux
+- 🐧 `Taminator-1.9.2-x86_64.AppImage` (116 MB) - Linux Intel/AMD
+- 🐧 `Taminator-1.9.2-arm64.AppImage` (116 MB) - Linux ARM64 ⭐ **Fedora on MacBook Pro**
 - 🍎 `Taminator-1.9.2.dmg` (111 MB) - macOS (Intel + Apple Silicon)
 - 🪟 `Taminator-Setup-1.9.2.exe` (88 MB) - Windows
 
@@ -47,17 +48,35 @@ Files available:
 Pick your operating system below and follow the installation steps.
 
 ### 🐧 Linux Installation
+
+**Choose your architecture:**
+- **Intel/AMD (x86_64)**: `Taminator-1.9.2-x86_64.AppImage`
+- **ARM64 (Fedora on MacBook Pro, Raspberry Pi)**: `Taminator-1.9.2-arm64.AppImage`
+
 ```bash
+# Verify your architecture
+uname -m
+# x86_64 → use x86_64 AppImage
+# aarch64 → use arm64 AppImage
+
 # From the cloned repository:
 cd taminator/releases/v1.9.2/
-chmod +x Taminator-1.9.2.AppImage
-./Taminator-1.9.2.AppImage
+
+# For ARM64 (Fedora on MacBook Pro M1/M2/M3/M4):
+chmod +x Taminator-1.9.2-arm64.AppImage
+./Taminator-1.9.2-arm64.AppImage
+
+# For x86_64 (Intel/AMD):
+chmod +x Taminator-1.9.2-x86_64.AppImage
+./Taminator-1.9.2-x86_64.AppImage
 
 # Optional: Install system-wide
 mkdir -p ~/Applications
-cp Taminator-1.9.2.AppImage ~/Applications/
-~/Applications/Taminator-1.9.2.AppImage
+cp Taminator-1.9.2-*.AppImage ~/Applications/
+~/Applications/Taminator-1.9.2-*.AppImage
 ```
+
+**📖 Running Fedora on MacBook Pro?** See [ARM64 Fedora Guide](docs/ARM64-FEDORA-MACBOOK.md)
 
 ### 🍎 macOS Installation
 ```bash
