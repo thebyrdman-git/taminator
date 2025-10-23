@@ -55,7 +55,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npm run build:${{ matrix.build_target }}
+          npx electron-builder --${{ matrix.build_target }} --publish never
       
       - name: List dist directory (debug)
         working-directory: taminator/gui
