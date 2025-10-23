@@ -18,9 +18,12 @@
 
 **⚠️ Requires:** Red Hat VPN + GitLab CEE authentication
 
+> **⚠️ IMPORTANT:** Files are stored using **Git LFS** and **CANNOT** be downloaded individually via the GitLab web interface.  
+> You **MUST** clone the repository to get the actual installer files.
+
 ### How to Download
 
-Clone the repository to get all installer files via Git LFS:
+Clone the repository to get all installer files:
 
 ```bash
 git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git
@@ -32,8 +35,6 @@ You'll get all three installers:
 - 🐧 `Taminator-1.9.2.AppImage` (116 MB) - Linux
 - 🍎 `Taminator-1.9.2.dmg` (111 MB) - macOS (Intel + Apple Silicon)
 - 🪟 `Taminator-Setup-1.9.2.exe` (88 MB) - Windows
-
-**Note:** Files are stored using Git LFS and cannot be downloaded individually via the web interface.
 
 ---
 
