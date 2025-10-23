@@ -104,17 +104,25 @@ Taminator-1.9.3-arm64.dmg            # macOS Apple Silicon (~111 MB)
 
 ### Download Locations
 
-After successful build:
+**Current Release (v1.9.2) - Available Now:**
+- **Repository:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main/taminator/releases/v1.9.2
+- Files committed to Git (LFS)
+- Includes ARM64 AppImage: `Taminator-1.9.2-arm64.AppImage`
 
-**GitLab Release:**
-```
-https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases
-```
+**Future Releases (v1.9.3+) - CI/CD Automated:**
+- **GitLab Releases:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases
+- Built automatically by pipeline
+- Artifacts attached to release
 
-**Direct Artifact Links:**
+**Direct Artifact Links (CI/CD):**
 ```
 https://gitlab.cee.redhat.com/jbyrd/taminator/-/jobs/artifacts/v1.9.3/raw/gui/dist/Taminator-1.9.3-arm64.AppImage?job=build:linux:arm64
 ```
+
+**Both Options Work:**
+- Manual: Build locally, commit to `releases/` directory
+- Automated: CI/CD builds and attaches to GitLab Release
+- v1.9.2 uses manual, v1.9.3+ can use either or both
 
 ---
 
