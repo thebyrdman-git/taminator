@@ -16,83 +16,73 @@
 
 ## 📥 Download Taminator v1.9.2
 
-**⚠️ Requires:** Red Hat VPN + GitLab CEE login
+**⚠️ Requires:** Red Hat VPN + GitLab CEE authentication
 
-### Download via Git (Recommended)
-
-Files are stored using Git LFS. Clone the repository to download:
+### Step 1: Clone the Repository
 
 ```bash
-# Clone with Git LFS support
 git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git
 cd taminator/releases/v1.9.2/
-
-# Files available:
-# - Taminator-1.9.2.AppImage (116 MB) - Linux
-# - Taminator-1.9.2.dmg (111 MB) - macOS Universal
-# - Taminator-Setup-1.9.2.exe (88 MB) - Windows
+ls -lh  # See all 3 files
 ```
 
-### Alternative: GitLab Web Interface
+You'll get all three installers:
+- 🐧 `Taminator-1.9.2.AppImage` (116 MB) - Linux
+- 🍎 `Taminator-1.9.2.dmg` (111 MB) - macOS (Intel + Apple Silicon)
+- 🪟 `Taminator-Setup-1.9.2.exe` (88 MB) - Windows
 
-1. Visit: **https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main/releases/v1.9.2**
-2. Click on the filename
-3. Click the **Download** button
+### Step 2: Install for Your Platform
 
-- 🐧 **Linux:** `Taminator-1.9.2.AppImage` (116 MB)
-- 🍎 **macOS:** `Taminator-1.9.2.dmg` (111 MB - Universal: Intel + Apple Silicon)
-- 🪟 **Windows:** `Taminator-Setup-1.9.2.exe` (88 MB)
+Pick your operating system below and follow the installation steps.
 
 ### 🐧 Linux Installation
 ```bash
-# If you cloned via Git:
+# From the cloned repository:
 cd taminator/releases/v1.9.2/
 chmod +x Taminator-1.9.2.AppImage
 ./Taminator-1.9.2.AppImage
 
-# If you downloaded from GitLab web:
-chmod +x ~/Downloads/Taminator-1.9.2.AppImage
-~/Downloads/Taminator-1.9.2.AppImage
-
-# Optional: Move to ~/Applications for system-wide access
+# Optional: Install system-wide
 mkdir -p ~/Applications
-mv Taminator-1.9.2.AppImage ~/Applications/
+cp Taminator-1.9.2.AppImage ~/Applications/
+~/Applications/Taminator-1.9.2.AppImage
 ```
 
 ### 🍎 macOS Installation
 ```bash
-# If you cloned via Git:
+# From the cloned repository:
 cd taminator/releases/v1.9.2/
 open Taminator-1.9.2.dmg
 
-# If you downloaded from GitLab web:
-open ~/Downloads/Taminator-1.9.2.dmg
+# Then in Finder:
+# 1. Drag Taminator to Applications folder
+# 2. Eject the DMG
+# 3. Go to Applications → Right-click Taminator → Open
+#    (First time only, to bypass Gatekeeper)
 
-# Drag Taminator to Applications folder
-# First launch: Right-click → Open (to bypass Gatekeeper)
 # Works on both Intel and Apple Silicon Macs
 
-# CLI Access (optional)
+# Optional: CLI Access
 ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/tam-rfe
 ```
 
 ### 🪟 Windows Installation
 ```powershell
-# If you cloned via Git:
+# From the cloned repository:
 cd taminator\releases\v1.9.2\
 .\Taminator-Setup-1.9.2.exe
 
-# If you downloaded from GitLab web:
-# Double-click Taminator-Setup-1.9.2.exe in Downloads folder
+# Or double-click Taminator-Setup-1.9.2.exe in File Explorer
 
-# Follow installation wizard:
-# 1. Choose installation directory (optional)
+# Installation wizard will ask:
+# 1. Installation directory (default is fine)
 # 2. ✅ Create desktop shortcut (recommended)
-# 3. ✅ Create Start Menu shortcut
+# 3. ✅ Create Start Menu shortcut (recommended)
 # 4. ✅ Add to PATH (for CLI access)
-# 5. Launch from Start Menu or Desktop
 
-# CLI Access (if added to PATH)
+# Launch from Start Menu or Desktop icon
+
+# CLI usage (if you added to PATH):
 tam-rfe check --customer <name>
 ```
 
@@ -119,7 +109,8 @@ tam-rfe check --customer <name>
 
 | Version | Release Date | Key Features | Status |
 |---------|--------------|--------------|--------|
-| **v1.7.0** | Oct 2025 | Complete GUI redesign, Auth-Box, GitHub integration | 🟢 Current |
+| **v1.9.2** | Oct 2025 | Cross-platform release, Git LFS distribution | 🟢 Current |
+| **v1.7.0** | Oct 2025 | Complete GUI redesign, Auth-Box integration | ✅ Stable |
 | v1.6.0 | Sep 2025 | Desktop integration, AppImage packaging | ✅ Stable |
 | v1.5.0 | Aug 2025 | Enhanced reporting, multi-customer support | ✅ Stable |
 | v1.4.0 | Jul 2025 | CLI improvements, email notifications | ✅ Stable |
