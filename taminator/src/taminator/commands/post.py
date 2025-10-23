@@ -15,7 +15,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
 
-from ..core.auth_box import auth_box, auth_required, AuthType
+from ..core.hybrid_auth import hybrid_auth
+from ..core.auth_box import auth_required, AuthType
 from .check import CustomerReportParser
 
 console = Console()
@@ -109,8 +110,8 @@ def main(customer: str = None, dry_run: bool = False):
         console.print("  tam-rfe post <customer>")
         console.print("  tam-rfe post --dry-run <customer>")
         console.print("\nExamples:", style="cyan")
-        console.print("  tam-rfe post tdbank")
-        console.print("  tam-rfe post --dry-run wellsfargo")
+        console.print("  tam-rfe post acmecorp")
+        console.print("  tam-rfe post --dry-run exampleinc")
         return
     
     post_customer_report(customer, dry_run=dry_run)

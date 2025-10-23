@@ -19,7 +19,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
 
-from ..core.auth_box import auth_box, auth_required, AuthType
+from ..core.hybrid_auth import hybrid_auth
+from ..core.auth_box import auth_required, AuthType
 from .check import CustomerReportParser, JIRAClient
 
 console = Console()
@@ -153,7 +154,7 @@ def update_customer_report(customer_name: str, auto_confirm: bool = False):
     console.print()
     
     # Fetch current statuses from JIRA
-    jira_token = auth_box.get_token(AuthType.JIRA_TOKEN)
+    jira_token = hybrid_auth.get_token('jira')
     jira_client = JIRAClient(jira_token)
     
     issue_keys = [issue[0] for issue in issues]
@@ -253,7 +254,7 @@ def main(customer: str = None, test_data: bool = False, auto_confirm: bool = Fal
         console.print("  tam-rfe update <customer>")
         console.print("  tam-rfe update --test-data")
         console.print("\nExamples:", style="cyan")
-        console.print("  tam-rfe update tdbank")
+        console.print("  tam-rfe update acmecorp")
         console.print("  tam-rfe update testcustomer")
         console.print("  tam-rfe update --test-data")
         return

@@ -20,7 +20,8 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from ..core.auth_box import auth_box, auth_required, AuthType
+from ..core.hybrid_auth import hybrid_auth
+from ..core.auth_box import auth_required, AuthType
 from ..core.auth_types import AUTH_REQUIREMENTS
 
 console = Console()
@@ -232,7 +233,7 @@ def check_customer_report(customer_name: str):
     console.print()
     
     # Fetch current statuses from JIRA
-    jira_token = auth_box.get_token(AuthType.JIRA_TOKEN)
+    jira_token = hybrid_auth.get_token('jira')
     jira_client = JIRAClient(jira_token)
     
     issue_keys = [issue[0] for issue in issues]
@@ -401,7 +402,7 @@ def main(customer: str = None, test_data: bool = False):
         console.print("  tam-rfe check <customer>")
         console.print("  tam-rfe check --test-data")
         console.print("\nExamples:", style="cyan")
-        console.print("  tam-rfe check tdbank")
+        console.print("  tam-rfe check acmecorp")
         console.print("  tam-rfe check testcustomer")
         console.print("  tam-rfe check --test-data  # Use sample data")
         return

@@ -19,7 +19,8 @@ from rich.console import Console
 from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
 
-from ..core.auth_box import auth_box, auth_required, AuthType
+from ..core.hybrid_auth import hybrid_auth
+from ..core.auth_box import auth_required, AuthType
 
 console = Console()
 
@@ -85,7 +86,7 @@ def onboard_customer(customer_name: str):
     Interactive customer onboarding wizard.
     
     Args:
-        customer_name: Customer name (slug format, e.g., 'tdbank')
+        customer_name: Customer name (slug format, e.g., 'acmecorp')
     """
     console.print()
     console.print("╔════════════════════════════════════════════════════════════╗", style="cyan bold")
@@ -220,12 +221,12 @@ def main(customer: str = None):
         console.print("\nUsage:", style="cyan")
         console.print("  tam-rfe onboard <customer>")
         console.print("\nExamples:", style="cyan")
-        console.print("  tam-rfe onboard tdbank")
-        console.print("  tam-rfe onboard wellsfargo")
+        console.print("  tam-rfe onboard acmecorp")
+        console.print("  tam-rfe onboard exampleinc")
         console.print("\nCustomer name should be:")
         console.print("  • Lowercase")
         console.print("  • No spaces (use underscores)")
-        console.print("  • Example: 'td_bank' or 'tdbank'")
+        console.print("  • Example: 'acme_corp' or 'acmecorp'")
         return
     
     onboard_customer(customer)

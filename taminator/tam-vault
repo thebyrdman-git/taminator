@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""
+Taminator Vault Management CLI.
+
+Manage HashiCorp Vault integration for Taminator.
+
+Commands:
+    tam-vault status          - Check Vault connection
+    tam-vault migrate         - Migrate Auth Box tokens to Vault
+    tam-vault list            - List all tokens in Vault
+    tam-vault get <service>   - Retrieve a token
+    tam-vault set <service>   - Store a token (interactive)
+    tam-vault delete <service> - Remove a token
+    tam-vault test            - Test Vault integration
+
+Examples:
+    tam-vault status
+    tam-vault migrate
+    tam-vault set jira
+    tam-vault get portal
+"""
+
+import sys
+import os
+
+# Add taminator to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from taminator.core.vault_client import vault_client
+from taminator.core.hybrid_auth import hybrid_auth
+
+console = Console()
+
+
+def cmd_status():
+    """Show Vault connection status."""
+    status = vault_client.get_status()
+    
+    table = Table(title="🔐 Vault Status")
+    table.add_column("Property", style="cyan")
+    table.add_column("Value", style="green")
+    
+    if status['available']:
+        table.add_row("Status", "✅ Connected")
+        table.add_row("Address", status['addr'])
+        table.add_row("Version", status['version'])
+        table.add_row("Initialized", "✅ Yes" if status['initialized'] else "❌ No")
+        table.add_row("Sealed", "❌ Yes" if status['sealed'] else "✅ No")
+    else:
+        table.add_row("Status", "❌ Not Available")
+        table.add_row("Address", status['addr'])
+        table.add_row("Error", status.get('error', 'Unknown'))
+    
+    console.print(table)
+    
+    # Show hybrid auth status
+    hybrid_status = hybrid_auth.get_status()
+    console.print(f"\n[cyan]Strategy:[/cyan] {hybrid_status['strategy']}")
+    
+    if not status['available']:
+        console.print("\n[yellow]⚠️  Vault not available. Using Auth Box fallback.[/yellow]")
+        console.print("\nTo enable Vault:")
+        console.print("  export VAULT_ADDR='http://192.168.1.34:8201'")
+        console.print("  export VAULT_TOKEN='***REMOVED***'")
+
+
+def cmd_migrate():
+    """Migrate Auth Box tokens to Vault."""
+    console.print(Panel("🔄 Migrating Auth Box → Vault", style="cyan"))
+    
+    if not vault_client.is_available():
+        console.print("[red]❌ Vault not available. Cannot migrate.[/red]")
+        return 1
+    
+    migrated, failed = hybrid_auth.migrate_to_vault()
+    
+    if migrated > 0:
+        console.print(f"\n[green]✅ Successfully migrated {migrated} tokens to Vault[/green]")
+    
+    if failed > 0:
+        console.print(f"[yellow]⚠️  {failed} tokens failed to migrate[/yellow]")
+    
+    return 0
+
+
+def cmd_list():
+    """List all tokens in Vault."""
+    if not vault_client.is_available():
+        console.print("[red]❌ Vault not available[/red]")
+        return 1
+    
+    tokens = vault_client.list_tokens()
+    
+    if not tokens:
+        console.print("[yellow]No tokens stored in Vault[/yellow]")
+        return 0
+    
+    table = Table(title="🔑 Tokens in Vault")
+    table.add_column("Service", style="cyan")
+    
+    for token in tokens:
+        table.add_row(token.replace('/', ''))
+    
+    console.print(table)
+    return 0
+
+
+def cmd_get(service: str):
+    """Retrieve a token."""
+    token = hybrid_auth.get_token(service, required=False)
+    
+    if token:
+        console.print(f"[green]✅ {service} token:[/green]")
+        console.print(f"[dim]{token}[/dim]")
+        return 0
+    else:
+        console.print(f"[red]❌ No token found for {service}[/red]")
+        return 1
+
+
+def cmd_set(service: str):
+    """Store a token (interactive)."""
+    console.print(f"[cyan]Enter {service} token:[/cyan]")
+    token = input().strip()
+    
+    if not token:
+        console.print("[red]❌ No token provided[/red]")
+        return 1
+    
+    if hybrid_auth.set_token(service, token):
+        console.print(f"[green]✅ Stored {service} token[/green]")
+        return 0
+    else:
+        console.print(f"[red]❌ Failed to store {service} token[/red]")
+        return 1
+
+
+def cmd_delete(service: str):
+    """Delete a token."""
+    if vault_client.delete_token(service):
+        console.print(f"[green]✅ Deleted {service} token from Vault[/green]")
+        return 0
+    else:
+        console.print(f"[red]❌ Failed to delete {service} token[/red]")
+        return 1
+
+
+def cmd_test():
+    """Test Vault integration."""
+    console.print(Panel("🧪 Testing Vault Integration", style="cyan"))
+    
+    # Test Vault connectivity
+    console.print("\n1. Testing Vault connectivity...")
+    if vault_client.is_available():
+        console.print("   ✅ Vault is available")
+    else:
+        console.print("   ❌ Vault is not available")
+        return 1
+    
+    # Test hybrid auth
+    console.print("\n2. Testing hybrid auth strategy...")
+    status = hybrid_auth.get_status()
+    console.print(f"   Strategy: {status['strategy']}")
+    
+    # Test token retrieval
+    console.print("\n3. Testing token retrieval...")
+    test_services = ['jira', 'portal', 'github']
+    for service in test_services:
+        token = hybrid_auth.get_token(service, required=False)
+        if token:
+            console.print(f"   ✅ {service}: {token[:20]}...")
+        else:
+            console.print(f"   ⚠️  {service}: Not configured")
+    
+    console.print("\n[green]✅ Test complete[/green]")
+    return 0
+
+
+def main():
+    """Main entry point."""
+    if len(sys.argv) < 2:
+        console.print(__doc__)
+        return 1
+    
+    command = sys.argv[1]
+    
+    if command == 'status':
+        return cmd_status()
+    elif command == 'migrate':
+        return cmd_migrate()
+    elif command == 'list':
+        return cmd_list()
+    elif command == 'get':
+        if len(sys.argv) < 3:
+            console.print("[red]Usage: tam-vault get <service>[/red]")
+            return 1
+        return cmd_get(sys.argv[2])
+    elif command == 'set':
+        if len(sys.argv) < 3:
+            console.print("[red]Usage: tam-vault set <service>[/red]")
+            return 1
+        return cmd_set(sys.argv[2])
+    elif command == 'delete':
+        if len(sys.argv) < 3:
+            console.print("[red]Usage: tam-vault delete <service>[/red]")
+            return 1
+        return cmd_delete(sys.argv[2])
+    elif command == 'test':
+        return cmd_test()
+    else:
+        console.print(f"[red]Unknown command: {command}[/red]")
+        console.print(__doc__)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
+

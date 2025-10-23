@@ -22,7 +22,8 @@ from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
 from rich.markdown import Markdown
 
-from ..core.auth_box import auth_box, auth_required, AuthType
+from ..core.hybrid_auth import hybrid_auth
+from ..core.auth_box import auth_required, AuthType
 
 console = Console()
 
@@ -286,7 +287,7 @@ This helps make Taminator better for all TAMs!
     console.print("📤 Submitting issue to GitHub...", style="cyan")
     
     # Get GitHub token
-    github_token = auth_box.get_token(AuthType.GITHUB_TOKEN)
+    github_token = hybrid_auth.get_token('github')
     
     # Submit issue
     issue_url = GitHubIssueReporter.submit_issue(

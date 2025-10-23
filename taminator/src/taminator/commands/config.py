@@ -22,6 +22,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from ..core.hybrid_auth import hybrid_auth
 from ..core.auth_box import auth_box, KEYRING_AVAILABLE
 from ..core.auth_types import AuthType, TOKEN_REGISTRY
 

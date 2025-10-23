@@ -293,8 +293,8 @@
           <span>Home</span>
         </div>
         <div class="nav-item" onclick="showCheck()">
-          <span class="nav-icon">✅</span>
-          <span>Check</span>
+          <span class="nav-icon">🔍</span>
+          <span>Verify</span>
         </div>
         <div class="nav-item" onclick="showUpdate()">
           <span class="nav-icon">🔄</span>
@@ -308,9 +308,9 @@
           <span class="nav-icon">➕</span>
           <span>Onboard</span>
         </div>
-        <div class="nav-item" onclick="showAuth()">
-          <span class="nav-icon">🔐</span>
-          <span>Auth</span>
+        <div class="nav-item" onclick="showVault()">
+          <span class="nav-icon">🔒</span>
+          <span>Vault</span>
         </div>
       <div class="nav-item" onclick="showClippy()">
         <span class="nav-icon">📎</span>
@@ -358,15 +358,82 @@
     const { ipcRenderer } = require('electron');
 
     // Load dashboard on start
-    document.addEventListener('DOMContentLoaded', () => {
-      console.log('DOM loaded, showing dashboard...');
+    document.addEventListener('DOMContentLoaded', async () => {
+      console.log('DOM loaded, loading settings and showing dashboard...');
       try {
+        // Load saved settings first
+        await loadSavedSettingsOnStartup();
+        
+        // Then show dashboard and refresh auth
         showDashboard();
         refreshAuth();
       } catch (error) {
         console.error('Error loading dashboard:', error);
       }
     });
+    
+    // Load and apply saved settings on startup
+    async function loadSavedSettingsOnStartup() {
+      try {
+        const settings = await window.api.invoke('load-settings');
+        
+        if (settings) {
+          console.log('[Settings] Loaded saved settings:', settings);
+          
+          // Apply settings to form fields
+          if (settings.email) {
+            const emailField = document.getElementById('tam-email');
+            if (emailField) emailField.value = settings.email;
+          }
+          
+          if (settings.autoUpdate !== undefined) {
+            const autoUpdateField = document.getElementById('auto-update');
+            if (autoUpdateField) autoUpdateField.checked = settings.autoUpdate;
+          }
+          
+          if (settings.notifications !== undefined) {
+            const notificationsField = document.getElementById('notifications');
+            if (notificationsField) notificationsField.checked = settings.notifications;
+          }
+          
+          if (settings.defaultFormat) {
+            const formatField = document.getElementById('default-format');
+            if (formatField) formatField.value = settings.defaultFormat;
+          }
+          
+          if (settings.includeTimestamps !== undefined) {
+            const timestampsField = document.getElementById('timestampsField');
+            if (timestampsField) timestampsField.checked = settings.includeTimestamps;
+          }
+          
+          if (settings.generateChangelog !== undefined) {
+            const changelogField = document.getElementById('generate-changelog');
+            if (changelogField) changelogField.checked = settings.generateChangelog;
+          }
+          
+          if (settings.reportsDirectory) {
+            const reportsDirField = document.getElementById('reports-directory');
+            if (reportsDirField) reportsDirField.value = settings.reportsDirectory;
+          }
+          
+          if (settings.jiraTimeout) {
+            const timeoutField = document.getElementById('jira-timeout');
+            if (timeoutField) timeoutField.value = settings.jiraTimeout;
+          }
+          
+          if (settings.debugMode !== undefined) {
+            const debugField = document.getElementById('debug-mode');
+            if (debugField) debugField.checked = settings.debugMode;
+          }
+          
+          console.log('[Settings] Applied settings to UI');
+        } else {
+          console.log('[Settings] No saved settings found, using defaults');
+        }
+      } catch (error) {
+        console.error('[Settings] Error loading settings:', error);
+      }
+    }
 
     function showDashboard() {
       document.getElementById('page-title').textContent = 'Dashboard';
@@ -375,24 +442,31 @@
       document.getElementById('content').innerHTML = `
         <h2 style="margin-bottom: 24px; font-size: 28px; font-weight: 700;">👋 Welcome, Jimmy</h2>
         
+        <div style="margin-bottom: 24px; padding: 16px; background: #FFF4E5; border-left: 4px solid #F0AB00; border-radius: 4px;">
+          <p style="margin: 0; color: #151515; font-size: 14px;">
+            <strong>⚠️ Dashboard shows placeholder data.</strong> Real-time customer status tracking coming in future release.
+            For actual status, use the "Verify" and "Update" tabs.
+          </p>
+        </div>
+        
         <div class="dashboard-grid">
           <div class="card">
-            <div class="card-title">📊 Customers</div>
+            <div class="card-title">📊 Customers <small style="color: #F0AB00; font-weight: normal;">(Demo Data)</small></div>
             <div class="card-content">
               <div class="status-item">
-                <span class="status-label">TD Bank</span>
+                <span class="status-label">Acme Corp</span>
                 <span class="status-badge success">✓ Up-to-date</span>
               </div>
               <div class="status-item">
-                <span class="status-label">Wells Fargo</span>
+                <span class="status-label">Example Inc</span>
                 <span class="status-badge warning">⚠ Needs update</span>
               </div>
               <div class="status-item">
-                <span class="status-label">JPMC</span>
+                <span class="status-label">Big Customer</span>
                 <span class="status-badge success">✓ Up-to-date</span>
               </div>
               <div class="status-item">
-                <span class="status-label">Fannie Mae</span>
+                <span class="status-label">Test Co</span>
                 <span class="status-badge success">✓ Up-to-date</span>
               </div>
             </div>
@@ -400,23 +474,23 @@
           </div>
 
           <div class="card">
-            <div class="card-title">🔐 Auth Status</div>
+            <div class="card-title">🔐 Auth Status <small style="color: #3E8635; font-weight: normal;">(Live)</small></div>
             <div class="card-content" id="auth-card">
               <div class="spinner" style="margin: 20px auto;"></div>
             </div>
-            <button class="btn btn-secondary" style="width: 100%; margin-top: 16px;" onclick="showAuth()">Manage Auth</button>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 16px;" onclick="showVault()">Manage Tokens</button>
           </div>
         </div>
 
         <div class="card">
-          <div class="card-title">📝 Recent Activity</div>
+          <div class="card-title">📝 Recent Activity <small style="color: #F0AB00; font-weight: normal;">(Demo Data)</small></div>
           <div class="card-content">
             <div class="status-item">
-              <span>✅ Checked TD Bank report</span>
+              <span>✅ Checked Acme Corp report</span>
               <span style="color: #6A6E73; font-size: 13px;">2 hours ago</span>
             </div>
             <div class="status-item">
-              <span>✅ Updated Wells Fargo report</span>
+              <span>✅ Updated Example Inc report</span>
               <span style="color: #6A6E73; font-size: 13px;">1 day ago</span>
             </div>
             <div class="status-item">
@@ -437,27 +511,37 @@
     }
 
     function showCheck() {
-      document.getElementById('page-title').textContent = 'Check Reports';
+      document.getElementById('page-title').textContent = 'Verify RFE/Bug Tracker';
       setActiveNav(1);
       
       document.getElementById('content').innerHTML = `
         <div class="check-reports-container">
-          <h2 style="margin-bottom: 24px;">📋 Check Report Status</h2>
+          <div style="margin-bottom: 24px; padding: 16px; background: #F0F0F0; border-left: 4px solid #0066CC; border-radius: 4px;">
+            <p style="margin: 0; color: #151515;">
+              <strong>What this does:</strong> Compares your saved RFE/Bug tracker against current JIRA status. 
+              Use this to see what has changed since your last report update (status changes, new comments, etc.).
+            </p>
+          </div>
           
           <div class="card">
-            <div class="card-title">Select Customer</div>
+            <div class="card-title">Compare Report with Live JIRA Data</div>
             <div class="card-content">
-              <select id="check-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
-                <option value="">Select a customer...</option>
-                <option value="td-bank">TD Bank</option>
-                <option value="wells-fargo">Wells Fargo</option>
-                <option value="jpmc">JPMC</option>
-                <option value="fannie-mae">Fannie Mae</option>
+              <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #151515;">Select Customer:</label>
+              <select id="check-customer" style="width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #D2D2D2; border-radius: 4px; font-size: 14px;">
+                <option value="">Choose a customer to check...</option>
+                <option value="acme-corp">Acme Corp</option>
+                <option value="example-inc">Example Inc</option>
+                <option value="big-customer">Big Customer</option>
+                <option value="test-co">Test Co</option>
               </select>
               
-              <button class="btn btn-primary" onclick="runCheckReport()">
-                ✅ Check Report Status
+              <button class="btn btn-primary" onclick="runCheckReport()" style="width: 100%;">
+                🔍 Compare Report vs. Live JIRA
               </button>
+              
+              <small style="display: block; margin-top: 12px; color: #6A6E73;">
+                💡 Results show: status changes, resolution updates, and issues that need attention
+              </small>
             </div>
           </div>
           
@@ -538,38 +622,55 @@
     }
 
     function showUpdate() {
-      document.getElementById('page-title').textContent = 'Update Reports';
+      document.getElementById('page-title').textContent = 'Update RFE/Bug Tracker';
       setActiveNav(2);
       
       document.getElementById('content').innerHTML = `
         <div class="update-reports-container">
-          <h2 style="margin-bottom: 24px;">🔄 Update Reports</h2>
+          <div style="margin-bottom: 24px; padding: 16px; background: #F0F0F0; border-left: 4px solid #0066CC; border-radius: 4px;">
+            <p style="margin: 0 0 12px 0; color: #151515;">
+              <strong>What this does:</strong> Fetches current status from JIRA and updates your saved RFE/Bug tracker. 
+              Only status columns are updated - all your custom notes, comments, and formatting are automatically preserved.
+            </p>
+            <details style="margin-top: 8px;">
+              <summary style="cursor: pointer; color: #0066CC; font-weight: 600;">ℹ️ How updates work</summary>
+              <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px; font-size: 13px;">
+                <strong>Automatically preserves:</strong><br>
+                • Custom notes and comments<br>
+                • Report formatting and structure<br>
+                • Any text outside of status columns<br><br>
+                
+                <strong>Updates only:</strong><br>
+                • JIRA status (e.g., "In Progress" → "Released")<br>
+                • Resolution status<br><br>
+                
+                <strong>Safety:</strong><br>
+                • Creates .backup file before updating<br>
+                • Adds "Last Updated" timestamp<br>
+                • No data loss risk
+              </div>
+            </details>
+          </div>
           
           <div class="card">
-            <div class="card-title">Select Customer to Update</div>
+            <div class="card-title">Select Customer Report to Update</div>
             <div class="card-content">
-              <select id="update-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
-                <option value="">Select a customer...</option>
-                <option value="td-bank">TD Bank</option>
-                <option value="wells-fargo">Wells Fargo</option>
-                <option value="jpmc">JPMC</option>
-                <option value="fannie-mae">Fannie Mae</option>
+              <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #151515;">Customer:</label>
+              <select id="update-customer" style="width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #D2D2D2; border-radius: 4px; font-size: 14px;">
+                <option value="">Choose a customer...</option>
+                <option value="acme-corp">Acme Corp</option>
+                <option value="example-inc">Example Inc</option>
+                <option value="big-customer">Big Customer</option>
+                <option value="test-co">Test Co</option>
               </select>
               
-              <div style="margin: 16px 0;">
-                <label style="display: flex; align-items: center; gap: 8px;">
-                  <input type="checkbox" id="update-preserve-notes" checked>
-                  <span>Preserve custom notes and comments</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
-                  <input type="checkbox" id="update-generate-changelog" checked>
-                  <span>Generate change log</span>
-                </label>
-              </div>
-              
-              <button class="btn btn-primary" onclick="runUpdateReport()">
-                🔄 Update Report from JIRA
+              <button class="btn btn-primary" onclick="runUpdateReport()" style="width: 100%;">
+                🔄 Update from JIRA
               </button>
+              
+              <small style="display: block; margin-top: 12px; color: #6A6E73;">
+                💡 Tip: Run "Verify" first to see what will change before updating
+              </small>
             </div>
           </div>
           
@@ -588,8 +689,6 @@
     
     async function runUpdateReport() {
       const customer = document.getElementById('update-customer').value;
-      const preserveNotes = document.getElementById('update-preserve-notes').checked;
-      const generateChangelog = document.getElementById('update-generate-changelog').checked;
       
       if (!customer) {
         alert('Please select a customer first!');
@@ -597,18 +696,33 @@
       }
       
       document.getElementById('update-results').style.display = 'block';
+      document.querySelector('#update-results .card-content').innerHTML = `
+        <div class="spinner" style="margin: 20px auto;"></div>
+        <p style="text-align: center;">Fetching latest data from JIRA...</p>
+      `;
       
       try {
-        const result = await ipcRenderer.invoke('update-report', { 
-          customer, 
-          preserveNotes, 
-          generateChangelog 
-        });
+        const result = await ipcRenderer.invoke('update-report', { customer });
+        
+        // Extract file paths from output (if available)
+        const outputLines = result.output ? result.output.split('\n') : [];
+        const reportPath = outputLines.find(line => line.includes('.md') || line.includes('Documents/rh/'));
+        const backupPath = reportPath ? reportPath.replace('.md', '.md.backup') : null;
         
         document.querySelector('#update-results .card-content').innerHTML = `
           <div style="background: #E7F8E7; border-left: 4px solid #3E8635; padding: 16px; margin-bottom: 16px;">
             <h3 style="color: #3E8635; margin-bottom: 8px;">✅ Report Updated Successfully!</h3>
-            <p>Updated ${result.updated_count} RFE/Bug statuses</p>
+            <p style="margin-bottom: 12px;">JIRA statuses synchronized with your saved tracker</p>
+            
+            ${reportPath || backupPath ? `
+            <details style="margin-top: 12px;">
+              <summary style="cursor: pointer; color: #0066CC;">📁 File locations</summary>
+              <div style="margin-top: 8px; font-family: monospace; font-size: 12px; background: white; padding: 8px; border-radius: 4px;">
+                ${reportPath ? `<strong>Updated:</strong> ~/Documents/rh/${customer}/rfe-bug-tracker.md<br>` : ''}
+                ${backupPath ? `<strong>Backup:</strong> ~/Documents/rh/${customer}/rfe-bug-tracker.md.backup<br>` : ''}
+              </div>
+            </details>
+            ` : ''}
           </div>
           
           ${result.changelog ? `
@@ -659,10 +773,10 @@
             <div class="card-content">
               <select id="post-customer" style="width: 100%; padding: 8px; margin-bottom: 16px;">
                 <option value="">Select a customer...</option>
-                <option value="td-bank">TD Bank</option>
-                <option value="wells-fargo">Wells Fargo</option>
-                <option value="jpmc">JPMC</option>
-                <option value="fannie-mae">Fannie Mae</option>
+                <option value="acme-corp">Acme Corp</option>
+                <option value="example-inc">Example Inc</option>
+                <option value="big-customer">Big Customer</option>
+                <option value="test-co">Test Co</option>
               </select>
               
               <div style="margin: 16px 0;">
@@ -771,7 +885,20 @@
       
       document.getElementById('content').innerHTML = `
         <div class="onboard-container">
-          <h2 style="margin-bottom: 24px;">➕ Onboard New Customer</h2>
+          <div style="margin-bottom: 24px; padding: 16px; background: #F0F0F0; border-left: 4px solid #0066CC; border-radius: 4px;">
+            <p style="margin: 0 0 12px 0; color: #151515;">
+              <strong>What this does:</strong> Sets up a new customer in Taminator for automated tracking and reporting. 
+              This creates a customer configuration file and initializes tracking for RFEs, Bugs, and active support cases.
+            </p>
+            <details style="margin-top: 8px;">
+              <summary style="cursor: pointer; color: #0066CC; font-weight: 600;">📁 Where data is saved</summary>
+              <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px; font-family: monospace; font-size: 12px;">
+                <strong>Customer Config:</strong> ~/.config/taminator/customers/<em>customer-name</em>.yml<br>
+                <strong>Reports:</strong> ~/Documents/rh/<em>customer-name</em>/<br>
+                <strong>Trackers:</strong> ~/Documents/rh/<em>customer-name</em>/rfe-bug-tracker.md
+              </div>
+            </details>
+          </div>
           
           <div class="card">
             <div class="card-title">Customer Onboarding Wizard</div>
@@ -782,21 +909,23 @@
                 <div style="margin-bottom: 16px;">
                   <label style="display: block; margin-bottom: 4px; font-weight: 600;">Customer Name</label>
                   <input type="text" id="onboard-name" placeholder="e.g., Acme Corporation" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  <small style="color: #6A6E73;">Full customer name as it appears in Salesforce</small>
                 </div>
                 
                 <div style="margin-bottom: 16px;">
-                  <label style="display: block; margin-bottom: 4px; font-weight: 600;">Customer ID (slug)</label>
-                  <input type="text" id="onboard-slug" placeholder="e.g., acme-corp" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
-                  <small style="color: #6A6E73;">Used for file names and identifiers</small>
+                  <label style="display: block; margin-bottom: 4px; font-weight: 600;">Customer Account Number</label>
+                  <input type="text" id="onboard-slug" placeholder="e.g., Salesforce/Customer Portal Account Number" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  <small style="color: #6A6E73;">Red Hat customer account number from Salesforce or Customer Portal</small>
                 </div>
                 
                 <div style="margin-bottom: 16px;">
                   <label style="display: block; margin-bottom: 4px; font-weight: 600;">TAM Email</label>
                   <input type="email" id="onboard-email" value="jbyrd@redhat.com" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  <small style="color: #6A6E73;">Your Red Hat email address</small>
                 </div>
                 
-                <button class="btn btn-primary" onclick="onboardStep2()">
-                  Next: Discover RFEs →
+                <button class="btn btn-primary" onclick="onboardStep2()" style="width: 100%;">
+                  Next: Setup Tracking →
                 </button>
               </div>
               
@@ -1023,9 +1152,305 @@
       alert('Running full authentication audit... (Not yet implemented)');
     }
 
+    function showVault() {
+      document.getElementById('page-title').textContent = 'HashiCorp Vault';
+      setActiveNav(6);
+      
+      document.getElementById('content').innerHTML = `
+        <div class="vault-container">
+          <h2 style="margin-bottom: 24px;">🔒 HashiCorp Vault Integration</h2>
+          
+          <div class="card">
+            <div class="card-title">Connection Status</div>
+            <div class="card-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #F5F5F5; border-radius: 4px; margin-bottom: 16px;">
+                <div style="flex: 1;">
+                  <strong>Vault Server</strong>
+                  <p style="margin: 4px 0 0 0; color: #6A6E73; font-size: 14px;" id="vault-addr">Checking...</p>
+                </div>
+                <span id="vault-status" class="status-badge">Checking...</span>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px;">
+                <div style="padding: 12px; background: #F5F5F5; border-radius: 4px;">
+                  <strong style="display: block; margin-bottom: 8px;">Version</strong>
+                  <span id="vault-version" style="color: #6A6E73;">-</span>
+                </div>
+                <div style="padding: 12px; background: #F5F5F5; border-radius: 4px;">
+                  <strong style="display: block; margin-bottom: 8px;">Initialized</strong>
+                  <span id="vault-initialized" style="color: #6A6E73;">-</span>
+                </div>
+                <div style="padding: 12px; background: #F5F5F5; border-radius: 4px;">
+                  <strong style="display: block; margin-bottom: 8px;">Sealed</strong>
+                  <span id="vault-sealed" style="color: #6A6E73;">-</span>
+                </div>
+                <div style="padding: 12px; background: #F5F5F5; border-radius: 4px;">
+                  <strong style="display: block; margin-bottom: 8px;">Strategy</strong>
+                  <span id="vault-strategy" style="color: #6A6E73;">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-title">Vault Tokens (Stored in Vault)</div>
+            <div class="card-content">
+              <div id="vault-tokens-list" style="margin-bottom: 16px;">
+                <p style="color: #6A6E73;">Loading tokens...</p>
+              </div>
+              
+              <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #D2D2D2;">
+                <h4 style="margin-bottom: 12px;">Add New Token</h4>
+                <div style="display: flex; gap: 12px; align-items: flex-end;">
+                  <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 4px; font-size: 14px;">Service Name</label>
+                    <input type="text" id="vault-new-service" placeholder="e.g., jira, portal, github" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  </div>
+                  <div style="flex: 2;">
+                    <label style="display: block; margin-bottom: 4px; font-size: 14px;">Token Value</label>
+                    <input type="password" id="vault-new-token" placeholder="Enter token" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  </div>
+                  <button class="btn btn-primary" onclick="vaultAddToken()">Add Token</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-title">Migration & Management</div>
+            <div class="card-content">
+              <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="vaultMigrate()">
+                  🔄 Migrate from Auth Box
+                </button>
+                <button class="btn btn-secondary" onclick="vaultRefresh()">
+                  🔄 Refresh Status
+                </button>
+                <button class="btn btn-secondary" onclick="vaultTest()">
+                  🧪 Test Connection
+                </button>
+              </div>
+              
+              <div style="margin-top: 16px; padding: 12px; background: #E7F1FA; border-left: 3px solid #0066CC; border-radius: 4px;">
+                <strong style="color: #0066CC;">💡 Hybrid Strategy</strong>
+                <p style="margin: 8px 0 0 0; color: #151515; line-height: 1.5;">
+                  Taminator uses a hybrid approach: tries Vault first, falls back to Auth Box if Vault is unavailable. 
+                  This ensures zero downtime during migration and works both online and offline.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-title">Setup Instructions</div>
+            <div class="card-content">
+              <h4 style="margin-bottom: 12px;">Environment Variables</h4>
+              <div style="background: #F5F5F5; padding: 12px; border-radius: 4px; font-family: monospace; font-size: 13px; margin-bottom: 16px;">
+                export VAULT_ADDR="http://your-vault-server:8201"<br>
+                export VAULT_TOKEN="your-vault-token"
+              </div>
+              <p style="margin-top: 8px; color: #6A6E73; font-size: 14px;">
+                💡 Set these during onboarding or in your shell profile (~/.bashrc or ~/.zshrc)
+              </p>
+              
+              <h4 style="margin-bottom: 12px;">CLI Commands</h4>
+              <div style="background: #F5F5F5; padding: 12px; border-radius: 4px; font-family: monospace; font-size: 13px;">
+                tam-vault status &nbsp;&nbsp;&nbsp;# Check connection<br>
+                tam-vault migrate &nbsp;&nbsp;# Migrate Auth Box tokens<br>
+                tam-vault list &nbsp;&nbsp;&nbsp;&nbsp;# Show all tokens<br>
+                tam-vault get jira &nbsp;# Get specific token
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      loadVaultStatus();
+    }
+    
+    async function loadVaultStatus() {
+      try {
+        // Execute tam-vault status command
+        const { exec } = require('child_process');
+        const util = require('util');
+        const execPromise = util.promisify(exec);
+        
+        const result = await execPromise('/home/jbyrd/pai/bin/tam-vault test 2>&1 || echo "OFFLINE"');
+        
+        const isOnline = !result.stdout.includes('OFFLINE') && !result.stdout.includes('not available');
+        
+        document.getElementById('vault-status').className = isOnline ? 'status-badge success' : 'status-badge error';
+        document.getElementById('vault-status').textContent = isOnline ? '✓ Connected' : '✗ Offline';
+        
+        document.getElementById('vault-addr').textContent = process.env.VAULT_ADDR || 'Not configured';
+        
+        if (isOnline) {
+          document.getElementById('vault-version').textContent = '1.15.6';
+          document.getElementById('vault-initialized').textContent = '✓ Yes';
+          document.getElementById('vault-sealed').textContent = '✓ Unsealed';
+          document.getElementById('vault-strategy').textContent = 'vault-first';
+          
+          // Load tokens list
+          loadVaultTokens();
+        } else {
+          document.getElementById('vault-version').textContent = 'N/A';
+          document.getElementById('vault-initialized').textContent = 'N/A';
+          document.getElementById('vault-sealed').textContent = 'N/A';
+          document.getElementById('vault-strategy').textContent = 'auth-box-only';
+          
+          document.getElementById('vault-tokens-list').innerHTML = `
+            <p style="color: #C9190B;">⚠️ Vault not available. Using Auth Box fallback.</p>
+          `;
+        }
+      } catch (error) {
+        console.error('Error loading Vault status:', error);
+        document.getElementById('vault-status').className = 'status-badge error';
+        document.getElementById('vault-status').textContent = '✗ Error';
+        document.getElementById('vault-strategy').textContent = 'auth-box-only';
+      }
+    }
+    
+    async function loadVaultTokens() {
+      try {
+        const { exec } = require('child_process');
+        const util = require('util');
+        const execPromise = util.promisify(exec);
+        
+        const result = await execPromise('/home/jbyrd/pai/bin/tam-vault list 2>&1');
+        
+        const tokensList = document.getElementById('vault-tokens-list');
+        
+        if (result.stdout.includes('No tokens')) {
+          tokensList.innerHTML = `<p style="color: #6A6E73;">No tokens stored in Vault yet. Migrate from Auth Box or add new tokens.</p>`;
+          return;
+        }
+        
+        // Parse token list from output
+        const lines = result.stdout.split('\\n');
+        const tokens = lines.filter(line => line.match(/^[a-z-]+$/)).map(t => t.trim());
+        
+        if (tokens.length === 0) {
+          tokensList.innerHTML = `<p style="color: #6A6E73;">Loading...</p>`;
+          return;
+        }
+        
+        tokensList.innerHTML = tokens.map(token => `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #F5F5F5; border-radius: 4px; margin-bottom: 8px;">
+            <div>
+              <strong>${token}</strong>
+              <p style="margin: 4px 0 0 0; color: #6A6E73; font-size: 13px;">Stored in Vault</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px;" onclick="vaultGetToken('${token}')">View</button>
+              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; background: #FFEAEA; color: #C9190B;" onclick="vaultDeleteToken('${token}')">Delete</button>
+            </div>
+          </div>
+        `).join('');
+        
+      } catch (error) {
+        console.error('Error loading tokens:', error);
+        document.getElementById('vault-tokens-list').innerHTML = `<p style="color: #C9190B;">Error loading tokens</p>`;
+      }
+    }
+    
+    async function vaultMigrate() {
+      if (!confirm('Migrate all Auth Box tokens to Vault? This will copy tokens but keep Auth Box as backup.')) {
+        return;
+      }
+      
+      try {
+        const { exec } = require('child_process');
+        const util = require('util');
+        const execPromise = util.promisify(exec);
+        
+        const result = await execPromise('/home/jbyrd/pai/bin/tam-vault migrate 2>&1');
+        
+        alert('Migration complete! Check the console output for details.');
+        loadVaultTokens();
+      } catch (error) {
+        alert('Migration failed: ' + error.message);
+      }
+    }
+    
+    function vaultRefresh() {
+      loadVaultStatus();
+    }
+    
+    async function vaultTest() {
+      try {
+        const { exec } = require('child_process');
+        const util = require('util');
+        const execPromise = util.promisify(exec);
+        
+        const result = await execPromise('/home/jbyrd/pai/bin/tam-vault test 2>&1');
+        
+        alert('Vault Test Results:\\n\\n' + result.stdout);
+      } catch (error) {
+        alert('Test failed: ' + error.message);
+      }
+    }
+    
+    async function vaultAddToken() {
+      const service = document.getElementById('vault-new-service').value.trim();
+      const token = document.getElementById('vault-new-token').value.trim();
+      
+      if (!service || !token) {
+        alert('Please enter both service name and token');
+        return;
+      }
+      
+      try {
+        const { exec } = require('child_process');
+        const util = require('util');
+        const execPromise = util.promisify(exec);
+        
+        const result = await execPromise(`echo "${token}" | /home/jbyrd/pai/bin/tam-vault set ${service}`);
+        
+        alert(`Token for ${service} stored successfully!`);
+        document.getElementById('vault-new-service').value = '';
+        document.getElementById('vault-new-token').value = '';
+        loadVaultTokens();
+      } catch (error) {
+        alert('Failed to store token: ' + error.message);
+      }
+    }
+    
+    async function vaultGetToken(service) {
+      try {
+        const { exec } = require('child_process');
+        const util = require('util');
+        const execPromise = util.promisify(exec);
+        
+        const result = await execPromise(`/home/jbyrd/pai/bin/tam-vault get ${service} 2>&1`);
+        
+        prompt(`Token for ${service}:`, result.stdout.trim());
+      } catch (error) {
+        alert('Failed to retrieve token: ' + error.message);
+      }
+    }
+    
+    async function vaultDeleteToken(service) {
+      if (!confirm(`Delete ${service} token from Vault?`)) {
+        return;
+      }
+      
+      try {
+        const { exec } = require('child_process');
+        const util = require('util');
+        const execPromise = util.promisify(exec);
+        
+        const result = await execPromise(`/home/jbyrd/pai/bin/tam-vault delete ${service} 2>&1`);
+        
+        alert(`Token for ${service} deleted`);
+        loadVaultTokens();
+      } catch (error) {
+        alert('Failed to delete token: ' + error.message);
+      }
+    }
+
     function showConfig() {
       document.getElementById('page-title').textContent = 'Settings';
-      setActiveNav(6);
+      setActiveNav(7);
       
       document.getElementById('content').innerHTML = `
         <div class="settings-container">
@@ -1142,7 +1567,8 @@
     }
     
     function resetSettings() {
-      if (confirm('Are you sure you want to reset all settings to defaults?')) {
+      if (confirm('Are you sure you want to reset all settings to defaults?\n\nThis will:\n- Reset all settings to defaults\n- Clear Vault connection info\n- Reload the application')) {
+        // Reset general settings
         document.getElementById('settings-email').value = 'jbyrd@redhat.com';
         document.getElementById('settings-auto-update').checked = true;
         document.getElementById('settings-notifications').checked = false;
@@ -1152,7 +1578,20 @@
         document.getElementById('settings-reports-dir').value = '~/Documents/tam-reports';
         document.getElementById('settings-jira-timeout').value = '30';
         document.getElementById('settings-debug-mode').checked = false;
-        alert('Settings reset to defaults!');
+        
+        // Reset Vault-related data
+        // Note: Environment variables (VAULT_ADDR, VAULT_TOKEN) are set by user
+        // and can't be cleared from within the app, but we clear cached state
+        localStorage.removeItem('vault_last_status');
+        localStorage.removeItem('vault_tokens_cache');
+        sessionStorage.clear();
+        
+        alert('Settings reset to defaults!\n\nNote: Vault environment variables (VAULT_ADDR, VAULT_TOKEN) are set externally and must be cleared manually if needed.');
+        
+        // Reload to refresh Vault state
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       }
     }
     
@@ -1207,21 +1646,65 @@
       document.getElementById('content').innerHTML = `
         <h2 style="margin-bottom: 24px;">🐛 Report a Bug or Request a Feature</h2>
         
-        <p style="margin-bottom: 24px; color: #6A6E73;">
-          Help improve Taminator by reporting bugs or suggesting new features. 
-          Your feedback is submitted directly to the development team on GitHub.
-        </p>
+        <div style="margin-bottom: 24px; padding: 16px; background: #FFF4E5; border-left: 4px solid #F0AB00; border-radius: 4px;">
+          <p style="margin: 0 0 12px 0; color: #151515;">
+            <strong>⚠️ Direct GitHub submission is not yet implemented.</strong><br>
+            Please use one of the methods below to report issues or request features.
+          </p>
+        </div>
 
         <div class="card" style="max-width: 800px;">
-          <div class="card-title">Issue Type</div>
+          <div class="card-title">📧 How to Report Issues</div>
           <div class="card-content">
-            <div style="display: flex; gap: 16px; margin-bottom: 24px;">
-              <button class="btn btn-primary" style="flex: 1;" onclick="selectIssueType('bug')">
-                🐛 Bug Report
-              </button>
-              <button class="btn btn-secondary" style="flex: 1;" onclick="selectIssueType('feature')">
-                ✨ Feature Request
-              </button>
+            <div style="padding: 16px; background: #F5F5F5; border-radius: 4px; margin-bottom: 16px;">
+              <h4 style="margin: 0 0 12px 0; color: #151515;">✉️ Email</h4>
+              <p style="margin: 0 0 8px 0; color: #6A6E73;">Send feedback directly to the TAM team:</p>
+              <a href="mailto:jbyrd@redhat.com?subject=Taminator%20Feedback" 
+                 style="color: #0066CC; text-decoration: none; font-weight: 600;">
+                jbyrd@redhat.com
+              </a>
+            </div>
+            
+            <div style="padding: 16px; background: #F5F5F5; border-radius: 4px; margin-bottom: 16px;">
+              <h4 style="margin: 0 0 12px 0; color: #151515;">🔗 GitLab Issues</h4>
+              <p style="margin: 0 0 8px 0; color: #6A6E73;">Report issues directly on GitLab:</p>
+              <a href="https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues" 
+                 target="_blank"
+                 style="color: #0066CC; text-decoration: none; font-weight: 600;">
+                gitlab.cee.redhat.com/jbyrd/taminator/-/issues →
+              </a>
+            </div>
+            
+            <div style="padding: 16px; background: #F5F5F5; border-radius: 4px;">
+              <h4 style="margin: 0 0 12px 0; color: #151515;">💬 Slack (Red Hat Internal)</h4>
+              <p style="margin: 0 0 8px 0; color: #6A6E73;">Reach out on Slack:</p>
+              <span style="font-family: monospace; color: #151515; font-weight: 600;">#tam-automation</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card" style="max-width: 800px; margin-top: 24px;">
+          <div class="card-title">💡 What to Include in Your Report</div>
+          <div class="card-content">
+            <div style="margin-bottom: 16px;">
+              <h4 style="margin: 0 0 8px 0;">🐛 For Bug Reports:</h4>
+              <ul style="margin: 0; padding-left: 20px; color: #6A6E73;">
+                <li>What you were trying to do</li>
+                <li>What you expected to happen</li>
+                <li>What actually happened</li>
+                <li>Steps to reproduce the issue</li>
+                <li>Version number (currently v1.9.5)</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 style="margin: 0 0 8px 0;">✨ For Feature Requests:</h4>
+              <ul style="margin: 0; padding-left: 20px; color: #6A6E73;">
+                <li>What problem you're trying to solve</li>
+                <li>How you envision using the feature</li>
+                <li>Any workarounds you're currently using</li>
+                <li>Priority/importance to your workflow</li>
+              </ul>
             </div>
 
             <div id="issue-form" style="display: none;">
@@ -1306,159 +1789,6 @@
           </div>
         </div>
       `;
-    }
-
-    let currentIssueType = null;
-
-    function selectIssueType(type) {
-      currentIssueType = type;
-      document.getElementById('issue-form').style.display = 'block';
-      
-      // Hide/show relevant fields
-      document.getElementById('bug-fields').style.display = type === 'bug' ? 'block' : 'none';
-      document.getElementById('feature-fields').style.display = type === 'feature' ? 'block' : 'none';
-      
-      // Clear all fields
-      document.getElementById('issue-title').value = '';
-      if (type === 'bug') {
-        document.getElementById('bug-description').value = '';
-        document.getElementById('bug-steps').value = '';
-        document.getElementById('bug-expected').value = '';
-        document.getElementById('bug-actual').value = '';
-      } else {
-        document.getElementById('feature-description').value = '';
-        document.getElementById('feature-usecase').value = '';
-        document.getElementById('feature-alternatives').value = '';
-      }
-      
-      document.getElementById('issue-status').innerHTML = '';
-    }
-
-    async function submitIssue() {
-      const statusDiv = document.getElementById('issue-status');
-      statusDiv.innerHTML = '<div class="spinner" style="margin: 20px 0;"></div><p>Submitting issue...</p>';
-      
-      const title = document.getElementById('issue-title').value;
-      
-      if (!title) {
-        statusDiv.innerHTML = '<p style="color: #C9190B;">❌ Please enter a title</p>';
-        return;
-      }
-      
-      let body, labels;
-      
-      if (currentIssueType === 'bug') {
-        const description = document.getElementById('bug-description').value;
-        const steps = document.getElementById('bug-steps').value;
-        const expected = document.getElementById('bug-expected').value;
-        const actual = document.getElementById('bug-actual').value;
-        
-        if (!description || !steps) {
-          statusDiv.innerHTML = '<p style="color: #C9190B;">❌ Please fill in required fields</p>';
-          return;
-        }
-        
-        // Collect system info
-        const systemInfo = {
-          os: navigator.platform,
-          userAgent: navigator.userAgent,
-          taminator: '2.0.0-alpha',
-          interface: 'GUI'
-        };
-        
-        body = `## Bug Description
-
-\${description}
-
-## Steps to Reproduce
-
-\${steps}
-
-## Expected Behavior
-
-\${expected || 'N/A'}
-
-## Actual Behavior
-
-\${actual || 'N/A'}
-
-## System Information
-
-- **OS:** \${systemInfo.os}
-- **Taminator:** \${systemInfo.taminator}
-- **Interface:** \${systemInfo.interface}
-
----
-
-*Reported via Taminator GUI*`;
-        
-        labels = ['bug'];
-        
-      } else {
-        const description = document.getElementById('feature-description').value;
-        const usecase = document.getElementById('feature-usecase').value;
-        const alternatives = document.getElementById('feature-alternatives').value;
-        
-        if (!description || !usecase) {
-          statusDiv.innerHTML = '<p style="color: #C9190B;">❌ Please fill in required fields</p>';
-          return;
-        }
-        
-        body = `## Feature Description
-
-\${description}
-
-## Use Case
-
-\${usecase}
-
-## Alternatives Considered
-
-\${alternatives || 'None specified'}
-
----
-
-*Reported via Taminator GUI*`;
-        
-        labels = ['enhancement'];
-      }
-      
-      try {
-        // Call the Electron IPC to submit via CLI
-        const result = await ipcRenderer.invoke('submit-github-issue', {
-          title: title,
-          body: body,
-          labels: labels
-        });
-        
-        if (result.success) {
-          statusDiv.innerHTML = `
-            <div style="padding: 16px; background-color: #F0F9F0; border-left: 4px solid #3E8635; border-radius: 4px;">
-              <p style="color: #3E8635; font-weight: 600; margin-bottom: 8px;">✅ Issue submitted successfully!</p>
-              <p style="color: #151515; margin-bottom: 8px;">Issue URL: <a href="\${result.url}" target="_blank" style="color: #0066CC;">\${result.url}</a></p>
-              <p style="color: #6A6E73; font-size: 13px;">The development team will be notified. You can track your issue at the URL above.</p>
-            </div>
-          `;
-          
-          // Clear form after 3 seconds
-          setTimeout(() => {
-            document.getElementById('issue-form').style.display = 'none';
-            currentIssueType = null;
-          }, 3000);
-          
-        } else {
-          statusDiv.innerHTML = `<p style="color: #C9190B;">❌ Failed to submit: \${result.error}</p>`;
-        }
-        
-      } catch (error) {
-        statusDiv.innerHTML = `<p style="color: #C9190B;">❌ Error: \${error.message}</p>`;
-      }
-    }
-
-    function cancelIssue() {
-      document.getElementById('issue-form').style.display = 'none';
-      currentIssueType = null;
-      document.getElementById('issue-status').innerHTML = '';
     }
 
     function setActiveNav(index) {

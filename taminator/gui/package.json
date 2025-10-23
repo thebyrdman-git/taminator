@@ -1,6 +1,6 @@
 {
   "name": "taminator-gui",
-  "version": "1.7.0",
+  "version": "1.9.5",
   "description": "Taminator RFE Tool - GUI Application",
   "homepage": "https://github.com/thebyrdman-git/taminator",
   "main": "main.js",
