@@ -101,7 +101,7 @@ ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/
 ### 🪟 Windows Installation
 ```powershell
 # From the cloned repository:
-cd taminator\releases\v1.9.2\
+cd taminator\releases\v1.9.5\
 .\Taminator-Setup-1.9.5.exe
 
 # Or in File Explorer:
