@@ -161,3 +161,4 @@ gui/dist/
 *.backup
 *~
 *.orig
+releases/
