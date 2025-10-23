@@ -18,7 +18,9 @@
 
 **⚠️ Requires:** Red Hat VPN + GitLab CEE authentication
 
-### Step 1: Clone the Repository
+### Option A: Clone Repository (Recommended)
+
+Get all files at once with Git:
 
 ```bash
 git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git
@@ -26,33 +28,49 @@ cd taminator/releases/v1.9.2/
 ls -lh  # See all 3 files
 ```
 
-You'll get all three installers:
-- 🐧 `Taminator-1.9.2.AppImage` (116 MB) - Linux
-- 🍎 `Taminator-1.9.2.dmg` (111 MB) - macOS (Intel + Apple Silicon)
-- 🪟 `Taminator-Setup-1.9.2.exe` (88 MB) - Windows
+### Option B: Manual Download (Single File)
 
-### Step 2: Install for Your Platform
+Download just the file you need via GitLab web interface:
+
+1. **Visit:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main/releases/v1.9.2
+2. **Click** on the file for your platform:
+   - 🐧 `Taminator-1.9.2.AppImage` (116 MB) - Linux
+   - 🍎 `Taminator-1.9.2.dmg` (111 MB) - macOS (Intel + Apple Silicon)
+   - 🪟 `Taminator-Setup-1.9.2.exe` (88 MB) - Windows
+3. **Click the Download button** (📥 icon in top right)
+4. **File downloads to** `~/Downloads/`
+
+---
+
+### Install for Your Platform
 
 Pick your operating system below and follow the installation steps.
 
 ### 🐧 Linux Installation
 ```bash
-# From the cloned repository:
+# If you cloned the repository:
 cd taminator/releases/v1.9.2/
 chmod +x Taminator-1.9.2.AppImage
 ./Taminator-1.9.2.AppImage
 
+# If you downloaded manually:
+chmod +x ~/Downloads/Taminator-1.9.2.AppImage
+~/Downloads/Taminator-1.9.2.AppImage
+
 # Optional: Install system-wide
 mkdir -p ~/Applications
-cp Taminator-1.9.2.AppImage ~/Applications/
+cp ~/Downloads/Taminator-1.9.2.AppImage ~/Applications/  # or from taminator/releases/v1.9.2/
 ~/Applications/Taminator-1.9.2.AppImage
 ```
 
 ### 🍎 macOS Installation
 ```bash
-# From the cloned repository:
+# If you cloned the repository:
 cd taminator/releases/v1.9.2/
 open Taminator-1.9.2.dmg
+
+# If you downloaded manually:
+open ~/Downloads/Taminator-1.9.2.dmg
 
 # Then in Finder:
 # 1. Drag Taminator to Applications folder
@@ -68,11 +86,13 @@ ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/
 
 ### 🪟 Windows Installation
 ```powershell
-# From the cloned repository:
+# If you cloned the repository:
 cd taminator\releases\v1.9.2\
 .\Taminator-Setup-1.9.2.exe
 
-# Or double-click Taminator-Setup-1.9.2.exe in File Explorer
+# If you downloaded manually:
+# Open File Explorer → Downloads
+# Double-click Taminator-Setup-1.9.2.exe
 
 # Installation wizard will ask:
 # 1. Installation directory (default is fine)
