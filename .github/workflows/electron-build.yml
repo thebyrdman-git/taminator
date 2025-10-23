@@ -59,6 +59,7 @@ jobs:
       
       - name: List dist directory (debug)
         working-directory: taminator/gui
+        shell: bash
         run: ls -la dist/
       
       - name: Upload artifacts
