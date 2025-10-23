@@ -23,19 +23,19 @@ jobs:
           - os: Linux
             runner: ubuntu-latest
             build_target: linux
-            artifact_pattern: 'gui/dist/*.AppImage'
+            artifact_pattern: 'taminator/gui/dist/*.AppImage'
           
           # Windows builds
           - os: Windows
             runner: windows-latest
             build_target: win
-            artifact_pattern: 'gui/dist/*.exe'
+            artifact_pattern: 'taminator/gui/dist/*.exe'
           
           # macOS builds (Universal - Intel + Apple Silicon)
           - os: macOS
             runner: macos-latest
             build_target: mac
-            artifact_pattern: 'gui/dist/*.dmg'
+            artifact_pattern: 'taminator/gui/dist/*.dmg'
     
     steps:
       - name: Checkout code
@@ -47,18 +47,18 @@ jobs:
           node-version: '20'
       
       - name: Install Node dependencies
-        working-directory: gui
+        working-directory: taminator/gui
         run: npm ci
       
       - name: Build Electron app (${{ matrix.os }})
-        working-directory: gui
+        working-directory: taminator/gui
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run build:${{ matrix.build_target }}
       
       - name: List dist directory (debug)
-        working-directory: gui
+        working-directory: taminator/gui
         run: ls -la dist/
       
       - name: Upload artifacts
