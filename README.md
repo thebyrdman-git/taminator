@@ -16,68 +16,74 @@
 
 ## 📥 Download Taminator v1.9.2
 
-### GitLab CEE (Red Hat Internal)
-**⚠️ Requires:** Red Hat VPN + GitLab CEE login
+**⚠️ Requires:** Red Hat VPN + GitLab CEE authentication
 
-**Release Page:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/v1.9.2
+### Step 1: Clone the Repository
 
-- 🐧 **Linux:** `Taminator-1.9.2.AppImage` (~120 MB)
-- 🍎 **macOS:** `Taminator-1.9.2-universal.dmg` (Intel + Apple Silicon)
-- 🪟 **Windows:** `Taminator-Setup-1.9.2.exe`
+```bash
+git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git
+cd taminator/releases/v1.9.2/
+ls -lh  # See all 3 files
+```
 
-### GitHub (Public - No VPN Required)
-**Release Page:** https://github.com/thebyrdman-git/taminator-ci/releases/tag/v1.9.2
+You'll get all three installers:
+- 🐧 `Taminator-1.9.2.AppImage` (116 MB) - Linux
+- 🍎 `Taminator-1.9.2.dmg` (111 MB) - macOS (Intel + Apple Silicon)
+- 🪟 `Taminator-Setup-1.9.2.exe` (88 MB) - Windows
 
-- 🐧 **Linux:** `Taminator-1.9.2.AppImage` (~120 MB) ✅
-- 🍎 **macOS:** `Taminator-1.9.2-universal.dmg` (Intel + Apple Silicon) ✅
-- 🪟 **Windows:** `Taminator-Setup-1.9.2.exe` ✅
+### Step 2: Install for Your Platform
+
+Pick your operating system below and follow the installation steps.
 
 ### 🐧 Linux Installation
 ```bash
-# Download from release page above
-# "I'll be back... with your report."
+# From the cloned repository:
+cd taminator/releases/v1.9.2/
+chmod +x Taminator-1.9.2.AppImage
+./Taminator-1.9.2.AppImage
 
-# Quick install (from GitHub - no VPN required):
-curl -L https://github.com/thebyrdman-git/taminator-ci/releases/download/v1.9.2/Taminator-1.9.2.AppImage -o Taminator.AppImage
-chmod +x Taminator.AppImage
-./Taminator.AppImage
-
-# Or manual install:
-chmod +x ~/Downloads/Taminator-1.9.2.AppImage
-~/Downloads/Taminator-1.9.2.AppImage
-
-# Optional: Move to ~/Applications for system-wide access
+# Optional: Install system-wide
 mkdir -p ~/Applications
-mv ~/Downloads/Taminator-1.9.2.AppImage ~/Applications/
+cp Taminator-1.9.2.AppImage ~/Applications/
+~/Applications/Taminator-1.9.2.AppImage
 ```
 
 ### 🍎 macOS Installation
 ```bash
-# Download from GitHub (no VPN required):
-curl -L https://github.com/thebyrdman-git/taminator-ci/releases/download/v1.9.2/Taminator-1.9.2-universal.dmg -o Taminator.dmg
+# From the cloned repository:
+cd taminator/releases/v1.9.2/
+open Taminator-1.9.2.dmg
 
-# Or download from GitLab CEE (requires VPN):
-# https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/v1.9.2
+# Then in Finder:
+# 1. Drag Taminator to Applications folder
+# 2. Eject the DMG
+# 3. Go to Applications → Right-click Taminator → Open
+#    (First time only, to bypass Gatekeeper)
 
-# Install:
-open ~/Downloads/Taminator-1.9.2-universal.dmg
-# Drag Taminator to Applications folder
-# First launch: Right-click → Open (to bypass Gatekeeper)
 # Works on both Intel and Apple Silicon Macs
+
+# Optional: CLI Access
+ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/tam-rfe
 ```
 
 ### 🪟 Windows Installation
 ```powershell
-# Download from GitHub (no VPN required):
-# Visit: https://github.com/thebyrdman-git/taminator-ci/releases/download/v1.9.2/Taminator-Setup-1.9.2.exe
+# From the cloned repository:
+cd taminator\releases\v1.9.2\
+.\Taminator-Setup-1.9.2.exe
 
-# Or download from GitLab CEE (requires VPN):
-# https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases/v1.9.2
+# Or double-click Taminator-Setup-1.9.2.exe in File Explorer
 
-# Install:
-# Double-click Taminator-Setup-1.9.2.exe
-# Follow installation wizard
-# Launch from Start Menu or Desktop
+# Installation wizard will ask:
+# 1. Installation directory (default is fine)
+# 2. ✅ Create desktop shortcut (recommended)
+# 3. ✅ Create Start Menu shortcut (recommended)
+# 4. ✅ Add to PATH (for CLI access)
+
+# Launch from Start Menu or Desktop icon
+
+# CLI usage (if you added to PATH):
+tam-rfe check --customer <name>
 ```
 
 ### 💻 Command Line (All Platforms) - "Hasta la vista, manual tracking!"
@@ -103,9 +109,8 @@ open ~/Downloads/Taminator-1.9.2-universal.dmg
 
 | Version | Release Date | Key Features | Status |
 |---------|--------------|--------------|--------|
-| **v1.9.2** | Oct 2025 | Core stability, setup wizards, dynamic customer mgmt, empty states | 🟢 Current |
-| v1.9.1 | Oct 2025 | PatternFly 6, KB/T3 API, Clippy, Auth Box, Python bundled | ⚪ Previous |
-| v1.7.0 | Oct 2025 | Complete GUI redesign, Auth-Box, GitHub integration | ⚪ Previous |
+| **v1.9.2** | Oct 2025 | Cross-platform release, Git LFS distribution | 🟢 Current |
+| **v1.7.0** | Oct 2025 | Complete GUI redesign, Auth-Box integration | ✅ Stable |
 | v1.6.0 | Sep 2025 | Desktop integration, AppImage packaging | ✅ Stable |
 | v1.5.0 | Aug 2025 | Enhanced reporting, multi-customer support | ✅ Stable |
 | v1.4.0 | Jul 2025 | CLI improvements, email notifications | ✅ Stable |
@@ -115,7 +120,7 @@ open ~/Downloads/Taminator-1.9.2-universal.dmg
 | v1.0.0 | Mar 2025 | Initial release, basic RFE tracking | ✅ Stable |
 
 ###  Project Status
-- **Version**: 1.9.2 (Production Release) - *"No fate but what we ship."*
+- **Version**: 1.7.0 (Production Release) - *"Advanced prototype. You could say we're... ahead of schedule."*
 - **Status**: Production-ready with complete GUI
 - **Platforms**: 🐧 Linux (AppImage) | 🍎 macOS (DMG) | 🪟 Windows (NSIS Installer)
 - **Architecture**: Intel/AMD (x64) + Apple Silicon (arm64)
@@ -349,7 +354,7 @@ This personal project is developed with the following principles:
 **The Skynet TAMs Actually Want™**
 
 **💝 Built with passion for helping TAMs succeed**  
-*v1.9.2 - Production Release - October 2025*
+*v1.7.0 - Production Release - October 2025*
 
 ---
 
