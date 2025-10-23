@@ -1,0 +1,1 @@
+releases/**/*.AppImage filter=lfs diff=lfs merge=lfs -text
