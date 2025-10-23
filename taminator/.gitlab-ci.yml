@@ -1,0 +1,240 @@
+# Taminator CI/CD Pipeline
+# Builds multi-platform releases for Linux (x64 + ARM64), Windows, and macOS
+
+stages:
+  - build
+  - release
+
+variables:
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.11"
+  ARTIFACTS_EXPIRE: "7 days"
+
+# Build Linux x64 AppImage
+build:linux:x64:
+  stage: build
+  image: node:${NODE_VERSION}
+  tags:
+    - docker
+  before_script:
+    - apt-get update && apt-get install -y python3 python3-pip
+    - python3 -m pip install --upgrade pip
+    - if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
+  script:
+    - cd gui
+    - npm ci
+    - npm run build:linux
+  artifacts:
+    name: "linux-appimage-x64-${CI_COMMIT_REF_NAME}"
+    paths:
+      - gui/dist/*.AppImage
+    expire_in: ${ARTIFACTS_EXPIRE}
+  only:
+    - tags
+    - main
+    - merge_requests
+
+# Build Linux ARM64 AppImage (using QEMU emulation)
+# Target: Fedora on Apple Silicon MacBooks, Raspberry Pi, AWS Graviton
+build:linux:arm64:
+  stage: build
+  image: node:${NODE_VERSION}
+  tags:
+    - docker
+  before_script:
+    # Install QEMU for ARM64 emulation
+    - apt-get update && apt-get install -y qemu-user-static binfmt-support python3 python3-pip
+    - python3 -m pip install --upgrade pip
+    - if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
+    - update-binfmts --enable qemu-aarch64
+  script:
+    - cd gui
+    - npm ci
+    - npm run build:linux:arm64
+    - echo "Built for Fedora ARM64 (MacBook Pro M1/M2/M3/M4)"
+  artifacts:
+    name: "linux-appimage-arm64-${CI_COMMIT_REF_NAME}"
+    paths:
+      - gui/dist/*.AppImage
+    expire_in: ${ARTIFACTS_EXPIRE}
+  only:
+    - tags
+    - main
+    - merge_requests
+  allow_failure: false
+  timeout: 2h  # ARM64 cross-compilation takes longer
+
+# Build Windows Installer (requires Windows runner)
+build:windows:
+  stage: build
+  tags:
+    - windows
+  before_script:
+    - choco install nodejs --version=${NODE_VERSION} -y
+    - choco install python --version=${PYTHON_VERSION} -y
+    - refreshenv
+    - python -m pip install --upgrade pip
+    - if (Test-Path requirements.txt) { pip install -r requirements.txt }
+  script:
+    - cd gui
+    - npm ci
+    - npm run build:win
+  artifacts:
+    name: "windows-installer-${CI_COMMIT_REF_NAME}"
+    paths:
+      - gui/dist/*.exe
+    expire_in: ${ARTIFACTS_EXPIRE}
+  only:
+    - tags
+    - main
+    - merge_requests
+
+# Build macOS DMG (requires macOS runner)
+build:macos:
+  stage: build
+  tags:
+    - macos
+  before_script:
+    - brew install node@${NODE_VERSION} python@${PYTHON_VERSION}
+    - export PATH="/usr/local/opt/node@${NODE_VERSION}/bin:$PATH"
+    - export PATH="/usr/local/opt/python@${PYTHON_VERSION}/bin:$PATH"
+    - python3 -m pip install --upgrade pip
+    - if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
+  script:
+    - cd gui
+    - npm ci
+    - npm run build:mac
+  artifacts:
+    name: "macos-dmg-${CI_COMMIT_REF_NAME}"
+    paths:
+      - gui/dist/*.dmg
+    expire_in: ${ARTIFACTS_EXPIRE}
+  only:
+    - tags
+    - main
+    - merge_requests
+
+# Create GitLab Release (tags only)
+release:gitlab:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  tags:
+    - docker
+  dependencies:
+    - build:linux:x64
+    - build:linux:arm64
+    - build:windows
+    - build:macos
+  script:
+    # Extract version from tag
+    - export VERSION=${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME}}
+    - export VERSION_NUM=${VERSION#v}
+    - echo "Creating release for version $VERSION"
+    
+    # List all artifacts
+    - echo "Release artifacts:"
+    - find gui/dist -type f \( -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" \) -exec ls -lh {} \;
+    
+    # Generate release description
+    - |
+      cat > release_description.md <<EOF
+      ## Taminator ${VERSION}
+      
+      ### 📥 Downloads
+      
+      **Linux:**
+      - 🐧 **x86_64 (Intel/AMD)**: \`Taminator-${VERSION_NUM}-x86_64.AppImage\` (~118 MB)
+      - 🐧 **ARM64 (Graviton/RPi)**: \`Taminator-${VERSION_NUM}-arm64.AppImage\` (~118 MB)
+      
+      **Windows:**
+      - 🪟 **x64**: \`Taminator-Setup-${VERSION_NUM}.exe\` (~88 MB)
+      
+      **macOS:**
+      - 🍎 **Intel (x64)**: \`Taminator-${VERSION_NUM}-x64.dmg\` (~111 MB)
+      - 🍎 **Apple Silicon (ARM64)**: \`Taminator-${VERSION_NUM}-arm64.dmg\` (~111 MB)
+      
+      ### 🚀 Installation
+      
+      **Linux:**
+      \`\`\`bash
+      # Download appropriate architecture
+      chmod +x Taminator-${VERSION_NUM}-*.AppImage
+      ./Taminator-${VERSION_NUM}-*.AppImage
+      \`\`\`
+      
+      **Windows:**
+      Run the installer and follow the prompts.
+      
+      **macOS:**
+      Open the DMG and drag Taminator to Applications.
+      
+      ### ✅ Requirements
+      - Red Hat VPN access for KB/T3 features
+      - Portal token (rh_jwt cookie) for authentication
+      
+      ### 📖 Documentation
+      See [README.md](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/README.md) for full documentation.
+      
+      ### 🔐 ARM64 Support
+      This release includes native ARM64 builds for:
+      - **Fedora on Apple Silicon MacBooks** (M1, M2, M3, M4) ⭐ Primary use case
+      - AWS Graviton instances (2, 3, 4)
+      - Raspberry Pi 4/5 (64-bit)
+      - Oracle Ampere A1
+      - Other ARM64 Linux distributions
+      
+      ---
+      **Built with:** Electron ${NODE_VERSION} + Python ${PYTHON_VERSION}
+      EOF
+    
+    - cat release_description.md
+  release:
+    name: "Taminator $CI_COMMIT_TAG"
+    tag_name: "$CI_COMMIT_TAG"
+    description: "./release_description.md"
+    assets:
+      links:
+        - name: "Linux x86_64 AppImage"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gui/dist/Taminator-${VERSION_NUM}-x86_64.AppImage?job=build:linux:x64"
+          link_type: package
+        - name: "Linux ARM64 AppImage"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gui/dist/Taminator-${VERSION_NUM}-arm64.AppImage?job=build:linux:arm64"
+          link_type: package
+        - name: "Windows Installer"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gui/dist/Taminator-Setup-${VERSION_NUM}.exe?job=build:windows"
+          link_type: package
+        - name: "macOS x64 DMG"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gui/dist/Taminator-${VERSION_NUM}-x64.dmg?job=build:macos"
+          link_type: package
+        - name: "macOS ARM64 DMG"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gui/dist/Taminator-${VERSION_NUM}-arm64.dmg?job=build:macos"
+          link_type: package
+  only:
+    - tags
+
+# Alternative: Native ARM64 build (if you have ARM64 GitLab runners)
+# Uncomment this job and comment out the QEMU-based build:linux:arm64 above
+#
+# build:linux:arm64:native:
+#   stage: build
+#   image: node:${NODE_VERSION}
+#   tags:
+#     - arm64  # Requires ARM64 runner with this tag
+#   before_script:
+#     - apt-get update && apt-get install -y python3 python3-pip
+#     - python3 -m pip install --upgrade pip
+#     - if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
+#   script:
+#     - cd gui
+#     - npm ci
+#     - npm run build:linux:arm64
+#   artifacts:
+#     name: "linux-appimage-arm64-${CI_COMMIT_REF_NAME}"
+#     paths:
+#       - gui/dist/*.AppImage
+#     expire_in: ${ARTIFACTS_EXPIRE}
+#   only:
+#     - tags
+#     - main
+#     - merge_requests
+
