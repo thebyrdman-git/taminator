@@ -32,7 +32,7 @@ ls -lh  # See all 3 files
 
 Download just the file you need via GitLab web interface:
 
-1. **Visit:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main/releases/v1.9.2
+1. **Visit:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main/taminator/releases/v1.9.2
 2. **Click** on the file for your platform:
    - 🐧 `Taminator-1.9.2.AppImage` (116 MB) - Linux
    - 🍎 `Taminator-1.9.2.dmg` (111 MB) - macOS (Intel + Apple Silicon)
