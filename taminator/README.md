@@ -143,7 +143,7 @@ tam-rfe check --customer <name>
 
 | Version | Release Date | Key Features | Status |
 |---------|--------------|--------------|--------|
-| **v1.9.2** | Oct 2025 | Cross-platform release, Git LFS distribution | 🟢 Current |
+| **v1.9.2** | Oct 2025 | Cross-platform release, ARM64 AppImage, Git LFS | 🟢 Current |
 | **v1.7.0** | Oct 2025 | Complete GUI redesign, Auth-Box integration | ✅ Stable |
 | v1.6.0 | Sep 2025 | Desktop integration, AppImage packaging | ✅ Stable |
 | v1.5.0 | Aug 2025 | Enhanced reporting, multi-customer support | ✅ Stable |
