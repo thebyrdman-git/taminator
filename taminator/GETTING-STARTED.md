@@ -1,4 +1,4 @@
-# 🚀 Getting Started with Taminator v1.9.3
+# 🚀 Getting Started with Taminator v1.9.5
 
 **Welcome to Taminator!** The RFE/Bug tracking tool that Red Hat TAMs actually want.
 
@@ -10,18 +10,18 @@
 
 Get the latest AppImage from:
 - **GitLab Releases:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases
-- **Direct Download:** `Taminator-1.9.3.AppImage`
+- **Direct Download:** `Taminator-1.9.5.AppImage`
 
 ### 2. Make Executable
 
 ```bash
-chmod +x Taminator-1.9.3.AppImage
+chmod +x Taminator-1.9.5.AppImage
 ```
 
 ### 3. Run
 
 ```bash
-./Taminator-1.9.3.AppImage
+./Taminator-1.9.5.AppImage
 ```
 
 Or double-click from your file manager!
@@ -30,7 +30,7 @@ Or double-click from your file manager!
 
 ```bash
 # Copy to Applications folder
-cp Taminator-1.9.3.AppImage ~/Applications/
+cp Taminator-1.9.5.AppImage ~/Applications/
 
 # Create desktop entry
 cat > ~/.local/share/applications/taminator.desktop << 'EOF'
@@ -39,7 +39,7 @@ Version=1.0
 Type=Application
 Name=Taminator
 Comment=RFE/Bug tracking tool for Red Hat TAMs
-Exec=/home/$USER/Applications/Taminator-1.9.3.AppImage %U
+Exec=/home/$USER/Applications/Taminator-1.9.5.AppImage %U
 Icon=taminator
 Terminal=false
 Categories=Development;Utility;
@@ -54,7 +54,7 @@ update-desktop-database ~/.local/share/applications/
 
 ## 🔑 Authentication Setup
 
-Taminator v1.9.3 supports **two authentication methods**:
+Taminator v1.9.5 supports **two authentication methods**:
 
 ### Option 1: Auth Box (Local Storage) ✅ Recommended for Single Users
 
@@ -109,7 +109,7 @@ Taminator v1.9.3 supports **two authentication methods**:
 ### 1. Launch Taminator
 
 ```bash
-./Taminator-1.9.3.AppImage
+./Taminator-1.9.5.AppImage
 ```
 
 ### 2. Navigate to Vault Tab (or Use Auth Box Fallback)
@@ -242,7 +242,7 @@ Or use the GUI:
 ## 🆘 Troubleshooting
 
 ### Issue: Blank page on launch
-**Fix:** You may have v1.9.2 (known bug). Download v1.9.3.
+**Fix:** You may have v1.9.4 or earlier (known bug). Download v1.9.5.
 
 ### Issue: "Vault not configured"
 **Fix:** Set VAULT_ADDR and VAULT_TOKEN environment variables before launching.
@@ -260,7 +260,7 @@ Or use the GUI:
 3. Check network connectivity
 
 ### Issue: Can't see Vault tab
-**Fix:** You may have an older version. Download v1.9.3.
+**Fix:** You may have an older version. Download v1.9.5.
 
 ### Issue: Vault shows "Offline" but server is running
 **Fix:**
@@ -274,7 +274,7 @@ Or use the GUI:
 ## 📚 Additional Resources
 
 ### Documentation
-- **CHANGELOG:** See `CHANGELOG-v1.9.3.md` for what's new
+- **CHANGELOG:** See `CHANGELOG-v1.9.5.md` for what's new in v1.9.5
 - **Vault Integration:** See `VAULT-INTEGRATION-COMPLETE.md` for details
 - **GitLab Issues:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues
 
@@ -297,7 +297,7 @@ Or use the GUI:
 - 📊 **Reports Tab** - View and manage all your reports
 - 📋 **Check Tab** - Quick status checks for customers
 - ➕ **Onboard Tab** - Add new customers
-- 🔒 **Vault Tab** - Manage tokens centrally (v1.9.3+)
+- 🔒 **Vault Tab** - Manage tokens centrally (v1.9.5+)
 - ⚙️ **Settings Tab** - Customize your experience
 
 ### Learn Advanced Features
@@ -329,6 +329,6 @@ You're now ready to automate your RFE and bug tracking workflow. Happy reporting
 
 ---
 
-**Version:** Taminator v1.9.3  
+**Version:** Taminator v1.9.5  
 **Last Updated:** October 23, 2025  
 **Author:** Jimmy Byrd (jbyrd@redhat.com)

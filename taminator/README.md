@@ -14,7 +14,7 @@
 
 **Quick Start:**
 
-## 📥 Download Taminator v1.9.2
+## 📥 Download Taminator v1.9.5
 
 **⚠️ Requires:** Red Hat VPN + GitLab CEE authentication
 
@@ -24,24 +24,24 @@ Get all files at once:
 
 ```bash
 git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git
-cd taminator/releases/v1.9.2/
+cd taminator/releases/v1.9.5/
 ls -lh  # See all 3 files
 ```
 
 ### Option B: Manual Download via GitLab
 
 1. **Navigate to:** https://gitlab.cee.redhat.com/jbyrd/taminator
-2. **In the file browser, browse to:** `taminator` → `releases` → `v1.9.2`
+2. **In the file browser, browse to:** `taminator` → `releases` → `v1.9.5`
 3. **Click on the file** you need
 4. **Click the Download button**
 
 Files available:
-- 🐧 `Taminator-1.9.2.AppImage` (116 MB) - Linux Intel/AMD (x86_64)
-- 🐧 `Taminator-1.9.2-arm64.AppImage` (118 MB) - Linux ARM64 ⭐ **Fedora on MacBook Pro**
-- 🍎 `Taminator-1.9.2.dmg` (111 MB) - macOS (Intel + Apple Silicon)
-- 🪟 `Taminator-Setup-1.9.2.exe` (88 MB) - Windows
+- 🐧 `Taminator-1.9.5.AppImage` (116 MB) - Linux Intel/AMD (x86_64)
+- 🐧 `Taminator-1.9.5-arm64.AppImage` (118 MB) - Linux ARM64 ⭐ **Fedora on MacBook Pro**
+- 🍎 `Taminator-1.9.5.dmg` (111 MB) - macOS (Intel + Apple Silicon)
+- 🪟 `Taminator-Setup-1.9.5.exe` (88 MB) - Windows
 
-**All files available in repository:** `taminator/releases/v1.9.2/`
+**All files available in repository:** `taminator/releases/v1.9.5/`
 
 ---
 
@@ -52,8 +52,8 @@ Pick your operating system below and follow the installation steps.
 ### 🐧 Linux Installation
 
 **Choose your architecture:**
-- **Intel/AMD (x86_64)**: `Taminator-1.9.2-x86_64.AppImage`
-- **ARM64 (Fedora on MacBook Pro, Raspberry Pi)**: `Taminator-1.9.2-arm64.AppImage`
+- **Intel/AMD (x86_64)**: `Taminator-1.9.5-x86_64.AppImage`
+- **ARM64 (Fedora on MacBook Pro, Raspberry Pi)**: `Taminator-1.9.5-arm64.AppImage`
 
 ```bash
 # Verify your architecture
@@ -62,20 +62,20 @@ uname -m
 # aarch64 → use arm64 AppImage
 
 # From the cloned repository:
-cd taminator/releases/v1.9.2/
+cd taminator/releases/v1.9.5/
 
 # For ARM64 (Fedora on MacBook Pro M1/M2/M3/M4):
-chmod +x Taminator-1.9.2-arm64.AppImage
-./Taminator-1.9.2-arm64.AppImage
+chmod +x Taminator-1.9.5-arm64.AppImage
+./Taminator-1.9.5-arm64.AppImage
 
 # For x86_64 (Intel/AMD):
-chmod +x Taminator-1.9.2.AppImage
-./Taminator-1.9.2.AppImage
+chmod +x Taminator-1.9.5.AppImage
+./Taminator-1.9.5.AppImage
 
 # Optional: Install system-wide
 mkdir -p ~/Applications
-cp Taminator-1.9.2-*.AppImage ~/Applications/
-~/Applications/Taminator-1.9.2-*.AppImage
+cp Taminator-1.9.5-*.AppImage ~/Applications/
+~/Applications/Taminator-1.9.5-*.AppImage
 ```
 
 **📖 Running Fedora on MacBook Pro?** See [ARM64 Fedora Guide](docs/ARM64-FEDORA-MACBOOK.md)
@@ -83,8 +83,8 @@ cp Taminator-1.9.2-*.AppImage ~/Applications/
 ### 🍎 macOS Installation
 ```bash
 # From the cloned repository:
-cd taminator/releases/v1.9.2/
-open Taminator-1.9.2.dmg
+cd taminator/releases/v1.9.5/
+open Taminator-1.9.5.dmg
 
 # Then in Finder:
 # 1. Drag Taminator to Applications folder
@@ -102,11 +102,11 @@ ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/
 ```powershell
 # From the cloned repository:
 cd taminator\releases\v1.9.2\
-.\Taminator-Setup-1.9.2.exe
+.\Taminator-Setup-1.9.5.exe
 
 # Or in File Explorer:
-# Navigate to taminator\releases\v1.9.2\
-# Double-click Taminator-Setup-1.9.2.exe
+# Navigate to taminator\releases\v1.9.5\
+# Double-click Taminator-Setup-1.9.5.exe
 
 # Installation wizard will ask:
 # 1. Installation directory (default is fine)
@@ -143,7 +143,8 @@ tam-rfe check --customer <name>
 
 | Version | Release Date | Key Features | Status |
 |---------|--------------|--------------|--------|
-| **v1.9.2** | Oct 2025 | Cross-platform release, ARM64 AppImage, Git LFS | 🟢 Current |
+| **v1.9.5** | Oct 2025 | Vault integration, CLI router fix, fake features removed | 🟢 Current |
+| **v1.9.2** | Oct 2025 | Cross-platform release, ARM64 AppImage, Git LFS | ✅ Stable |
 | **v1.7.0** | Oct 2025 | Complete GUI redesign, Auth-Box integration | ✅ Stable |
 | v1.6.0 | Sep 2025 | Desktop integration, AppImage packaging | ✅ Stable |
 | v1.5.0 | Aug 2025 | Enhanced reporting, multi-customer support | ✅ Stable |
@@ -154,8 +155,8 @@ tam-rfe check --customer <name>
 | v1.0.0 | Mar 2025 | Initial release, basic RFE tracking | ✅ Stable |
 
 ###  Project Status
-- **Version**: 1.7.0 (Production Release) - *"Advanced prototype. You could say we're... ahead of schedule."*
-- **Status**: Production-ready with complete GUI
+- **Version**: 1.9.5 (Production Release) - *"The Honesty Update - Now with 100% less fake features."*
+- **Status**: Production-ready with Vault integration
 - **Platforms**: 🐧 Linux (AppImage) | 🍎 macOS (DMG) | 🪟 Windows (NSIS Installer)
 - **Architecture**: Intel/AMD (x64) + Apple Silicon (arm64)
 - **Threat Level**: Zero. We're the friendly Skynet.
@@ -388,7 +389,7 @@ This personal project is developed with the following principles:
 **The Skynet TAMs Actually Want™**
 
 **💝 Built with passion for helping TAMs succeed**  
-*v1.7.0 - Production Release - October 2025*
+*v1.9.5 - The Honesty Update - October 2025*
 
 ---
 
