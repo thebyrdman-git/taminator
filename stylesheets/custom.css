@@ -1,0 +1,15 @@
+/* TAMINATOR Custom Styles */
+
+/* Make logo 20% bigger */
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+    width: 1.92rem;  /* Default is 1.6rem, 1.6 * 1.2 = 1.92rem */
+    height: 1.92rem;
+}
+
+.md-logo img,
+.md-logo svg {
+    width: 1.92rem;
+    height: 1.92rem;
+}
+
