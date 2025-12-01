@@ -4,7 +4,7 @@
 set -e  # Exit on error
 # set -x  # Uncomment for full debug output
 
-GITLAB_TOKEN="***REMOVED***"
+GITLAB_TOKEN="${GITLAB_TOKEN:?Set GITLAB_TOKEN environment variable}"
 GITLAB_URL="https://gitlab.cee.redhat.com"
 VERSION="1.9.2"
 TAG_NAME="v1.9.2"

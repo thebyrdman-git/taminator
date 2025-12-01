@@ -64,7 +64,7 @@ def cmd_status():
         console.print("\n[yellow]⚠️  Vault not available. Using Auth Box fallback.[/yellow]")
         console.print("\nTo enable Vault:")
         console.print("  export VAULT_ADDR='http://192.168.1.34:8201'")
-        console.print("  export VAULT_TOKEN='***REMOVED***'")
+        console.print("  export VAULT_TOKEN='<your-vault-token>'")
 
 
 def cmd_migrate():
