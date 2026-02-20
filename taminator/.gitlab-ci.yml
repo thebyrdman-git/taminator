@@ -8,7 +8,7 @@ stages:
 variables:
   NODE_VERSION: "20"
   PYTHON_VERSION: "3.11"
-  ARTIFACTS_EXPIRE: "7 days"
+  ARTIFACTS_EXPIRE: "1 week"
 
 # Build Linux x64 AppImage
 build:linux:x64:
