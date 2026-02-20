@@ -112,7 +112,7 @@ jobs:
             set -e
             cd /workspace/taminator/gui
             npm ci
-            npx electron-builder --linux --publish never
+            npx electron-builder --linux AppImage --publish never
             cp -v dist/*.AppImage /artifacts/ 2>/dev/null || true
             ls -la /artifacts/
       - name: Upload Linux ARM64 artifact
