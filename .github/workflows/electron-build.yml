@@ -42,6 +42,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verify build icon exists
+        shell: bash
         run: |
           if [ ! -f taminator/gui/build/icon.png ]; then
             echo "::error::Missing taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
@@ -61,10 +62,7 @@ jobs:
         working-directory: taminator/gui
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLEID: ${{ secrets.APPLEID }}
-          APPLEIDPASS: ${{ secrets.APPLEIDPASS }}
+          # Signing: set CSC_LINK, CSC_KEY_PASSWORD, APPLEID, APPLEIDPASS in repo secrets to enable; omit to build unsigned
         run: |
           npx electron-builder --${{ matrix.build_target }} --publish never
       
@@ -98,7 +96,7 @@ jobs:
         with:
           arch: aarch64
           distro: ubuntu24.04
-          githubToken: ${{ github.token }}
+          # No githubToken: avoid cache "manifest unknown" on first run; install runs from scratch
           setup: |
             mkdir -p "${PWD}/arm64-artifacts"
           dockerRunArgs: |
