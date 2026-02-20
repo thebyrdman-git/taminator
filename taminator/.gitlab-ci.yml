@@ -18,15 +18,15 @@ build:linux:x64:
   before_script:
     - apt-get update && apt-get install -y python3 python3-pip
     - python3 -m pip install --upgrade pip --break-system-packages
-    - if [ -f requirements.txt ]; then pip3 install -r requirements.txt --break-system-packages; fi
+    - if [ -f taminator/requirements.txt ]; then pip3 install -r taminator/requirements.txt --break-system-packages; fi
   script:
-    - cd gui
+    - cd taminator/gui
     - npm ci
     - npm run build:linux
   artifacts:
     name: "linux-appimage-x64-${CI_COMMIT_REF_NAME}"
     paths:
-      - gui/dist/*.AppImage
+      - taminator/gui/dist/*.AppImage
     expire_in: "1 week"
   only:
     - tags
@@ -43,17 +43,17 @@ build:linux:arm64:
     # Install QEMU for ARM64 emulation
     - apt-get update && apt-get install -y qemu-user-static binfmt-support python3 python3-pip
     - python3 -m pip install --upgrade pip --break-system-packages
-    - if [ -f requirements.txt ]; then pip3 install -r requirements.txt --break-system-packages; fi
+    - if [ -f taminator/requirements.txt ]; then pip3 install -r taminator/requirements.txt --break-system-packages; fi
     - update-binfmts --enable qemu-aarch64
   script:
-    - cd gui
+    - cd taminator/gui
     - npm ci
     - npm run build:linux:arm64
     - echo "Built for Fedora ARM64 (MacBook Pro M1/M2/M3/M4)"
   artifacts:
     name: "linux-appimage-arm64-${CI_COMMIT_REF_NAME}"
     paths:
-      - gui/dist/*.AppImage
+      - taminator/gui/dist/*.AppImage
     expire_in: "1 week"
   only:
     - tags
@@ -72,15 +72,15 @@ build:windows:
     - choco install python --version=${PYTHON_VERSION} -y
     - refreshenv
     - python -m pip install --upgrade pip
-    - if (Test-Path requirements.txt) { pip install -r requirements.txt }
+    - if (Test-Path taminator/requirements.txt) { pip install -r taminator/requirements.txt }
   script:
-    - cd gui
+    - cd taminator/gui
     - npm ci
     - npm run build:win
   artifacts:
     name: "windows-installer-${CI_COMMIT_REF_NAME}"
     paths:
-      - gui/dist/*.exe
+      - taminator/gui/dist/*.exe
     expire_in: "1 week"
   only:
     - tags
@@ -95,15 +95,15 @@ build:macos:
     - export PATH="/usr/local/opt/node@${NODE_VERSION}/bin:$PATH"
     - export PATH="/usr/local/opt/python@${PYTHON_VERSION}/bin:$PATH"
     - python3 -m pip install --upgrade pip
-    - if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
+    - if [ -f taminator/requirements.txt ]; then pip3 install -r taminator/requirements.txt; fi
   script:
-    - cd gui
+    - cd taminator/gui
     - npm ci
     - npm run build:mac
   artifacts:
     name: "macos-dmg-${CI_COMMIT_REF_NAME}"
     paths:
-      - gui/dist/*.dmg
+      - taminator/gui/dist/*.dmg
     expire_in: "1 week"
   only:
     - tags
@@ -127,7 +127,7 @@ release:gitlab:
     
     # List all artifacts
     - echo "Release artifacts:"
-    - find gui/dist -type f \( -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" \) -exec ls -lh {} \;
+    - find taminator/gui/dist -type f \( -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" \) -exec ls -lh {} \;
     
     # Generate release description
     - |
@@ -189,19 +189,19 @@ release:gitlab:
     assets:
       links:
         - name: "Linux x86_64 AppImage"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gui/dist/Taminator-${VERSION_NUM}-x86_64.AppImage?job=build:linux:x64"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-${VERSION_NUM}-x86_64.AppImage?job=build:linux:x64"
           link_type: package
         - name: "Linux ARM64 AppImage"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gui/dist/Taminator-${VERSION_NUM}-arm64.AppImage?job=build:linux:arm64"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-${VERSION_NUM}-arm64.AppImage?job=build:linux:arm64"
           link_type: package
         - name: "Windows Installer"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gui/dist/Taminator-Setup-${VERSION_NUM}.exe?job=build:windows"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-Setup-${VERSION_NUM}.exe?job=build:windows"
           link_type: package
         - name: "macOS x64 DMG"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gui/dist/Taminator-${VERSION_NUM}-x64.dmg?job=build:macos"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-${VERSION_NUM}-x64.dmg?job=build:macos"
           link_type: package
         - name: "macOS ARM64 DMG"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gui/dist/Taminator-${VERSION_NUM}-arm64.dmg?job=build:macos"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-${VERSION_NUM}-arm64.dmg?job=build:macos"
           link_type: package
   only:
     - tags
