@@ -95,8 +95,8 @@ jobs:
         id: build
         with:
           arch: aarch64
-          distro: ubuntu24.04
-          # No githubToken: avoid cache "manifest unknown" on first run; install runs from scratch
+          distro: ubuntu20.04
+          # ubuntu20.04: NodeSource setup_20.x works; 24.04 install was exiting 100
           setup: |
             mkdir -p "${PWD}/arm64-artifacts"
           dockerRunArgs: |
