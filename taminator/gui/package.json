@@ -47,7 +47,7 @@
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "icon": "../web/taminator_logo.png",
+      "icon": "build/icon.png",
       "target": [
         {
           "target": "dmg",
@@ -63,7 +63,7 @@
         "rpm"
       ],
       "category": "Development",
-      "icon": "../web/taminator_logo.png",
+      "icon": "build/icon.png",
       "maintainer": "jbyrd@redhat.com",
       "vendor": "Red Hat",
       "synopsis": "RFE and Bug Report Generator",
@@ -76,7 +76,7 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "../web/taminator_logo.png"
+      "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": false,
