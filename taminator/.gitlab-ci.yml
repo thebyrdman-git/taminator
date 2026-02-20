@@ -22,7 +22,7 @@ build:linux:x64:
   script:
     - cd taminator/gui
     - npm ci
-    - npm run build:linux
+    - npm run build:linux:appimage
   artifacts:
     name: "linux-appimage-x64-${CI_COMMIT_REF_NAME}"
     paths:
@@ -48,7 +48,7 @@ build:linux:arm64:
   script:
     - cd taminator/gui
     - npm ci
-    - npm run build:linux:arm64
+    - npm run build:linux:arm64:appimage
     - echo "Built for Fedora ARM64 (MacBook Pro M1/M2/M3/M4)"
   artifacts:
     name: "linux-appimage-arm64-${CI_COMMIT_REF_NAME}"
