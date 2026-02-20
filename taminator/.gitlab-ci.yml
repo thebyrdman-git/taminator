@@ -17,8 +17,8 @@ build:linux:x64:
     - itup-alm-x86
   before_script:
     - apt-get update && apt-get install -y python3 python3-pip
-    - python3 -m pip install --upgrade pip
-    - if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
+    - python3 -m pip install --upgrade pip --break-system-packages
+    - if [ -f requirements.txt ]; then pip3 install -r requirements.txt --break-system-packages; fi
   script:
     - cd gui
     - npm ci
@@ -42,8 +42,8 @@ build:linux:arm64:
   before_script:
     # Install QEMU for ARM64 emulation
     - apt-get update && apt-get install -y qemu-user-static binfmt-support python3 python3-pip
-    - python3 -m pip install --upgrade pip
-    - if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
+    - python3 -m pip install --upgrade pip --break-system-packages
+    - if [ -f requirements.txt ]; then pip3 install -r requirements.txt --break-system-packages; fi
     - update-binfmts --enable qemu-aarch64
   script:
     - cd gui
