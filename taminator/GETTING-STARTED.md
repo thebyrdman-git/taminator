@@ -1,77 +1,75 @@
-# 🚀 Getting Started with Taminator v1.9.5
+# Getting Started with Taminator
 
-**Welcome to Taminator!** The RFE/Bug tracking tool that Red Hat TAMs actually want.
+This guide gets you running quickly. For the full reference, see the [User Guide](../USER-GUIDE.md) (also in the app under User Guide).
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### 1. Download
 
-Get the latest AppImage from:
-- **GitLab Releases:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases
-- **Direct Download:** `Taminator-1.9.5.AppImage`
+Get the desktop app from **GitLab Releases:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases
 
-### 2. Make Executable
+- **Linux:** Download the AppImage for your architecture (x86_64 or ARM64). Check with `uname -m` (x86_64 → use x86_64 AppImage; aarch64 → use arm64 AppImage).
+- **macOS:** Download the DMG, then drag Taminator to Applications. First time: right-click → Open to bypass Gatekeeper if needed.
+
+Requires Red Hat VPN and GitLab CEE access.
+
+### 2. Run (Linux AppImage)
 
 ```bash
-chmod +x Taminator-1.9.5.AppImage
+chmod +x Taminator-*.AppImage
+./Taminator-*.AppImage
 ```
 
-### 3. Run
+Or double-click from your file manager.
+
+### 3. (Optional) Add to Applications menu (Linux)
 
 ```bash
-./Taminator-1.9.5.AppImage
-```
+mkdir -p ~/Applications
+cp Taminator-*.AppImage ~/Applications/
 
-Or double-click from your file manager!
-
-### 4. (Optional) Add to Applications Menu
-
-```bash
-# Copy to Applications folder
-cp Taminator-1.9.5.AppImage ~/Applications/
-
-# Create desktop entry
+# Optional desktop entry
 cat > ~/.local/share/applications/taminator.desktop << 'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
 Name=Taminator
 Comment=RFE/Bug tracking tool for Red Hat TAMs
-Exec=/home/$USER/Applications/Taminator-1.9.5.AppImage %U
+Exec=/home/$USER/Applications/Taminator-2.0.0-x86_64.AppImage %U
 Icon=taminator
 Terminal=false
 Categories=Development;Utility;
 Keywords=rfe;bug;jira;redhat;tam;
 EOF
-
-# Update desktop database
 update-desktop-database ~/.local/share/applications/
 ```
 
+(Adjust the `Exec` path in the desktop file to match your AppImage filename.)
+
 ---
 
-## 🔑 Authentication Setup
+## Authentication Setup
 
-Taminator v1.9.5 supports **two authentication methods**:
+Taminator supports **two authentication methods**:
 
-### Option 1: Auth Box (Local Storage) ✅ Recommended for Single Users
+### Option 1: Auth Box (Local Storage) — Recommended for Single Users
 
 **What it is:** Encrypted local token storage on your machine.
 
 **Setup:** No configuration needed! Just add tokens via the GUI.
 
 **Pros:**
-- ✅ Works offline
-- ✅ No external dependencies
-- ✅ Quick setup
+- Works offline
+- No external dependencies
+- Quick setup
 
 **Cons:**
-- ❌ Tokens only on one machine
-- ❌ No team sharing
+- Tokens only on one machine
+- No team sharing
 
-### Option 2: HashiCorp Vault 🔒 Recommended for Teams
+### Option 2: HashiCorp Vault — Recommended for Teams
 
 **What it is:** Centralized secrets management with audit logging.
 
@@ -93,14 +91,14 @@ Taminator v1.9.5 supports **two authentication methods**:
 3. **Launch Taminator** - It will automatically detect Vault!
 
 **Pros:**
-- ✅ Centralized tokens (access from any machine)
-- ✅ Team collaboration
-- ✅ Audit logging
-- ✅ Auto-fallback to Auth Box if offline
+- Centralized tokens (access from any machine)
+- Team collaboration
+- Audit logging
+- Auto-fallback to Auth Box if offline
 
 **Cons:**
-- ❌ Requires Vault server
-- ❌ Initial setup needed
+- Requires Vault server
+- Initial setup needed
 
 ---
 
@@ -109,7 +107,7 @@ Taminator v1.9.5 supports **two authentication methods**:
 ### 1. Launch Taminator
 
 ```bash
-./Taminator-1.9.5.AppImage
+./Taminator-*.AppImage
 ```
 
 ### 2. Navigate to Vault Tab (or Use Auth Box Fallback)
@@ -117,11 +115,11 @@ Taminator v1.9.5 supports **two authentication methods**:
 **If using Vault:**
 - Set VAULT_ADDR and VAULT_TOKEN (see above)
 - Navigate to **🔒 Vault** tab
-- Connection status should show "✓ Online"
+- Connection status should show "Online"
 
 **If using Auth Box:**
 - No setup needed
-- Vault tab will show "⚠️ Using Auth Box fallback"
+- Vault tab will show "Using Auth Box fallback"
 - You're ready to go!
 
 ### 3. Add Your JIRA Token
@@ -179,7 +177,7 @@ Or use the GUI:
 
 ---
 
-## 🛠️ Common Tasks
+## Common Tasks
 
 ### View Current JIRA Status
 1. Navigate to **Home** tab
@@ -212,10 +210,10 @@ Or use the GUI:
 
 ---
 
-## 🔧 Settings
+## Settings
 
 ### Access Settings
-- Click **Settings** (⚙️) in the navigation
+- Click **Settings** in the navigation
 
 ### General Settings
 - **Default TAM Email** - Your Red Hat email
@@ -242,7 +240,7 @@ Or use the GUI:
 ## 🆘 Troubleshooting
 
 ### Issue: Blank page on launch
-**Fix:** You may have v1.9.4 or earlier (known bug). Download v1.9.5.
+**Fix:** You may have an older version. Download the latest from GitLab releases.
 
 ### Issue: "Vault not configured"
 **Fix:** Set VAULT_ADDR and VAULT_TOKEN environment variables before launching.
@@ -260,7 +258,7 @@ Or use the GUI:
 3. Check network connectivity
 
 ### Issue: Can't see Vault tab
-**Fix:** You may have an older version. Download v1.9.5.
+**Fix:** Download the latest from GitLab releases.
 
 ### Issue: Vault shows "Offline" but server is running
 **Fix:**
@@ -274,8 +272,9 @@ Or use the GUI:
 ## 📚 Additional Resources
 
 ### Documentation
-- **CHANGELOG:** See `CHANGELOG-v1.9.5.md` for what's new in v1.9.5
+- **Changelog:** See repo for release notes; [User Guide](../USER-GUIDE.md) is the canonical reference.
 - **Vault Integration:** See `VAULT-INTEGRATION-COMPLETE.md` for details
+- **JIRA / RFE mapping:** Use the **Centralized JIRA Project Mapping** in The Source (TAM Manual) to determine where to submit RFEs. It is community-managed; flag issues or missing products so they can be corrected. For niche or custom project keys, add them to `~/.config/taminator/jira_prefixes.txt` (one key per line).
 - **GitLab Issues:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues
 
 ### Getting Help
@@ -297,8 +296,8 @@ Or use the GUI:
 - 📊 **Reports Tab** - View and manage all your reports
 - 📋 **Check Tab** - Quick status checks for customers
 - ➕ **Onboard Tab** - Add new customers
-- 🔒 **Vault Tab** - Manage tokens centrally (v1.9.5+)
-- ⚙️ **Settings Tab** - Customize your experience
+- **Vault Tab** — Manage tokens centrally (optional)
+- **Settings Tab** - Customize your experience
 
 ### Learn Advanced Features
 - **Automated updates** - Reports stay current automatically
@@ -323,12 +322,12 @@ Or use the GUI:
 
 ---
 
-**Welcome to the team!** 🚀
+**Welcome to the team!**
 
 You're now ready to automate your RFE and bug tracking workflow. Happy reporting!
 
 ---
 
-**Version:** Taminator v1.9.5  
+**Version:** Taminator 2.0.0 (see GitLab releases for latest)  
 **Last Updated:** October 23, 2025  
 **Author:** Jimmy Byrd (jbyrd@redhat.com)

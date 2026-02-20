@@ -1,10 +1,10 @@
 # RFE Automation Tool - Purpose Statement
 
-## 🎯 What This Tool Does
+## What this tool does
 
-**The RFE Automation Tool automatically generates and posts professional RFE/Bug tracker reports to customer portal groups, saving TAMs 2-3 hours per customer per week.**
+Taminator is a tool for generating and maintaining RFE and bug reports for TAMs. It produces professional RFE/Bug tracker reports and can post them to customer portal groups, saving TAMs 2–3 hours per customer per week.
 
-## 📋 Specific Functionality
+## Specific Functionality
 
 ### Input
 - Customer account number
@@ -26,7 +26,7 @@
 - Email notification to TAM with success/failure status
 - Log files for audit and troubleshooting
 
-## ⏱️ Time Savings
+## Time Savings
 
 | Process | Manual | Automated | Savings |
 |---------|--------|-----------|---------|
@@ -34,15 +34,15 @@
 | **Per TAM Per Week** | 8-12 hours | 20 minutes | 95% reduction |
 | **Per TAM Per Year** | 400-600 hours | 17 hours | 95% reduction |
 
-## 🚫 What This Tool Does NOT Do
+## What This Tool Does NOT Do
 
-- ❌ Create new RFE or Bug cases
-- ❌ Modify existing case content or status
-- ❌ Send notifications to customers
-- ❌ Access customer data outside Red Hat systems
-- ❌ Replace TAM judgment or customer relationships
+- Create new RFE or Bug cases
+- Modify existing case content or status
+- Send notifications to customers
+- Access customer data outside Red Hat systems
+- Replace TAM judgment or customer relationships
 
-## 🎯 Customer Value
+## Customer Value
 
 - **Consistency**: 100% consistent formatting every time
 - **Timeliness**: Daily updates instead of weekly manual updates
@@ -50,7 +50,7 @@
 - **Professionalism**: Customer-ready content that reflects well on Red Hat
 - **Transparency**: Real-time status of RFE/Bug requests
 
-## 🔧 Technical Details
+## Technical Details
 
 - **Data Source**: Red Hat `rhcase` tool
 - **Output Format**: 3-table markdown with case numbers, summaries, status

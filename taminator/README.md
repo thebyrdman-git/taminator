@@ -1,167 +1,99 @@
-# 💀 Taminator - The Skynet TAMs Actually Want
+# Taminator — RFE and Bug Report Generator
 
-> *"Come with me if you want to save time."* - Taminator T-800
-
-**Professional TAM automation and workflow tools for Red Hat.** Because sometimes automation doesn't have to be scary.
+A tool for generating and maintaining RFE and bug reports for TAMs. Uses JIRA and case data; supports CLI and optional desktop app.
 
 ---
 
-## 📋 TLDR
+## Summary
 
-**What:** Complete automation suite for Red Hat TAM workflows and customer engagement  
-**Why:** Saves 2-3 hours per customer per week  
-**How:** GUI or CLI - automated tracking, reporting, and customer portal management
-
-**Quick Start:**
-
-## 📥 Download Taminator v1.9.5
-
-**⚠️ Requires:** Red Hat VPN + GitLab CEE authentication
-
-### Option A: Clone Repository (Recommended)
-
-Get all files at once:
-
-```bash
-git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git
-cd taminator/releases/v1.9.5/
-ls -lh  # See all 3 files
-```
-
-### Option B: Manual Download via GitLab
-
-1. **Navigate to:** https://gitlab.cee.redhat.com/jbyrd/taminator
-2. **In the file browser, browse to:** `taminator` → `releases` → `v1.9.5`
-3. **Click on the file** you need
-4. **Click the Download button**
-
-Files available:
-- 🐧 `Taminator-1.9.5.AppImage` (116 MB) - Linux Intel/AMD (x86_64)
-- 🐧 `Taminator-1.9.5-arm64.AppImage` (118 MB) - Linux ARM64 ⭐ **Fedora on MacBook Pro**
-- 🍎 `Taminator-1.9.5.dmg` (111 MB) - macOS (Intel + Apple Silicon)
-- 🪟 `Taminator-Setup-1.9.5.exe` (88 MB) - Windows
-
-**All files available in repository:** `taminator/releases/v1.9.5/`
+**What:** A tool for generating and maintaining RFE and bug reports for TAMs  
+**Why:** Saves 2–3 hours per customer per week  
+**How:** Desktop app (recommended for UI) or CLI — report generation, JIRA/case data, optional portal posting
 
 ---
 
-### Install for Your Platform
+## Where to get Taminator
 
-Pick your operating system below and follow the installation steps.
+**Official (Red Hat coworkers only):** https://gitlab.cee.redhat.com/jbyrd/taminator
 
-### 🐧 Linux Installation
+Requires Red Hat VPN and GitLab CEE access.
 
-**Choose your architecture:**
-- **Intel/AMD (x86_64)**: `Taminator-1.9.5-x86_64.AppImage`
-- **ARM64 (Fedora on MacBook Pro, Raspberry Pi)**: `Taminator-1.9.5-arm64.AppImage`
-
-```bash
-# Verify your architecture
-uname -m
-# x86_64 → use x86_64 AppImage
-# aarch64 → use arm64 AppImage
-
-# From the cloned repository:
-cd taminator/releases/v1.9.5/
-
-# For ARM64 (Fedora on MacBook Pro M1/M2/M3/M4):
-chmod +x Taminator-1.9.5-arm64.AppImage
-./Taminator-1.9.5-arm64.AppImage
-
-# For x86_64 (Intel/AMD):
-chmod +x Taminator-1.9.5.AppImage
-./Taminator-1.9.5.AppImage
-
-# Optional: Install system-wide
-mkdir -p ~/Applications
-cp Taminator-1.9.5-*.AppImage ~/Applications/
-~/Applications/Taminator-1.9.5-*.AppImage
-```
-
-**📖 Running Fedora on MacBook Pro?** See [ARM64 Fedora Guide](docs/ARM64-FEDORA-MACBOOK.md)
-
-### 🍎 macOS Installation
-```bash
-# From the cloned repository:
-cd taminator/releases/v1.9.5/
-open Taminator-1.9.5.dmg
-
-# Then in Finder:
-# 1. Drag Taminator to Applications folder
-# 2. Eject the DMG
-# 3. Go to Applications → Right-click Taminator → Open
-#    (First time only, to bypass Gatekeeper)
-
-# Works on both Intel and Apple Silicon Macs
-
-# Optional: CLI Access
-ln -s /Applications/Taminator.app/Contents/Resources/app/tam-rfe /usr/local/bin/tam-rfe
-```
-
-### 🪟 Windows Installation
-```powershell
-# From the cloned repository:
-cd taminator\releases\v1.9.5\
-.\Taminator-Setup-1.9.5.exe
-
-# Or in File Explorer:
-# Navigate to taminator\releases\v1.9.5\
-# Double-click Taminator-Setup-1.9.5.exe
-
-# Installation wizard will ask:
-# 1. Installation directory (default is fine)
-# 2. ✅ Create desktop shortcut (recommended)
-# 3. ✅ Create Start Menu shortcut (recommended)
-# 4. ✅ Add to PATH (for CLI access)
-
-# Launch from Start Menu or Desktop icon
-
-# CLI usage (if you added to PATH):
-tam-rfe check --customer <name>
-```
-
-### 💻 Command Line (All Platforms) - "Hasta la vista, manual tracking!"
-```bash
-./tam-rfe check --customer <name>
-./tam-rfe update --customer <name>
-./tam-rfe post --customer <name>
-```
-
-**[→ Full Getting Started Guide](GETTING-STARTED.md)** | **[📥 All Downloads](https://gitlab.cee.redhat.com/jbyrd/taminator/-/tree/main)**
+- **Desktop app (recommended):** Download AppImage (Linux) or DMG (macOS) from the [GitLab releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) page. Double-click to open Taminator in its own app window. No terminal required.
+- **From repo:** `git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git ~/taminator` (for CLI or development).
 
 ---
 
-## 🤖 About Taminator
+## Prerequisites
 
-**Taminator is a professional RFE/Bug tracking tool for Red Hat TAMs with both GUI and CLI interfaces.**
+- **Red Hat VPN** — Required for JIRA and internal APIs.
+- **JIRA API token** — From issues.redhat.com → Personal Access Tokens. Configure in the app under Settings.
+- **Customer Portal token** (optional, for posting) — From access.redhat.com/management/api → Generate Token.
+- **Python 3.7+** — Only if running from repo (CLI/development). Not required for the desktop app.
 
-*"Listen, and understand. This tool is out there. It can't be bargained with. It can't be reasoned with. It doesn't feel pity, or remorse, or fear about tracking your RFEs. And it absolutely will not stop, ever, until your reports are generated."*
+---
 
-**The tool automatically tracks RFE and Bug statuses across JIRA and generates professional reports for customer portal groups, saving TAMs 2-3 hours per customer per week.**
+## Installation
 
-### 📊 Version History
+### Desktop app (no terminal required)
 
-| Version | Release Date | Key Features | Status |
-|---------|--------------|--------------|--------|
-| **v1.9.5** | Oct 2025 | Vault integration, CLI router fix, fake features removed | 🟢 Current |
-| **v1.9.2** | Oct 2025 | Cross-platform release, ARM64 AppImage, Git LFS | ✅ Stable |
-| **v1.7.0** | Oct 2025 | Complete GUI redesign, Auth-Box integration | ✅ Stable |
-| v1.6.0 | Sep 2025 | Desktop integration, AppImage packaging | ✅ Stable |
-| v1.5.0 | Aug 2025 | Enhanced reporting, multi-customer support | ✅ Stable |
-| v1.4.0 | Jul 2025 | CLI improvements, email notifications | ✅ Stable |
-| v1.3.0 | Jun 2025 | Portal posting automation | ✅ Stable |
-| v1.2.0 | May 2025 | JIRA integration, real-time status checks | ✅ Stable |
-| v1.1.0 | Apr 2025 | Template system, markdown reports | ✅ Stable |
-| v1.0.0 | Mar 2025 | Initial release, basic RFE tracking | ✅ Stable |
+Double-click the Taminator app; it opens in its own window. No terminal commands needed.
 
-###  Project Status
-- **Version**: 1.9.5 (Production Release) - *"The Honesty Update - Now with 100% less fake features."*
-- **Status**: Production-ready with Vault integration
-- **Platforms**: 🐧 Linux (AppImage) | 🍎 macOS (DMG) | 🪟 Windows (NSIS Installer)
-- **Architecture**: Intel/AMD (x64) + Apple Silicon (arm64)
-- **Threat Level**: Zero. We're the friendly Skynet.
+- **Linux:** Download the AppImage from [GitLab releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases), then double-click. Choose x86_64 or ARM64 to match your system (`uname -m` → x86_64 or aarch64).
+- **macOS:** Download the DMG from GitLab releases, drag Taminator to Applications, then double-click. First time: right-click → Open to bypass Gatekeeper if prompted.
 
-### What This Tool Does
+### From repo (optional)
+
+For CLI or to run the UI from source: `cd taminator/taminator && ./tam-rfe serve`. Desktop app is easier for UI users.
+
+### Windows
+
+Desktop builds are for Linux and macOS only. On Windows, run from the repo (e.g. WSL or Python): `./tam-rfe serve`.
+
+---
+
+## CLI commands
+
+| Command | Description |
+|---------|-------------|
+| `tam-rfe check <customer>` | Compare report to JIRA; no file changes. |
+| `tam-rfe update <customer>` | Fetch JIRA statuses and write to the report file. |
+| `tam-rfe post <customer>` | Post report to Red Hat Customer Portal. |
+| `tam-rfe onboard <customer>` | Onboard a new customer (interactive). |
+| `tam-rfe config` | Manage tokens and configuration. |
+| `tam-rfe docs` | Show full user guide in the terminal. |
+| `tam-rfe serve` | Start browser-based UI (default http://127.0.0.1:8765). |
+
+Options: `--test-data`, `--help`, `--version` / `-V`.
+
+---
+
+## Run from repo (optional)
+
+To run from source: `git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git ~/taminator`, then `cd ~/taminator/taminator && ./tam-rfe serve` (browser UI at http://127.0.0.1:8765). For most users, the [desktop app from GitLab releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) is simpler. See [GETTING-STARTED.md](GETTING-STARTED.md) and the [full user guide](../USER-GUIDE.md).
+
+---
+
+## About Taminator
+
+Taminator generates and maintains RFE and bug reports for TAMs. It uses JIRA and case data for consistent markdown reports and can post to customer portal groups. Typical use saves 2–3 hours per customer per week compared to manual tracking.
+
+### Version history
+
+| Version | Key Features | Status |
+|---------|--------------|--------|
+| **2.0.0** | Desktop app (Linux + macOS), browser UI, CLI parity, GitLab-only | Current |
+| v1.9.5 | Vault integration, CLI router fix | Stable |
+| v1.9.2 | Cross-platform release, ARM64 AppImage | Stable |
+| v1.7.0 | Complete GUI redesign, Auth-Box integration | Stable |
+| (earlier) | See repo history | Stable |
+
+### Project status
+
+- **Version:** 2.0.0
+- **Platforms:** Linux (AppImage x86_64 + ARM64) | macOS (DMG when available)
+- **Full user guide:** [USER-GUIDE.md](../USER-GUIDE.md) (in repo root); also in the app under User Guide panel.
+
+### What this tool does
 - **Automatically discovers** all RFE and Bug cases for your customers using `rhcase`
 - **Filters cases** by SBR Group (Ansible, OpenShift, etc.) and status (Active, Closed, etc.)
 - **Generates professional 3-table reports** with Active RFE, Active Bug, and Closed case history
@@ -169,81 +101,33 @@ tam-rfe check --customer <name>
 - **Sends email notifications** to TAMs with success/failure status
 
 ### What This Tool Does NOT Do
-- ❌ Does NOT create new RFE or Bug cases
-- ❌ Does NOT modify existing case content or status  
-- ❌ Does NOT send notifications to customers (silent portal updates)
-- ❌ Does NOT access customer data outside of Red Hat systems
-- ❌ Does NOT replace TAM judgment or customer relationship management
+- Does NOT create new RFE or Bug cases
+- Does NOT modify existing case content or status
+- Does NOT send notifications to customers (silent portal updates)
+- Does NOT access customer data outside of Red Hat systems
+- Does NOT replace TAM judgment or customer relationship management
 
-## 🚀 Quick Start
+### JIRA and RFE mapping (where to submit)
 
-**Want to get started immediately?** → [**GETTING-STARTED.md**](GETTING-STARTED.md)
+To determine where an RFE should be submitted, use the **Centralized JIRA Project Mapping** in The Source (TAM Manual). It is the comprehensive JIRA and RFE mapping for Red Hat products and is community-managed across all products. Taminator uses this mapping as its source for supported JIRA project keys. If you find an issue, outdated information, or a missing product in the JIRA mapping, flag it and see if you can get it corrected.
 
-*"Your mission, should you choose to accept it: Install Taminator and never manually track an RFE again."*
+**Add your own (niche) mappings:** To support JIRA project keys not yet in the main list, add them to `~/.config/taminator/jira_prefixes.txt` — one project key per line (e.g. `MYPROJECT`). Lines starting with `#` and blank lines are ignored. These are merged with the built-in list for discovery, report parsing, and link formatting.
 
-### Prerequisites
-- Red Hat VPN connection *(Skynet uplink)*
-- `rhcase` tool installed and configured *(Target acquisition system)*
-- Python 3.7+ *(Neural net processor)*
-- Red Hat SSO credentials *(Authorization codes)*
-- Customer portal group access *(Mission parameters)*
+## Quick Start
 
-### Installation Options
+**Get started:** [GETTING-STARTED.md](GETTING-STARTED.md) | [Full user guide](../USER-GUIDE.md)
 
-#### GUI Application (Recommended for most TAMs)
-- **🐧 Linux**: Download `.AppImage` - Single file, no installation required
-- **🍎 macOS**: Download `.dmg` - Drag to Applications, ready to go
-- **🪟 Windows**: Download `.exe` - Standard installer with Start Menu integration
-
-#### CLI Tools (For automation and advanced users)
-1. **Auto-Detection**: `./bin/tam-rfe-auto-detect` - Detects your existing setup automatically
-2. **Interactive Setup**: `./bin/tam-rfe-onboard-intelligent` - Learn your preferences through questions
-3. **Template Customization**: `./bin/tam-rfe-template-customizer` - Create personalized report styles
-4. **Chat Interface**: `./bin/tam-rfe-chat` - Just ask me what you need
-
-## 💬 How to Use
-
-### Start the Chat Interface
-```bash
-./bin/tam-rfe-chat
-```
-
-### Ask Me Anything
-- "Generate RFE report for Wells Fargo"
-- "Show me all Ansible cases for TD Bank"
-- "Prepare summary for JPMC quarterly meeting"
-
-### Direct Commands
-```bash
-# Test with specific customer
-./bin/tam-rfe-monitor-simple wellsfargo --test
-
-# Run daily automation
-./bin/tam-rfe-monitor-simple wellsfargo --daily
-
-# Run all customers
-./bin/tam-rfe-monitor-simple --all
-```
-
-## 📋 Report Options
-
-When you ask for reports, I'll give you **two options**:
-
-1. **Copy/Paste** - I show you the markdown, you paste it wherever you need it
-2. **Auto-Post** - I automatically post to the customer portal
-
-## 🏢 Supported Customers
+## Supported Customers
 
 | Customer | Group ID | Status | Account Number |
 |----------|----------|--------|----------------|
-| Wells Fargo | 4357341 | ✅ Production Ready | 838043 |
-| TD Bank | 7028358 | ✅ Sandbox Ready | 1912101 |
-| JPMC | 6956770 | ✅ Production Ready | 334224 |
-| Fannie Mae | 7095107 | ✅ Production Ready | 1460290 |
+| Wells Fargo | 4357341 | Production Ready | 838043 |
+| TD Bank | 7028358 | Sandbox Ready | 1912101 |
+| JPMC | 6956770 | Production Ready | 334224 |
+| Fannie Mae | 7095107 | Production Ready | 1460290 |
 
-## 📊 Time Savings
+## Time Savings
 
-*"In three hours, I could track 4 customers manually. Or in 5 minutes, Taminator could track them all. It's a no-brainer."* - John Connor, probably
 
 | Process | Manual | Automated | Savings |
 |---------|--------|-----------|---------|
@@ -251,15 +135,13 @@ When you ask for reports, I'll give you **two options**:
 | **Per TAM Per Week** | 8-12 hours | 20 minutes | 95% reduction |
 | **Per TAM Per Year** | 400-600 hours | 17 hours | 95% reduction |
 
-*Translation: Taminator gives you back 383 hours per year. That's 9.5 work weeks. You're welcome.*
-
-## 🛡️ Security & Compliance
+## Security and compliance
 
 ### Red Hat AI Policy Compliance
-- ✅ Customer data: Red Hat Granite models only
-- ✅ Internal data: AIA-approved model list
-- ✅ External APIs: Blocked for customer data
-- ✅ Audit logging: All operations tracked
+- Customer data: Red Hat Granite models only
+- Internal data: AIA-approved model list
+- External APIs: Blocked for customer data
+- Audit logging: All operations tracked
 
 ### Data Protection
 - Customer data processed via Red Hat Granite models only
@@ -267,7 +149,7 @@ When you ask for reports, I'll give you **two options**:
 - All operations logged for audit compliance
 - Secure credential management via Red Hat SSO
 
-## 🆘 Need Help?
+## Need Help?
 
 ### Quick Commands
 ```bash
@@ -286,7 +168,7 @@ When you ask for reports, I'll give you **two options**:
 - **"The tool isn't finding cases"** → Check your `rhcase` configuration
 - **"I want to customize the reports"** → Use the chat interface and ask me to modify them
 
-## 🎉 Ready to Start?
+## Ready to Start?
 
 ### For Brand New TAMs (Zero Experience)
 1. **Start chatting**: `./bin/tam-rfe-chat`
@@ -301,15 +183,15 @@ When you ask for reports, I'll give you **two options**:
 
 **That's it! The tool will learn your preferences and get smarter over time.**
 
-## 📚 Documentation
+## Documentation
 
-- **[Getting Started Guide](GETTING-STARTED.md)**: Quick 5-minute setup
-- **[Purpose Statement](PURPOSE.md)**: Detailed functionality overview
-- **[TAM Community Guide](README-TAM-COMMUNITY.md)**: Comprehensive community documentation
-- **[Ansible Deployment](ANSIBLE-DEPLOYMENT.md)**: Automated deployment options
-- **[Prerequisites Guide](docs/PREREQUISITES-GUIDE.md)**: Complete setup requirements
+- **[Full user guide](../USER-GUIDE.md)**: Canonical guide (in app and on GitLab)
+- **[Getting Started](GETTING-STARTED.md)**: Quick setup
+- **[Purpose](PURPOSE.md)**: What the tool does and does not do
+- **Releases:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases
+- **Issues:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues
 
-## 🤝 Contributing
+## Contributing
 
 ### For TAMs
 - Report issues via GitLab issues
@@ -323,7 +205,7 @@ When you ask for reports, I'll give you **two options**:
 - Include unit tests for all features
 - Ensure Red Hat compliance
 
-## 📞 Support & Contact
+## Support & Contact
 
 ### Personal Development Contact
 - **Developer**: jbyrd (jbyrd@redhat.com)
@@ -337,7 +219,7 @@ When you ask for reports, I'll give you **two options**:
 
 ---
 
-## 🎯 Bottom Line for TAMs
+## Bottom Line for TAMs
 
 **This tool transforms a 2-3 hour manual weekly task into a 5-minute automated process, freeing TAMs to focus on strategic customer work while ensuring consistent, professional customer communication.**
 
@@ -349,7 +231,7 @@ When you ask for reports, I'll give you **two options**:
 - **Maintain compliance** - Full Red Hat AI policy compliance
 - **Scale easily** - Works for any TAM customer with proper configuration
 
-## 🚀 Development Philosophy
+## Development Philosophy
 
 This personal project is developed with the following principles:
 
@@ -359,7 +241,7 @@ This personal project is developed with the following principles:
 - **TAM-Focused**: Built specifically for TAM workflows and needs
 - **Continuous Improvement**: Regular updates and enhancements based on real-world usage
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Original Creator**: grimm - PAI framework tools and initial RFE automation concept
 - **Development**: jbyrd - Personal project with independent development and enhancements
@@ -367,36 +249,4 @@ This personal project is developed with the following principles:
 
 ---
 
-## 🎬 Taminator Quotes to Live By
-
-> *"I'll be back... with your weekly RFE report."* - T-800
-
-> *"Come with me if you want to save time."* - T-800
-
-> *"Hasta la vista, manual tracking!"* - T-800
-
-> *"No fate but what we automate."* - Sarah Connor
-
-> *"The future is not set. There is no fate but what we make. Also, your reports are ready."* - Sarah Connor
-
-> *"Listen, and understand. Taminator is out there. It can't be bargained with. It doesn't feel pity or remorse, and it absolutely will not stop, ever, until your RFE tracking is automated."* - Kyle Reese
-
----
-
-**🤖 Taminator - RFE Automation Done Right**  
-*Making TAMs more efficient, one automated report at a time*
-
-**The Skynet TAMs Actually Want™**
-
-**💝 Built with passion for helping TAMs succeed**  
-*v1.9.5 - The Honesty Update - October 2025*
-
----
-
-<div align="center">
-
-**[📥 Download](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases)** | **[📖 Docs](GETTING-STARTED.md)** | **[🐛 Report Issue](https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues)** | **[💬 Support](mailto:jbyrd@redhat.com)**
-
-*Remember: In the future, all TAMs use Taminator. Join the resistance... against manual work.*
-
-</div>
+[Releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | [Getting Started](GETTING-STARTED.md) | [Issues](https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues) | [Contact](mailto:jbyrd@redhat.com)
