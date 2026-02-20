@@ -1,16 +1,21 @@
 {
   "name": "taminator-gui",
-  "version": "1.9.5",
+  "version": "2.0.0",
   "description": "Taminator RFE Tool - GUI Application",
-  "homepage": "https://github.com/thebyrdman-git/taminator",
+  "homepage": "https://gitlab.cee.redhat.com/jbyrd/taminator",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thebyrdman-git/taminator.git"
+    "url": "https://gitlab.cee.redhat.com/jbyrd/taminator.git"
   },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:linux:arm64": "electron-builder --linux --arm64",
+    "build:linux:rpm": "electron-builder --linux rpm",
+    "build:win": "electron-builder --win",
     "dev": "electron . --dev"
   },
   "author": "Jimmy Byrd",
@@ -44,9 +49,14 @@
       "../gui_auth_check.py",
       "../src/**/*"
     ],
+    "extraResources": [
+      { "from": "../web", "to": "web" },
+      { "from": "../web_server.py", "to": "." },
+      { "from": "../tam-rfe", "to": "." }
+    ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "icon": "build/icon.png",
+      "icon": "../web/taminator_logo.png",
       "target": [
         {
           "target": "dmg",
@@ -62,27 +72,11 @@
         "rpm"
       ],
       "category": "Development",
-      "icon": "build/icon.png",
+      "icon": "../web/taminator_logo.png",
       "maintainer": "jbyrd@redhat.com",
       "vendor": "Red Hat",
-      "synopsis": "The Skynet TAMs actually want",
+      "synopsis": "RFE and Bug Report Generator",
       "description": "RFE/Bug tracking tool for Red Hat TAMs"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ],
-      "icon": "build/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Taminator"
     }
   }
 }
