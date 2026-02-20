@@ -40,6 +40,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Verify build icon exists
+        run: |
+          if [ ! -f taminator/gui/build/icon.png ]; then
+            echo "::error::Missing taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
+            exit 1
+          fi
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -54,6 +61,10 @@ jobs:
         working-directory: taminator/gui
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLEID: ${{ secrets.APPLEID }}
+          APPLEIDPASS: ${{ secrets.APPLEIDPASS }}
         run: |
           npx electron-builder --${{ matrix.build_target }} --publish never
       
@@ -68,10 +79,54 @@ jobs:
           name: taminator-${{ matrix.os }}-${{ github.ref_name }}
           path: ${{ matrix.artifact_pattern }}
           retention-days: 30
+
+  build-linux-arm64:
+    name: Build Linux ARM64 (AppImage)
+    runs-on: ubuntu-24.04
+    continue-on-error: true  # Do not block release if ARM64 build fails
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify build icon exists
+        run: |
+          if [ ! -f taminator/gui/build/icon.png ]; then
+            echo "::error::Missing taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
+            exit 1
+          fi
+      - uses: uraimo/run-on-arch-action@v3
+        name: Build AppImage on aarch64
+        id: build
+        with:
+          arch: aarch64
+          distro: ubuntu24.04
+          githubToken: ${{ github.token }}
+          setup: |
+            mkdir -p "${PWD}/arm64-artifacts"
+          dockerRunArgs: |
+            --volume "${PWD}:/workspace"
+            --volume "${PWD}/arm64-artifacts:/artifacts"
+          install: |
+            apt-get update -qq
+            apt-get install -qq -y curl ca-certificates
+            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+            apt-get install -qq -y nodejs
+            apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
+          run: |
+            set -e
+            cd /workspace/taminator/gui
+            npm ci
+            npx electron-builder --linux --publish never
+            cp -v dist/*.AppImage /artifacts/ 2>/dev/null || true
+            ls -la /artifacts/
+      - name: Upload Linux ARM64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-Linux-arm64-${{ github.ref_name }}
+          path: arm64-artifacts/*.AppImage
+          retention-days: 30
   
   release:
     name: Create Release
-    needs: build
+    needs: [build, build-linux-arm64]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     
