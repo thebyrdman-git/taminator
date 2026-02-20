@@ -920,7 +920,7 @@
                 
                 <div style="margin-bottom: 16px;">
                   <label style="display: block; margin-bottom: 4px; font-weight: 600;">TAM Email</label>
-                  <input type="email" id="onboard-email" value="jbyrd@redhat.com" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                  <input type="email" id="onboard-email" value="" placeholder="your.email@redhat.com" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
                   <small style="color: #6A6E73;">Your Red Hat email address</small>
                 </div>
                 
@@ -1275,7 +1275,7 @@
         const util = require('util');
         const execPromise = util.promisify(exec);
         
-        const result = await execPromise('/home/jbyrd/pai/bin/tam-vault test 2>&1 || echo "OFFLINE"');
+        const result = await execPromise('tam-vault test 2>&1 || echo "OFFLINE"');
         
         const isOnline = !result.stdout.includes('OFFLINE') && !result.stdout.includes('not available');
         
@@ -1316,7 +1316,7 @@
         const util = require('util');
         const execPromise = util.promisify(exec);
         
-        const result = await execPromise('/home/jbyrd/pai/bin/tam-vault list 2>&1');
+        const result = await execPromise('tam-vault list 2>&1');
         
         const tokensList = document.getElementById('vault-tokens-list');
         
@@ -1363,7 +1363,7 @@
         const util = require('util');
         const execPromise = util.promisify(exec);
         
-        const result = await execPromise('/home/jbyrd/pai/bin/tam-vault migrate 2>&1');
+        const result = await execPromise('tam-vault migrate 2>&1');
         
         alert('Migration complete! Check the console output for details.');
         loadVaultTokens();
@@ -1382,7 +1382,7 @@
         const util = require('util');
         const execPromise = util.promisify(exec);
         
-        const result = await execPromise('/home/jbyrd/pai/bin/tam-vault test 2>&1');
+        const result = await execPromise('tam-vault test 2>&1');
         
         alert('Vault Test Results:\\n\\n' + result.stdout);
       } catch (error) {
@@ -1404,7 +1404,7 @@
         const util = require('util');
         const execPromise = util.promisify(exec);
         
-        const result = await execPromise(`echo "${token}" | /home/jbyrd/pai/bin/tam-vault set ${service}`);
+        const result = await execPromise(`echo "${token}" | tam-vault set ${service}`);
         
         alert(`Token for ${service} stored successfully!`);
         document.getElementById('vault-new-service').value = '';
@@ -1421,7 +1421,7 @@
         const util = require('util');
         const execPromise = util.promisify(exec);
         
-        const result = await execPromise(`/home/jbyrd/pai/bin/tam-vault get ${service} 2>&1`);
+        const result = await execPromise(`tam-vault get ${service} 2>&1`);
         
         prompt(`Token for ${service}:`, result.stdout.trim());
       } catch (error) {
@@ -1439,7 +1439,7 @@
         const util = require('util');
         const execPromise = util.promisify(exec);
         
-        const result = await execPromise(`/home/jbyrd/pai/bin/tam-vault delete ${service} 2>&1`);
+        const result = await execPromise(`tam-vault delete ${service} 2>&1`);
         
         alert(`Token for ${service} deleted`);
         loadVaultTokens();
@@ -1461,7 +1461,7 @@
             <div class="card-content">
               <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600;">Default TAM Email</label>
-                <input type="email" id="settings-email" value="jbyrd@redhat.com" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
+                <input type="email" id="settings-email" value="" placeholder="your.email@redhat.com" style="width: 100%; padding: 8px; border: 1px solid #D2D2D2; border-radius: 4px;">
               </div>
               
               <div style="margin-bottom: 16px;">
@@ -1569,7 +1569,7 @@
     function resetSettings() {
       if (confirm('Are you sure you want to reset all settings to defaults?\n\nThis will:\n- Reset all settings to defaults\n- Clear Vault connection info\n- Reload the application')) {
         // Reset general settings
-        document.getElementById('settings-email').value = 'jbyrd@redhat.com';
+        document.getElementById('settings-email').value = '';
         document.getElementById('settings-auto-update').checked = true;
         document.getElementById('settings-notifications').checked = false;
         document.getElementById('settings-report-format').value = 'markdown';
@@ -1657,21 +1657,12 @@
           <div class="card-title">📧 How to Report Issues</div>
           <div class="card-content">
             <div style="padding: 16px; background: #F5F5F5; border-radius: 4px; margin-bottom: 16px;">
-              <h4 style="margin: 0 0 12px 0; color: #151515;">✉️ Email</h4>
-              <p style="margin: 0 0 8px 0; color: #6A6E73;">Send feedback directly to the TAM team:</p>
-              <a href="mailto:jbyrd@redhat.com?subject=Taminator%20Feedback" 
-                 style="color: #0066CC; text-decoration: none; font-weight: 600;">
-                jbyrd@redhat.com
-              </a>
-            </div>
-            
-            <div style="padding: 16px; background: #F5F5F5; border-radius: 4px; margin-bottom: 16px;">
               <h4 style="margin: 0 0 12px 0; color: #151515;">🔗 GitLab Issues</h4>
-              <p style="margin: 0 0 8px 0; color: #6A6E73;">Report issues directly on GitLab:</p>
+              <p style="margin: 0 0 8px 0; color: #6A6E73;">Report issues and feedback on GitLab:</p>
               <a href="https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues" 
                  target="_blank"
                  style="color: #0066CC; text-decoration: none; font-weight: 600;">
-                gitlab.cee.redhat.com/jbyrd/taminator/-/issues →
+                Open GitLab Issues →
               </a>
             </div>
             
