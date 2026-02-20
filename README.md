@@ -56,7 +56,7 @@ Desktop builds are for Linux and macOS only. On Windows, run from the repo (e.g.
 - **[Full user guide](USER-GUIDE.md)** — Canonical guide (in app and on GitLab)
 - **[Getting started](taminator/GETTING-STARTED.md)** — Quick setup
 - **Releases:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases
-- **Issues:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues
+- **Issues / feedback:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues (tech preview — we want your feedback)
 
 ---
 

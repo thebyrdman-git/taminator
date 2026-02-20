@@ -1,8 +1,10 @@
-# Taminator v2.0.0 — Strategy release
+# Taminator v2.0.0 — Tech preview
 
 **Release date:** TBD  
 **Repo:** https://gitlab.cee.redhat.com/jbyrd/taminator (official; GitLab only)  
 **Project title on GitLab:** TAMINATOR - RFE and Bug Report Generator
+
+This is a **tech preview**. We welcome feedback via [GitLab issues](https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues); it drives what we do next.
 
 ---
 
@@ -11,10 +13,10 @@
 v2.0.0 aligns the project with the updated product direction and adds a **browser-based UI** alongside the CLI.
 
 ### What's in v2.0
-- **Desktop app (recommended):** One-window app (AppImage on Linux, DMG on macOS). Double-click to open; the full Taminator UI runs inside the app window. No terminal required. Windows is not offered.
+- **Desktop app (recommended):** One-window app — AppImage on Linux (x86_64 + ARM64). Double-click to open; no terminal required. Windows and macOS builds not in this release.
 - **Browser-based UI from repo:** Run `tam-rfe serve` to start a local web app; use the same report actions (check, update) in your browser.
 - **CLI:** `tam-rfe check`, `tam-rfe update`, `tam-rfe post`, `tam-rfe config`, `tam-rfe onboard`, `tam-rfe report-issue`. Full feature parity with the UI.
-- **Direction and docs:** Phase 1 focus (generate and maintain RFE/bug reports), GitLab only, feedback-driven. See [PRODUCT_STRATEGY.md](../../PRODUCT_STRATEGY.md), [SHARING.md](../../SHARING.md), [FEEDBACK.md](../../FEEDBACK.md).
+- **Direction:** Phase 1 focus (generate and maintain RFE/bug reports), GitLab only, feedback-driven.
 - **Auth:** Auth-Box, VPN check, JIRA token, and portal token behavior unchanged.
 
 ### No breaking changes
@@ -38,8 +40,7 @@ A browser opens at http://127.0.0.1:8765. Enter a customer name (or check “Use
 ## How to get v2.0.0
 
 - **Clone:** `git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git`
-- **Downloads:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases (Linux AppImage; macOS when available)
-- **Full user guide:** In repo at `taminator/USER-GUIDE.md` and in the app (User Guide panel)
+- **Releases / downloads:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases (AppImage links on the v2.0.0 release)
 - **Issues / feedback:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues
 
 Requires Red Hat VPN and GitLab CEE access.
