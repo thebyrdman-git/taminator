@@ -11,13 +11,6 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux",
-    "build:linux:appimage": "electron-builder --linux AppImage",
-    "build:linux:arm64": "electron-builder --linux --arm64",
-    "build:linux:arm64:appimage": "electron-builder --linux --arm64 -c electron-builder-linux-appimage.json",
-    "build:linux:rpm": "electron-builder --linux rpm",
-    "build:win": "electron-builder --win",
     "dev": "electron . --dev"
   },
   "author": "Jimmy Byrd",
@@ -35,6 +28,7 @@
   "build": {
     "appId": "com.redhat.taminator",
     "productName": "Taminator",
+    "publish": null,
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -50,11 +44,6 @@
     "asarUnpack": [
       "../gui_auth_check.py",
       "../src/**/*"
-    ],
-    "extraResources": [
-      { "from": "../web", "to": "web" },
-      { "from": "../web_server.py", "to": "." },
-      { "from": "../tam-rfe", "to": "." }
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
@@ -79,6 +68,22 @@
       "vendor": "Red Hat",
       "synopsis": "RFE and Bug Report Generator",
       "description": "RFE/Bug tracking tool for Red Hat TAMs"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "../web/taminator_logo.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Taminator"
     }
   }
 }
