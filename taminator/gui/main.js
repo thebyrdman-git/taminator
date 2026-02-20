@@ -65,9 +65,13 @@ function createWindow() {
     }
   });
   
-  // Log when page finishes loading
+  // Log when page finishes loading and set app version in UI
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('[Main] Page loaded successfully');
+    const version = app.getVersion();
+    mainWindow.webContents.executeJavaScript(
+      `var el = document.getElementById('app-version'); if (el) el.textContent = 'Taminator v' + ${JSON.stringify(version)};`
+    ).catch(() => {});
   });
   
   // Log any errors
