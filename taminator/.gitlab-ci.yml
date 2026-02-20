@@ -108,7 +108,7 @@ build:macos:
   only:
     - tags
 
-# Create GitLab Release (tags only)
+# Create GitLab Release (tags only; Linux AppImages only for v2.0)
 release:gitlab:
   stage: release
   image: registry.gitlab.com/gitlab-org/release-cli:latest
@@ -117,70 +117,36 @@ release:gitlab:
   dependencies:
     - build:linux:x64
     - build:linux:arm64
-    - build:windows
-    - build:macos
   script:
     # Extract version from tag
     - export VERSION=${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME}}
     - export VERSION_NUM=${VERSION#v}
     - echo "Creating release for version $VERSION"
-    
-    # List all artifacts
     - echo "Release artifacts:"
-    - find taminator/gui/dist -type f \( -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" \) -exec ls -lh {} \;
-    
-    # Generate release description
+    - find taminator/gui/dist -type f -name "*.AppImage" -exec ls -lh {} \;
     - |
       cat > release_description.md <<EOF
       ## Taminator ${VERSION}
       
-      ### 📥 Downloads
+      ### Downloads (Linux)
+      - **x86_64 (Intel/AMD):** Taminator-${VERSION_NUM}-x86_64.AppImage (~118 MB)
+      - **ARM64 (Fedora on Apple Silicon, Graviton, RPi):** Taminator-${VERSION_NUM}-arm64.AppImage (~118 MB)
       
-      **Linux:**
-      - 🐧 **x86_64 (Intel/AMD)**: \`Taminator-${VERSION_NUM}-x86_64.AppImage\` (~118 MB)
-      - 🐧 **ARM64 (Graviton/RPi)**: \`Taminator-${VERSION_NUM}-arm64.AppImage\` (~118 MB)
-      
-      **Windows:**
-      - 🪟 **x64**: \`Taminator-Setup-${VERSION_NUM}.exe\` (~88 MB)
-      
-      **macOS:**
-      - 🍎 **Intel (x64)**: \`Taminator-${VERSION_NUM}-x64.dmg\` (~111 MB)
-      - 🍎 **Apple Silicon (ARM64)**: \`Taminator-${VERSION_NUM}-arm64.dmg\` (~111 MB)
-      
-      ### 🚀 Installation
-      
-      **Linux:**
+      ### Installation
       \`\`\`bash
-      # Download appropriate architecture
       chmod +x Taminator-${VERSION_NUM}-*.AppImage
       ./Taminator-${VERSION_NUM}-*.AppImage
       \`\`\`
       
-      **Windows:**
-      Run the installer and follow the prompts.
-      
-      **macOS:**
-      Open the DMG and drag Taminator to Applications.
-      
-      ### ✅ Requirements
-      - Red Hat VPN access for KB/T3 features
+      ### Requirements
+      - Red Hat VPN for KB/T3 features
       - Portal token (rh_jwt cookie) for authentication
       
-      ### 📖 Documentation
-      See [README.md](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/README.md) for full documentation.
+      ### Documentation
+      [README](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/taminator/README.md)
       
-      ### 🔐 ARM64 Support
-      This release includes native ARM64 builds for:
-      - **Fedora on Apple Silicon MacBooks** (M1, M2, M3, M4) ⭐ Primary use case
-      - AWS Graviton instances (2, 3, 4)
-      - Raspberry Pi 4/5 (64-bit)
-      - Oracle Ampere A1
-      - Other ARM64 Linux distributions
-      
-      ---
-      **Built with:** Electron ${NODE_VERSION} + Python ${PYTHON_VERSION}
+      *This release ships Linux AppImage only. Windows/macOS builds not offered for v2.0.*
       EOF
-    
     - cat release_description.md
   release:
     name: "Taminator $CI_COMMIT_TAG"
@@ -193,15 +159,6 @@ release:gitlab:
           link_type: package
         - name: "Linux ARM64 AppImage"
           url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-${VERSION_NUM}-arm64.AppImage?job=build:linux:arm64"
-          link_type: package
-        - name: "Windows Installer"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-Setup-${VERSION_NUM}.exe?job=build:windows"
-          link_type: package
-        - name: "macOS x64 DMG"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-${VERSION_NUM}-x64.dmg?job=build:macos"
-          link_type: package
-        - name: "macOS ARM64 DMG"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-${VERSION_NUM}-arm64.dmg?job=build:macos"
           link_type: package
   only:
     - tags
