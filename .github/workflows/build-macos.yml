@@ -1,0 +1,67 @@
+# Build macOS app only (DMG for Intel + Apple Silicon).
+# Trigger: push tag v* to GitHub, or Run workflow manually.
+# Optional: set GITLAB_TOKEN in repo secrets to upload DMGs to GitLab Package Registry.
+name: Build macOS
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos:
+    name: Build macOS DMG
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: taminator/gui
+        run: npm ci
+
+      - name: Build Mac app (x64 + arm64)
+        working-directory: taminator/gui
+        run: npm run build:mac
+
+      - name: List built artifacts
+        working-directory: taminator/gui
+        run: ls -la dist/
+
+      - name: Upload DMGs as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-macos-${{ github.ref_name }}
+          path: taminator/gui/dist/*.dmg
+          retention-days: 30
+
+      - name: Upload DMGs to GitLab Package Registry
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${VERSION#v}"
+          if [ -z "$GITLAB_TOKEN" ]; then
+            echo "GITLAB_TOKEN not set; skipping GitLab upload. Add it in repo Secrets to upload DMGs to GitLab."
+            exit 0
+          fi
+          PROJECT_ID=149753
+          BASE="https://gitlab.cee.redhat.com/api/v4/projects/${PROJECT_ID}/packages/generic/taminator-macos/${VERSION}"
+          for f in taminator/gui/dist/*.dmg; do
+            name=$(basename "$f")
+            echo "Uploading $name to GitLab..."
+            curl --fail --request PUT \
+              --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+              --upload-file "$f" \
+              "${BASE}/${name}"
+          done
+          echo "Uploaded to GitLab Package Registry (taminator-macos/${VERSION})"
