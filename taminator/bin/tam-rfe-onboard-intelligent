@@ -1,0 +1,426 @@
+#!/bin/bash
+
+# TAM RFE Intelligent Onboarding - Feedback-Based Learning System
+# Learns from TAMs during onboarding to provide personalized automation
+
+set -euo pipefail
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$PROJECT_ROOT/config"
+LEARNING_DIR="$PROJECT_ROOT/learning"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Functions
+print_header() {
+    echo -e "${CYAN}"
+    echo "🤖 TAM AUTOMATION ASSISTANT - INTELLIGENT ONBOARDING"
+    echo "===================================================="
+    echo -e "${NC}"
+    echo "📅 Started: $(date)"
+    echo "🧠 Intelligence Level: Predictive, Feedback-Based, Self-Improving"
+    echo "🎯 Mission: Learn your specific needs and provide personalized automation"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_ai_response() {
+    echo -e "${CYAN}🤖 TAM Automation Assistant: $1${NC}"
+}
+
+print_user_prompt() {
+    echo -e "${YELLOW}👤 Your response: ${NC}"
+}
+
+# Learning system functions
+save_learning_data() {
+    local data_type="$1"
+    local data="$2"
+    local timestamp=$(date +%Y%m%d-%H%M%S)
+    
+    mkdir -p "$LEARNING_DIR"
+    echo "$data" >> "$LEARNING_DIR/${data_type}_${timestamp}.json"
+}
+
+load_learning_data() {
+    local data_type="$1"
+    if [[ -f "$LEARNING_DIR/${data_type}_latest.json" ]]; then
+        cat "$LEARNING_DIR/${data_type}_latest.json"
+    else
+        echo "{}"
+    fi
+}
+
+# Interactive onboarding functions
+collect_tam_profile() {
+    print_section "👤 PHASE 1: TAM PROFILE DISCOVERY"
+    
+    print_ai_response "Welcome! I'm here to learn your specific needs and automate your RFE reporting. Let's start with your profile."
+    echo ""
+    
+    # TAM Name
+    print_ai_response "What's your name and Red Hat email?"
+    print_user_prompt
+    read -r tam_name_email
+    
+    # Customer Count
+    print_ai_response "How many customers do you typically manage?"
+    print_user_prompt
+    read -r customer_count
+    
+    # Reporting Frequency
+    print_ai_response "What's your preferred reporting frequency? (Daily, Weekly, Monthly)"
+    print_user_prompt
+    read -r reporting_frequency
+    
+    # Time Preferences
+    print_ai_response "Do you have any specific time preferences for automation? (e.g., 9:00 AM, 2:00 PM)"
+    print_user_prompt
+    read -r time_preferences
+    
+    # Save profile data
+    local profile_data=$(cat <<EOF
+{
+    "tam_name_email": "$tam_name_email",
+    "customer_count": "$customer_count",
+    "reporting_frequency": "$reporting_frequency",
+    "time_preferences": "$time_preferences",
+    "onboarding_date": "$(date -Iseconds)"
+}
+EOF
+)
+    
+    save_learning_data "tam_profile" "$profile_data"
+    
+    print_success "Profile collected and saved for learning"
+    echo ""
+}
+
+collect_sbr_group_preferences() {
+    print_section "🔧 PHASE 2: SBR GROUP INTELLIGENCE"
+    
+    print_ai_response "Now let's learn about your SBR group preferences. This helps me filter cases accurately for your customers."
+    echo ""
+    
+    print_ai_response "Which SBR groups do you typically work with? (Select all that apply)"
+    echo ""
+    echo "   [1] Ansible / Ansible Automation Platform"
+    echo "   [2] OpenShift / OpenShift Container Platform"
+    echo "   [3] Red Hat Enterprise Linux (RHEL)"
+    echo "   [4] Red Hat Satellite"
+    echo "   [5] JBoss / JBoss Enterprise Application Platform"
+    echo "   [6] Red Hat Virtualization (RHV)"
+    echo "   [7] Red Hat Storage (Gluster, Ceph)"
+    echo "   [8] Other (specify)"
+    echo ""
+    print_user_prompt
+    read -r sbr_groups_selected
+    
+    # Parse selected SBR groups
+    local sbr_groups=""
+    for choice in $sbr_groups_selected; do
+        case $choice in
+            1) sbr_groups="$sbr_groups Ansible Ansible_Automation_Platform" ;;
+            2) sbr_groups="$sbr_groups OpenShift OpenShift_Container_Platform" ;;
+            3) sbr_groups="$sbr_groups RHEL Red_Hat_Enterprise_Linux" ;;
+            4) sbr_groups="$sbr_groups Satellite Red_Hat_Satellite" ;;
+            5) sbr_groups="$sbr_groups JBoss JBoss_EAP" ;;
+            6) sbr_groups="$sbr_groups RHV Red_Hat_Virtualization" ;;
+            7) sbr_groups="$sbr_groups Gluster Ceph Red_Hat_Storage" ;;
+            8) 
+                print_ai_response "Please specify other SBR groups:"
+                print_user_prompt
+                read -r other_sbr_groups
+                sbr_groups="$sbr_groups $other_sbr_groups"
+                ;;
+        esac
+    done
+    
+    # Excluded SBR groups
+    print_ai_response "Are there any SBR groups you want to exclude from reports?"
+    print_user_prompt
+    read -r excluded_sbr_groups
+    
+    # Customer-specific preferences
+    print_ai_response "Do you have different SBR group preferences for different customers? (y/n)"
+    print_user_prompt
+    read -r customer_specific_sbr
+    
+    # Priority SBR groups
+    print_ai_response "Should I prioritize certain SBR groups in the reports? (y/n)"
+    print_user_prompt
+    read -r prioritize_sbr_groups
+    
+    # Save SBR group preferences
+    local sbr_data=$(cat <<EOF
+{
+    "selected_sbr_groups": "$sbr_groups",
+    "excluded_sbr_groups": "$excluded_sbr_groups",
+    "customer_specific_sbr": "$customer_specific_sbr",
+    "prioritize_sbr_groups": "$prioritize_sbr_groups",
+    "learning_timestamp": "$(date -Iseconds)"
+}
+EOF
+)
+    
+    save_learning_data "sbr_preferences" "$sbr_data"
+    
+    print_success "SBR group preferences collected and saved for learning"
+    echo ""
+}
+
+collect_customer_configurations() {
+    print_section "🏢 PHASE 3: CUSTOMER-SPECIFIC LEARNING"
+    
+    print_ai_response "Let's configure each of your customers. I'll learn their specific needs and preferences."
+    echo ""
+    
+    local customer_configs=""
+    local customer_count=1
+    
+    while true; do
+        print_ai_response "Customer #$customer_count Configuration:"
+        echo ""
+        
+        # Customer Name
+        print_ai_response "Customer Name:"
+        print_user_prompt
+        read -r customer_name
+        
+        if [[ -z "$customer_name" ]]; then
+            break
+        fi
+        
+        # Account Number
+        print_ai_response "Account Number:"
+        print_user_prompt
+        read -r account_number
+        
+        # Group ID
+        print_ai_response "Customer Portal Group ID:"
+        print_user_prompt
+        read -r group_id
+        
+        # SBR Groups for this customer
+        print_ai_response "SBR Groups for this customer (comma-separated):"
+        print_user_prompt
+        read -r customer_sbr_groups
+        
+        # Case statuses
+        print_ai_response "Preferred case statuses: (Active, Closed, All)"
+        print_user_prompt
+        read -r case_statuses
+        
+        # Reporting frequency
+        print_ai_response "Reporting frequency for this customer:"
+        print_user_prompt
+        read -r customer_reporting_frequency
+        
+        # Special requirements
+        print_ai_response "Any special requirements or notes:"
+        print_user_prompt
+        read -r special_requirements
+        
+        # Add to customer configs
+        customer_configs="$customer_configs
+Customer_$customer_count:
+  name: $customer_name
+  account_number: $account_number
+  group_id: $group_id
+  sbr_groups: $customer_sbr_groups
+  case_statuses: $case_statuses
+  reporting_frequency: $customer_reporting_frequency
+  special_requirements: $special_requirements"
+        
+        ((customer_count++))
+        
+        print_ai_response "Add another customer? (y/n)"
+        print_user_prompt
+        read -r add_another
+        
+        if [[ "$add_another" != "y" ]]; then
+            break
+        fi
+        echo ""
+    done
+    
+    # Save customer configurations
+    local customer_data=$(cat <<EOF
+{
+    "customer_configurations": "$customer_configs",
+    "total_customers": $((customer_count - 1)),
+    "learning_timestamp": "$(date -Iseconds)"
+}
+EOF
+)
+    
+    save_learning_data "customer_configurations" "$customer_data"
+    
+    print_success "Customer configurations collected and saved for learning"
+    echo ""
+}
+
+generate_intelligent_configuration() {
+    print_section "🧠 PHASE 4: INTELLIGENT CONFIGURATION"
+    
+    print_ai_response "Based on your responses, I'm creating a personalized configuration. Let me show you what I've learned:"
+    echo ""
+    
+    # Load learning data
+    local profile_data=$(load_learning_data "tam_profile")
+    local sbr_data=$(load_learning_data "sbr_preferences")
+    local customer_data=$(load_learning_data "customer_configurations")
+    
+    # Generate configuration summary
+    print_section "📊 YOUR PROFILE SUMMARY"
+    echo "TAM: $(echo "$profile_data" | grep -o '"tam_name_email":"[^"]*"' | cut -d'"' -f4)"
+    echo "Customers: $(echo "$profile_data" | grep -o '"customer_count":"[^"]*"' | cut -d'"' -f4)"
+    echo "Reporting Frequency: $(echo "$profile_data" | grep -o '"reporting_frequency":"[^"]*"' | cut -d'"' -f4)"
+    echo "Time Preferences: $(echo "$profile_data" | grep -o '"time_preferences":"[^"]*"' | cut -d'"' -f4)"
+    echo ""
+    
+    print_section "🔧 SBR GROUP PREFERENCES"
+    echo "Selected SBR Groups: $(echo "$sbr_data" | grep -o '"selected_sbr_groups":"[^"]*"' | cut -d'"' -f4)"
+    echo "Excluded SBR Groups: $(echo "$sbr_data" | grep -o '"excluded_sbr_groups":"[^"]*"' | cut -d'"' -f4)"
+    echo "Customer-Specific SBR: $(echo "$sbr_data" | grep -o '"customer_specific_sbr":"[^"]*"' | cut -d'"' -f4)"
+    echo ""
+    
+    print_section "🏢 CUSTOMER CONFIGURATIONS"
+    echo "$customer_configs"
+    echo ""
+    
+    # Ask for confirmation
+    print_ai_response "Does this look correct? Any adjustments needed? (y/n)"
+    print_user_prompt
+    read -r confirmation
+    
+    if [[ "$confirmation" == "y" ]]; then
+        print_success "Configuration confirmed! I'm saving your personalized settings."
+        
+        # Generate actual configuration files
+        generate_configuration_files
+        
+        print_success "Intelligent onboarding complete! Your personalized automation is ready."
+    else
+        print_info "Let me know what needs to be adjusted, and I'll learn from your feedback."
+    fi
+}
+
+generate_configuration_files() {
+    # Generate customer configuration file
+    local config_file="$CONFIG_DIR/intelligent_customer_config.yaml"
+    
+    cat > "$config_file" <<EOF
+# Intelligent Customer Configuration - Generated from TAM Learning
+# Generated: $(date -Iseconds)
+
+customers:
+$customer_configs
+
+# Learning Data
+learning:
+  tam_profile: $profile_data
+  sbr_preferences: $sbr_data
+  customer_configurations: $customer_data
+  generated_timestamp: "$(date -Iseconds)"
+EOF
+    
+    print_success "Configuration files generated: $config_file"
+}
+
+# Main execution
+main() {
+    print_header
+    
+    # Check if learning directory exists
+    mkdir -p "$LEARNING_DIR"
+    
+    # Run intelligent onboarding phases
+    collect_tam_profile
+    collect_sbr_group_preferences
+    collect_customer_configurations
+    generate_intelligent_configuration
+    
+    print_section "🎉 INTELLIGENT ONBOARDING COMPLETE"
+    
+    print_success "I've learned your preferences and created personalized automation!"
+    print_info "Next steps:"
+    echo "  1. Run: tam-rfe-monitor --intelligent"
+    echo "  2. I'll provide feedback-based learning as you use the system"
+    echo "  3. I'll adapt and improve based on your corrections"
+    echo ""
+    print_info "I'm now ready to provide personalized, predictive automation for your TAM workflow!"
+}
+
+# Show help
+show_help() {
+    print_header
+    echo "TAM RFE Intelligent Onboarding - Feedback-Based Learning System"
+    echo ""
+    echo "Usage: tam-rfe-onboard-intelligent [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --help        Show this help message"
+    echo ""
+    echo "Intelligent Features:"
+    echo "  🧠 Learns your SBR group preferences"
+    echo "  🧠 Adapts to your customer-specific needs"
+    echo "  🧠 Remembers your reporting preferences"
+    echo "  🧠 Provides predictive suggestions"
+    echo "  🧠 Improves accuracy based on your feedback"
+    echo ""
+    echo "Learning Process:"
+    echo "  1. TAM Profile Discovery"
+    echo "  2. SBR Group Intelligence"
+    echo "  3. Customer-Specific Learning"
+    echo "  4. Intelligent Configuration"
+    echo ""
+    echo "I'll ask you intelligent questions and learn from your responses!"
+}
+
+# Parse arguments
+if [[ $# -gt 0 ]]; then
+    case $1 in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+fi
+
+# Run main function
+main "$@"

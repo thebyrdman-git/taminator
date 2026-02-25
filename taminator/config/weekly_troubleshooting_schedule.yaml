@@ -1,0 +1,120 @@
+---
+# Weekly Troubleshooting Case Report Schedule Configuration
+# Purpose: Define when each customer's weekly report should be generated
+# Based on TAM call timing and customer preferences
+
+customers:
+  wellsfargo:
+    name: "Wells Fargo"
+    group_id: "4357341"  # Confirmed - Wells Fargo Active Cases
+    account_name: "wellsfargo"
+    
+    # Scheduling configuration
+    schedule:
+      day_of_week: "wednesday"  # monday, tuesday, wednesday, thursday, friday
+      time: "09:00"  # 24-hour format
+      timezone: "EST"
+      description: "Day before weekly TAM call"
+    
+    # Report configuration
+    report_config:
+      title_format: "Weekly Troubleshooting Case Report - {customer} - {date}"
+      include_executive_summary: true
+      max_cases_display: 20
+      
+  jpmc:
+    name: "JP Morgan Chase"
+    group_id: null  # Manual discovery needed - account #334224
+    account_name: "jpmc"
+    
+    schedule:
+      day_of_week: "tuesday"  # Adjust based on JPMC TAM call schedule
+      time: "08:00"
+      timezone: "EST"  
+      description: "Morning of TAM call day"
+    
+    report_config:
+      title_format: "Weekly Troubleshooting Status - {customer} - {date}"
+      include_executive_summary: true
+      max_cases_display: 25
+      
+  tdbank:
+    name: "TD Bank"
+    group_id: "7028358"  # Extracted - Sandbox/Testing
+    account_name: "tdbank"
+    account_numbers: ["5477163", "9691154"]  # TD Bank account numbers
+    
+    schedule:
+      day_of_week: "thursday"  # Adjust based on TD Bank TAM call schedule
+      time: "10:00"
+      timezone: "EST"
+      description: "Pre-call preparation"
+    
+    report_config:
+      title_format: "TD Bank Weekly Case Summary - {date}"
+      include_executive_summary: false  # More concise for TD Bank
+      max_cases_display: 15
+      
+  fanniemae:
+    name: "Fannie Mae"
+    group_id: null  # Manual discovery needed - account #1460290
+    account_name: "fanniemae"
+    
+    schedule:
+      day_of_week: "friday"  # Adjust based on Fannie Mae TAM call schedule
+      time: "14:00"
+      timezone: "EST"
+      description: "End of week summary"
+    
+    report_config:
+      title_format: "Fannie Mae Active Cases Weekly Report - {date}"
+      include_executive_summary: true
+      max_cases_display: 10
+
+# Global settings
+global_settings:
+  default_months_history: 6
+  notification_email: "jbyrd@redhat.com"
+  backup_location: "/tmp/weekly_troubleshooting_reports"
+  
+  # Cron job templates for automation
+  cron_templates:
+    # Wells Fargo: Wednesday at 9am EST
+    wellsfargo: "0 9 * * 3"
+    # JPMC: Tuesday at 8am EST  
+    jpmc: "0 8 * * 2"
+    # TD Bank: Thursday at 10am EST
+    tdbank: "0 10 * * 4"
+    # Fannie Mae: Friday at 2pm EST
+    fanniemae: "0 14 * * 5"
+
+# Template customization per customer
+template_overrides:
+  wellsfargo:
+    header_style: "professional"
+    include_severity_icons: true
+    footer_links:
+      - "[Wells Fargo Support Cases](https://access.redhat.com/support/cases/)"
+      - "[RFE/Bug Tracker](https://access.redhat.com/groups/7028358/discussions/)"
+      - "[Contact TAM](mailto:jbyrd@redhat.com)"
+      
+  jpmc:
+    header_style: "enterprise"
+    include_severity_icons: false
+    footer_links:
+      - "[JPMC Support Portal](https://access.redhat.com/support/cases/)"
+      - "[Enterprise Support](mailto:jbyrd@redhat.com)"
+      
+  tdbank:
+    header_style: "clean"
+    include_severity_icons: true
+    footer_links:
+      - "[TD Bank Support](https://access.redhat.com/support/cases/)"
+      - "[TAM Contact](mailto:jbyrd@redhat.com)"
+      
+  fanniemae:
+    header_style: "detailed"
+    include_severity_icons: true
+    footer_links:
+      - "[Fannie Mae Support](https://access.redhat.com/support/cases/)"
+      - "[TAM Support](mailto:jbyrd@redhat.com)"

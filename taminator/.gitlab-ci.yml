@@ -1,0 +1,222 @@
+# Taminator CI/CD Pipeline
+# Builds multi-platform releases for Linux (x64 + ARM64), Windows, and macOS
+
+stages:
+  - build
+  - release
+
+variables:
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.11"
+
+# Build Linux x64 AppImage (instance runner tag)
+build:linux:x64:
+  stage: build
+  image: node:${NODE_VERSION}
+  tags:
+    - itup-alm-x86
+  before_script:
+    - apt-get update && apt-get install -y python3 python3-pip
+    - python3 -m pip install --upgrade pip --break-system-packages
+    - if [ -f taminator/requirements.txt ]; then pip3 install -r taminator/requirements.txt --break-system-packages; fi
+  script:
+    - cd taminator/gui
+    - npm ci
+    - npm run build:linux:appimage
+  artifacts:
+    name: "linux-appimage-x64-${CI_COMMIT_REF_NAME}"
+    paths:
+      - taminator/gui/dist/*.AppImage
+    expire_in: "1 week"
+  only:
+    - tags
+    - main
+    - merge_requests
+
+# Build Linux ARM64 AppImage (QEMU emulation; instance runner)
+build:linux:arm64:
+  stage: build
+  image: node:${NODE_VERSION}
+  tags:
+    - itup-alm-x86
+  before_script:
+    # Install QEMU for ARM64 emulation
+    - apt-get update && apt-get install -y qemu-user-static binfmt-support python3 python3-pip
+    - python3 -m pip install --upgrade pip --break-system-packages
+    - if [ -f taminator/requirements.txt ]; then pip3 install -r taminator/requirements.txt --break-system-packages; fi
+    - update-binfmts --enable qemu-aarch64
+  script:
+    - cd taminator/gui
+    - npm ci
+    - npm run build:linux:arm64:appimage
+    - echo "Built for Fedora ARM64 (MacBook Pro M1/M2/M3/M4)"
+  artifacts:
+    name: "linux-appimage-arm64-${CI_COMMIT_REF_NAME}"
+    paths:
+      - taminator/gui/dist/*.AppImage
+    expire_in: "1 week"
+  only:
+    - tags
+    - main
+    - merge_requests
+  allow_failure: false
+  timeout: 2h  # ARM64 cross-compilation takes longer
+
+# Build Windows Installer (requires Windows runner; only on tag so main does not hang)
+build:windows:
+  stage: build
+  tags:
+    - windows
+  before_script:
+    - choco install nodejs --version=${NODE_VERSION} -y
+    - choco install python --version=${PYTHON_VERSION} -y
+    - refreshenv
+    - python -m pip install --upgrade pip
+    - if (Test-Path taminator/requirements.txt) { pip install -r taminator/requirements.txt }
+  script:
+    - cd taminator/gui
+    - npm ci
+    - npm run build:win
+  artifacts:
+    name: "windows-installer-${CI_COMMIT_REF_NAME}"
+    paths:
+      - taminator/gui/dist/*.exe
+    expire_in: "1 week"
+  only:
+    - tags
+
+# Build macOS DMG (requires macOS runner; only on tag so main does not hang)
+build:macos:
+  stage: build
+  tags:
+    - macos
+  before_script:
+    - brew install node@${NODE_VERSION} python@${PYTHON_VERSION}
+    - export PATH="/usr/local/opt/node@${NODE_VERSION}/bin:$PATH"
+    - export PATH="/usr/local/opt/python@${PYTHON_VERSION}/bin:$PATH"
+    - python3 -m pip install --upgrade pip
+    - if [ -f taminator/requirements.txt ]; then pip3 install -r taminator/requirements.txt; fi
+  script:
+    - cd taminator/gui
+    - npm ci
+    - npm run build:mac
+  artifacts:
+    name: "macos-dmg-${CI_COMMIT_REF_NAME}"
+    paths:
+      - taminator/gui/dist/*.dmg
+    expire_in: "1 week"
+  only:
+    - tags
+
+# Create GitLab Release (tags only; Linux AppImages only for v2.0)
+release:gitlab:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  tags:
+    - itup-alm-x86
+  dependencies:
+    - build:linux:x64
+    - build:linux:arm64
+  script:
+    # Extract version from tag
+    - export VERSION=${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME}}
+    - export VERSION_NUM=${VERSION#v}
+    - echo "Creating release for version $VERSION"
+    - echo "Release artifacts:"
+    - find taminator/gui/dist -type f -name "*.AppImage" -exec ls -lh {} \;
+    - |
+      cat > release_description.md <<EOF
+      ## Taminator ${VERSION}
+      
+      ### Downloads (Linux)
+      - **x86_64 (Intel/AMD):** Taminator-${VERSION_NUM}-x86_64.AppImage (~118 MB)
+      - **ARM64 (Fedora on Apple Silicon, Graviton, RPi):** Taminator-${VERSION_NUM}-arm64.AppImage (~118 MB)
+      
+      ### Installation
+      \`\`\`bash
+      chmod +x Taminator-${VERSION_NUM}-*.AppImage
+      ./Taminator-${VERSION_NUM}-*.AppImage
+      \`\`\`
+      
+      ### Requirements
+      - Red Hat VPN for KB/T3 features
+      - Portal token (rh_jwt cookie) for authentication
+      
+      ### Documentation
+      [README](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/taminator/README.md)
+      
+      *This release ships Linux AppImage only. Windows/macOS builds not offered for v2.0.*
+      EOF
+    - cat release_description.md
+  release:
+    name: "Taminator $CI_COMMIT_TAG"
+    tag_name: "$CI_COMMIT_TAG"
+    description: "./release_description.md"
+    assets:
+      links:
+        - name: "Linux x86_64 AppImage"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-${VERSION_NUM}-x86_64.AppImage?job=build:linux:x64"
+          link_type: package
+        - name: "Linux ARM64 AppImage"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/taminator/gui/dist/Taminator-${VERSION_NUM}-arm64.AppImage?job=build:linux:arm64"
+          link_type: package
+  only:
+    - tags
+
+# Copy built AppImages into repo releases/ so they are in the tree (clone or browse)
+# Requires CI variable GITLAB_TOKEN (or REPO_PUSH_TOKEN) with write_repository to push
+release:copy-to-repo:
+  stage: release
+  image: alpine/git
+  tags:
+    - itup-alm-x86
+  dependencies:
+    - build:linux:x64
+    - build:linux:arm64
+  script:
+    - apk add --no-cache bash
+    - export VERSION_TAG="${CI_COMMIT_TAG}"
+    - mkdir -p "releases/${VERSION_TAG}"
+    - cp taminator/gui/dist/*.AppImage "releases/${VERSION_TAG}/" || true
+    - ls -la "releases/${VERSION_TAG}/"
+    - git config user.email "ci@gitlab.cee.redhat.com"
+    - git config user.name "GitLab CI"
+    - git add "releases/${VERSION_TAG}/"
+    - |
+      if git diff --staged --quiet; then
+        echo "No new release files to commit (releases/ unchanged)."
+      else
+        git commit -m "Add Linux AppImages to releases/${VERSION_TAG}"
+        git remote set-url origin "https://oauth2:${GITLAB_TOKEN}@gitlab.cee.redhat.com/jbyrd/taminator.git"
+        git push origin "HEAD:${CI_DEFAULT_BRANCH}"
+      fi
+  only:
+    - tags
+  allow_failure: true
+
+# Alternative: Native ARM64 build (if you have ARM64 GitLab runners)
+# Uncomment this job and comment out the QEMU-based build:linux:arm64 above
+#
+# build:linux:arm64:native:
+#   stage: build
+#   image: node:${NODE_VERSION}
+#   tags:
+#     - arm64  # Requires ARM64 runner with this tag
+#   before_script:
+#     - apt-get update && apt-get install -y python3 python3-pip
+#     - python3 -m pip install --upgrade pip
+#     - if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
+#   script:
+#     - cd gui
+#     - npm ci
+#     - npm run build:linux:arm64
+#   artifacts:
+#     name: "linux-appimage-arm64-${CI_COMMIT_REF_NAME}"
+#     paths:
+#       - gui/dist/*.AppImage
+#     expire_in: ${ARTIFACTS_EXPIRE}
+#   only:
+#     - tags
+#     - main
+#     - merge_requests
+

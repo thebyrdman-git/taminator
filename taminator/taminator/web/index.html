@@ -1,0 +1,2307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taminator — RFE and Bug Report Generator</title>
+  <link rel="icon" href="taminator_logo.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    /* Red Hat official color scheme (Red Hat Design System / brand standards); no blue */
+    :root {
+      --rh-brand-red: #ee0000;
+      --rh-brand-red-hover: #a60000;
+      --rh-brand-red-light: #fce3e3;
+      --rh-white: #ffffff;
+      --rh-canvas: #f2f2f2;
+      --rh-text: #1f1f1f;
+      --rh-text-muted: #707070;
+      --rh-border: #e0e0e0;
+      --rh-border-subtle: #c7c7c7;
+      --rh-success-bg: #e9f7df;
+      --rh-success-border: #d1f1bb;
+      --rh-success-text: #204d00;
+      --rh-error-bg: #fce3e3;
+      --rh-error-border: #fbc5c5;
+      --rh-error-text: #a60000;
+      --rh-info-bg: #f2f2f2;
+      --rh-info-border: #e0e0e0;
+      --rh-info-text: #1f1f1f;
+    }
+    * { box-sizing: border-box; }
+    /* All links use Red Hat brand (no blue) */
+    a { color: var(--rh-brand-red); text-decoration: none; }
+    a:hover { color: var(--rh-brand-red-hover); text-decoration: underline; }
+    a:visited { color: var(--rh-brand-red); }
+    a:focus { outline: 2px solid var(--rh-brand-red); outline-offset: 2px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 2rem;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      color: var(--rh-text);
+      background: var(--rh-canvas);
+      transition: max-width 0.2s ease;
+    }
+    body.layout-wide { max-width: 1100px; }
+    body.layout-full { max-width: none; padding-left: 2rem; padding-right: 2rem; }
+    .hero {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 3px solid var(--rh-brand-red);
+    }
+    .hero .hero-logo-lockup {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0 0 0.35rem 0;
+    }
+    .hero .taminator-logo {
+      width: 84px;
+      height: 96px;
+      flex-shrink: 0;
+      object-fit: contain;
+    }
+    .hero h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.02em;
+      color: var(--rh-text);
+    }
+    .hero .brand-name {
+      font-family: "Bebas Neue", Impact, "Arial Black", sans-serif;
+      color: var(--rh-brand-red);
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 2.88rem;
+      text-shadow: 0 0 20px var(--rh-brand-red-light);
+    }
+    .hero .hero-tagline {
+      color: var(--rh-text-muted);
+      font-size: 1rem;
+      margin: 0;
+      line-height: 1.4;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--rh-text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .card {
+      background: var(--rh-white);
+      border: 1px solid var(--rh-border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card-welcome .welcome-line {
+      margin: 0 0 1rem 0; padding: 0.6rem 0.75rem; background: var(--rh-brand-red-light); border-radius: 8px;
+      font-size: 0.95rem; line-height: 1.45; color: var(--rh-text); border-left: 4px solid var(--rh-brand-red);
+    }
+    label { display: block; font-weight: 500; margin-bottom: 0.35rem; font-size: 0.9rem; }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--rh-border-subtle);
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    input[type="text"]:focus { outline: none; border-color: var(--rh-brand-red); box-shadow: 0 0 0 3px var(--rh-brand-red-light); }
+    .checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+    input[type="checkbox"] { width: 1rem; height: 1rem; }
+    .actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+    button {
+      padding: 0.55rem 1.15rem;
+      font-size: 0.95rem;
+      border-radius: 6px;
+      border: 1px solid var(--rh-brand-red);
+      background: var(--rh-brand-red);
+      color: var(--rh-white);
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s ease, transform 0.1s ease;
+    }
+    button:hover { background: var(--rh-brand-red-hover); }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    button.secondary { background: var(--rh-white); color: var(--rh-brand-red); border-color: var(--rh-brand-red); }
+    button.secondary:hover { background: var(--rh-brand-red-light); }
+    button.small { padding: 0.35rem 0.65rem; font-size: 0.85rem; }
+    input[type="checkbox"] { accent-color: var(--rh-brand-red); }
+    #result, .result-box {
+      margin-top: 1rem;
+      padding: 1rem 1.15rem;
+      border-radius: 8px;
+      font-family: ui-monospace, monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 400px;
+      overflow-y: auto;
+      display: none;
+    }
+    #result.show, .result-box.show { display: block; }
+    #result.success, .result-box.success { background: var(--rh-success-bg); border: 1px solid var(--rh-success-border); color: var(--rh-success-text); }
+    #result.error, .result-box.error { background: var(--rh-error-bg); border: 1px solid var(--rh-error-border); color: var(--rh-error-text); }
+    .status-badge.success { background: var(--rh-success-bg); border: 1px solid var(--rh-success-border); color: var(--rh-success-text); }
+    .status-badge.error { background: var(--rh-error-bg); border: 1px solid var(--rh-error-border); color: var(--rh-error-text); }
+    .status-badge.info { background: var(--rh-info-bg); border: 1px solid var(--rh-info-border); color: var(--rh-text-muted); }
+    #result.info, .result-box.info { background: var(--rh-info-bg); border: 1px solid var(--rh-info-border); color: var(--rh-info-text); }
+    .status { font-size: 0.85rem; color: var(--rh-text-muted); margin-top: 0.5rem; }
+    .nav {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem;
+      padding: 0.6rem 0.75rem; background: var(--rh-white); border-radius: 8px;
+      border: 1px solid var(--rh-border); box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .nav a {
+      color: var(--rh-brand-red); text-decoration: none; font-weight: 500;
+      padding: 0.35rem 0.6rem; border-radius: 6px; transition: background 0.15s ease, color 0.15s ease;
+    }
+    .nav a:hover { background: var(--rh-brand-red-light); text-decoration: none; }
+    .nav a:focus { outline: 2px solid var(--rh-brand-red); outline-offset: 2px; }
+    .nav a.active { background: var(--rh-brand-red-light); text-decoration: none; font-weight: 600; }
+    .nav a.external::after { content: " \2197"; font-size: 0.75em; }
+    .layout-btn { font-size: 0.85rem; padding: 0.3rem 0.5rem; border-radius: 6px; border: 1px solid var(--rh-border); background: var(--rh-white); color: var(--rh-text); cursor: pointer; transition: background 0.15s, color 0.15s; font-weight: 500; }
+    .layout-btn:hover { background: var(--rh-brand-red-light); color: var(--rh-brand-red); }
+    .layout-btn.active { background: var(--rh-brand-red-light); color: var(--rh-brand-red); border-color: var(--rh-brand-red); }
+    button:focus { outline: 2px solid var(--rh-brand-red); outline-offset: 2px; }
+    .panel { display: none; }
+    .panel.show { display: block; }
+    .library-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .library-table th, .library-table td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--rh-border); }
+    .library-table th { font-weight: 600; color: var(--rh-text-muted); }
+    .library-table tr:hover { background: var(--rh-canvas); }
+    .library-item { padding: 0.6rem 0; border-bottom: 1px solid var(--rh-border); }
+    .library-item-head { font-size: 0.95rem; margin-bottom: 0.4rem; }
+    .library-item-head .library-account { font-weight: 600; }
+    .library-item-head .library-file { color: var(--rh-text-muted); margin-left: 0.35rem; }
+    .library-item-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+    .library-item-actions button { font-size: 0.8rem; padding: 0.25rem 0.5rem; }
+    .library-no-file-hint { color: var(--rh-text-muted); font-size: 0.85em; font-weight: normal; }
+    .empty-state { padding: 1.25rem; color: var(--rh-text-muted); font-size: 0.95rem; line-height: 1.5; margin: 0; }
+    .library-actions { display: flex; gap: 0.5rem; }
+    .google-status { font-size: 0.85rem; color: var(--rh-text-muted); margin-top: 0.5rem; }
+    .viewer-content { max-height: 360px; overflow: auto; white-space: pre-wrap; font-size: 0.8rem; }
+    .config-section { padding-bottom: 0.5rem; }
+    .config-result { font-size: 0.9rem; margin-left: 0.5rem; }
+    .token-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .token-row label.token-label { margin: 0; min-width: 10rem; font-weight: 500; }
+    .token-row input[type="password"] { flex: 1; min-width: 12rem; padding: 0.5rem 0.75rem; border: 1px solid var(--rh-border-subtle); border-radius: 4px; font-size: 1rem; }
+    .token-row .token-result { font-size: 0.85rem; color: var(--rh-text-muted); }
+    .status-indicators {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin-bottom: 1rem;
+      padding: 0.5rem 0; font-size: 0.85rem;
+    }
+    .status-indicators .indicator {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--rh-white);
+      border: 1px solid var(--rh-border); box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .status-indicators .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .status-indicators .dot.ok { background: var(--rh-success-text); }
+    .status-indicators .dot.fail { background: var(--rh-error-text); }
+    .status-indicators .dot.pending { background: var(--rh-text-muted); }
+    .status-indicators .indicator .status-text { margin-left: 0.1rem; color: var(--rh-text-muted); }
+    #result[role="alert"] { outline: 2px solid var(--rh-error-text); }
+    .setting-blurb { font-size: 0.8rem; color: var(--rh-text-muted); margin-top: 0.25rem; margin-bottom: 0.5rem; line-height: 1.4; }
+    .setting-blurb a { color: var(--rh-brand-red); }
+    .report-google-actions { flex-wrap: wrap; }
+    .template-editor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items: start; }
+    @media (max-width: 700px) { .template-editor-layout { grid-template-columns: 1fr; } }
+    .template-section-cards { display: flex; flex-direction: column; gap: 0.5rem; }
+    .template-section-card {
+      background: var(--rh-canvas);
+      border: 1px solid var(--rh-border);
+      border-radius: 6px;
+      padding: 0.6rem 0.75rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .template-section-card .drag-handle { cursor: grab; color: var(--rh-text-muted); padding: 0.2rem; user-select: none; }
+    .template-section-card .drag-handle:active { cursor: grabbing; }
+    .template-section-card .card-body { flex: 1; min-width: 0; }
+    .template-section-card .card-title { font-size: 0.8rem; font-weight: 600; color: var(--rh-text-muted); margin-bottom: 0.25rem; }
+    .template-section-card input[type="text"] { padding: 0.35rem 0.5rem; font-size: 0.9rem; }
+    .template-section-card .include-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.35rem; }
+    .template-section-card.dragging { opacity: 0.6; }
+    .template-preview-pane { position: sticky; top: 0.5rem; }
+    .account-tiles { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
+    .account-tile {
+      background: var(--rh-canvas);
+      border: 2px solid var(--rh-border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      min-width: 160px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .account-tile:hover { border-color: var(--rh-brand-red); background: var(--rh-brand-red-light); }
+    .account-tile.selected { border-color: var(--rh-brand-red); background: var(--rh-brand-red-light); }
+    .account-tile .account-tile-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; }
+    .account-tile .account-tile-accounts { font-size: 0.8rem; color: var(--rh-text-muted); margin-bottom: 0.5rem; }
+    .account-tile .account-tile-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .account-tile .account-tile-actions button { padding: 0.25rem 0.5rem; font-size: 0.8rem; }
+    .account-tile .account-tile-created { font-size: 0.75rem; color: var(--rh-text-muted); margin-top: 0.5rem; }
+    .guide-layout { display: grid; grid-template-columns: minmax(200px, 220px) 1fr; gap: 1.5rem; align-items: start; max-width: none; }
+    @media (max-width: 720px) { .guide-layout { grid-template-columns: 1fr; } .guide-nav { position: relative !important; top: 0 !important; } }
+    .guide-nav { position: sticky; top: 0.5rem; padding: 0.75rem; background: var(--rh-canvas); border: 1px solid var(--rh-border); border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .guide-nav-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--rh-text-muted); margin-bottom: 0.6rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rh-border); }
+    .guide-nav-list { list-style: none; margin: 0; padding: 0; }
+    .guide-nav-list a { display: block; padding: 0.4rem 0.6rem; margin: 0.1rem 0; border-radius: 6px; color: var(--rh-text); text-decoration: none; font-size: 0.9rem; transition: background 0.15s, color 0.15s; }
+    .guide-nav-list a:hover { background: var(--rh-brand-red-light); color: var(--rh-brand-red); }
+    .guide-nav-list a.active { background: var(--rh-brand-red-light); color: var(--rh-brand-red); font-weight: 600; }
+    .guide-content { min-width: 0; max-height: calc(100vh - 12rem); overflow-y: auto; }
+    .guide-section { scroll-margin-top: 0.5rem; padding: 1rem 0; border-bottom: 1px solid var(--rh-border); }
+    .guide-section:last-child { border-bottom: none; }
+    .guide-section h2 { font-size: 1.15rem; margin: 0 0 0.5rem 0; color: var(--rh-brand-red); }
+    .guide-section .guide-body { font-size: 0.95rem; line-height: 1.6; color: var(--rh-text); }
+    .guide-section .guide-body h3 { font-size: 1rem; margin: 0.75rem 0 0.35rem 0; }
+    .guide-section .guide-body pre { background: var(--rh-canvas); padding: 0.75rem; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; }
+    .guide-section .guide-body a { color: var(--rh-brand-red); }
+    .guide-loading { padding: 2rem; text-align: center; color: var(--rh-text-muted); }
+    .roadmap-content { max-height: 420px; overflow-y: auto; font-size: 0.95rem; line-height: 1.5; }
+    .roadmap-content h1 { font-size: 1.25rem; margin: 0.5rem 0 0.25rem; }
+    .roadmap-content h2 { font-size: 1.1rem; margin: 0.75rem 0 0.25rem; }
+    .roadmap-content h3 { font-size: 1rem; margin: 0.5rem 0 0.2rem; }
+    .roadmap-content p { margin: 0.35rem 0; }
+    .roadmap-content pre { background: var(--rh-canvas); padding: 0.5rem; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; }
+    .roadmap-content a { color: var(--rh-brand-red); }
+    .roadmap-content { max-height: calc(100vh - 10rem); overflow-y: auto; font-size: 0.95rem; line-height: 1.5; }
+    .roadmap-content h1 { font-size: 1.25rem; margin: 0.5rem 0 0.25rem; }
+    .roadmap-content h2 { font-size: 1.1rem; margin: 0.75rem 0 0.25rem; }
+    .roadmap-content h3 { font-size: 1rem; margin: 0.5rem 0 0.2rem; }
+    .roadmap-content p { margin: 0.35rem 0; }
+    .roadmap-content pre { background: var(--rh-canvas); padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; }
+    .roadmap-content a { color: var(--rh-brand-red); }
+    .template-preview-pane .preview-label { font-size: 0.85rem; font-weight: 600; color: var(--rh-text-muted); margin-bottom: 0.35rem; }
+    .template-preview-content { background: var(--rh-white); border: 1px solid var(--rh-border); border-radius: 6px; padding: 0.75rem; font-size: 0.75rem; line-height: 1.4; white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow-y: auto; font-family: ui-monospace, monospace; }
+    .template-preview-content.preview-html { white-space: normal; font-family: inherit; }
+    .template-preview-content.preview-html h1, .template-preview-content.preview-html h2, .template-preview-content.preview-html h3 { margin: 0.5rem 0 0.25rem; font-size: 1em; }
+    .template-preview-content.preview-html p { margin: 0.25rem 0; }
+    .template-preview-content.preview-html ul { margin: 0.25rem 0; padding-left: 1.25rem; }
+  </style>
+</head>
+<body>
+  <template id="logoFallback"><svg class="taminator-logo" viewBox="0 0 48 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="84" height="96"><defs><radialGradient id="taminator-eye-glow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ee0000" stop-opacity="0.95"/><stop offset="60%" stop-color="#a60000" stop-opacity="0.7"/><stop offset="100%" stop-color="#5f0000" stop-opacity="0.2"/></radialGradient></defs><ellipse fill="#ee0000" cx="24" cy="10" rx="20" ry="5"/><path fill="#ee0000" d="M 6 10 L 8 22 Q 24 26 40 22 L 42 10 Q 24 14 6 10 Z"/><path fill="#252525" d="M 24 18 L 12 20 Q 10 26 12 32 L 14 44 Q 18 52 24 52 Q 30 52 34 44 L 36 32 Q 38 26 36 20 L 24 18 Z"/><path fill="#1a1a1a" d="M 24 32 L 22 42 L 24 44 L 26 42 Z"/><circle fill="url(#taminator-eye-glow)" cx="18" cy="30" r="5"/><circle fill="#ee0000" cx="18" cy="30" r="3"/><circle fill="url(#taminator-eye-glow)" cx="30" cy="30" r="5"/><circle fill="#ee0000" cx="30" cy="30" r="3"/></svg></template>
+  <header class="hero">
+    <div class="hero-logo-lockup">
+      <img id="headerLogo" src="taminator_logo.png" alt="" class="taminator-logo" width="84" height="96" onerror="(function(){var t=document.getElementById('logoFallback');var img=document.getElementById('headerLogo');if(t&&t.content&&img){var svg=t.content.firstElementChild.cloneNode(true);img.parentNode.replaceChild(svg,img);}})();">
+      <h1><span class="brand-name">Taminator</span></h1>
+  </div>
+    <p class="hero-tagline">Quickly customize and maintain RFE and Bug reports for your accounts</p>
+  </header>
+
+  <nav class="nav" role="navigation" aria-label="Main">
+    <a href="#" id="navOnboard" class="active" aria-current="page">Report Manager</a>
+    <a href="#" id="navReports">Check/Update Reports</a>
+    <a href="#" id="navLibrary">Library</a>
+    <a href="#" id="navConfig">Settings</a>
+    <a href="#" id="navGuide" aria-label="User Guide">User Guide</a>
+    <a href="#" id="navRoadmap" aria-label="Roadmap (opens in app)">Roadmap</a>
+    <a href="https://gitlab.cee.redhat.com/jbyrd/taminator" class="external" target="_blank" rel="noopener" aria-label="GitLab Repository (opens in new tab)">GitLab Repository</a>
+    <span class="nav-layout-wrap" style="margin-left:auto; display:flex; align-items:center; gap:0.35rem;">
+      <span class="layout-label" style="font-size:0.8rem; color:var(--rh-text-muted);">Layout:</span>
+      <button type="button" class="layout-btn active" id="layoutDefault" aria-pressed="true" title="Default width (800px)">Default</button>
+      <button type="button" class="layout-btn" id="layoutWide" aria-pressed="false" title="Wide (1100px)">Wide</button>
+      <button type="button" class="layout-btn" id="layoutFull" aria-pressed="false" title="Full width">Full</button>
+    </span>
+  </nav>
+
+  <div id="panelReports" class="panel">
+    <div class="card card-welcome">
+      <p class="welcome-line">Check or update a customer report below. Enter a customer name or account number, or pick an account from the list.</p>
+      <div class="status-indicators" aria-live="polite" role="status" aria-label="Connection and token status">
+        <span class="indicator" data-token="vpn" title="Red Hat VPN. Required to reach JIRA and internal APIs. Connect to Red Hat VPN; verify in Settings."><span class="dot pending" aria-hidden="true"></span><span>VPN</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="jira" title="JIRA API token. Required for Check and Update. Get it: issues.redhat.com → Personal Access Tokens. Configure in Settings."><span class="dot pending" aria-hidden="true"></span><span>JIRA</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="portal" title="Red Hat Customer Portal token. Required for posting reports. Get it: access.redhat.com/management/api → Generate Token. Configure in Settings."><span class="dot pending" aria-hidden="true"></span><span>Portal</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="hydra" title="Hydra uses the Customer Portal token (above) or Red Hat username/password in env. See Settings."><span class="dot pending" aria-hidden="true"></span><span>Hydra</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="google" title="Google Drive/Docs. Connect in Library or Settings to open reports in Google Docs."><span class="dot pending" aria-hidden="true"></span><span>Google</span><span class="status-text">Checking…</span></span>
+      </div>
+      <label for="customer">Customer name or account number</label>
+      <input type="text" id="customer" placeholder="e.g. acmecorp or 1234567" autocomplete="off" aria-describedby="customerHint" title="Customer slug (e.g. acmecorp for acmecorp.md) or Red Hat account number. Reports are looked up in ~/taminator-test-data, ~/Documents/rh/customers, and /tmp/taminator-test-data.">
+      <p id="customerHint" class="subtitle" style="margin-top:0.25rem; margin-bottom:0">Enter a customer name or account number, or use test data below.</p>
+      <div class="checkbox-row">
+        <input type="checkbox" id="testData" aria-describedby="testDataHint" title="Use sample data without JIRA or VPN. Good for trying the tool; report output is demo content only.">
+        <label for="testData" id="testDataHint" style="margin-bottom:0">Use test data (no JIRA)</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="fullRefresh" aria-describedby="fullRefreshHint" title="Re-discover all cases from portal and repopulate the report (use when report is missing rows).">
+        <label for="fullRefresh" id="fullRefreshHint" style="margin-bottom:0">Full refresh (re-discover all cases from portal)</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="includeDebug" aria-describedby="includeDebugHint" title="Include Hydra/JIRA diagnostics in the result when a case has no JIRA link (helps when results are wrong or missing).">
+        <label for="includeDebug" id="includeDebugHint" style="margin-bottom:0">Debug: include Hydra/JIRA diagnostics in result</label>
+      </div>
+      <details class="debug-help" style="margin-top:0.25rem; margin-bottom:0.5rem;">
+        <summary style="cursor:pointer; color:var(--rh-text-muted); font-size:0.9rem;">When to use debug</summary>
+        <p style="margin:0.5rem 0 0 0; font-size:0.85rem; color:var(--rh-text-muted); max-width:42rem;">If Check or Update shows wrong or missing data, check <strong>Debug: include Hydra/JIRA diagnostics</strong> and run again. The result will include:</p>
+        <ul style="margin:0.25rem 0 0 1rem; font-size:0.85rem; color:var(--rh-text-muted); max-width:42rem;">
+          <li><strong>Hydra response</strong> — SOLR query, numFound, doc count, first doc keys (what the case search API returned).</li>
+          <li><strong>Hydra JIRA</strong> — For cases with no JIRA: top-level doc keys and external trackers / attached resources data returned for that case.</li>
+          <li><strong>JIRA API</strong> — Per-issue HTTP status and error/body when not 200 (what the JIRA API returned).</li>
+          <li><strong>rhcase</strong> — When Update uses rhcase fallback: raw stdout/stderr from rhcase (what rhcase returned).</li>
+        </ul>
+      </details>
+      <div class="config-section" style="margin-top:1rem">
+        <h3 style="font-size:0.95rem; margin-bottom:0.35rem">Configured accounts</h3>
+        <p class="subtitle" style="margin-bottom:0.35rem">Select an account to generate or update its report. Click a tile to use it in the field above, or use the Check/Update buttons on the tile.</p>
+        <div id="reportAccountTiles" class="account-tiles" aria-label="Configured accounts for report check and update"></div>
+        <p class="subtitle" style="margin-top:0.5rem; margin-bottom:0" id="reportAccountTilesEmpty">No accounts yet. Add your first account in Report Manager to get started.</p>
+      </div>
+      <div class="check-update-diff" style="margin-top:0.75rem; padding:0.75rem 1rem; background:var(--rh-info-bg); border:1px solid var(--rh-info-border); border-radius:8px; font-size:0.9rem; border-left:4px solid var(--rh-brand-red);">
+        <strong style="display:block; margin-bottom:0.35rem;">Check vs Update</strong>
+        <p style="margin:0 0 0.35rem 0;"><strong>Check report</strong> — Compares your report to JIRA and shows you any status differences. Does not change the report file.</p>
+        <p style="margin:0;"><strong>Update report</strong> — Fetches current statuses from JIRA and writes them into the report file (and can create or populate a new report if it’s empty). Creates a backup before changing the file.</p>
+      </div>
+      <div class="actions" style="margin-top:0.75rem">
+        <button type="button" id="btnCheck" aria-label="Check report: compare to JIRA, no file changes" title="Compare report to JIRA. No file changes.">Check report</button>
+        <button type="button" id="btnUpdate" class="secondary" aria-label="Update report: write JIRA statuses to file" title="Write current JIRA statuses to the report file. Creates backup.">Update report</button>
+      </div>
+      <div id="result" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div id="reportGoogleActions" class="actions report-google-actions" style="margin-top:0.75rem; display:none">
+        <button type="button" id="btnReportOpenInDocs" class="secondary small" title="Open this report (markdown) as a Google Doc and open it in a new tab.">Open in Google Docs</button>
+        <button type="button" id="btnReportCreateGmailDraft" class="secondary small" title="Create a new Gmail draft with the report (HTML formatted for email).">Create Gmail draft</button>
+        <button type="button" id="btnReportOpenInDrive" class="secondary small" title="Open Google Drive in a new tab.">Open in Google Drive</button>
+      </div>
+      <div id="reportDebugActions" class="actions report-google-actions" style="margin-top:0.5rem; display:none">
+        <button type="button" id="btnDownloadDebugReport" class="secondary small" title="Save the result (including any debug output) as a file.">Download debug report</button>
+        <button type="button" id="btnReportIssueGitLab" class="secondary small" title="Copy result to clipboard and open GitLab new issue so you can paste and attach the debug report.">Report issue in GitLab</button>
+      </div>
+      <div class="status" id="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div id="panelOnboard" class="panel show">
+    <div class="card">
+      <div class="status-indicators" aria-live="polite" role="status" aria-label="Connection and token status">
+        <span class="indicator" data-token="vpn" title="Red Hat VPN."><span class="dot pending" aria-hidden="true"></span><span>VPN</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="jira" title="JIRA token."><span class="dot pending" aria-hidden="true"></span><span>JIRA</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="portal" title="Portal token."><span class="dot pending" aria-hidden="true"></span><span>Portal</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="hydra" title="Hydra: Portal token or username/password in env."><span class="dot pending" aria-hidden="true"></span><span>Hydra</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="google" title="Google Drive/Docs."><span class="dot pending" aria-hidden="true"></span><span>Google</span><span class="status-text">Checking…</span></span>
+      </div>
+      <h2 style="font-size:1.1rem; margin-top:0">Report Manager</h2>
+      <p class="subtitle" style="margin-bottom:0.75rem">Create a new customer report using the wizard below: customize the template, build a new report file, then add and manage accounts.</p>
+      <div class="config-section">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">Customize report template</h3>
+        <p class="setting-blurb" style="margin-bottom:0.75rem">Drag sections to reorder. Toggle <strong>Include</strong> to show or hide a section in new reports. Changes update the preview on the right. Save before building a new report.</p>
+        <div class="template-editor-layout">
+          <div>
+            <div class="template-section-cards" id="templateSectionCardsList">
+              <div class="template-section-card" data-section-id="title">
+                <span class="drag-handle" aria-hidden="true" title="Title is always first">&#9776;</span>
+                <div class="card-body">
+                  <div class="card-title">Report title suffix</div>
+                  <input type="text" id="reportTitleSuffix" placeholder="e.g. RFE/Bug Tracker" autocomplete="off" style="width:100%">
+                </div>
+              </div>
+              <div class="template-section-card" data-section-id="customer_info">
+                <span class="drag-handle" aria-label="Drag to reorder" title="Drag to reorder">&#9776;</span>
+                <div class="card-body">
+                  <div class="card-title">Section: Customer information</div>
+                  <input type="text" id="sectionCustomerInfo" placeholder="Customer Information" autocomplete="off" style="width:100%">
+                  <div class="include-row"><input type="checkbox" id="includeCustomerInfo" checked aria-label="Include Customer information in report"><label for="includeCustomerInfo" style="margin:0; font-weight:normal; font-size:0.85rem">Include in report</label></div>
+                  <div style="margin-top:0.35rem; display:grid; gap:0.25rem">
+                    <input type="text" id="defaultTamName" placeholder="Default TAM name" autocomplete="off" style="width:100%">
+                    <input type="text" id="defaultContact" placeholder="Default contact" autocomplete="off" style="width:100%">
+                  </div>
+                </div>
+              </div>
+              <div class="template-section-card" data-section-id="rfe">
+                <span class="drag-handle" aria-label="Drag to reorder" title="Drag to reorder">&#9776;</span>
+                <div class="card-body">
+                  <div class="card-title">Section: RFE</div>
+                  <input type="text" id="sectionRfe" placeholder="Enhancement Requests (RFE)" autocomplete="off" style="width:100%">
+                  <div class="include-row"><input type="checkbox" id="includeRfe" checked aria-label="Include RFE section"><label for="includeRfe" style="margin:0; font-weight:normal; font-size:0.85rem">Include in report</label></div>
+                </div>
+              </div>
+              <div class="template-section-card" data-section-id="bug">
+                <span class="drag-handle" aria-label="Drag to reorder" title="Drag to reorder">&#9776;</span>
+                <div class="card-body">
+                  <div class="card-title">Section: Bugs</div>
+                  <input type="text" id="sectionBug" placeholder="Bug Reports" autocomplete="off" style="width:100%">
+                  <div class="include-row"><input type="checkbox" id="includeBug" checked aria-label="Include Bug section"><label for="includeBug" style="margin:0; font-weight:normal; font-size:0.85rem">Include in report</label></div>
+                </div>
+              </div>
+              <div class="template-section-card" data-section-id="notes">
+                <span class="drag-handle" aria-label="Drag to reorder" title="Drag to reorder">&#9776;</span>
+                <div class="card-body">
+                  <div class="card-title">Section: Notes</div>
+                  <input type="text" id="sectionNotes" placeholder="Notes" autocomplete="off" style="width:100%">
+                  <div class="include-row"><input type="checkbox" id="includeNotes" checked aria-label="Include Notes section"><label for="includeNotes" style="margin:0; font-weight:normal; font-size:0.85rem">Include in report</label></div>
+                </div>
+              </div>
+            </div>
+            <div class="actions" style="margin-top:0.75rem">
+              <button type="button" id="btnLoadReportStructure" class="secondary small">Reload</button>
+              <button type="button" id="btnSaveReportStructure" class="small">Save report structure</button>
+              <span id="reportStructureResult" class="config-result"></span>
+            </div>
+          </div>
+          <div class="template-preview-pane">
+            <div class="preview-label" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem">
+              <span>Live preview</span>
+              <span style="display:flex; align-items:center; gap:0.35rem">
+                <select id="templatePreviewFormat" style="font-size:0.8rem; padding:0.25rem 0.5rem" aria-label="Preview format">
+                  <option value="markdown">Markdown</option>
+                  <option value="html">HTML</option>
+                  <option value="text">Plain text</option>
+                  <option value="csv">CSV</option>
+                </select>
+                <button type="button" id="templatePreviewRefresh" class="secondary small" style="font-size:0.8rem; padding:0.25rem 0.5rem" title="Refresh preview">Refresh</button>
+                <button type="button" id="templatePreviewCopy" class="secondary small" style="font-size:0.8rem; padding:0.25rem 0.5rem" title="Copy preview to clipboard">Copy</button>
+              </span>
+            </div>
+            <p class="setting-blurb" style="margin:0 0 0.35rem 0; font-size:0.8rem; color:var(--rh-text-muted)">Sample of how your report could look in each format.</p>
+            <div id="templatePreviewContent" class="template-preview-content" aria-live="polite">Loading…</div>
+          </div>
+        </div>
+      </div>
+      <div class="config-section" style="margin-top:1.25rem">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">Build new report</h3>
+        <p class="setting-blurb" style="margin-bottom:0.5rem">Create a new report file from the template above. Then use <strong>Check/Update Reports</strong> to Check or Update it.</p>
+        <form id="buildReportForm" style="display:grid; gap:0.5rem; max-width:420px; margin-bottom:0.5rem">
+          <div><label for="buildCustomerSlug" style="font-size:0.85rem">Customer id (filename)</label><input type="text" id="buildCustomerSlug" placeholder="e.g. acmecorp" required style="width:100%; padding:0.4rem" autocomplete="off" title="Slug for the report file, e.g. acmecorp → acmecorp.md"></div>
+          <div><label for="buildDisplayName" style="font-size:0.85rem">Display name</label><input type="text" id="buildDisplayName" placeholder="e.g. Acme Corp" style="width:100%; padding:0.4rem" autocomplete="off"></div>
+          <div><label for="buildAccountNumbers" style="font-size:0.85rem">Account numbers</label><input type="text" id="buildAccountNumbers" placeholder="e.g. 1234567 or 1234567, 7654321" style="width:100%; padding:0.4rem" autocomplete="off"></div>
+          <div><label for="buildContact" style="font-size:0.85rem">Primary contact</label><input type="text" id="buildContact" placeholder="email or name" style="width:100%; padding:0.4rem" autocomplete="off"></div>
+          <div><label for="buildTam" style="font-size:0.85rem">TAM name</label><input type="text" id="buildTam" placeholder="Optional" style="width:100%; padding:0.4rem" autocomplete="off"></div>
+          <div><label for="buildSbrGroups" style="font-size:0.85rem">SBR Group *required</label><input type="text" id="buildSbrGroups" placeholder="e.g. Ansible" style="width:100%; padding:0.4rem" autocomplete="off" title="Filters which cases appear (e.g. Ansible). Also adds this account to Check/Update page."></div>
+          <div><label for="buildReportDir" style="font-size:0.85rem">Save location</label><select id="buildReportDir" style="width:100%; padding:0.4rem; font-size:0.95rem"><option value="">Default (first path)</option></select></div>
+          <div><label for="buildReportFormat" style="font-size:0.85rem">Format</label><select id="buildReportFormat" style="width:100%; padding:0.4rem; font-size:0.95rem"><option value="markdown">Markdown (.md)</option><option value="html">HTML (.html)</option><option value="text">Plain text (.txt)</option><option value="csv">CSV (.csv)</option></select></div>
+          <div class="checkbox-row"><input type="checkbox" id="buildOverwrite" aria-describedby="buildReportResult"><label for="buildOverwrite" style="margin:0; font-weight:normal">Overwrite if file exists</label></div>
+          <div class="actions" style="margin:0"><button type="submit" id="btnBuildReport">Create report</button><span id="buildReportResult" class="config-result" role="status" aria-live="polite"></span></div>
+        </form>
+      </div>
+      <div class="config-section" style="margin-top:1.25rem">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">Configured accounts</h3>
+        <p class="setting-blurb" style="margin-bottom:0.5rem">Add customer accounts (name and Red Hat account number(s)). One report can include <strong>multiple account numbers</strong> for the same customer (e.g. when one TAM manages several accounts for the same product). Enter numbers comma-separated. <strong>SBR Group</strong> filters which cases appear. Stored in <code>~/.config/taminator/accounts.json</code>.</p>
+        <div id="accountsListContainer" style="margin-bottom:0.75rem">
+          <table id="accountsTable" class="accounts-table" style="width:100%; border-collapse:collapse; font-size:0.9rem">
+            <thead>
+              <tr>
+                <th style="text-align:left; padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)">Id</th>
+                <th style="text-align:left; padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)">Account numbers</th>
+                <th style="text-align:left; padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)">Customer name</th>
+                <th style="text-align:left; padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)" title="Required: filters which product’s cases appear for this account">SBR Group *required</th>
+                <th style="text-align:left; padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)">Created</th>
+                <th style="text-align:right; padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="accountsTableBody"></tbody>
+          </table>
+          <p id="accountsEmpty" class="subtitle" style="display:none; margin:0.5rem 0">No accounts configured yet. Add one below.</p>
+        </div>
+        <form id="accountForm" class="account-form" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:flex-end; margin-bottom:0.5rem">
+          <div>
+            <label for="accountCustomerName" style="display:block; font-size:0.85rem; margin-bottom:0.2rem">Customer name</label>
+            <input type="text" id="accountCustomerName" placeholder="e.g. Acme Corp" required style="min-width:140px" aria-describedby="accountFormHint">
+          </div>
+          <div>
+            <label for="accountNumber" style="display:block; font-size:0.85rem; margin-bottom:0.2rem">Account numbers</label>
+            <input type="text" id="accountNumber" placeholder="e.g. 1234567 or 1234567, 7654321" required style="min-width:200px" title="One or more Red Hat account numbers, comma-separated. Use multiple when one report covers several accounts for the same customer.">
+          </div>
+          <div>
+            <label for="accountId" style="display:block; font-size:0.85rem; margin-bottom:0.2rem">Id (optional)</label>
+            <input type="text" id="accountId" placeholder="e.g. acmecorp" style="min-width:120px" title="Slug for report filename; leave blank to derive from customer name">
+          </div>
+          <div>
+            <label for="accountSbrGroups" style="display:block; font-size:0.85rem; margin-bottom:0.2rem">SBR Group *required</label>
+            <input type="text" id="accountSbrGroups" placeholder="e.g. Ansible" style="min-width:140px" title="Filter cases by product. Set e.g. Ansible so only Ansible cases appear for this customer. Comma-separated for multiple. Leave blank for all SBR groups.">
+          </div>
+          <button type="submit" id="btnAddAccount" class="secondary small">Add account</button>
+        </form>
+        <p id="accountFormHint" class="subtitle" style="margin:0; font-size:0.8rem">Id is the report filename (e.g. <code>acmecorp.md</code>). You can add multiple account numbers (comma-separated) so one report combines cases from all of them. <strong>SBR Group</strong> is required for filtering by product.</p>
+        <div id="accountFormResult" class="config-result" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panelLibrary" class="panel">
+    <div class="card">
+      <div class="status-indicators" aria-live="polite" role="status" aria-label="Connection and token status">
+        <span class="indicator" data-token="vpn" title="Red Hat VPN."><span class="dot pending" aria-hidden="true"></span><span>VPN</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="jira" title="JIRA token."><span class="dot pending" aria-hidden="true"></span><span>JIRA</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="portal" title="Portal token."><span class="dot pending" aria-hidden="true"></span><span>Portal</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="hydra" title="Hydra: Portal token or username/password in env."><span class="dot pending" aria-hidden="true"></span><span>Hydra</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="google" title="Google Drive/Docs."><span class="dot pending" aria-hidden="true"></span><span>Google</span><span class="status-text">Checking…</span></span>
+      </div>
+      <h2 style="font-size:1.1rem; margin-top:0">Report library</h2>
+      <p class="subtitle" style="margin-bottom:0.75rem">See User Guide: <a href="#guide-where-reports-are-stored" class="guide-ref">Where reports are stored</a>, <a href="#guide-report-library" class="guide-ref">Report library</a>, <a href="#guide-google-and-gmail" class="guide-ref">Google and Gmail</a>.</p>
+      <div id="libraryList"></div>
+      <div id="libraryViewer" class="result-box info viewer-content"></div>
+      <div class="library-actions" id="libraryActions" style="margin-top:0.5rem; display:none">
+        <button type="button" id="btnCopyToClipboard" class="secondary small" title="Copy report content to clipboard.">Copy to clipboard</button>
+        <button type="button" id="btnOpenInGoogle" class="secondary small" title="Open this markdown report as a Google Doc.">Open in Google Docs</button>
+        <button type="button" id="btnCreateGmailDraft" class="secondary small" title="Create a new Gmail draft with the report (HTML formatted for email).">Create Gmail draft</button>
+        <button type="button" id="btnLibraryOpenInDrive" class="secondary small" title="Open Google Drive in a new tab.">Open in Google Drive</button>
+      </div>
+      <div class="google-status" id="googleStatus"></div>
+    </div>
+  </div>
+
+  <div id="panelGuide" class="panel">
+    <div class="card" style="max-width:none">
+      <div class="guide-layout">
+        <nav class="guide-nav" aria-label="Guide sections">
+          <div class="guide-nav-title">Contents</div>
+          <ul class="guide-nav-list" id="guideNavList"></ul>
+        </nav>
+        <div class="guide-content" id="guideContent">
+          <p class="guide-loading" id="guideLoading">Loading documentation…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panelRoadmap" class="panel">
+    <div class="card">
+      <h2 style="font-size:1.1rem; margin-top:0">Roadmap</h2>
+      <p class="subtitle" style="margin-bottom:0.75rem">Planned and in-progress work. Opens in the app.</p>
+      <div id="roadmapContent" class="roadmap-content" style="margin-bottom:1rem"></div>
+      <p class="subtitle" style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--rh-border);" id="roadmapFooter">
+        <span id="roadmapGitLabRef" style="display:none">View roadmap on GitLab: <code id="roadmapGitLabUrl" style="font-size:0.85em; word-break:break-all; background:var(--rh-canvas); padding:0.15rem 0.35rem; border-radius:3px;"></code></span>
+      </p>
+    </div>
+  </div>
+
+  <div id="panelConfig" class="panel">
+    <div class="card">
+      <div class="status-indicators" aria-live="polite" role="status" aria-label="Connection and token status">
+        <span class="indicator" data-token="vpn" title="Red Hat VPN."><span class="dot pending" aria-hidden="true"></span><span>VPN</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="jira" title="JIRA token."><span class="dot pending" aria-hidden="true"></span><span>JIRA</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="portal" title="Portal token."><span class="dot pending" aria-hidden="true"></span><span>Portal</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="hydra" title="Hydra: Portal token or username/password in env."><span class="dot pending" aria-hidden="true"></span><span>Hydra</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="google" title="Google Drive/Docs."><span class="dot pending" aria-hidden="true"></span><span>Google</span><span class="status-text">Checking…</span></span>
+      </div>
+      <h2 style="font-size:1.1rem; margin-top:0">VPN and tokens</h2>
+      <p class="subtitle" style="margin-bottom:0.75rem">See User Guide: <a href="#guide-vpn-and-tokens" class="guide-ref">VPN and tokens</a>, <a href="#guide-token-configuration" class="guide-ref">Token configuration</a>, <a href="#guide-jira-cloud" class="guide-ref">JIRA Cloud</a>, <a href="#guide-environment-variables" class="guide-ref">Environment variables</a>, <a href="#guide-google-and-gmail" class="guide-ref">Google and Gmail</a>.</p>
+      <div class="config-section">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">VPN check</h3>
+        <div class="actions">
+          <button type="button" id="btnVpnCheck" title="Test whether Red Hat VPN is connected and issues.redhat.com is reachable.">Check VPN</button>
+          <span id="vpnResult" class="config-result"></span>
+        </div>
+      </div>
+      <div class="config-section" style="margin-top:1.25rem">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">Token status</h3>
+        <div class="actions">
+          <button type="button" id="btnConfigStatus" class="secondary" title="Run tam-rfe config to show token status from CLI.">Refresh token status</button>
+        </div>
+        <div id="configStatusOut" class="result-box info" style="margin-top:0.75rem; display:none; max-height:200px; overflow-y:auto; white-space:pre-wrap; font-size:0.85rem"></div>
+      </div>
+      <div class="config-section" style="margin-top:1.25rem">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">Token configuration</h3>
+        <div class="config-section" style="margin-bottom:0.75rem">
+          <p class="subtitle" style="margin-bottom:0.35rem"><strong>JIRA instance</strong></p>
+          <div class="token-row" style="margin-bottom:0.5rem">
+            <label class="token-label" for="jiraBaseUrl">JIRA base URL</label>
+            <input type="text" id="jiraBaseUrl" placeholder="https://issues.redhat.com" autocomplete="off" style="min-width:280px" title="Red Hat: https://issues.redhat.com. JIRA Cloud: https://your-tenant.atlassian.net">
+            <span class="token-result" id="resultJiraSettings"></span>
+        </div>
+          <div id="jiraCloudFields" style="display:none; margin-top:0.5rem; padding-left:0; border-left:3px solid #ccc;">
+            <p class="subtitle" style="margin-bottom:0.35rem">JIRA Cloud (email + API token)</p>
+            <div class="token-row" style="margin-bottom:0.5rem">
+              <label class="token-label" for="jiraCloudEmail">Email</label>
+              <input type="text" id="jiraCloudEmail" placeholder="your@email.com" autocomplete="email" style="min-width:220px" title="Atlassian account email">
+      </div>
+            <div class="token-row" style="margin-bottom:0.5rem">
+              <label class="token-label" for="jiraCloudApiToken">API token</label>
+              <input type="password" id="jiraCloudApiToken" placeholder="Leave blank to keep existing" autocomplete="off" style="min-width:220px" title="Create at: id.atlassian.com/manage-profile/security/api-tokens">
+            </div>
+          </div>
+          <div class="token-row" id="jiraRedHatRow" style="margin-top:0.5rem">
+            <label class="token-label" for="tokenJira">Red Hat JIRA token</label>
+            <input type="password" id="tokenJira" placeholder="Paste token (for issues.redhat.com)" autocomplete="off" data-type="jira" style="min-width:220px" title="JIRA Personal Access Token. Get it: issues.redhat.com → View Profile → Personal Access Tokens → Create token." aria-describedby="blurbJira">
+            <button type="button" class="token-save secondary small" data-type="jira">Save</button>
+            <span class="token-result" id="resultJira"></span>
+          </div>
+          <div class="actions" style="margin-top:0.35rem">
+            <button type="button" id="btnSaveJiraSettings" class="secondary small">Save JIRA settings</button>
+          </div>
+        </div>
+        <div class="token-row">
+          <label class="token-label" for="tokenPortal">Red Hat Customer Portal</label>
+          <input type="password" id="tokenPortal" placeholder="Paste token" autocomplete="off" data-type="portal" title="Portal API token." aria-describedby="blurbPortal">
+          <button type="button" class="token-save secondary small" data-type="portal">Save</button>
+          <span class="token-result" id="resultPortal"></span>
+        </div>
+        <div class="config-section" style="margin-top:0.75rem">
+          <p class="subtitle" style="margin-bottom:0.35rem"><strong>Hydra basic auth (save locally)</strong></p>
+          <div class="token-row" style="margin-bottom:0.5rem">
+            <label class="token-label" for="hydraUsername">Red Hat username</label>
+            <input type="text" id="hydraUsername" placeholder="" autocomplete="username" data-hydra="username" style="min-width:220px" title="Red Hat / Customer Portal login (saved in ~/.config/taminator/ui_tokens.json)">
+            <span class="token-result" id="resultHydraUsername"></span>
+          </div>
+          <div class="token-row" style="margin-bottom:0.5rem">
+            <label class="token-label" for="hydraPassword">Red Hat password</label>
+            <input type="password" id="hydraPassword" placeholder="••••••••" autocomplete="current-password" data-hydra="password" style="min-width:220px" title="Red Hat / Customer Portal password (stored locally)">
+            <span class="token-result" id="resultHydraPassword"></span>
+          </div>
+          <div class="actions" style="margin-top:0.35rem">
+            <button type="button" id="btnSaveHydraCredentials" class="secondary small">Save credentials</button>
+            <span id="resultHydraCredentials" class="config-result"></span>
+          </div>
+        </div>
+          <div class="actions" style="margin-top:0.75rem">
+          <button type="button" id="btnTestHydra" class="secondary small" title="Test Hydra access">Test Hydra access</button>
+          <span id="hydraTestResult" class="config-result"></span>
+          </div>
+        </div>
+      <div class="config-section" style="margin-top:1.25rem">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">Environment variables (optional)</h3>
+        <p class="subtitle" style="margin-bottom:0.5rem">See <a href="#guide-environment-variables" class="guide-ref">User Guide: Environment variables</a>.</p>
+      </div>
+      <div class="config-section" style="margin-top:1.25rem">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">HashiCorp Vault</h3>
+        <p class="subtitle" style="margin-bottom:0.5rem">When VAULT_ADDR and VAULT_TOKEN are set, Taminator can use Vault as the secret store. Tokens are read from Vault first, with fallback to local Auth Box.</p>
+        <div class="config-section" style="margin-bottom:0.75rem">
+          <p class="subtitle" style="margin-bottom:0.35rem"><strong>Connection status</strong></p>
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; padding:0.75rem; background:var(--rh-info-bg); border:1px solid var(--rh-info-border); border-radius:8px; margin-bottom:0.75rem">
+            <div>
+              <strong>Vault server</strong>
+              <p style="margin:2px 0 0 0; color:var(--rh-text-muted); font-size:0.9rem" id="vaultAddr">Checking…</p>
+            </div>
+            <span id="vaultStatus" class="status-badge" style="padding:0.25rem 0.5rem; border-radius:4px; font-size:0.85rem">Checking…</span>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:0.5rem; margin-bottom:0.75rem">
+            <div style="padding:0.5rem; background:var(--rh-info-bg); border-radius:4px">
+              <strong style="display:block; font-size:0.85rem; margin-bottom:4px">Version</strong>
+              <span id="vaultVersion" style="color:var(--rh-text-muted); font-size:0.85rem">-</span>
+            </div>
+            <div style="padding:0.5rem; background:var(--rh-info-bg); border-radius:4px">
+              <strong style="display:block; font-size:0.85rem; margin-bottom:4px">Strategy</strong>
+              <span id="vaultStrategy" style="color:var(--rh-text-muted); font-size:0.85rem">-</span>
+            </div>
+          </div>
+        </div>
+        <div class="config-section" style="margin-bottom:0.75rem">
+          <p class="subtitle" style="margin-bottom:0.35rem"><strong>Tokens in Vault</strong></p>
+          <div id="vaultTokensList" style="margin-bottom:0.75rem; min-height:2rem">Loading…</div>
+          <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--rh-border)">
+            <p class="subtitle" style="margin-bottom:0.35rem">Add token</p>
+            <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:flex-end">
+              <div>
+                <label for="vaultNewService" style="display:block; font-size:0.85rem; margin-bottom:2px">Service name</label>
+                <input type="text" id="vaultNewService" placeholder="e.g. jira, portal, github" style="min-width:140px; padding:0.4rem 0.5rem" autocomplete="off">
+              </div>
+              <div>
+                <label for="vaultNewToken" style="display:block; font-size:0.85rem; margin-bottom:2px">Token</label>
+                <input type="password" id="vaultNewToken" placeholder="Enter token" style="min-width:180px; padding:0.4rem 0.5rem" autocomplete="off">
+              </div>
+              <button type="button" id="btnVaultAddToken" class="secondary small">Add token</button>
+            </div>
+          </div>
+        </div>
+        <div class="actions" style="flex-wrap:wrap; gap:0.5rem">
+          <button type="button" id="btnVaultMigrate" class="secondary small" title="Copy Auth Box tokens to Vault">Migrate from Auth Box</button>
+          <button type="button" id="btnVaultRefresh" class="secondary small" title="Reload Vault status and token list">Refresh status</button>
+          <button type="button" id="btnVaultTest" class="secondary small" title="Test Vault connection">Test connection</button>
+        </div>
+        <div style="margin-top:0.75rem; padding:0.5rem; background:var(--rh-info-bg); border-left:3px solid var(--rh-brand-red); border-radius:4px; font-size:0.85rem">
+          <strong>Setup:</strong> Set <code>VAULT_ADDR</code> and <code>VAULT_TOKEN</code> in your environment (e.g. shell profile). Optional: <code>VAULT_NAMESPACE</code>, <code>VAULT_CACERT</code>, <code>VAULT_SKIP_VERIFY</code>.
+        </div>
+      </div>
+      <div class="config-section" style="margin-top:1.25rem">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">Google Drive &amp; Docs</h3>
+        <p class="subtitle" style="margin-bottom:0.5rem">See <a href="#guide-google-and-gmail" class="guide-ref">User Guide: Google and Gmail</a>. Save credentials below, then Connect Google.</p>
+        <div class="config-section" style="margin-bottom:0.5rem">
+          <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end; margin-bottom:0.35rem">
+          <div>
+              <label for="googleClientId" style="display:block; font-size:0.85rem; margin-bottom:0.2rem">Client ID</label>
+              <input type="text" id="googleClientId" placeholder="xxxxx.apps.googleusercontent.com" style="min-width:280px" autocomplete="off" title="Paste the OAuth Client ID from Google Cloud Console">
+          </div>
+          <div>
+              <label for="googleClientSecret" style="display:block; font-size:0.85rem; margin-bottom:0.2rem">Client secret</label>
+              <input type="password" id="googleClientSecret" placeholder="Paste client secret" style="min-width:180px" autocomplete="off" title="Paste the OAuth Client secret">
+          </div>
+            <button type="button" id="btnSaveGoogleCredentials" class="secondary small">Save credentials</button>
+          </div>
+          <span id="googleCredentialsResult" class="config-result" role="status" aria-live="polite"></span>
+          </div>
+        <div class="actions" style="margin-top:0.5rem; flex-wrap:wrap; gap:0.5rem">
+          <button type="button" id="btnConnectGoogle" class="secondary small" title="Start Google sign-in in your browser. Complete sign-in there, then return here.">Connect Google</button>
+          <span id="googleConnectResult" class="config-result" role="status" aria-live="polite"></span>
+          </div>
+        <div class="actions" style="margin-top:0.5rem; flex-wrap:wrap; gap:0.5rem">
+          <button type="button" id="btnBackupToDrive" class="secondary small" title="Upload all report (.md) files to a new folder in your Google Drive.">Back up to Google Drive</button>
+          <span id="googleBackupResult" class="config-result" role="status" aria-live="polite"></span>
+          </div>
+        <div style="margin-top:0.35rem">
+          <span id="googleConfigStatus" class="config-result"></span>
+          </div>
+        </div>
+      <div class="config-section" style="margin-top:1.25rem">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">Customer Portal Groups</h3>
+        <p class="subtitle" style="margin-bottom:0.5rem">See <a href="#guide-customer-portal-groups" class="guide-ref">User Guide: Customer Portal Groups</a>.</p>
+        </div>
+      <div class="config-section" style="margin-top:1.25rem">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">Report structure (customize template)</h3>
+        <p class="setting-blurb" style="margin-bottom:0">Customize section order, titles, and defaults on the <a href="#" id="linkToOnboardTemplate">Report Manager</a> page (at the top).</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const customerInput = document.getElementById("customer");
+    const testDataCheck = document.getElementById("testData");
+    const btnCheck = document.getElementById("btnCheck");
+    const btnUpdate = document.getElementById("btnUpdate");
+    const resultEl = document.getElementById("result");
+    const statusEl = document.getElementById("status");
+    const navReports = document.getElementById("navReports");
+    const navLibrary = document.getElementById("navLibrary");
+    const navOnboard = document.getElementById("navOnboard");
+    const navConfig = document.getElementById("navConfig");
+    const navGuide = document.getElementById("navGuide");
+    const navRoadmap = document.getElementById("navRoadmap");
+    const panelReports = document.getElementById("panelReports");
+    const panelLibrary = document.getElementById("panelLibrary");
+    const panelOnboard = document.getElementById("panelOnboard");
+    const panelConfig = document.getElementById("panelConfig");
+    const panelGuide = document.getElementById("panelGuide");
+    const panelRoadmap = document.getElementById("panelRoadmap");
+    const libraryList = document.getElementById("libraryList");
+    const libraryViewer = document.getElementById("libraryViewer");
+    const libraryActions = document.getElementById("libraryActions");
+    const btnOpenInGoogle = document.getElementById("btnOpenInGoogle");
+    const googleStatus = document.getElementById("googleStatus");
+
+    let selectedLibraryCustomer = null;
+
+    function setLayout(mode) {
+      var body = document.body;
+      body.classList.remove("layout-wide", "layout-full");
+      if (mode === "wide") body.classList.add("layout-wide");
+      if (mode === "full") body.classList.add("layout-full");
+      [ "layoutDefault", "layoutWide", "layoutFull" ].forEach(function (id) {
+        var btn = document.getElementById(id);
+        if (btn) btn.classList.remove("active"), btn.setAttribute("aria-pressed", "false");
+      });
+      var activeId = mode === "wide" ? "layoutWide" : (mode === "full" ? "layoutFull" : "layoutDefault");
+      var activeBtn = document.getElementById(activeId);
+      if (activeBtn) activeBtn.classList.add("active"), activeBtn.setAttribute("aria-pressed", "true");
+      try { localStorage.setItem("taminator_layout", mode || "default"); } catch (e) {}
+    }
+    function initLayout() {
+      var mode = "default";
+      try { mode = localStorage.getItem("taminator_layout") || "default"; } catch (e) {}
+      setLayout(mode === "wide" ? "wide" : (mode === "full" ? "full" : "default"));
+    }
+    initLayout();
+    document.getElementById("layoutDefault").addEventListener("click", function () { setLayout("default"); });
+    document.getElementById("layoutWide").addEventListener("click", function () { setLayout("wide"); });
+    document.getElementById("layoutFull").addEventListener("click", function () { setLayout("full"); });
+
+    function setBusy(busy) {
+      btnCheck.disabled = busy;
+      btnUpdate.disabled = busy;
+      btnCheck.setAttribute("aria-busy", busy ? "true" : "false");
+      btnUpdate.setAttribute("aria-busy", busy ? "true" : "false");
+      statusEl.textContent = busy ? "Running…" : "";
+    }
+
+    var reportGoogleActionsEl = document.getElementById("reportGoogleActions");
+    var reportDebugActionsEl = document.getElementById("reportDebugActions");
+    var btnReportOpenInDocs = document.getElementById("btnReportOpenInDocs");
+    var btnReportOpenInDrive = document.getElementById("btnReportOpenInDrive");
+
+    function showResult(text, kind) {
+      resultEl.textContent = text || "(no output)";
+      resultEl.className = "show " + (kind || "info");
+      resultEl.setAttribute("role", kind === "error" ? "alert" : "status");
+      resultEl.scrollTop = 0;
+      if (reportGoogleActionsEl) reportGoogleActionsEl.style.display = (text && resultEl.classList.contains("show")) ? "flex" : "none";
+      if (reportDebugActionsEl) reportDebugActionsEl.style.display = (text && resultEl.classList.contains("show")) ? "flex" : "none";
+    }
+
+    function run(action, opts) {
+      const customer = customerInput.value.trim();
+      const testData = testDataCheck.checked;
+      const fullRefreshEl = document.getElementById("fullRefresh");
+      const fullRefresh = (opts && opts.full_refresh) || (fullRefreshEl && fullRefreshEl.checked);
+      if (!customer && !testData) {
+        showResult("Enter a customer name or account number, or check \"Use test data\".", "error");
+        return;
+      }
+      setBusy(true);
+      resultEl.classList.remove("show");
+      resultEl.removeAttribute("role");
+      const body = { customer: customer || null, test_data: testData };
+      if (action === "update" && fullRefresh) body.full_refresh = true;
+      var includeDebugEl = document.getElementById("includeDebug");
+      if (includeDebugEl && includeDebugEl.checked) body.debug = true;
+      fetch("/api/" + action, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+        .then(function (r) { return r.json().then(function (data) { if (!r.ok) throw new Error(data.error || "Request failed"); return data; }); })
+        .then(function (data) {
+          const out = [data.stdout, data.stderr].filter(Boolean).join("\n") || "(no output)";
+          showResult(out, data.ok ? "success" : "error");
+          statusEl.textContent = data.ok ? "Done." : "Finished with errors (return code " + data.returncode + ").";
+          if (!data.ok) statusEl.textContent += " If the problem continues, check VPN and token status in Settings.";
+          reportGoogleActionsEl.style.display = (out && data.ok) ? "flex" : "none";
+          if (reportDebugActionsEl) reportDebugActionsEl.style.display = out ? "flex" : "none";
+        })
+        .catch(function (err) {
+          var msg = err.message || "Request failed";
+          showResult(msg + " If the problem continues, check VPN and token status in Settings.", "error");
+          statusEl.textContent = "";
+          if (reportGoogleActionsEl) reportGoogleActionsEl.style.display = "none";
+          if (reportDebugActionsEl) reportDebugActionsEl.style.display = "flex";
+        })
+        .finally(function () { setBusy(false); });
+    }
+
+    if (btnReportOpenInDocs) {
+      btnReportOpenInDocs.addEventListener("click", function () {
+        var content = resultEl.textContent;
+        if (!content) return;
+        var title = (customerInput && customerInput.value.trim()) ? "RFE Report - " + customerInput.value.trim() : "Taminator Report";
+        statusEl.textContent = "Creating Google Doc…";
+        fetch("/api/google/create-doc", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: content, title: title }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.ok && data.url) {
+              window.open(data.url, "_blank");
+              statusEl.textContent = "Opened in new tab.";
+            } else {
+              statusEl.textContent = "Error: " + (data.error || "Unknown");
+            }
+          })
+          .catch(function (err) {
+            statusEl.textContent = "Error: " + (err.message || "Request failed");
+          });
+      });
+    }
+    var btnReportCreateGmailDraft = document.getElementById("btnReportCreateGmailDraft");
+    if (btnReportCreateGmailDraft) {
+      btnReportCreateGmailDraft.addEventListener("click", function () {
+        var customer = (customerInput && customerInput.value) ? customerInput.value.trim() : "";
+        createGmailDraft(customer, statusEl);
+      });
+    }
+    if (btnReportOpenInDrive) btnReportOpenInDrive.addEventListener("click", function () { window.open("https://drive.google.com", "_blank"); });
+
+    var GITLAB_NEW_ISSUE_URL = "https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues/new";
+    var btnDownloadDebugReport = document.getElementById("btnDownloadDebugReport");
+    var btnReportIssueGitLab = document.getElementById("btnReportIssueGitLab");
+    if (btnDownloadDebugReport) {
+      btnDownloadDebugReport.addEventListener("click", function () {
+        var text = resultEl.textContent || "";
+        if (!text) return;
+        var name = "taminator-debug-" + new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "").replace("T", "-") + ".txt";
+        var blob = new Blob([text], { type: "text/plain" });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        if (statusEl) statusEl.textContent = "Debug report downloaded.";
+      });
+    }
+    if (btnReportIssueGitLab) {
+      btnReportIssueGitLab.addEventListener("click", function () {
+        var text = resultEl.textContent || "";
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(function () {
+          window.open(GITLAB_NEW_ISSUE_URL, "_blank");
+          if (statusEl) statusEl.textContent = "Debug report copied to clipboard. Paste it into the GitLab issue description.";
+        }).catch(function () {
+          if (statusEl) statusEl.textContent = "Copy failed. Use Download debug report and attach the file to the GitLab issue.";
+        });
+      });
+    }
+
+    var btnLibraryOpenInDrive = document.getElementById("btnLibraryOpenInDrive");
+    if (btnLibraryOpenInDrive) btnLibraryOpenInDrive.addEventListener("click", function () { window.open("https://drive.google.com", "_blank"); });
+
+    var guideDocsLoaded = false;
+    var guideIgnoreScrollUntil = 0;
+    function loadGuideDocs() {
+      var listEl = document.getElementById("guideNavList");
+      var contentEl = document.getElementById("guideContent");
+      var loadingEl = document.getElementById("guideLoading");
+      if (!listEl || !contentEl) return;
+      if (guideDocsLoaded) {
+        if (loadingEl) loadingEl.style.display = "none";
+        return;
+      }
+      fetch("/api/docs")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var sections = data.sections || [];
+          listEl.innerHTML = "";
+          contentEl.innerHTML = "";
+          if (loadingEl) loadingEl.style.display = "none";
+          sections.forEach(function (s) {
+            var id = (s.id || "s").replace(/[^a-z0-9-]/gi, "-");
+            var li = document.createElement("li");
+            var a = document.createElement("a");
+            a.href = "#guide-" + id;
+            a.textContent = s.title || "Section";
+            a.setAttribute("data-section", id);
+            a.addEventListener("click", function (e) {
+              e.preventDefault();
+              var el = document.getElementById("guide-" + id);
+              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              listEl.querySelectorAll("a").forEach(function (x) { x.classList.remove("active"); });
+              a.classList.add("active");
+            });
+            li.appendChild(a);
+            listEl.appendChild(li);
+            var sec = document.createElement("section");
+            sec.id = "guide-" + id;
+            sec.className = "guide-section";
+            sec.innerHTML = "<h2>" + escapeHtml(s.title || "") + "</h2><div class=\"guide-body\">" + (s.content || "") + "</div>";
+            contentEl.appendChild(sec);
+          });
+          var roadmapLi = document.createElement("li");
+          var roadmapA = document.createElement("a");
+          roadmapA.href = "#roadmap";
+          roadmapA.textContent = "Roadmap";
+          roadmapA.setAttribute("aria-label", "Roadmap (opens in app)");
+          roadmapA.addEventListener("click", function (e) { e.preventDefault(); showPanel("roadmap"); });
+          roadmapLi.appendChild(roadmapA);
+          listEl.appendChild(roadmapLi);
+          guideDocsLoaded = true;
+          if (window.location.hash && window.location.hash.indexOf("#guide-") === 0) {
+            var scrollEl = document.getElementById(window.location.hash.slice(1));
+            if (scrollEl) setTimeout(function () { scrollEl.scrollIntoView({ behavior: "smooth", block: "start" }); }, 150);
+          }
+          if (contentEl && sections.length) {
+            function updateActive() {
+              if (Date.now() < guideIgnoreScrollUntil) return;
+              var rects = contentEl.querySelectorAll(".guide-section");
+              var navLinks = listEl.querySelectorAll("a");
+              var top = contentEl.scrollTop || 0;
+              var found = false;
+              for (var i = rects.length - 1; i >= 0; i--) {
+                var r = rects[i];
+                if (r.offsetTop <= top + 120) {
+                  navLinks.forEach(function (x) { x.classList.remove("active"); });
+                  if (navLinks[i]) { navLinks[i].classList.add("active"); found = true; }
+                  break;
+                }
+              }
+              if (!found && navLinks[0]) { navLinks[0].classList.add("active"); }
+            }
+            contentEl.addEventListener("scroll", function () { requestAnimationFrame(updateActive); });
+            var firstLink = listEl.querySelector("a");
+            if (firstLink) firstLink.classList.add("active");
+          }
+          setupGuideKeyboardNav();
+        })
+        .catch(function () {
+          if (loadingEl) { loadingEl.textContent = "Could not load documentation. Check the server or see GitLab Repository."; loadingEl.style.display = "block"; }
+        });
+    }
+    function setupGuideKeyboardNav() {
+      document.addEventListener("keydown", function guideKeydown(e) {
+        var panel = document.getElementById("panelGuide");
+        if (!panel || !panel.classList.contains("show")) return;
+        var listEl = document.getElementById("guideNavList");
+        var contentEl = document.getElementById("guideContent");
+        if (!listEl || !contentEl) return;
+        var active = document.activeElement;
+        if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable)) return;
+        var links = listEl.querySelectorAll("a");
+        if (links.length === 0) return;
+        var currentIndex = -1;
+        for (var i = 0; i < links.length; i++) { if (links[i].classList.contains("active")) { currentIndex = i; break; } }
+        if (currentIndex < 0) currentIndex = 0;
+        var nextIndex = -1;
+        if (e.key === "ArrowDown" && currentIndex < links.length - 1) nextIndex = currentIndex + 1;
+        else if (e.key === "ArrowUp" && currentIndex > 0) nextIndex = currentIndex - 1;
+        if (nextIndex < 0) return;
+        e.preventDefault();
+        guideIgnoreScrollUntil = Date.now() + 500;
+        links.forEach(function (x) { x.classList.remove("active"); });
+        links[nextIndex].classList.add("active");
+        var sectionId = links[nextIndex].getAttribute("data-section");
+        if (sectionId) {
+          var sectionEl = document.getElementById("guide-" + sectionId);
+          if (sectionEl) sectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+    }
+
+    function showPanel(panel) {
+      panelReports.classList.toggle("show", panel === "reports");
+      panelLibrary.classList.toggle("show", panel === "library");
+      if (panelOnboard) panelOnboard.classList.toggle("show", panel === "onboard");
+      panelConfig.classList.toggle("show", panel === "config");
+      if (panelGuide) panelGuide.classList.toggle("show", panel === "guide");
+      if (panelRoadmap) panelRoadmap.classList.toggle("show", panel === "roadmap");
+      navReports.classList.toggle("active", panel === "reports");
+      navLibrary.classList.toggle("active", panel === "library");
+      if (navOnboard) navOnboard.classList.toggle("active", panel === "onboard");
+      navConfig.classList.toggle("active", panel === "config");
+      if (navGuide) navGuide.classList.toggle("active", panel === "guide");
+      if (navRoadmap) navRoadmap.classList.toggle("active", panel === "roadmap");
+      navReports.setAttribute("aria-current", panel === "reports" ? "page" : null);
+      navLibrary.setAttribute("aria-current", panel === "library" ? "page" : null);
+      if (navOnboard) navOnboard.setAttribute("aria-current", panel === "onboard" ? "page" : null);
+      navConfig.setAttribute("aria-current", panel === "config" ? "page" : null);
+      if (navGuide) navGuide.setAttribute("aria-current", panel === "guide" ? "page" : null);
+      if (navRoadmap) navRoadmap.setAttribute("aria-current", panel === "roadmap" ? "page" : null);
+      if (panel === "reports") { loadReportStatusIndicators(); loadReportAccountTiles(); }
+      if (panel === "library") { loadLibrary(); loadGoogleStatus(); loadReportStatusIndicators(); }
+      if (panel === "onboard") { loadReportStatusIndicators(); loadAccounts(); loadReportPaths(); loadReportStructure(); }
+      if (panel === "config") { loadGoogleConfigStatus(); loadReportStatusIndicators(); loadJiraSettings(); loadVaultStatus(); }
+      if (panel === "guide") { loadGuideDocs(); }
+      if (panel === "roadmap") loadRoadmap();
+      if (panel === "guide" && window.location.hash.indexOf("#guide-") === 0) { /* keep section hash */ }
+      else { window.history.replaceState(null, "", "#" + panel); }
+    }
+    function panelFromHash() {
+      var h = (window.location.hash || "").slice(1);
+      if (h === "reports" || h === "library" || h === "onboard" || h === "config" || h === "roadmap") return h;
+      if (h === "guide" || h.indexOf("guide-") === 0) return "guide";
+      return "onboard";
+    }
+    function loadRoadmap() {
+      var contentEl = document.getElementById("roadmapContent");
+      if (!contentEl) return;
+      contentEl.innerHTML = "Loading…";
+      var refEl = document.getElementById("roadmapGitLabRef");
+      var urlEl = document.getElementById("roadmapGitLabUrl");
+      if (refEl) refEl.style.display = "none";
+      fetch("/api/docs/roadmap")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.error && !data.html) {
+            contentEl.innerHTML = "<p>" + (data.error || "Failed to load roadmap.") + "</p>";
+          } else {
+            contentEl.innerHTML = data.html || "<p>No roadmap content.</p>";
+          }
+          if (data.gitlab_roadmap_url && refEl && urlEl) {
+            urlEl.textContent = data.gitlab_roadmap_url;
+            refEl.style.display = "block";
+          }
+        })
+        .catch(function () { contentEl.innerHTML = "<p>Failed to load roadmap.</p>"; });
+    }
+    function getTemplateStructurePayload() {
+      var list = document.getElementById("templateSectionCardsList");
+      var order = [];
+      if (list) {
+        list.querySelectorAll(".template-section-card[data-section-id]").forEach(function (card) {
+          var id = card.getAttribute("data-section-id");
+          if (id && id !== "title") order.push(id);
+        });
+      }
+      if (order.length === 0) order = ["customer_info", "rfe", "bug", "notes"];
+      var inc = {};
+      var includeIds = { customer_info: "includeCustomerInfo", rfe: "includeRfe", bug: "includeBug", notes: "includeNotes" };
+      ["customer_info", "rfe", "bug", "notes"].forEach(function (sid) {
+        var cbel = document.getElementById(includeIds[sid]);
+        inc[sid] = cbel ? cbel.checked : true;
+      });
+      var get = function (id) { var el = document.getElementById(id); return (el && el.value) ? el.value.trim() : ""; };
+      return {
+        report_title_suffix: get("reportTitleSuffix"),
+        section_customer_info: get("sectionCustomerInfo"),
+        section_rfe: get("sectionRfe"),
+        section_bug: get("sectionBug"),
+        section_notes: get("sectionNotes"),
+        default_tam_name: get("defaultTamName"),
+        default_contact: get("defaultContact"),
+        section_order: order,
+        section_included: inc
+      };
+    }
+    var templatePreviewDebounce = null;
+    var lastPreviewData = null;
+    function renderTemplatePreview() {
+      var el = document.getElementById("templatePreviewContent");
+      var formatEl = document.getElementById("templatePreviewFormat");
+      if (!el) { console.warn("Taminator preview: templatePreviewContent element not found"); return; }
+      var format = (formatEl && formatEl.value) ? formatEl.value : "markdown";
+      if (typeof window._taminatorPreviewDebug !== "undefined" && window._taminatorPreviewDebug) {
+        console.log("Taminator preview: renderTemplatePreview() called", "format=" + format, "hasData=" + !!lastPreviewData, lastPreviewData ? "keys=" + Object.keys(lastPreviewData).join(",") : "");
+      }
+      if (!lastPreviewData) {
+        el.className = "template-preview-content";
+        el.textContent = "Loading…";
+        return;
+      }
+      if (format === "html" && lastPreviewData.html != null) {
+        el.className = "template-preview-content preview-html";
+        el.innerHTML = lastPreviewData.html;
+      } else if (format === "text" && lastPreviewData.text != null) {
+        el.className = "template-preview-content";
+        el.textContent = lastPreviewData.text;
+      } else if (format === "csv" && lastPreviewData.csv != null) {
+        el.className = "template-preview-content";
+        el.textContent = lastPreviewData.csv;
+      } else {
+        el.className = "template-preview-content";
+        el.textContent = lastPreviewData.markdown != null ? lastPreviewData.markdown : "No preview.";
+      }
+      if (typeof window._taminatorPreviewDebug !== "undefined" && window._taminatorPreviewDebug) {
+        console.log("Taminator preview: pane updated to format", format);
+      }
+    }
+    function requestTemplatePreview(immediate) {
+      if (templatePreviewDebounce) clearTimeout(templatePreviewDebounce);
+      templatePreviewDebounce = null;
+      var el = document.getElementById("templatePreviewContent");
+      if (!el) return;
+      function doFetch() {
+        var payload = getTemplateStructurePayload();
+        el.textContent = "Refreshing…";
+        fetch("/api/report-structure/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (typeof window._taminatorPreviewDebug !== "undefined" && window._taminatorPreviewDebug) {
+              console.log("Taminator preview: API response", data ? { hasMarkdown: !!data.markdown, hasHtml: !!data.html, hasText: !!data.text, error: data.error } : "null");
+            }
+            if (data && data.markdown != null) {
+              lastPreviewData = { markdown: data.markdown, html: data.html || null, text: data.text || null, csv: data.csv || null };
+              renderTemplatePreview();
+            } else if (data && data.error) {
+              lastPreviewData = null;
+              el.textContent = "Preview error: " + data.error;
+            }
+          })
+          .catch(function () { lastPreviewData = null; el.textContent = "Preview unavailable."; });
+      }
+      if (immediate) {
+        doFetch();
+      } else {
+        templatePreviewDebounce = setTimeout(function () { templatePreviewDebounce = null; doFetch(); }, 400);
+      }
+    }
+    document.addEventListener("change", function (e) {
+      if (e.target && e.target.id === "templatePreviewFormat") {
+        if (typeof window._taminatorPreviewDebug !== "undefined" && window._taminatorPreviewDebug) console.log("Taminator preview: change event on format dropdown");
+        renderTemplatePreview();
+      }
+    });
+    document.addEventListener("input", function (e) {
+      if (e.target && e.target.id === "templatePreviewFormat") {
+        if (typeof window._taminatorPreviewDebug !== "undefined" && window._taminatorPreviewDebug) console.log("Taminator preview: input event on format dropdown");
+        renderTemplatePreview();
+      }
+    });
+    (function () {
+      var btn = document.getElementById("templatePreviewRefresh");
+      if (btn) btn.addEventListener("click", function () { requestTemplatePreview(true); });
+      var copyBtn = document.getElementById("templatePreviewCopy");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", function () {
+          var formatEl = document.getElementById("templatePreviewFormat");
+          var format = (formatEl && formatEl.value) ? formatEl.value : "markdown";
+          var textToCopy = "";
+          if (lastPreviewData) {
+            if (format === "html" && lastPreviewData.html != null) textToCopy = lastPreviewData.html;
+            else if (format === "text" && lastPreviewData.text != null) textToCopy = lastPreviewData.text;
+            else if (format === "csv" && lastPreviewData.csv != null) textToCopy = lastPreviewData.csv;
+            else textToCopy = (lastPreviewData.markdown != null) ? lastPreviewData.markdown : "";
+          }
+          if (!textToCopy) {
+            var el = document.getElementById("templatePreviewContent");
+            textToCopy = (el && (el.textContent || el.innerText)) ? (el.textContent || el.innerText).trim() : "";
+          }
+          if (!textToCopy) { alert("Nothing to copy. Refresh the preview first."); return; }
+          navigator.clipboard.writeText(textToCopy).then(function () {
+            var orig = copyBtn.textContent;
+            copyBtn.textContent = "Copied!";
+            setTimeout(function () { copyBtn.textContent = orig; }, 1500);
+          }).catch(function () { alert("Copy failed. Select the preview text and copy manually."); });
+        });
+      }
+    })();
+    function loadReportStructure() {
+      fetch("/api/report-structure")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var s = (data && typeof data === "object" && !data.ok) ? data : {};
+          var set = function (id, key) { var el = document.getElementById(id); if (el) el.value = (s[key] != null && s[key] !== "") ? s[key] : ""; };
+          set("reportTitleSuffix", "report_title_suffix");
+          set("sectionCustomerInfo", "section_customer_info");
+          set("sectionRfe", "section_rfe");
+          set("sectionBug", "section_bug");
+          set("sectionNotes", "section_notes");
+          set("defaultTamName", "default_tam_name");
+          set("defaultContact", "default_contact");
+          var inc = s.section_included || {};
+          ["customer_info", "rfe", "bug", "notes"].forEach(function (sid) {
+            var labelMap = { customer_info: "includeCustomerInfo", rfe: "includeRfe", bug: "includeBug", notes: "includeNotes" };
+            var cb = document.getElementById(labelMap[sid]);
+            if (cb) cb.checked = inc[sid] !== false;
+          });
+          var order = s.section_order || ["customer_info", "rfe", "bug", "notes"];
+          var list = document.getElementById("templateSectionCardsList");
+          if (list && order.length) {
+            var cards = list.querySelectorAll(".template-section-card[data-section-id]");
+            var titleCard = list.querySelector(".template-section-card[data-section-id=title]");
+            var byId = {};
+            cards.forEach(function (c) { byId[c.getAttribute("data-section-id")] = c; });
+            list.innerHTML = "";
+            if (titleCard) list.appendChild(titleCard);
+            order.forEach(function (id) { if (byId[id]) list.appendChild(byId[id]); });
+          }
+          var res = document.getElementById("reportStructureResult");
+          if (res) res.textContent = "";
+          requestTemplatePreview();
+        })
+        .catch(function () {});
+    }
+    function loadReportPaths() {
+      var sel = document.getElementById("buildReportDir");
+      if (!sel) return;
+      fetch("/api/reports/paths")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var paths = (data && data.paths) ? data.paths : [];
+          sel.innerHTML = "";
+          paths.forEach(function (p) {
+            var opt = document.createElement("option");
+            opt.value = p;
+            opt.textContent = p;
+            sel.appendChild(opt);
+          });
+        })
+        .catch(function () {});
+    }
+    function loadAccounts() {
+      var tbody = document.getElementById("accountsTableBody");
+      var emptyEl = document.getElementById("accountsEmpty");
+      var tableEl = document.getElementById("accountsTable");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      fetch("/api/accounts")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var accounts = (data && data.accounts) ? data.accounts : [];
+          if (accounts.length === 0) {
+            if (emptyEl) emptyEl.style.display = "block";
+            if (tableEl) tableEl.style.display = "none";
+            return;
+          }
+          if (emptyEl) emptyEl.style.display = "none";
+          if (tableEl) tableEl.style.display = "table";
+          accounts.forEach(function (a) {
+            var id = (a.id || "").toString();
+            var nums = Array.isArray(a.account_numbers) && a.account_numbers.length ? a.account_numbers.join(", ") : (a.account_number || "").toString();
+            var name = (a.customer_name || "").toString();
+            var sbr = Array.isArray(a.sbr_groups) ? a.sbr_groups.join(", ") : (a.sbr_groups || "");
+            var created = (a.created_at || "").toString();
+            var createdDisplay = created ? (function () { try { var d = new Date(created); return isNaN(d.getTime()) ? created : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); } catch (e) { return created; } })() : "—";
+            var tr = document.createElement("tr");
+            tr.innerHTML = "<td style=\"padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)\">" + escapeHtml(id) + "</td>" +
+              "<td style=\"padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)\">" + escapeHtml(nums) + "</td>" +
+              "<td style=\"padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)\">" + escapeHtml(name) + "</td>" +
+              "<td style=\"padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)\">" + (sbr ? escapeHtml(sbr) : "—") + "</td>" +
+              "<td style=\"padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border)\">" + escapeHtml(createdDisplay) + "</td>" +
+              "<td style=\"padding:0.35rem 0.5rem; border-bottom:1px solid var(--rh-border); text-align:right\"><button type=\"button\" class=\"secondary small account-delete\" data-id=\"" + escapeHtml(id) + "\" title=\"Remove this account\">Delete</button></td>";
+            tbody.appendChild(tr);
+          });
+          tbody.querySelectorAll("button.account-delete").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              var id = this.getAttribute("data-id");
+              if (!id) return;
+              if (!confirm("Remove account \"" + id + "\"?")) return;
+              fetch("/api/accounts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "delete", id: id }),
+              })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                  if (res.ok) loadAccounts();
+                  else alert(res.error || "Failed to delete");
+                })
+                .catch(function (err) { alert(err.message || "Request failed"); });
+            });
+          });
+        })
+        .catch(function () {
+          if (emptyEl) emptyEl.textContent = "Failed to load accounts.";
+          if (emptyEl) emptyEl.style.display = "block";
+          if (tableEl) tableEl.style.display = "none";
+        });
+    }
+    var accountForm = document.getElementById("accountForm");
+    if (accountForm) {
+      accountForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var customerName = (document.getElementById("accountCustomerName") && document.getElementById("accountCustomerName").value.trim()) || "";
+        var accountNumberInput = (document.getElementById("accountNumber") && document.getElementById("accountNumber").value.trim()) || "";
+        var accountNumbers = accountNumberInput ? accountNumberInput.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : [];
+        var idVal = (document.getElementById("accountId") && document.getElementById("accountId").value.trim()) || "";
+        var sbrInput = document.getElementById("accountSbrGroups") && document.getElementById("accountSbrGroups").value.trim();
+        var sbrGroups = sbrInput ? sbrInput.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : undefined;
+        var resultEl = document.getElementById("accountFormResult");
+        if (!customerName || !accountNumbers.length) {
+          if (resultEl) { resultEl.textContent = "Customer name and at least one account number are required."; resultEl.style.color = "var(--rh-error-text)"; }
+          return;
+        }
+        if (resultEl) { resultEl.textContent = "Adding…"; resultEl.style.color = "var(--rh-text-muted)"; }
+        var body = { action: "add", customer_name: customerName, account_numbers: accountNumbers };
+        if (idVal) body.id = idVal;
+        if (sbrGroups && sbrGroups.length) body.sbr_groups = sbrGroups;
+        fetch("/api/accounts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (res.ok) {
+              if (resultEl) { resultEl.textContent = res.message || "Account added."; resultEl.style.color = "var(--rh-success-text)"; }
+              accountForm.reset();
+              loadAccounts();
+            } else {
+              if (resultEl) { resultEl.textContent = res.error || "Failed to add."; resultEl.style.color = "var(--rh-error-text)"; }
+            }
+          })
+          .catch(function (err) {
+            if (resultEl) { resultEl.textContent = err.message || "Request failed"; resultEl.style.color = "var(--rh-error-text)"; }
+          });
+      });
+    }
+    var buildReportForm = document.getElementById("buildReportForm");
+    var buildReportResult = document.getElementById("buildReportResult");
+    if (buildReportForm && buildReportResult) {
+      buildReportForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var slug = (document.getElementById("buildCustomerSlug") && document.getElementById("buildCustomerSlug").value.trim()) || "";
+        if (!slug) { buildReportResult.textContent = "Customer id (filename) is required."; buildReportResult.style.color = "var(--rh-error-text)"; return; }
+        var displayName = (document.getElementById("buildDisplayName") && document.getElementById("buildDisplayName").value.trim()) || "";
+        var accountNumbersInput = (document.getElementById("buildAccountNumbers") && document.getElementById("buildAccountNumbers").value.trim()) || "";
+        var accountNumbers = accountNumbersInput ? accountNumbersInput.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : [];
+        var contact = (document.getElementById("buildContact") && document.getElementById("buildContact").value.trim()) || "";
+        var tam = (document.getElementById("buildTam") && document.getElementById("buildTam").value.trim()) || "";
+        var sbrGroups = (document.getElementById("buildSbrGroups") && document.getElementById("buildSbrGroups").value.trim()) || "";
+        var reportDirEl = document.getElementById("buildReportDir");
+        var reportDir = (reportDirEl && reportDirEl.value) ? reportDirEl.value.trim() : "";
+        var formatEl = document.getElementById("buildReportFormat");
+        var format = (formatEl && formatEl.value) ? formatEl.value.trim() : "markdown";
+        var overwrite = (document.getElementById("buildOverwrite") && document.getElementById("buildOverwrite").checked) || false;
+        buildReportResult.textContent = "Creating…";
+        buildReportResult.style.color = "var(--rh-text-muted)";
+        var body = { customer_slug: slug, display_name: displayName, overwrite: overwrite, format: format };
+        if (accountNumbers.length) body.account_numbers = accountNumbers;
+        if (contact) body.primary_contact = contact;
+        if (tam) body.tam_name = tam;
+        if (sbrGroups) body.sbr_groups = sbrGroups;
+        if (reportDir) body.report_dir = reportDir;
+        fetch("/api/reports/build", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.ok) {
+              buildReportResult.textContent = data.message || ("Created: " + (data.path || ""));
+              buildReportResult.style.color = "var(--rh-success-text)";
+              loadReportAccountTiles();
+              loadAccounts();
+              loadLibrary();
+              if (data.path) {
+                var link = document.createElement("a");
+                link.href = "#";
+                link.textContent = " Open in Library";
+                link.addEventListener("click", function (ev) { ev.preventDefault(); showPanel("library"); loadLibrary(); });
+                buildReportResult.appendChild(link);
+              }
+            } else {
+              buildReportResult.textContent = (data && data.error) || "Build failed.";
+              buildReportResult.style.color = "var(--rh-error-text)";
+            }
+          })
+          .catch(function (err) {
+            buildReportResult.textContent = err.message || "Request failed.";
+            buildReportResult.style.color = "var(--rh-error-text)";
+          });
+      });
+    }
+    function loadGoogleConfigStatus() {
+      var el = document.getElementById("googleConfigStatus");
+      if (!el) return;
+      fetch("/api/google/status")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.connected) el.textContent = "Connected. You can back up to Google Drive (button above), open markdown reports in Google Docs from Check/Update Reports and Library, and open Drive.";
+          else if (data.configured) el.textContent = "Not connected. Click Connect Google above.";
+          else el.textContent = "Not configured. Set client ID/secret (see instructions above), then click Connect Google.";
+        })
+        .catch(function () { if (el) el.textContent = ""; });
+    }
+    var btnSaveGoogleCredentials = document.getElementById("btnSaveGoogleCredentials");
+    var googleCredentialsResult = document.getElementById("googleCredentialsResult");
+    if (btnSaveGoogleCredentials && googleCredentialsResult) {
+      btnSaveGoogleCredentials.addEventListener("click", function () {
+        var clientId = (document.getElementById("googleClientId") && document.getElementById("googleClientId").value.trim()) || "";
+        var clientSecret = (document.getElementById("googleClientSecret") && document.getElementById("googleClientSecret").value.trim()) || "";
+        if (!clientId || !clientSecret) {
+          googleCredentialsResult.textContent = "Enter both Client ID and Client secret.";
+          googleCredentialsResult.style.color = "var(--rh-error-text)";
+          return;
+        }
+        googleCredentialsResult.textContent = "Saving…";
+        googleCredentialsResult.style.color = "var(--rh-text-muted)";
+        fetch("/api/google/set-credentials", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ client_id: clientId, client_secret: clientSecret }),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              googleCredentialsResult.textContent = data.message || "Credentials saved.";
+              googleCredentialsResult.style.color = "var(--rh-success-text)";
+              loadGoogleConfigStatus();
+            } else {
+              googleCredentialsResult.textContent = data.error || "Save failed.";
+              googleCredentialsResult.style.color = "var(--rh-error-text)";
+            }
+          })
+          .catch(function (err) {
+            googleCredentialsResult.textContent = err.message || "Request failed.";
+            googleCredentialsResult.style.color = "var(--rh-error-text)";
+          });
+      });
+    }
+    var btnConnectGoogle = document.getElementById("btnConnectGoogle");
+    var googleConnectResult = document.getElementById("googleConnectResult");
+    if (btnConnectGoogle && googleConnectResult) {
+      btnConnectGoogle.addEventListener("click", function () {
+        btnConnectGoogle.disabled = true;
+        googleConnectResult.textContent = "Opening browser for sign-in… Complete sign-in there, then return here.";
+        googleConnectResult.style.color = "var(--rh-text-muted)";
+        fetch("/api/google/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            btnConnectGoogle.disabled = false;
+            if (data.ok) {
+              googleConnectResult.textContent = data.message || "Connected.";
+              googleConnectResult.style.color = "var(--rh-success-text)";
+              loadGoogleConfigStatus();
+            } else {
+              googleConnectResult.textContent = data.error || "Connection failed.";
+              googleConnectResult.style.color = "var(--rh-error-text)";
+            }
+          })
+          .catch(function (err) {
+            btnConnectGoogle.disabled = false;
+            googleConnectResult.textContent = err.message || "Request failed. If the browser opened, complete sign-in and try again.";
+            googleConnectResult.style.color = "var(--rh-error-text)";
+          });
+      });
+    }
+    var btnBackupToDrive = document.getElementById("btnBackupToDrive");
+    var googleBackupResult = document.getElementById("googleBackupResult");
+    if (btnBackupToDrive && googleBackupResult) {
+      btnBackupToDrive.addEventListener("click", function () {
+        googleBackupResult.textContent = "Backing up…";
+        googleBackupResult.style.color = "var(--rh-text-muted)";
+        fetch("/api/google/backup", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              var count = data.count || 0;
+              googleBackupResult.innerHTML = "Backed up " + count + " file(s). ";
+              if (data.url) {
+                var a = document.createElement("a");
+                a.href = data.url;
+                a.target = "_blank";
+                a.rel = "noopener";
+                a.textContent = "Open folder in Drive";
+                googleBackupResult.appendChild(a);
+              }
+              googleBackupResult.style.color = "var(--rh-success-text)";
+            } else {
+              googleBackupResult.textContent = data.error || "Backup failed.";
+              googleBackupResult.style.color = "var(--rh-error-text)";
+            }
+          })
+          .catch(function (err) {
+            googleBackupResult.textContent = err.message || "Request failed";
+            googleBackupResult.style.color = "var(--rh-error-text)";
+          });
+      });
+    }
+    var btnLoadReportStructure = document.getElementById("btnLoadReportStructure");
+    var btnSaveReportStructure = document.getElementById("btnSaveReportStructure");
+    var reportStructureResult = document.getElementById("reportStructureResult");
+    if (btnLoadReportStructure) btnLoadReportStructure.addEventListener("click", loadReportStructure);
+    if (btnSaveReportStructure && reportStructureResult) {
+      btnSaveReportStructure.addEventListener("click", function () {
+        var payload = getTemplateStructurePayload();
+        reportStructureResult.textContent = "Saving…";
+        reportStructureResult.style.color = "var(--rh-text-muted)";
+        fetch("/api/report-structure", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.ok) {
+              reportStructureResult.textContent = "Saved.";
+              reportStructureResult.style.color = "var(--rh-success-text)";
+              requestTemplatePreview();
+            } else {
+              reportStructureResult.textContent = (data && data.error) || "Save failed.";
+              reportStructureResult.style.color = "var(--rh-error-text)";
+            }
+          })
+          .catch(function (err) {
+            reportStructureResult.textContent = err.message || "Request failed.";
+            reportStructureResult.style.color = "var(--rh-error-text)";
+          });
+      });
+    }
+    (function initTemplateEditor() {
+      var list = document.getElementById("templateSectionCardsList");
+      if (!list) return;
+      list.querySelectorAll(".template-section-card[data-section-id] input").forEach(function (input) {
+        input.addEventListener("input", requestTemplatePreview);
+        input.addEventListener("change", requestTemplatePreview);
+      });
+      list.querySelectorAll(".template-section-card[data-section-id] input[type=checkbox]").forEach(function (cb) {
+        cb.addEventListener("change", requestTemplatePreview);
+      });
+      var sectionIds = ["customer_info", "rfe", "bug", "notes"];
+      sectionIds.forEach(function (sid) {
+        var card = list.querySelector(".template-section-card[data-section-id=" + sid + "]");
+        if (!card) return;
+        card.setAttribute("draggable", "true");
+        card.addEventListener("dragstart", function (e) {
+          e.dataTransfer.setData("text/plain", sid);
+          e.dataTransfer.effectAllowed = "move";
+          card.classList.add("dragging");
+        });
+        card.addEventListener("dragend", function () { card.classList.remove("dragging"); });
+      });
+      list.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        var after = e.target.closest(".template-section-card[data-section-id]");
+        if (after && after.getAttribute("data-section-id") !== "title") e.currentTarget._dropAfter = after;
+      });
+      list.addEventListener("drop", function (e) {
+        e.preventDefault();
+        var sid = e.dataTransfer.getData("text/plain");
+        if (!sid || sid === "title") return;
+        var card = list.querySelector(".template-section-card[data-section-id=" + sid + "]");
+        var after = e.currentTarget._dropAfter;
+        if (card && after && card !== after) {
+          list.insertBefore(card, after);
+          requestTemplatePreview();
+        }
+      });
+    })();
+
+    function updateOneIndicator(indicatorEl, ok, failLabel, okLabel) {
+      var dot = indicatorEl.querySelector(".dot");
+      var text = indicatorEl.querySelector(".status-text");
+      if (dot) dot.className = "dot " + (ok ? "ok" : "fail");
+      if (text) text.textContent = ok ? (okLabel || "Connected") : (failLabel || "Not configured");
+    }
+    function loadReportStatusIndicators() {
+      var containers = document.querySelectorAll(".status-indicators");
+      containers.forEach(function (container) {
+        container.querySelectorAll(".indicator").forEach(function (ind) {
+          var dot = ind.querySelector(".dot");
+          var text = ind.querySelector(".status-text");
+          if (dot) dot.className = "dot pending";
+          if (text) text.textContent = "Checking…";
+        });
+      });
+      fetch("/api/status/indicators")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var vpnOk = !!(data.vpn && data.vpn.ok);
+          var tokenKeys = { jira: "jira", portal: "portal", hydra: "hydra" };
+          containers = document.querySelectorAll(".status-indicators");
+          containers.forEach(function (container) {
+            container.querySelectorAll(".indicator").forEach(function (ind) {
+              var token = ind.getAttribute("data-token");
+              if (token === "vpn") updateOneIndicator(ind, vpnOk, "Not connected", "Connected");
+              else if (token === "google") updateOneIndicator(ind, !!(data.tokens && data.tokens.google), "Not configured", "Connected");
+              else if (tokenKeys[token] !== undefined) updateOneIndicator(ind, !!(data.tokens && data.tokens[token]), "Not configured", "Configured");
+            });
+          });
+          var hydraUser = document.getElementById("hydraUsername");
+          if (hydraUser && data.tokens && data.tokens.hydra_credentials_set) hydraUser.placeholder = "Saved (stored locally)";
+          else if (hydraUser) hydraUser.placeholder = "";
+        })
+        .catch(function () {
+          containers = document.querySelectorAll(".status-indicators");
+          containers.forEach(function (container) {
+            container.querySelectorAll(".indicator").forEach(function (ind) {
+              var dot = ind.querySelector(".dot");
+              var text = ind.querySelector(".status-text");
+              if (dot) dot.className = "dot fail";
+              if (text) text.textContent = "Unavailable";
+            });
+          });
+        });
+    }
+    function toggleJiraCloudVisibility() {
+      var baseEl = document.getElementById("jiraBaseUrl");
+      var cloudEl = document.getElementById("jiraCloudFields");
+      var redHatRow = document.getElementById("jiraRedHatRow");
+      if (!baseEl || !cloudEl) return;
+      var base = (baseEl.value || "").trim().toLowerCase();
+      var isCloud = base.indexOf("atlassian.net") !== -1;
+      cloudEl.style.display = isCloud ? "block" : "none";
+      if (redHatRow) redHatRow.style.display = isCloud ? "none" : "";
+    }
+    function loadJiraSettings() {
+      var baseEl = document.getElementById("jiraBaseUrl");
+      var emailEl = document.getElementById("jiraCloudEmail");
+      var apiTokenEl = document.getElementById("jiraCloudApiToken");
+      if (!baseEl) return;
+      fetch("/api/config/jira-settings")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          baseEl.value = (data.jira_base_url || "https://issues.redhat.com").trim();
+          if (emailEl) emailEl.value = (data.jira_email || "").trim();
+          if (apiTokenEl) {
+            apiTokenEl.value = "";
+            apiTokenEl.placeholder = data.jira_api_token_set ? "Leave blank to keep existing" : "Paste JIRA Cloud API token";
+          }
+          toggleJiraCloudVisibility();
+        })
+        .catch(function () { toggleJiraCloudVisibility(); });
+    }
+    function loadVaultStatus() {
+      var addrEl = document.getElementById("vaultAddr");
+      var statusEl = document.getElementById("vaultStatus");
+      var versionEl = document.getElementById("vaultVersion");
+      var strategyEl = document.getElementById("vaultStrategy");
+      var listEl = document.getElementById("vaultTokensList");
+      if (!addrEl || !statusEl) return;
+      addrEl.textContent = "Checking…";
+      statusEl.textContent = "Checking…";
+      statusEl.className = "status-badge";
+      if (versionEl) versionEl.textContent = "-";
+      if (strategyEl) strategyEl.textContent = "-";
+      if (listEl) listEl.innerHTML = "Loading…";
+      fetch("/api/vault/status")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var addr = (data.addr || "").trim();
+          var notConfigured = !addr || addr === "Not configured";
+          addrEl.textContent = addr || "Not configured";
+          var ok = data.available === true;
+          var statusText = ok ? "Connected" : (notConfigured ? "Not configured" : (data.error ? "Error" : "Offline"));
+          statusEl.textContent = statusText;
+          statusEl.className = "status-badge " + (ok ? "success" : (notConfigured ? "info" : "error"));
+          if (versionEl) versionEl.textContent = ok ? (data.version || "—") : "N/A";
+          if (strategyEl) strategyEl.textContent = data.strategy || "auth-box-only";
+          if (listEl && ok) loadVaultTokens(); else if (listEl && !ok) listEl.innerHTML = "<p class=\"subtitle\" style=\"margin:0\">" + (notConfigured ? "Set VAULT_ADDR and VAULT_TOKEN in your environment to use Vault." : "Vault not available. Using Auth Box fallback.") + "</p>";
+        })
+        .catch(function () {
+          if (addrEl) addrEl.textContent = "Not configured";
+          if (statusEl) { statusEl.textContent = "Error"; statusEl.className = "status-badge error"; }
+          if (listEl) listEl.innerHTML = "<p class=\"subtitle\" style=\"margin:0; color:var(--rh-error-text)\">Failed to load status.</p>";
+        });
+    }
+    function loadVaultTokens() {
+      var listEl = document.getElementById("vaultTokensList");
+      if (!listEl) return;
+      fetch("/api/vault/list")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var tokens = (data && data.tokens) ? data.tokens : [];
+          if (tokens.length === 0) {
+            listEl.innerHTML = "<p class=\"subtitle\" style=\"margin:0\">No tokens in Vault. Migrate from Auth Box or add tokens below.</p>";
+            return;
+          }
+          listEl.innerHTML = tokens.map(function (s) {
+            return "<div style=\"display:flex; justify-content:space-between; align-items:center; padding:0.5rem; background:var(--rh-info-bg); border-radius:4px; margin-bottom:0.35rem\"><div><strong>" + escapeHtml(s) + "</strong><p style=\"margin:2px 0 0 0; color:var(--rh-text-muted); font-size:0.8rem\">Stored in Vault</p></div><div style=\"display:flex; gap:0.35rem\"><button type=\"button\" class=\"secondary small\" data-vault-action=\"view\" data-vault-service=\"" + escapeHtml(s) + "\">View</button><button type=\"button\" class=\"secondary small\" data-vault-action=\"delete\" data-vault-service=\"" + escapeHtml(s) + "\" style=\"color:var(--rh-error-text)\">Delete</button></div></div>";
+          }).join("");
+        })
+        .catch(function () {
+          listEl.innerHTML = "<p class=\"subtitle\" style=\"margin:0; color:var(--rh-error-text)\">Error loading tokens.</p>";
+        });
+    }
+    function vaultMigrate() {
+      if (!confirm("Migrate all Auth Box tokens to Vault? This will copy tokens but keep Auth Box as backup.")) return;
+      fetch("/api/vault/migrate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          alert(data.message || "Migration complete.");
+          loadVaultTokens();
+        })
+        .catch(function (e) { alert("Migration failed: " + (e.message || "Request failed")); });
+    }
+    function vaultTest() {
+      fetch("/api/vault/status")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var msg = "Vault: " + (data.available ? "Connected" : "Offline") + "\nAddress: " + (data.addr || "—") + "\nStrategy: " + (data.strategy || "—");
+          if (data.error) msg += "\nError: " + data.error;
+          alert(msg);
+        })
+        .catch(function (e) { alert("Test failed: " + (e.message || "Request failed")); });
+    }
+    function vaultAddToken() {
+      var serviceEl = document.getElementById("vaultNewService");
+      var tokenEl = document.getElementById("vaultNewToken");
+      var service = (serviceEl && serviceEl.value) ? serviceEl.value.trim() : "";
+      var token = (tokenEl && tokenEl.value) ? tokenEl.value.trim() : "";
+      if (!service || !token) { alert("Enter both service name and token."); return; }
+      fetch("/api/vault/set", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service: service, token: token }) })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok) {
+            if (serviceEl) serviceEl.value = ""; if (tokenEl) tokenEl.value = "";
+            alert("Token for " + service + " stored.");
+            loadVaultTokens();
+          } else { alert(data.error || "Failed to store token."); }
+        })
+        .catch(function (e) { alert("Failed: " + (e.message || "Request failed")); });
+    }
+    function vaultGetToken(service) {
+      fetch("/api/vault/get?service=" + encodeURIComponent(service))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok && data.value) prompt("Token for " + service + " (copy and close):", data.value); else alert(data.error || "No token found.");
+        })
+        .catch(function (e) { alert("Failed: " + (e.message || "Request failed")); });
+    }
+    function vaultDeleteToken(service) {
+      if (!confirm("Delete " + service + " token from Vault?")) return;
+      fetch("/api/vault/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service: service }) })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok) { loadVaultTokens(); } else { alert(data.error || "Delete failed."); }
+        })
+        .catch(function (e) { alert("Failed: " + (e.message || "Request failed")); });
+    }
+    function loadReportAccountTiles() {
+      var container = document.getElementById("reportAccountTiles");
+      var emptyEl = document.getElementById("reportAccountTilesEmpty");
+      if (!container) return;
+      container.innerHTML = "";
+      if (emptyEl) emptyEl.style.display = "block";
+      fetch("/api/accounts")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var accounts = (data && data.accounts) ? data.accounts : [];
+          if (accounts.length === 0) return;
+          if (emptyEl) emptyEl.style.display = "none";
+          accounts.forEach(function (a) {
+            var id = (a.id || "").toString().trim() || (a.account_number || "").toString();
+            var name = (a.customer_name || a.id || id || "Account").toString();
+            var nums = Array.isArray(a.account_numbers) && a.account_numbers.length ? a.account_numbers.join(", ") : (a.account_number || "").toString();
+            var created = (a.created_at || "").toString();
+            var createdDisplay = created ? (function () { try { var d = new Date(created); return isNaN(d.getTime()) ? created : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); } catch (e) { return created; } })() : "";
+            var createdSubtext = createdDisplay ? ("Added " + createdDisplay) : "";
+            var tile = document.createElement("div");
+            tile.className = "account-tile";
+            tile.setAttribute("role", "button");
+            tile.setAttribute("tabindex", "0");
+            tile.setAttribute("aria-label", "Account " + name + ", account number(s) " + nums + ". Select to check or update report.");
+            tile.innerHTML = "<div class=\"account-tile-name\">" + escapeHtml(name) + "</div><div class=\"account-tile-accounts\">" + escapeHtml(nums) + "</div><div class=\"account-tile-actions\"><button type=\"button\" class=\"small\" data-action=\"check\" data-id=\"" + escapeHtml(id) + "\">Check</button><button type=\"button\" class=\"secondary small\" data-action=\"update\" data-id=\"" + escapeHtml(id) + "\">Update</button><button type=\"button\" class=\"secondary small\" data-action=\"full-refresh\" data-id=\"" + escapeHtml(id) + "\" title=\"Re-discover all cases from portal and repopulate report\">Full refresh</button></div>" + (createdSubtext ? "<div class=\"account-tile-created\">" + escapeHtml(createdSubtext) + "</div>" : "");
+            tile.addEventListener("click", function (ev) {
+              if (ev.target.tagName === "BUTTON") return;
+              customerInput.value = id;
+              container.querySelectorAll(".account-tile").forEach(function (t) { t.classList.remove("selected"); });
+              tile.classList.add("selected");
+            });
+            tile.addEventListener("keydown", function (ev) {
+              if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); tile.click(); }
+            });
+            container.appendChild(tile);
+            var checkBtn = tile.querySelector("button[data-action=check]");
+            var updateBtn = tile.querySelector("button[data-action=update]");
+            var fullRefreshBtn = tile.querySelector("button[data-action=full-refresh]");
+            if (checkBtn) {
+              checkBtn.addEventListener("click", function (e) { e.stopPropagation(); customerInput.value = id; container.querySelectorAll(".account-tile").forEach(function (t) { t.classList.remove("selected"); }); tile.classList.add("selected"); testDataCheck.checked = false; run("check"); });
+            }
+            if (updateBtn) {
+              updateBtn.addEventListener("click", function (e) { e.stopPropagation(); customerInput.value = id; container.querySelectorAll(".account-tile").forEach(function (t) { t.classList.remove("selected"); }); tile.classList.add("selected"); testDataCheck.checked = false; run("update"); });
+            }
+            if (fullRefreshBtn) {
+              fullRefreshBtn.addEventListener("click", function (e) { e.stopPropagation(); customerInput.value = id; container.querySelectorAll(".account-tile").forEach(function (t) { t.classList.remove("selected"); }); tile.classList.add("selected"); testDataCheck.checked = false; run("update", { full_refresh: true }); });
+            }
+          });
+        })
+        .catch(function () {});
+    }
+    navReports.addEventListener("click", function (e) { e.preventDefault(); showPanel("reports"); });
+    showPanel(panelFromHash());
+    window.addEventListener("hashchange", function () { showPanel(panelFromHash()); });
+    navLibrary.addEventListener("click", function (e) { e.preventDefault(); showPanel("library"); });
+    if (navOnboard) navOnboard.addEventListener("click", function (e) { e.preventDefault(); showPanel("onboard"); });
+    navConfig.addEventListener("click", function (e) { e.preventDefault(); showPanel("config"); });
+    if (navGuide) navGuide.addEventListener("click", function (e) { e.preventDefault(); showPanel("guide"); });
+    if (navRoadmap) navRoadmap.addEventListener("click", function (e) { e.preventDefault(); showPanel("roadmap"); });
+    document.body.addEventListener("click", function (e) {
+      var a = e.target.closest("a.guide-ref");
+      if (!a || !a.hash || a.hash.indexOf("#guide-") !== 0) return;
+      e.preventDefault();
+      window.location.hash = a.hash;
+      showPanel("guide");
+      setTimeout(function () {
+        var el = document.getElementById(a.hash.slice(1));
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
+    });
+    var linkToOnboardTemplate = document.getElementById("linkToOnboardTemplate");
+    if (linkToOnboardTemplate) linkToOnboardTemplate.addEventListener("click", function (e) { e.preventDefault(); showPanel("onboard"); });
+
+    function loadLibrary() {
+      libraryList.innerHTML = "Loading…";
+      fetch("/api/library")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          const reports = data.reports || [];
+          if (reports.length === 0) {
+            libraryList.innerHTML = "<p class=\"empty-state\">No report files yet. See <a href=\"#guide-where-reports-are-stored\" class=\"guide-ref\">User Guide: Where reports are stored</a>.</p>";
+            return;
+          }
+          var html = "";
+          reports.forEach(function (r) {
+            var accountLabel = escapeHtml(r.display_name || r.customer || "");
+            var fileLabel = r.no_file ? "No report file yet <span class=\"library-no-file-hint\">(account in Report Manager)</span>" : (escapeHtml(r.name || "") + (r.mtime ? " <span class=\"library-no-file-hint\" style=\"font-size:inherit\">(" + new Date(r.mtime * 1000).toLocaleDateString() + ")</span>" : ""));
+            html += "<div class=\"library-item\">";
+            html += "<div class=\"library-item-head\"><span class=\"library-account\">" + accountLabel + "</span>";
+            if (fileLabel) html += " <span class=\"library-file\">" + fileLabel + "</span>";
+            html += "</div>";
+            html += "<div class=\"library-item-actions\">";
+            if (!r.no_file) {
+              html += "<button type=\"button\" class=\"secondary small library-view\" data-customer=\"" + escapeHtml(r.customer) + "\">View</button>";
+              html += " <button type=\"button\" class=\"secondary small library-copy\" data-customer=\"" + escapeHtml(r.customer) + "\" title=\"Copy report content to clipboard\">Copy to clipboard</button>";
+              html += " <button type=\"button\" class=\"secondary small open-google\" data-customer=\"" + escapeHtml(r.customer) + "\">Open in Google Docs</button>";
+              html += " <button type=\"button\" class=\"secondary small open-gmail-draft\" data-customer=\"" + escapeHtml(r.customer) + "\" title=\"Create Gmail draft with report (HTML formatted)\">Create Gmail draft</button>";
+              html += " <button type=\"button\" class=\"secondary small open-drive\">Open in Google Drive</button>";
+              html += " <button type=\"button\" class=\"secondary small library-delete\" data-path=\"" + escapeHtml(r.path || "") + "\" title=\"Delete this report file\">Delete</button>";
+            } else {
+              html += "<button type=\"button\" class=\"secondary small library-remove-account\" data-account-id=\"" + escapeHtml(r.customer || "") + "\" title=\"Remove this account from the library (no report file)\">Remove</button>";
+            }
+            html += "</div></div>";
+          });
+          libraryList.innerHTML = html;
+          libraryList.querySelectorAll("button.library-view").forEach(function (btn) {
+            btn.addEventListener("click", function () { viewReport(this.getAttribute("data-customer")); });
+          });
+          libraryList.querySelectorAll("button.library-copy").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              var customer = this.getAttribute("data-customer");
+              if (!customer) return;
+              var el = this;
+              fetch("/api/report?customer=" + encodeURIComponent(customer))
+                .then(function (r) { return r.ok ? r.json() : r.json().then(function (d) { throw new Error(d.error || "Not found"); }); })
+                .then(function (data) {
+                  var text = (data && data.content) ? data.content : "";
+                  if (!text) { alert("No content to copy."); return; }
+                  navigator.clipboard.writeText(text).then(function () {
+                    var orig = el.textContent;
+                    el.textContent = "Copied!";
+                    setTimeout(function () { el.textContent = orig; }, 1500);
+                  }).catch(function () { alert("Copy failed. Use View then Copy above the viewer."); });
+                })
+                .catch(function (err) { alert(err.message || "Failed to load report."); });
+            });
+          });
+          libraryList.querySelectorAll("button.open-google").forEach(function (btn) {
+              btn.addEventListener("click", function () { openInGoogle(this.getAttribute("data-customer")); });
+          });
+          libraryList.querySelectorAll("button.open-gmail-draft").forEach(function (btn) {
+            btn.addEventListener("click", function () { createGmailDraft(this.getAttribute("data-customer"), googleStatus); });
+          });
+          libraryList.querySelectorAll("button.open-drive").forEach(function (btn) {
+            btn.addEventListener("click", function () { window.open("https://drive.google.com", "_blank"); });
+          });
+          libraryList.querySelectorAll("button.library-remove-account").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              var accountId = (this.getAttribute("data-account-id") || "").trim();
+              if (!accountId) return;
+              if (!confirm("Remove this account from the library? You can add it again from Report Manager.")) return;
+              fetch("/api/accounts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "delete", id: accountId })
+              })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                  if (data && data.ok) {
+                    loadLibrary();
+            } else {
+                    alert(data.error || "Could not remove account.");
+                  }
+                })
+                .catch(function (err) { alert(err.message || "Request failed"); });
+            });
+          });
+          libraryList.querySelectorAll("button.library-delete").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              var path = (btn.getAttribute("data-path") || "").trim();
+              if (!path) return;
+              if (!confirm("Delete this report file? This cannot be undone.")) return;
+              fetch("/api/library/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: path })
+              })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                  if (data && data.ok) {
+                    loadLibrary();
+                    if (libraryViewer.classList.contains("show")) { libraryViewer.classList.remove("show"); libraryActions.style.display = "none"; selectedLibraryCustomer = null; }
+                  } else {
+                    alert(data.error || "Delete failed.");
+                  }
+                })
+                .catch(function (err) { alert(err.message || "Request failed"); });
+            });
+          });
+        })
+        .catch(function () { libraryList.innerHTML = "<p>Failed to load library. Check your connection and try again.</p>"; });
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement("div");
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    function viewReport(customer) {
+      selectedLibraryCustomer = customer;
+      libraryViewer.classList.remove("show");
+      libraryActions.style.display = "none";
+      fetch("/api/report?customer=" + encodeURIComponent(customer))
+        .then(function (r) {
+          if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || "Not found"); });
+          return r.json();
+        })
+        .then(function (data) {
+          libraryViewer.textContent = data.content || "";
+          libraryViewer.classList.add("show", "info");
+          libraryActions.style.display = "flex";
+        })
+        .catch(function (err) {
+          libraryViewer.textContent = err.message || "Failed to load report.";
+          libraryViewer.className = "result-box show error";
+          libraryActions.style.display = "none";
+        });
+    }
+
+    function openInGoogle(customer) {
+      googleStatus.textContent = "Creating Google Doc…";
+      fetch("/api/google/create-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer: customer }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok && data.url) {
+            window.open(data.url, "_blank");
+            googleStatus.textContent = "Opened in new tab.";
+          } else {
+            googleStatus.textContent = "Error: " + (data.error || "Unknown");
+            googleStatus.style.color = "var(--rh-error-text)";
+          }
+        })
+        .catch(function (err) {
+          googleStatus.textContent = "Error: " + err.message;
+          googleStatus.style.color = "var(--rh-error-text)";
+        });
+    }
+
+    function createGmailDraft(customer, statusElement) {
+      if (!customer) {
+        if (statusElement) statusElement.textContent = "Enter a customer or select a report first.";
+        return;
+      }
+      if (statusElement) statusElement.textContent = "Creating Gmail draft…";
+      fetch("/api/google/create-gmail-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer: customer }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok && data.url) {
+            window.open(data.url, "_blank");
+            if (statusElement) statusElement.textContent = "Gmail draft created; opened in new tab.";
+          } else {
+            if (statusElement) {
+              statusElement.textContent = "Error: " + (data.error || "Unknown");
+              statusElement.style.color = "var(--rh-error-text)";
+            }
+          }
+        })
+        .catch(function (err) {
+          if (statusElement) {
+            statusElement.textContent = "Error: " + (err.message || "Request failed");
+            statusElement.style.color = "var(--rh-error-text)";
+          }
+        });
+    }
+
+    var btnCopyToClipboard = document.getElementById("btnCopyToClipboard");
+    if (btnCopyToClipboard) {
+      btnCopyToClipboard.addEventListener("click", function () {
+        var text = libraryViewer.textContent || "";
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(function () {
+          var orig = btnCopyToClipboard.textContent;
+          btnCopyToClipboard.textContent = "Copied!";
+          setTimeout(function () { btnCopyToClipboard.textContent = orig; }, 1500);
+        }).catch(function () {
+          alert("Copy failed. You can select the report text above and copy manually.");
+        });
+      });
+    }
+    btnOpenInGoogle.addEventListener("click", function () {
+      if (selectedLibraryCustomer) openInGoogle(selectedLibraryCustomer);
+    });
+    var btnCreateGmailDraft = document.getElementById("btnCreateGmailDraft");
+    if (btnCreateGmailDraft) {
+      btnCreateGmailDraft.addEventListener("click", function () {
+        createGmailDraft(selectedLibraryCustomer, googleStatus);
+      });
+    }
+
+    function loadGoogleStatus() {
+      fetch("/api/google/status")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.connected) {
+            googleStatus.textContent = "Google Drive connected. You can open reports in Google Docs or open Drive from the buttons above.";
+            googleStatus.style.color = "var(--rh-success-text)";
+          } else if (data.configured) {
+            googleStatus.textContent = "Google client configured but not connected. In Settings → Google Drive & Docs, click Connect Google.";
+            googleStatus.style.color = "var(--rh-text-muted)";
+          } else {
+            googleStatus.textContent = "To use Google Docs and Drive: go to Settings → Google Drive & Docs for setup. Set client ID/secret, then click Connect Google.";
+            googleStatus.style.color = "var(--rh-text-muted)";
+          }
+        })
+        .catch(function () { googleStatus.textContent = ""; });
+    }
+
+    btnCheck.addEventListener("click", function () { run("check"); });
+    btnUpdate.addEventListener("click", function () { run("update"); });
+
+    const btnVpnCheck = document.getElementById("btnVpnCheck");
+    const vpnResult = document.getElementById("vpnResult");
+    const btnConfigStatus = document.getElementById("btnConfigStatus");
+    const configStatusOut = document.getElementById("configStatusOut");
+    const btnTestHydra = document.getElementById("btnTestHydra");
+    const hydraTestResult = document.getElementById("hydraTestResult");
+
+    function saveToken(type, btn) {
+      var row = btn && btn.closest ? btn.closest(".token-row") : null;
+      var input = row ? row.querySelector("input[data-type]") : document.getElementById("token" + type.charAt(0).toUpperCase() + type.slice(1));
+      var resultSpan = row ? row.querySelector(".token-result") : document.getElementById("result" + type.charAt(0).toUpperCase() + type.slice(1));
+      if (!input || !resultSpan) {
+        if (resultSpan) resultSpan.textContent = "Could not find field.";
+        return;
+      }
+      var value = input.value.trim();
+      if (!value) {
+        resultSpan.textContent = "Enter a token value.";
+        resultSpan.style.color = "var(--rh-error-text)";
+        return;
+      }
+      resultSpan.textContent = "Saving…";
+      resultSpan.style.color = "var(--rh-text-muted)";
+      fetch("/api/config/set-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: type, value: value }),
+      })
+        .then(function (r) {
+          return r.json().then(function (data) {
+            if (data.ok) {
+              resultSpan.textContent = "Saved.";
+              resultSpan.style.color = "var(--rh-success-text)";
+              input.value = "";
+            } else {
+              resultSpan.textContent = data.error || "Save failed";
+              resultSpan.style.color = "var(--rh-error-text)";
+            }
+          }).catch(function () {
+            resultSpan.textContent = r.status ? "Server error " + r.status : "Request failed";
+            resultSpan.style.color = "var(--rh-error-text)";
+          });
+        })
+        .catch(function (err) {
+          resultSpan.textContent = err.message || "Request failed";
+          resultSpan.style.color = "var(--rh-error-text)";
+        });
+    }
+
+    document.querySelectorAll(".token-save").forEach(function (btn) {
+      btn.addEventListener("click", function () { saveToken(this.getAttribute("data-type"), this); });
+    });
+
+    var jiraBaseUrlEl = document.getElementById("jiraBaseUrl");
+    if (jiraBaseUrlEl) {
+      jiraBaseUrlEl.addEventListener("input", toggleJiraCloudVisibility);
+      jiraBaseUrlEl.addEventListener("change", toggleJiraCloudVisibility);
+    }
+    var btnSaveJiraSettings = document.getElementById("btnSaveJiraSettings");
+    var resultJiraSettings = document.getElementById("resultJiraSettings");
+    if (btnSaveJiraSettings && resultJiraSettings) {
+      btnSaveJiraSettings.addEventListener("click", function () {
+        var base = (document.getElementById("jiraBaseUrl") || {}).value || "";
+        var email = (document.getElementById("jiraCloudEmail") || {}).value || "";
+        var apiToken = (document.getElementById("jiraCloudApiToken") || {}).value || "";
+        var jiraToken = (document.getElementById("tokenJira") || {}).value || "";
+        var payload = { jira_base_url: base.trim() || null, jira_email: email.trim() || null };
+        if (apiToken) payload.jira_api_token = apiToken;
+        if (jiraToken) payload.jira_token = jiraToken;
+        resultJiraSettings.textContent = "Saving…";
+        resultJiraSettings.style.color = "var(--rh-text-muted)";
+        fetch("/api/config/set-jira-settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.ok) {
+              resultJiraSettings.textContent = data.message || "Saved.";
+              resultJiraSettings.style.color = "var(--rh-success-text)";
+              if (document.getElementById("jiraCloudApiToken")) document.getElementById("jiraCloudApiToken").value = "";
+              loadReportStatusIndicators();
+          } else {
+              resultJiraSettings.textContent = data.error || "Save failed";
+              resultJiraSettings.style.color = "var(--rh-error-text)";
+            }
+          })
+          .catch(function (err) {
+            resultJiraSettings.textContent = err.message || "Request failed";
+            resultJiraSettings.style.color = "var(--rh-error-text)";
+          });
+      });
+    }
+
+    var btnSaveHydraCredentials = document.getElementById("btnSaveHydraCredentials");
+    var resultHydraCredentials = document.getElementById("resultHydraCredentials");
+    if (btnSaveHydraCredentials && resultHydraCredentials) {
+      btnSaveHydraCredentials.addEventListener("click", function () {
+        var username = (document.getElementById("hydraUsername") || {}).value || "";
+        var password = (document.getElementById("hydraPassword") || {}).value || "";
+        resultHydraCredentials.textContent = "Saving…";
+        resultHydraCredentials.style.color = "var(--rh-text-muted)";
+        fetch("/api/config/set-hydra-credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ redhat_username: username.trim(), redhat_password: password }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok) {
+              resultHydraCredentials.textContent = data.message || "Saved.";
+              resultHydraCredentials.style.color = "var(--rh-success-text)";
+              if (document.getElementById("hydraPassword")) document.getElementById("hydraPassword").value = "";
+              loadReportStatusIndicators();
+          } else {
+              resultHydraCredentials.textContent = data.error || "Save failed";
+              resultHydraCredentials.style.color = "var(--rh-error-text)";
+          }
+        })
+        .catch(function (err) {
+            resultHydraCredentials.textContent = err.message || "Request failed";
+            resultHydraCredentials.style.color = "var(--rh-error-text)";
+        });
+    });
+    }
+
+    loadReportStatusIndicators();
+
+    btnVpnCheck.addEventListener("click", function () {
+      vpnResult.textContent = "Checking…";
+      vpnResult.style.color = "var(--rh-text-muted)";
+      fetch("/api/vpn/check")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          vpnResult.textContent = data.message || (data.ok ? "OK" : "Failed");
+          vpnResult.style.color = data.ok ? "var(--rh-success-text)" : "var(--rh-error-text)";
+        })
+        .catch(function (err) {
+          vpnResult.textContent = err.message || "Request failed";
+          vpnResult.style.color = "var(--rh-error-text)";
+        });
+    });
+
+    btnConfigStatus.addEventListener("click", function () {
+      configStatusOut.style.display = "block";
+      configStatusOut.textContent = "Loading…";
+      configStatusOut.className = "result-box info";
+      fetch("/api/config/status")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          const out = [data.stdout, data.stderr].filter(Boolean).join("\n") || "(no output)";
+          configStatusOut.textContent = out;
+          configStatusOut.className = "result-box " + (data.ok ? "success" : "error");
+        })
+        .catch(function (err) {
+          configStatusOut.textContent = err.message || "Failed to load status";
+          configStatusOut.className = "result-box error";
+        });
+    });
+
+    if (btnTestHydra && hydraTestResult) {
+      btnTestHydra.addEventListener("click", function () {
+        hydraTestResult.textContent = "Testing…";
+        hydraTestResult.style.color = "var(--rh-text-muted)";
+        fetch("/api/test/hydra")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            hydraTestResult.textContent = data.message || (data.ok ? "OK" : "Failed");
+            hydraTestResult.style.color = data.ok ? "var(--rh-success-text)" : "var(--rh-error-text)";
+        })
+        .catch(function (err) {
+            hydraTestResult.textContent = err.message || "Request failed";
+            hydraTestResult.style.color = "var(--rh-error-text)";
+        });
+    });
+    }
+
+    var btnVaultAddToken = document.getElementById("btnVaultAddToken");
+    var btnVaultMigrate = document.getElementById("btnVaultMigrate");
+    var btnVaultRefresh = document.getElementById("btnVaultRefresh");
+    var btnVaultTest = document.getElementById("btnVaultTest");
+    var vaultTokensList = document.getElementById("vaultTokensList");
+    if (btnVaultAddToken) btnVaultAddToken.addEventListener("click", vaultAddToken);
+    if (btnVaultMigrate) btnVaultMigrate.addEventListener("click", vaultMigrate);
+    if (btnVaultRefresh) btnVaultRefresh.addEventListener("click", loadVaultStatus);
+    if (btnVaultTest) btnVaultTest.addEventListener("click", vaultTest);
+    if (vaultTokensList) {
+      vaultTokensList.addEventListener("click", function (e) {
+        var btn = e.target.closest("button[data-vault-action]");
+        if (!btn) return;
+        var action = btn.getAttribute("data-vault-action");
+        var service = btn.getAttribute("data-vault-service");
+        if (action === "view" && service) vaultGetToken(service);
+        if (action === "delete" && service) vaultDeleteToken(service);
+      });
+    }
+  </script>
+</body>
+</html>
