@@ -11,8 +11,7 @@ Collected enhancement ideas and feature requests. See also the [Roadmap](https:/
 - **Track cloned JIRAs** when backports are generated — show relationship (e.g. “Cloned by: OCPBUGS-12345”) in reports and Check/Update.
 - **Watchers:** Detect when the TAM is not watching an issue and offer a one-click “Watch” from the app.
 
-Full spec and implementation notes: [RFE-JIRA-WATCHERS-AND-CLONES.md](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/RFE-JIRA-WATCHERS-AND-CLONES.md).  
-Also in the repo: [taminator/docs/RFE-JIRA-WATCHERS-AND-CLONES.md](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/taminator/docs/RFE-JIRA-WATCHERS-AND-CLONES.md).
+Full spec and implementation notes: [RFE-JIRA-WATCHERS-AND-CLONES.md](https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/RFE-JIRA-WATCHERS-AND-CLONES.md).
 
 ---
 
