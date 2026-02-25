@@ -55,19 +55,45 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: taminator/taminator/gui/package-lock.json
+      
+      - name: Cache Electron and electron-builder
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            taminator/taminator/gui/node_modules/electron
+          key: electron-${{ runner.os }}-${{ hashFiles('taminator/taminator/gui/package-lock.json') }}
+          restore-keys: |
+            electron-${{ runner.os }}-
       
       - name: Install Node dependencies
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 10
-          max_attempts: 3
-          retry_wait_seconds: 30
-          command: |
-            cd taminator/taminator/gui
-            npm config set fetch-retries 5
-            npm config set fetch-timeout 300000
-            npm config set fetch-retry-mintimeout 20000
-            npm ci
+        working-directory: taminator/taminator/gui
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_timeout: 600000
+          npm_config_fetch_retry_mintimeout: 60000
+          ELECTRON_GET_USE_PROXY: 'false'
+        run: |
+          for i in 1 2 3; do
+            echo "Attempt $i of 3..."
+            if npm ci; then
+              echo "npm ci succeeded"
+              exit 0
+            fi
+            echo "Attempt $i failed."
+            if [ "$i" -lt 3 ]; then
+              echo "Retrying in 30s..."
+              sleep 30
+            fi
+          done
+          echo "::error::npm ci failed after 3 attempts"
+          echo "Last npm log:"
+          ls -la ~/.npm/_logs 2>/dev/null | tail -3
+          cat ~/.npm/_logs/*-debug*.log 2>/dev/null | tail -80 || true
+          exit 1
       
       - name: Build Electron app (${{ matrix.os }})
         working-directory: taminator/taminator/gui
