@@ -15,13 +15,14 @@ Planned and possible future improvements. You can also view the roadmap on GitLa
 - **Refresh behavior** — Hash-based panel restore so refreshing the browser keeps you on the same page.
 - **Red Hat look and feel** — Red Hat color scheme for all elements; no blue links; Docs-style formatting for Gmail drafts.
 - **JIRA Cloud integration** — Use Red Hat JIRA (default) or JIRA Cloud (`*.atlassian.net`). In Settings: set **JIRA base URL** (default `https://issues.redhat.com`); for Cloud, set email + API token. Check, Update, and report links use the configured instance. See User Guide → JIRA Cloud and [docs/JIRA_CLOUD_INTEGRATION.md](taminator/docs/JIRA_CLOUD_INTEGRATION.md).
+- **HashiCorp Vault** — Optional secret store when `VAULT_ADDR` and `VAULT_TOKEN` are set. Settings → HashiCorp Vault: connection status, list/add/view/delete tokens, migrate from Auth Box, test connection. Hybrid auth: Vault first, fallback to local Auth Box. CLI: `tam-vault` (status, list, get/set/delete, migrate, test). See [docs/VAULT_INTEGRATION.md](taminator/docs/VAULT_INTEGRATION.md).
 
 ---
 
 ## Near term
 
-- **Credential storage & secret management** — **Done (encoded):** JIRA/Portal/Hydra tokens in `~/.config/taminator/ui_tokens.json` are now stored as a base64-encoded payload (pull-secret style), not plaintext. Legacy plain JSON is still read so existing files keep working. **Longer term:** Optional support for a proper secret store (e.g. HashiCorp Vault). See [SECURITY-PROTECTION-LAYERS.md](taminator/SECURITY-PROTECTION-LAYERS.md).
-- **JIRA watchers and clones** — Track watchers and clone/backport links (see RFE doc).
+- **Credential storage & secret management** — **Done (encoded):** JIRA/Portal/Hydra tokens in `~/.config/taminator/ui_tokens.json` are stored as a base64-encoded payload (pull-secret style), not plaintext. **Done (Vault):** Optional HashiCorp Vault integration (Settings + `tam-vault` CLI). See [SECURITY-PROTECTION-LAYERS.md](taminator/SECURITY-PROTECTION-LAYERS.md).
+- **JIRA watchers and clones** — Track watchers and clone/backport links. See [RFE-JIRA-WATCHERS-AND-CLONES.md](RFE-JIRA-WATCHERS-AND-CLONES.md).
 - **Slack feedback bot** — Optional bot to collect feedback in Slack (idea doc).
 
 ---

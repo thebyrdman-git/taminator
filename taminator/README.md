@@ -1,14 +1,18 @@
-# Taminator — RFE and Bug Report Generator
+# Taminator — Full User Guide
 
-A tool for generating and maintaining RFE and bug reports for TAMs. Uses JIRA and case data; supports CLI and optional desktop app.
+This is the full user guide for Taminator. It is available in the app (User Guide panel) and on GitLab.
+
+**GitLab repository:** https://gitlab.cee.redhat.com/jbyrd/taminator
 
 ---
 
-## Summary
+## What is Taminator?
 
-**What:** A tool for generating and maintaining RFE and bug reports for TAMs  
-**Why:** Saves 2–3 hours per customer per week  
-**How:** Desktop app (recommended for UI) or CLI — report generation, JIRA/case data, optional portal posting
+Taminator generates and maintains RFE and bug reports for Red Hat TAMs. It uses JIRA and case data to produce consistent markdown reports and can post to customer portal groups. Typical use saves 2–3 hours per customer per week compared to manual tracking.
+
+- **Desktop app (recommended for UI)** — Double-click the Taminator app; it opens in its own window with the full UI. No terminal required.
+- **CLI** — Optional, for automation and advanced users.
+- **Report workflow** — Create reports, check status against JIRA, update reports, and optionally post to the customer portal.
 
 ---
 
@@ -36,18 +40,14 @@ Requires Red Hat VPN and GitLab CEE access.
 
 ### Desktop app (no terminal required)
 
-Double-click the Taminator app; it opens in its own window. No terminal commands needed.
+Double-click the Taminator app; it opens in its own window with the Taminator UI. No terminal commands needed.
 
-- **Linux:** Download the AppImage from [GitLab releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases), then double-click. Choose x86_64 or ARM64 to match your system (`uname -m` → x86_64 or aarch64).
-- **macOS:** Download the DMG from GitLab releases, drag Taminator to Applications, then double-click. First time: right-click → Open to bypass Gatekeeper if prompted.
+- **Linux:** Download the AppImage from GitLab releases, then double-click (or run from file manager).
+- **macOS:** Download the DMG, drag Taminator to Applications, then double-click. First time: right-click → Open to bypass Gatekeeper if prompted.
 
 ### From repo (optional)
 
-For CLI or to run the UI from source: `cd taminator/taminator && ./tam-rfe serve`. Desktop app is easier for UI users.
-
-### Windows
-
-Desktop builds are for Linux and macOS only. On Windows, run from the repo (e.g. WSL or Python): `./tam-rfe serve`.
+For CLI or to run the UI from source: `git clone ...`, then `cd taminator/taminator && ./tam-rfe serve`. Desktop app is easier for UI users.
 
 ---
 
@@ -62,191 +62,101 @@ Desktop builds are for Linux and macOS only. On Windows, run from the repo (e.g.
 | `tam-rfe config` | Manage tokens and configuration. |
 | `tam-rfe docs` | Show full user guide in the terminal. |
 | `tam-rfe serve` | Start browser-based UI (default http://127.0.0.1:8765). |
+| `tam-rfe serve --no-browser --port 9000` | Serve UI without opening a browser. |
 
-Options: `--test-data`, `--help`, `--version` / `-V`.
-
----
-
-## Run from repo (optional)
-
-To run from source: `git clone https://gitlab.cee.redhat.com/jbyrd/taminator.git ~/taminator`, then `cd ~/taminator/taminator && ./tam-rfe serve` (browser UI at http://127.0.0.1:8765). For most users, the [desktop app from GitLab releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) is simpler. See [GETTING-STARTED.md](GETTING-STARTED.md) and the [full user guide](../USER-GUIDE.md).
+Options: `--test-data` (use sample data), `--help`, `--version` / `-V`.
 
 ---
 
-## About Taminator
+## Browser UI
 
-Taminator generates and maintains RFE and bug reports for TAMs. It uses JIRA and case data for consistent markdown reports and can post to customer portal groups. Typical use saves 2–3 hours per customer per week compared to manual tracking.
+1. **Start** — Double-click the Taminator desktop app. It opens in its own window. (No terminal required.)
+2. **Report Manager** (landing page) — Create new reports, customize the template, add accounts.
+3. **Check/Update Reports** — Enter a customer and run Check report or Update report.
+4. **Library** — View and manage report files.
+5. **Settings** — VPN check, tokens (JIRA, Portal, Hydra), Google Drive/Docs, report paths.
+6. **User Guide** — In-app documentation (this guide).
 
-### Version history
+Reports are markdown files. The app looks for them in:
 
-| Version | Key Features | Status |
-|---------|--------------|--------|
-| **2.0.0** | Desktop app (Linux + macOS), browser UI, CLI parity, GitLab-only | Current |
-| v1.9.5 | Vault integration, CLI router fix | Stable |
-| v1.9.2 | Cross-platform release, ARM64 AppImage | Stable |
-| v1.7.0 | Complete GUI redesign, Auth-Box integration | Stable |
-| (earlier) | See repo history | Stable |
+- `~/taminator-test-data`
+- `~/Documents/rh/customers`
+- `/tmp/taminator-test-data`
 
-### Project status
+---
 
-- **Version:** 2.0.0
-- **Platforms:** Linux (AppImage x86_64 + ARM64) | macOS (DMG when available)
-- **Full user guide:** [USER-GUIDE.md](../USER-GUIDE.md) (in repo root); also in the app under User Guide panel.
+## Authentication
 
-### What this tool does
-- **Automatically discovers** all RFE and Bug cases for your customers using `rhcase`
-- **Filters cases** by SBR Group (Ansible, OpenShift, etc.) and status (Active, Closed, etc.)
-- **Generates professional 3-table reports** with Active RFE, Active Bug, and Closed case history
-- **Posts content directly** to customer portal groups via Red Hat API
-- **Sends email notifications** to TAMs with success/failure status
+- **VPN** — Connect to Red Hat VPN before using real customer data. Verify in Settings → Check VPN. (VPN check is skipped when JIRA Cloud is configured.)
+- **JIRA token** — Required for Check and Update. Add in Settings. See **JIRA Cloud** below if you use an Atlassian Cloud site.
+- **Portal token** — Required for posting to the customer portal. Add in Settings.
+- **Hydra** — Uses Portal token or Red Hat username/password (env or Settings).
 
-### What This Tool Does NOT Do
-- Does NOT create new RFE or Bug cases
-- Does NOT modify existing case content or status
-- Does NOT send notifications to customers (silent portal updates)
-- Does NOT access customer data outside of Red Hat systems
-- Does NOT replace TAM judgment or customer relationship management
+Tokens are stored locally in `~/.config/taminator/ui_tokens.json`. Environment variables `REDHAT_USERNAME` / `REDHAT_PASSWORD` override if set.
 
-### JIRA and RFE mapping (where to submit)
+---
 
-To determine where an RFE should be submitted, use the **Centralized JIRA Project Mapping** in The Source (TAM Manual). It is the comprehensive JIRA and RFE mapping for Red Hat products and is community-managed across all products. Taminator uses this mapping as its source for supported JIRA project keys. If you find an issue, outdated information, or a missing product in the JIRA mapping, flag it and see if you can get it corrected.
+## JIRA Cloud
 
-**Add your own (niche) mappings:** To support JIRA project keys not yet in the main list, add them to `~/.config/taminator/jira_prefixes.txt` — one project key per line (e.g. `MYPROJECT`). Lines starting with `#` and blank lines are ignored. These are merged with the built-in list for discovery, report parsing, and link formatting.
+Taminator can use **Red Hat JIRA** (issues.redhat.com) or **JIRA Cloud** (e.g. `https://your-tenant.atlassian.net`). The same Check and Update flow works for both.
 
-## Quick Start
+**Red Hat JIRA (default)**  
+Leave **JIRA base URL** as `https://issues.redhat.com` (or leave the field blank). In Settings → Token configuration, set **Red Hat JIRA token** (Personal Access Token from issues.redhat.com → View Profile → Personal Access Tokens).
 
-**Get started:** [GETTING-STARTED.md](GETTING-STARTED.md) | [Full user guide](../USER-GUIDE.md)
+**JIRA Cloud**  
+1. In Settings → Token configuration → **JIRA instance**, set **JIRA base URL** to your Atlassian site, e.g. `https://your-tenant.atlassian.net`.
+2. The **JIRA Cloud** section appears. Enter your **Email** (Atlassian account) and **API token** (create one at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens)).
+3. Click **Save JIRA settings**. Report links and Check/Update will use this instance.
 
-## Supported Customers
+**Environment variables (optional)**  
+- `JIRA_BASE_URL` — Override JIRA base (e.g. `https://your-tenant.atlassian.net`).
+- `JIRA_TOKEN_API_TOKEN` — Bearer token for Red Hat JIRA.
+- `JIRA_EMAIL` and `JIRA_API_TOKEN` — For JIRA Cloud (when base URL is `*.atlassian.net`).
 
-| Customer | Group ID | Status | Account Number |
-|----------|----------|--------|----------------|
-| Wells Fargo | 4357341 | Production Ready | 838043 |
-| TD Bank | 7028358 | Sandbox Ready | 1912101 |
-| JPMC | 6956770 | Production Ready | 334224 |
-| Fannie Mae | 7095107 | Production Ready | 1460290 |
+**In-app guidance**  
+When your configured JIRA base URL is a Cloud site (`*.atlassian.net`), the app shows Cloud-specific instructions for obtaining a token: the "How to obtain" steps in Settings and in CLI (`tam-rfe config --add-token`) point to [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) and the email + API token flow. When the base URL is Red Hat (default), the same screens point to issues.redhat.com and the Personal Access Token flow.
 
-## Time Savings
+Full plan and technical details: [docs/JIRA_CLOUD_INTEGRATION.md](taminator/docs/JIRA_CLOUD_INTEGRATION.md) (in the repo).
 
+---
 
-| Process | Manual | Automated | Savings |
-|---------|--------|-----------|---------|
-| **Per Customer Per Week** | 2-3 hours | 5 minutes | 95% reduction |
-| **Per TAM Per Week** | 8-12 hours | 20 minutes | 95% reduction |
-| **Per TAM Per Year** | 400-600 hours | 17 hours | 95% reduction |
+## Credentials & Vault
 
-## Security and compliance
+- **Local storage** — JIRA, Portal, and Hydra credentials saved from Settings are stored in `~/.config/taminator/ui_tokens.json` in **encoded form** (base64 payload), not as plaintext. The file is still protected by normal filesystem permissions (mode 0600). Existing plaintext files are still read; the next save upgrades them to the encoded format.
+- **Optional: HashiCorp Vault** — If your team uses HashiCorp Vault, you can set `VAULT_ADDR` and `VAULT_TOKEN` (and optionally `VAULT_NAMESPACE`) before starting the app or `tam-rfe`. Tokens are then read from Vault when available, and saving a token from Settings syncs it to Vault as well. For setup, migration, and security notes, see **[Vault integration](taminator/docs/VAULT_INTEGRATION.md)** (in the repo: `taminator/docs/VAULT_INTEGRATION.md`).
 
-### Red Hat AI Policy Compliance
-- Customer data: Red Hat Granite models only
-- Internal data: AIA-approved model list
-- External APIs: Blocked for customer data
-- Audit logging: All operations tracked
+---
 
-### Data Protection
-- Customer data processed via Red Hat Granite models only
-- No external API calls for customer data
-- All operations logged for audit compliance
-- Secure credential management via Red Hat SSO
+## Report workflow
 
-## Need Help?
+1. **Create a report** — Report Manager → Build new report (add account with SBR Group and account numbers first).
+2. **Check report** — Compare the report to JIRA; see differences without changing the file.
+3. **Update report** — Write current JIRA statuses into the report file (creates a backup first).
+4. **Post** — Optionally post the report to the customer portal (CLI: `tam-rfe post <customer>`).
 
-### Quick Commands
-```bash
-# Test the system
-./bin/tam-rfe-verify --quick
+Report structure uses standard section headings and table columns so the app can reliably find and update statuses. The onboarding template creates this structure.
 
-# Comprehensive verification
-./bin/tam-rfe-verify --full
+---
 
-# Get help
-./bin/tam-rfe-chat --help
-```
+## Customer Portal Groups
 
-### Common Questions
-- **"How do I add a new customer?"** → Run `./bin/tam-rfe-onboard-intelligent`
-- **"The tool isn't finding cases"** → Check your `rhcase` configuration
-- **"I want to customize the reports"** → Use the chat interface and ask me to modify them
+Customer Portal Groups are private Red Hat Customer Portal spaces where you can post RFE and bug reports as discussions for a specific customer. Taminator can create new discussions in a group so the customer sees the latest tracker in one place.
 
-## Ready to Start?
+- **What you need** — A Red Hat Customer Portal API token (Settings → Token configuration → Red Hat Customer Portal). The token must have access to the group.
+- **Adding a portal group** — In Report Manager, when you add or edit an account, you can set the **Portal group ID** for that customer (the numeric ID from the group's URL, e.g. `https://access.redhat.com/groups/4357341` → group ID `4357341`). You can also add multiple groups per customer if your workflow requires it.
+- **Posting a report** — Use **Check/Update Reports** or the CLI: `tam-rfe post <customer>`. Taminator posts the report as a **new discussion** in the customer's configured portal group(s). New discussions are created in **markdown** format by default so tables and headings render correctly in the portal.
+- **Where to configure** — Settings → Customer Portal Groups (overview); Report Manager → Configured accounts (add or edit an account to set its Portal group ID).
 
-### For Brand New TAMs (Zero Experience)
-1. **Start chatting**: `./bin/tam-rfe-chat`
-2. **Tell the AI**: "I'm new to this" or "I need help getting started"
-3. **Follow the guided onboarding**: The AI will walk you through everything step by step
-4. **Complete setup**: From installation to your first report
+---
 
-### For Experienced TAMs
-1. **Run onboarding**: `./bin/tam-rfe-onboard-intelligent`
-2. **Start chatting**: `./bin/tam-rfe-chat`
-3. **Ask for reports**: "Generate RFE report for [Customer]"
+## Documentation and support
 
-**That's it! The tool will learn your preferences and get smarter over time.**
-
-## Documentation
-
-- **[Full user guide](../USER-GUIDE.md)**: Canonical guide (in app and on GitLab)
-- **[Getting Started](GETTING-STARTED.md)**: Quick setup
-- **[Purpose](PURPOSE.md)**: What the tool does and does not do
+- **Full user guide (this file):** Also in [USER-GUIDE.md](USER-GUIDE.md). View on GitLab: https://gitlab.cee.redhat.com/jbyrd/taminator/-/blob/main/USER-GUIDE.md
+- **Getting started:** [GETTING-STARTED.md](taminator/GETTING-STARTED.md)
 - **Releases:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases
 - **Issues:** https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues
-
-## Contributing
-
-### For TAMs
-- Report issues via GitLab issues
-- Suggest improvements via merge requests
-- Share customer-specific templates
-- Provide feedback on usability
-
-### For Developers
-- Follow Red Hat coding standards
-- Maintain comprehensive documentation
-- Include unit tests for all features
-- Ensure Red Hat compliance
-
-## Support & Contact
-
-### Personal Development Contact
-- **Developer**: jbyrd (jbyrd@redhat.com)
-- **GitLab Repository**: https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation
-- **Original Author**: grimm (PAI framework tools)
-- **Documentation**: See `docs/` directory for detailed guides
-
-### Community Support
-- **Slack**: #tam-automation-tools
-- **Email**: tam-automation-team@redhat.com
+- **Contact:** jbyrd@redhat.com
 
 ---
 
-## Bottom Line for TAMs
-
-**This tool transforms a 2-3 hour manual weekly task into a 5-minute automated process, freeing TAMs to focus on strategic customer work while ensuring consistent, professional customer communication.**
-
-### The Tool is Designed to:
-- **Save time** - 95% reduction in manual work
-- **Improve quality** - 100% consistent, professional content
-- **Increase reliability** - Automated processes eliminate human error
-- **Enhance customer experience** - Daily updates instead of weekly manual updates
-- **Maintain compliance** - Full Red Hat AI policy compliance
-- **Scale easily** - Works for any TAM customer with proper configuration
-
-## Development Philosophy
-
-This personal project is developed with the following principles:
-
-- **Independence**: My own standalone solution that uses PAI tools but operates independently
-- **Simplicity**: Easy to deploy and use without complex dependencies
-- **Reliability**: Focused on core functionality with robust error handling
-- **TAM-Focused**: Built specifically for TAM workflows and needs
-- **Continuous Improvement**: Regular updates and enhancements based on real-world usage
-
-## Acknowledgments
-
-- **Original Creator**: grimm - PAI framework tools and initial RFE automation concept
-- **Development**: jbyrd - Personal project with independent development and enhancements
-- **Community**: Red Hat TAM community for feedback and requirements
-
----
-
-[Releases](https://gitlab.cee.redhat.com/jbyrd/taminator/-/releases) | [Getting Started](GETTING-STARTED.md) | [Issues](https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues) | [Contact](mailto:jbyrd@redhat.com)
+*Taminator — RFE and Bug Report Generator for Red Hat TAMs.*
