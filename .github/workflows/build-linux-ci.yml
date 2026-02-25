@@ -2,12 +2,8 @@
 # Build Linux packages only (CI) — for builds that cannot be built locally (e.g. on a Mac).
 # Run from Actions tab → "Build Linux (CI)" → Run workflow.
 #
-# Builds:
-#   - Linux x64 (AppImage) via Ansible
-#   - Linux ARM64 (AppImage) via run-on-arch (QEMU)
-#
-# Use this when you build macOS DMG locally with Ansible and need Linux artifacts from GitHub.
-# Expected artifacts: taminator-<version>-linux-x64, taminator-<version>-linux-arm64
+# Uses GitHub repo layout: taminator/gui/ (no nested taminator/taminator/).
+# Builds: Linux x64 (AppImage) + Linux ARM64 (AppImage) via npm ci + electron-builder.
 
 name: Build Linux (CI)
 
@@ -42,13 +38,13 @@ jobs:
       - name: Read version from package.json
         id: pkg_version
         run: |
-          V=$(jq -r '.version' taminator/taminator/gui/package.json)
+          V=$(jq -r '.version' taminator/gui/package.json)
           echo "version=$V" >> $GITHUB_OUTPUT
           echo "Package version: $V"
       - name: Fail if version mismatch
         run: |
           if [ "${{ steps.pkg_version.outputs.version }}" != "${{ github.event.inputs.version_expected }}" ]; then
-            echo "::error::package.json version (${{ steps.pkg_version.outputs.version }}) != version_expected (${{ github.event.inputs.version_expected }}). Update vars/content-consistency.yml or change the input."
+            echo "::error::package.json version (${{ steps.pkg_version.outputs.version }}) != version_expected (${{ github.event.inputs.version_expected }}). Change the input or update package.json."
             exit 1
           fi
           echo "Version match: ${{ github.event.inputs.version_expected }}"
@@ -61,21 +57,28 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build from commit
         run: echo "Building Linux x64 from ${{ github.sha }}"; git log -1 --oneline
-      - uses: actions/setup-python@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.11'
-      - run: pip install ansible
-      - name: Run Ansible build (Linux)
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: taminator/gui/package-lock.json
+      - name: Install dependencies and build
+        working-directory: taminator/gui
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_timeout: 300000
         run: |
-          ansible-playbook -i taminator/taminator/ansible/inventory-build.yml taminator/taminator/ansible/playbooks/build-linux.yml
+          npm ci
+          npx electron-builder --linux AppImage --publish never
       - name: List built artifacts
-        working-directory: taminator/taminator/gui/dist
+        working-directory: taminator/gui/dist
         run: ls -la *.AppImage 2>/dev/null || true
       - name: Upload Linux AppImage (x64)
         uses: actions/upload-artifact@v4
         with:
           name: taminator-${{ github.event.inputs.version_expected }}-linux-x64
-          path: taminator/taminator/gui/dist/*.AppImage
+          path: taminator/gui/dist/*.AppImage
           retention-days: 30
 
   build-linux-arm64:
@@ -87,11 +90,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build from commit
         run: echo "Building Linux ARM64 from ${{ github.sha }}"; git log -1 --oneline
-      - name: Ensure build icon
+      - name: Ensure build icon exists
         run: |
           [ -f taminator/gui/build/icon.png ] || { echo "::error::Missing taminator/gui/build/icon.png"; exit 1; }
-          mkdir -p taminator/taminator/gui/build
-          cp taminator/gui/build/icon.png taminator/taminator/gui/build/icon.png
       - uses: uraimo/run-on-arch-action@v3
         with:
           arch: aarch64
@@ -107,7 +108,7 @@ jobs:
             apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
           run: |
             set -e
-            cd /workspace/taminator/taminator/gui
+            cd /workspace/taminator/gui
             npm config set fetch-retries 5
             npm config set fetch-timeout 300000
             npm ci
