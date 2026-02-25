@@ -41,13 +41,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Verify build icon exists
+      - name: Ensure build icon for inner gui
         shell: bash
         run: |
-          if [ ! -f taminator/taminator/gui/build/icon.png ]; then
-            echo "::error::Missing taminator/taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
+          if [ ! -f taminator/gui/build/icon.png ]; then
+            echo "::error::Missing taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
             exit 1
           fi
+          mkdir -p taminator/taminator/gui/build
+          cp taminator/gui/build/icon.png taminator/taminator/gui/build/icon.png
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -93,12 +95,14 @@ jobs:
     continue-on-error: true  # Do not block release if ARM64 build fails
     steps:
       - uses: actions/checkout@v4
-      - name: Verify build icon exists
+      - name: Ensure build icon for inner gui
         run: |
-          if [ ! -f taminator/taminator/gui/build/icon.png ]; then
-            echo "::error::Missing taminator/taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
+          if [ ! -f taminator/gui/build/icon.png ]; then
+            echo "::error::Missing taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
             exit 1
           fi
+          mkdir -p taminator/taminator/gui/build
+          cp taminator/gui/build/icon.png taminator/taminator/gui/build/icon.png
       - uses: uraimo/run-on-arch-action@v3
         name: Build AppImage on aarch64
         id: build
