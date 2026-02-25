@@ -1,0 +1,124 @@
+---
+# Build Linux packages only (CI) — for builds that cannot be built locally (e.g. on a Mac).
+# Run from Actions tab → "Build Linux (CI)" → Run workflow.
+#
+# Builds:
+#   - Linux x64 (AppImage) via Ansible
+#   - Linux ARM64 (AppImage) via run-on-arch (QEMU)
+#
+# Use this when you build macOS DMG locally with Ansible and need Linux artifacts from GitHub.
+# Expected artifacts: taminator-<version>-linux-x64, taminator-<version>-linux-arm64
+
+name: Build Linux (CI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_expected:
+        description: 'Expected version (must match package.json)'
+        required: true
+        default: '2.1.5'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate version and prerequisites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record build source (ref and commit)
+        run: |
+          echo "Build ref: ${{ github.ref }}"
+          echo "Build SHA: ${{ github.sha }}"
+          git log -1 --oneline
+      - name: Check build icon exists
+        run: |
+          if [ ! -f taminator/gui/build/icon.png ]; then
+            echo "::error::Missing taminator/gui/build/icon.png"
+            exit 1
+          fi
+      - name: Read version from package.json
+        id: pkg_version
+        run: |
+          V=$(jq -r '.version' taminator/taminator/gui/package.json)
+          echo "version=$V" >> $GITHUB_OUTPUT
+          echo "Package version: $V"
+      - name: Fail if version mismatch
+        run: |
+          if [ "${{ steps.pkg_version.outputs.version }}" != "${{ github.event.inputs.version_expected }}" ]; then
+            echo "::error::package.json version (${{ steps.pkg_version.outputs.version }}) != version_expected (${{ github.event.inputs.version_expected }}). Update vars/content-consistency.yml or change the input."
+            exit 1
+          fi
+          echo "Version match: ${{ github.event.inputs.version_expected }}"
+
+  build-linux-x64:
+    name: Build Linux (AppImage x64)
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build from commit
+        run: echo "Building Linux x64 from ${{ github.sha }}"; git log -1 --oneline
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install ansible
+      - name: Run Ansible build (Linux)
+        run: |
+          ansible-playbook -i taminator/taminator/ansible/inventory-build.yml taminator/taminator/ansible/playbooks/build-linux.yml
+      - name: List built artifacts
+        working-directory: taminator/taminator/gui/dist
+        run: ls -la *.AppImage 2>/dev/null || true
+      - name: Upload Linux AppImage (x64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-${{ github.event.inputs.version_expected }}-linux-x64
+          path: taminator/taminator/gui/dist/*.AppImage
+          retention-days: 30
+
+  build-linux-arm64:
+    name: Build Linux ARM64 (AppImage)
+    needs: validate
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build from commit
+        run: echo "Building Linux ARM64 from ${{ github.sha }}"; git log -1 --oneline
+      - name: Ensure build icon
+        run: |
+          [ -f taminator/gui/build/icon.png ] || { echo "::error::Missing taminator/gui/build/icon.png"; exit 1; }
+          mkdir -p taminator/taminator/gui/build
+          cp taminator/gui/build/icon.png taminator/taminator/gui/build/icon.png
+      - uses: uraimo/run-on-arch-action@v3
+        with:
+          arch: aarch64
+          distro: ubuntu20.04
+          setup: mkdir -p "${PWD}/arm64-artifacts"
+          dockerRunArgs: |
+            --volume "${PWD}:/workspace"
+            --volume "${PWD}/arm64-artifacts:/artifacts"
+          install: |
+            apt-get update -qq && apt-get install -qq -y curl ca-certificates
+            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+            apt-get install -qq -y nodejs
+            apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
+          run: |
+            set -e
+            cd /workspace/taminator/taminator/gui
+            npm config set fetch-retries 5
+            npm config set fetch-timeout 300000
+            npm ci
+            npx electron-builder --linux AppImage --publish never
+            cp -v dist/*.AppImage /artifacts/ 2>/dev/null || true
+            ls -la /artifacts/
+      - name: List built Linux ARM64 artifacts
+        run: ls -la arm64-artifacts/
+      - name: Upload Linux ARM64 AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-${{ github.event.inputs.version_expected }}-linux-arm64
+          path: arm64-artifacts/*.AppImage
+          retention-days: 30
