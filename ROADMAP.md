@@ -30,6 +30,12 @@ Planned and possible future improvements. You can also view the roadmap on GitLa
 ## Future ideas
 
 - **Additional integrations** — Considered as TAMs suggest them.
+- **RFE ideas (TAM sync / feedback):** See [RFE-IDEAS.md](RFE-IDEAS.md) for each idea and its scope/implementation doc.
+  - [Reduce manual editing (KAB / starting-point workflow)](taminator/docs/RFE-REDUCE-MANUAL-EDITING-KAB.md)
+  - [Template library](taminator/docs/RFE-TEMPLATE-LIBRARY.md)
+  - [Ansible orchestration](taminator/docs/RFE-ANSIBLE-ORCHESTRATION.md)
+  - [Report scheduler](taminator/docs/RFE-REPORT-SCHEDULER.md)
+  - [Slack notifications when reports updated](taminator/docs/RFE-SLACK-NOTIFICATIONS.md)
 
 ---
 
