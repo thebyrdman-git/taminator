@@ -5,7 +5,16 @@ on:
   push:
     tags:
       - 'v*.*.*'  # Triggers on version tags like v1.9.5
-  workflow_dispatch:  # Manual trigger for testing
+  workflow_dispatch:  # Manual trigger: choose Linux only or all platforms
+    inputs:
+      platform:
+        description: 'Platform to build'
+        required: true
+        default: 'linux'
+        type: choice
+        options:
+          - linux
+          - all
 
 permissions:
   contents: write  # Required for creating releases
@@ -18,24 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Linux builds (taminator/taminator/gui bundles web with HashiCorp Vault on Settings)
-          - os: Linux
-            runner: ubuntu-latest
-            build_target: linux
-            artifact_pattern: 'taminator/taminator/gui/dist/*.AppImage'
-          
-          # Windows builds
-          - os: Windows
-            runner: windows-latest
-            build_target: win
-            artifact_pattern: 'taminator/taminator/gui/dist/*.exe'
-          
-          # macOS builds (Universal - Intel + Apple Silicon)
-          - os: macOS
-            runner: macos-latest
-            build_target: mac
-            artifact_pattern: 'taminator/taminator/gui/dist/*.dmg'
+        include: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'linux' && fromJSON('[{"os":"Linux","runner":"ubuntu-latest","build_target":"linux","artifact_pattern":"taminator/taminator/gui/dist/*.AppImage"}]') || fromJSON('[{"os":"Linux","runner":"ubuntu-latest","build_target":"linux","artifact_pattern":"taminator/taminator/gui/dist/*.AppImage"},{"os":"Windows","runner":"windows-latest","build_target":"win","artifact_pattern":"taminator/taminator/gui/dist/*.exe"},{"os":"macOS","runner":"macos-latest","build_target":"mac","artifact_pattern":"taminator/taminator/gui/dist/*.dmg"}]') }}
     
     steps:
       - name: Checkout code
@@ -157,12 +149,14 @@ jobs:
             npx electron-builder --linux AppImage --publish never
             cp -v dist/*.AppImage /artifacts/ 2>/dev/null || true
             ls -la /artifacts/
+            if [ -z "$(ls -A /artifacts/ 2>/dev/null)" ]; then echo "::error::No AppImage produced"; exit 1; fi
       - name: Upload Linux ARM64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: taminator-Linux-arm64-${{ github.ref_name }}
           path: arm64-artifacts/*.AppImage
           retention-days: 30
+        if: success()  # Only upload if build step produced an AppImage
   
   release:
     name: Create Release
