@@ -27,28 +27,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'linux' && fromJSON('[{"os":"Linux","runner":"ubuntu-latest","build_target":"linux","artifact_pattern":"taminator/taminator/gui/dist/*.AppImage"}]') || fromJSON('[{"os":"Linux","runner":"ubuntu-latest","build_target":"linux","artifact_pattern":"taminator/taminator/gui/dist/*.AppImage"},{"os":"Windows","runner":"windows-latest","build_target":"win","artifact_pattern":"taminator/taminator/gui/dist/*.exe"},{"os":"macOS","runner":"macos-latest","build_target":"mac","artifact_pattern":"taminator/taminator/gui/dist/*.dmg"}]') }}
+        include: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'linux' && fromJSON('[{"os":"Linux","runner":"ubuntu-latest","build_target":"linux","artifact_pattern":"taminator/gui/dist/*.AppImage"}]') || fromJSON('[{"os":"Linux","runner":"ubuntu-latest","build_target":"linux","artifact_pattern":"taminator/gui/dist/*.AppImage"},{"os":"Windows","runner":"windows-latest","build_target":"win","artifact_pattern":"taminator/gui/dist/*.exe"},{"os":"macOS","runner":"macos-latest","build_target":"mac","artifact_pattern":"taminator/gui/dist/*.dmg"}]') }}
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Ensure build icon for inner gui
+      - name: Ensure build icon
         shell: bash
         run: |
           if [ ! -f taminator/gui/build/icon.png ]; then
             echo "::error::Missing taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
             exit 1
           fi
-          mkdir -p taminator/taminator/gui/build
-          cp taminator/gui/build/icon.png taminator/taminator/gui/build/icon.png
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: taminator/taminator/gui/package-lock.json
+          cache-dependency-path: taminator/gui/package-lock.json
       
       - name: Cache Electron and electron-builder
         uses: actions/cache@v4
@@ -56,13 +54,13 @@ jobs:
           path: |
             ~/.cache/electron
             ~/.cache/electron-builder
-            taminator/taminator/gui/node_modules/electron
-          key: electron-${{ runner.os }}-${{ hashFiles('taminator/taminator/gui/package-lock.json') }}
+            taminator/gui/node_modules/electron
+          key: electron-${{ runner.os }}-${{ hashFiles('taminator/gui/package-lock.json') }}
           restore-keys: |
             electron-${{ runner.os }}-
       
       - name: Install Node dependencies
-        working-directory: taminator/taminator/gui
+        working-directory: taminator/gui
         env:
           npm_config_fetch_retries: 5
           npm_config_fetch_timeout: 600000
@@ -88,7 +86,7 @@ jobs:
           exit 1
       
       - name: Build Electron app (${{ matrix.os }})
-        working-directory: taminator/taminator/gui
+        working-directory: taminator/gui
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Signing: set CSC_LINK, CSC_KEY_PASSWORD, APPLEID, APPLEIDPASS in repo secrets to enable; omit to build unsigned
@@ -96,7 +94,7 @@ jobs:
           npx electron-builder --${{ matrix.build_target }} --publish never
       
       - name: List dist directory (debug)
-        working-directory: taminator/taminator/gui
+        working-directory: taminator/gui
         shell: bash
         run: ls -la dist/
       
@@ -113,14 +111,12 @@ jobs:
     continue-on-error: true  # Do not block release if ARM64 build fails
     steps:
       - uses: actions/checkout@v4
-      - name: Ensure build icon for inner gui
+      - name: Ensure build icon
         run: |
           if [ ! -f taminator/gui/build/icon.png ]; then
             echo "::error::Missing taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
             exit 1
           fi
-          mkdir -p taminator/taminator/gui/build
-          cp taminator/gui/build/icon.png taminator/taminator/gui/build/icon.png
       - uses: uraimo/run-on-arch-action@v3
         name: Build AppImage on aarch64
         id: build
@@ -141,7 +137,7 @@ jobs:
             apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
           run: |
             set -e
-            cd /workspace/taminator/taminator/gui
+            cd /workspace/taminator/gui
             npm config set fetch-retries 5
             npm config set fetch-timeout 300000
             npm config set fetch-retry-mintimeout 20000
