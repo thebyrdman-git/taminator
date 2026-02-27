@@ -23,24 +23,10 @@ jobs:
   build:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
-    # When manually run with platform=linux, only run the Linux matrix job; otherwise run all (tag push or platform=all).
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform != 'linux' || matrix.os == 'Linux'
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: Linux
-            runner: ubuntu-latest
-            build_target: linux
-            artifact_pattern: taminator/gui/dist/*.AppImage
-          - os: Windows
-            runner: windows-latest
-            build_target: win
-            artifact_pattern: taminator/gui/dist/*.exe
-          - os: macOS
-            runner: macos-latest
-            build_target: mac
-            artifact_pattern: taminator/gui/dist/*.dmg
+        include: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'linux' && fromJSON('[{"os":"Linux","runner":"ubuntu-latest","build_target":"linux","artifact_pattern":"taminator/gui/dist/*.AppImage"}]') || fromJSON('[{"os":"Linux","runner":"ubuntu-latest","build_target":"linux","artifact_pattern":"taminator/gui/dist/*.AppImage"},{"os":"Windows","runner":"windows-latest","build_target":"win","artifact_pattern":"taminator/gui/dist/*.exe"},{"os":"macOS","runner":"macos-latest","build_target":"mac","artifact_pattern":"taminator/gui/dist/*.dmg"}]') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
