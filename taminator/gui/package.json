@@ -1,6 +1,6 @@
 {
   "name": "taminator-gui",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Taminator RFE Tool - GUI Application",
   "homepage": "https://gitlab.cee.redhat.com/jbyrd/taminator",
   "repository": {
@@ -44,6 +44,13 @@
     "asarUnpack": [
       "../gui_auth_check.py",
       "../src/**/*"
+    ],
+    "extraResources": [
+      { "from": "../taminator/web", "to": "taminator/web" },
+      { "from": "../taminator/web_server.py", "to": "taminator/" },
+      { "from": "../taminator/tam-rfe", "to": "taminator/" },
+      { "from": "../taminator/VERSION", "to": "taminator/" },
+      { "from": "../src", "to": "src" }
     ],
     "mac": {
       "category": "public.app-category.developer-tools",

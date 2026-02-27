@@ -1,20 +1,104 @@
 /**
  * Taminator GUI - Main Process
- * Electron main process that creates the application window
+ * Starts the bundled web server (when packaged) and loads the new UI at 127.0.0.1:8765.
  */
 
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const http = require('http');
 const { spawn } = require('child_process');
 
-let mainWindow;
+const WEB_UI_PORT = 8765;
+const WEB_UI_URL = `http://127.0.0.1:${WEB_UI_PORT}`;
 
-function createWindow() {
-  // Try multiple icon paths for different packaging scenarios
+let mainWindow;
+let serverProcess = null;
+
+function getServerPaths() {
+  const fs = require('fs');
+  if (app.isPackaged) {
+    const resourcesPath = process.resourcesPath;
+    return {
+      cwd: path.join(resourcesPath, 'taminator'),
+      tamRfe: path.join(resourcesPath, 'taminator', 'tam-rfe'),
+      python: null,
+      env: {
+        ...process.env,
+        PYTHONPATH: path.join(resourcesPath, 'src')
+      }
+    };
+  }
+  const appRoot = path.join(__dirname, '..');
+  return {
+    cwd: path.join(appRoot, 'taminator'),
+    tamRfe: path.join(appRoot, 'taminator', 'tam-rfe'),
+    python: null,
+    env: { ...process.env, PYTHONPATH: path.join(appRoot, 'src') }
+  };
+}
+
+function waitForServer(timeoutMs, serverStderrBuffer) {
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + (timeoutMs || 45000);
+    function tryOnce() {
+      const req = http.get(WEB_UI_URL, (_res) => {
+        req.destroy();
+        resolve();
+      });
+      req.on('error', () => {
+        if (Date.now() > deadline) {
+          const msg = serverStderrBuffer && serverStderrBuffer.length
+            ? `Server did not start in time.\n\nServer output:\n${serverStderrBuffer.join('').trim()}`
+            : 'Server did not start in time';
+          return reject(new Error(msg));
+        }
+        setTimeout(tryOnce, 300);
+      });
+      req.setTimeout(2000, () => { req.destroy(); });
+    }
+    tryOnce();
+  });
+}
+
+function findPython3() {
+  const fs = require('fs');
+  const candidates = process.platform === 'win32'
+    ? ['python', 'python3']
+    : ['/usr/bin/python3', '/usr/local/bin/python3', 'python3'];
+  for (const p of candidates) {
+    try {
+      if (p === 'python3' || p === 'python') {
+        return p;
+      }
+      if (fs.existsSync(p)) return p;
+    } catch (_) { /* ignore */ }
+  }
+  return 'python3';
+}
+
+function startWebServer() {
+  return new Promise((resolve, reject) => {
+    const fs = require('fs');
+    const { cwd, tamRfe, env } = getServerPaths();
+    if (!fs.existsSync(tamRfe)) {
+      return reject(new Error('tam-rfe not found at ' + tamRfe));
+    }
+    const python = findPython3();
+    const serverStderrBuffer = [];
+    serverProcess = spawn(python, [tamRfe, 'serve', '--no-browser'], { cwd, env, stdio: 'pipe' });
+    serverProcess.on('error', (err) => reject(err));
+    serverProcess.stderr.on('data', (d) => {
+      serverStderrBuffer.push(d.toString());
+      console.log('[Server]', d.toString().trim());
+    });
+    waitForServer(45000, serverStderrBuffer).then(resolve, reject);
+  });
+}
+
+function createWindow(useServerUI) {
   const fs = require('fs');
   let iconPath = path.join(__dirname, 'build/icon.png');
   
-  // Fallback to public directory if build icon doesn't exist
   if (!fs.existsSync(iconPath)) {
     iconPath = path.join(__dirname, 'public/terminator-icon.png');
   }
@@ -24,21 +108,19 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 600,
-    maxWidth: undefined,  // No maximum width
-    maxHeight: undefined, // No maximum height
-    resizable: true,      // Allow window resizing
-    movable: true,        // Allow window moving
-    frame: true,          // Show window frame with controls
+    maxWidth: undefined,
+    maxHeight: undefined,
+    resizable: true,
+    movable: true,
+    frame: true,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
     },
     backgroundColor: '#F5F5F5',
     title: 'Taminator'
-    // Don't set icon in constructor - handle it after creation
   });
   
-  // Set icon explicitly for Linux window managers with error handling
   if (process.platform === 'linux') {
     try {
       if (fs.existsSync(iconPath)) {
@@ -46,12 +128,14 @@ function createWindow() {
       }
     } catch (e) {
       console.warn('[Main] Could not set window icon (non-critical):', e.message);
-      // Continue - missing icon won't prevent app from working
     }
   }
 
-  // Load the app
-  mainWindow.loadFile('index.html');
+  if (useServerUI) {
+    mainWindow.loadURL(WEB_UI_URL);
+  } else {
+    mainWindow.loadFile('index.html');
+  }
 
   // Open DevTools only in development mode
   if (process.argv.includes('--dev') || process.env.NODE_ENV === 'development') {
@@ -107,9 +191,20 @@ ipcMain.handle('load-settings', async () => {
   return loadSavedSettings();
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  startWebServer()
+    .then(() => createWindow(true))
+    .catch((err) => {
+      console.error('[Main] Server failed:', err.message);
+      createWindow(false);
+    });
+});
 
 app.on('window-all-closed', () => {
+  if (serverProcess) {
+    serverProcess.kill();
+    serverProcess = null;
+  }
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -277,9 +372,8 @@ ipcMain.handle('save-token', async (event, data) => {
   const { spawn } = require('child_process');
   
   try {
-    // Use tam-vault CLI to save to HashiCorp Vault
-    const vaultPath = '/home/jbyrd/pai/bin/tam-vault';
-    
+    // Use tam-vault CLI to save to HashiCorp Vault (from PATH or TAM_VAULT_PATH)
+    const vaultPath = process.env.TAM_VAULT_PATH || 'tam-vault';
     return new Promise((resolve, reject) => {
       // Call: tam-vault set <type> <token>
       const vaultProcess = spawn(vaultPath, ['set', data.type, data.token], {
