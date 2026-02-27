@@ -47,9 +47,9 @@
     ],
     "extraResources": [
       { "from": "../taminator/web", "to": "taminator/web" },
-      { "from": "../taminator/web_server.py", "to": "taminator/" },
-      { "from": "../taminator/tam-rfe", "to": "taminator/" },
-      { "from": "../taminator/VERSION", "to": "taminator/" },
+      { "from": "../taminator/web_server.py", "to": "taminator/web_server.py" },
+      { "from": "../taminator/tam-rfe", "to": "taminator/tam-rfe" },
+      { "from": "../taminator/VERSION", "to": "taminator/VERSION" },
       { "from": "../src", "to": "src" }
     ],
     "mac": {
