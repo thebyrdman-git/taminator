@@ -20,17 +20,13 @@ permissions:
   contents: write  # Required for creating releases
 
 jobs:
-  build:
-    name: Build ${{ matrix.os }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'linux' && fromJSON('[{"os":"Linux","runner":"ubuntu-latest","build_target":"linux","artifact_pattern":"taminator/gui/dist/*.AppImage"}]') || fromJSON('[{"os":"Linux","runner":"ubuntu-latest","build_target":"linux","artifact_pattern":"taminator/gui/dist/*.AppImage"},{"os":"Windows","runner":"windows-latest","build_target":"win","artifact_pattern":"taminator/gui/dist/*.exe"},{"os":"macOS","runner":"macos-latest","build_target":"mac","artifact_pattern":"taminator/gui/dist/*.dmg"}]') }}
+  # Linux x64: always run on tag; on manual run, always include Linux so we get 2 jobs when platform=linux.
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Ensure build icon
         shell: bash
         run: |
@@ -38,14 +34,12 @@ jobs:
             echo "::error::Missing taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
             exit 1
           fi
-      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: taminator/gui/package-lock.json
-      
       - name: Cache Electron and electron-builder
         uses: actions/cache@v4
         with:
@@ -53,10 +47,9 @@ jobs:
             ~/.cache/electron
             ~/.cache/electron-builder
             taminator/gui/node_modules/electron
-          key: electron-${{ runner.os }}-${{ hashFiles('taminator/gui/package-lock.json') }}
+          key: electron-Linux-${{ hashFiles('taminator/gui/package-lock.json') }}
           restore-keys: |
-            electron-${{ runner.os }}-
-      
+            electron-Linux-
       - name: Install Node dependencies
         working-directory: taminator/gui
         env:
@@ -72,30 +65,97 @@ jobs:
               exit 0
             fi
             echo "Attempt $i failed."
-            if [ "$i" -lt 3 ]; then
-              echo "Retrying in 30s..."
-              sleep 30
-            fi
+            if [ "$i" -lt 3 ]; then echo "Retrying in 30s..."; sleep 30; fi
           done
           echo "::error::npm ci failed after 3 attempts"
-          echo "Last npm log:"
-          ls -la ~/.npm/_logs 2>/dev/null | tail -3
-          cat ~/.npm/_logs/*-debug*.log 2>/dev/null | tail -80 || true
           exit 1
-      
-      - name: Build Electron app (${{ matrix.os }})
+      - name: Build Electron app (Linux)
         working-directory: taminator/gui
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Signing: set CSC_LINK, CSC_KEY_PASSWORD, APPLEID, APPLEIDPASS in repo secrets to enable; omit to build unsigned
-        run: |
-          npx electron-builder --${{ matrix.build_target }} --publish never
-      
+        run: npx electron-builder --linux --publish never
       - name: List dist directory (debug)
         working-directory: taminator/gui
         shell: bash
         run: ls -la dist/
-      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-Linux-${{ github.ref_name }}
+          path: taminator/gui/dist/*.AppImage
+          retention-days: 30
+
+  # Windows + macOS: only on tag push or when manual platform=all.
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'all')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: Windows
+            runner: windows-latest
+            build_target: win
+            artifact_pattern: taminator/gui/dist/*.exe
+          - os: macOS
+            runner: macos-latest
+            build_target: mac
+            artifact_pattern: taminator/gui/dist/*.dmg
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Ensure build icon
+        shell: bash
+        run: |
+          if [ ! -f taminator/gui/build/icon.png ]; then
+            echo "::error::Missing taminator/gui/build/icon.png — add a 512x512 PNG and commit it."
+            exit 1
+          fi
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: taminator/gui/package-lock.json
+      - name: Cache Electron and electron-builder
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            taminator/gui/node_modules/electron
+          key: electron-${{ matrix.os }}-${{ hashFiles('taminator/gui/package-lock.json') }}
+          restore-keys: |
+            electron-${{ matrix.os }}-
+      - name: Install Node dependencies
+        working-directory: taminator/gui
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_timeout: 600000
+          npm_config_fetch_retry_mintimeout: 60000
+          ELECTRON_GET_USE_PROXY: 'false'
+        run: |
+          for i in 1 2 3; do
+            echo "Attempt $i of 3..."
+            if npm ci; then
+              echo "npm ci succeeded"
+              exit 0
+            fi
+            echo "Attempt $i failed."
+            if [ "$i" -lt 3 ]; then echo "Retrying in 30s..."; sleep 30; fi
+          done
+          echo "::error::npm ci failed after 3 attempts"
+          exit 1
+      - name: Build Electron app (${{ matrix.os }})
+        working-directory: taminator/gui
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --${{ matrix.build_target }} --publish never
+      - name: List dist directory (debug)
+        working-directory: taminator/gui
+        shell: bash
+        run: ls -la dist/
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -154,7 +214,7 @@ jobs:
   
   release:
     name: Create Release
-    needs: [build, build-linux-arm64]
+    needs: [build-linux, build, build-linux-arm64]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     
