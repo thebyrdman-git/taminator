@@ -1,0 +1,265 @@
+#!/usr/bin/env python3
+"""
+tam-rfe: Command-line interface for Taminator RFE tool.
+
+Usage:
+    tam-rfe check <customer>       # Check if report is up-to-date
+    tam-rfe update <customer>      # Update report with current statuses
+    tam-rfe post <customer>        # Post report to customer portal
+    tam-rfe onboard <customer>     # Onboard new customer
+    tam-rfe config                 # Manage configuration and tokens
+"""
+
+import sys
+import os
+
+# Avoid interpreter abort on deep recursion when using system Python with bundled
+# site-packages (e.g. charset_normalizer). Use a higher limit so we get RecursionError
+# instead of SIGABRT. Default is typically 1000.
+if getattr(sys, 'getrecursionlimit', None):
+    try:
+        sys.setrecursionlimit(3000)
+    except Exception:
+        pass
+
+# Add src and project root to Python path
+_root = os.path.dirname(os.path.abspath(__file__))
+# Packaged app: taminator lives in app.asar.unpacked/src, not next to tam-rfe
+_unpacked_src = os.path.join(_root, 'app.asar.unpacked', 'src')
+if os.path.isdir(_unpacked_src) and os.path.isdir(os.path.join(_unpacked_src, 'taminator')):
+    sys.path.insert(0, _unpacked_src)
+else:
+    sys.path.insert(0, os.path.join(_root, 'src'))
+sys.path.insert(0, _root)
+
+from rich.console import Console
+
+console = Console()
+
+
+def main():
+    if '--version' in sys.argv or '-V' in sys.argv:
+        _version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
+        if os.path.isfile(_version_file):
+            with open(_version_file) as f:
+                print(f.read().strip())
+        else:
+            print('2.0.0-tech-preview')
+        return
+    if len(sys.argv) < 2:
+        show_help()
+        return
+    command = sys.argv[1]
+    
+    if command == 'check':
+        from taminator.commands.check import main as check_main
+        
+        # Parse arguments
+        test_data = '--test-data' in sys.argv
+        customer = None
+        
+        if not test_data and len(sys.argv) > 2:
+            customer = sys.argv[2]
+        
+        check_main(customer=customer, test_data=test_data)
+    
+    elif command == 'update':
+        from taminator.commands.update import main as update_main
+        
+        test_data = '--test-data' in sys.argv
+        auto_confirm = '--yes' in sys.argv or '-y' in sys.argv
+        full_refresh = '--full-refresh' in sys.argv
+        customer = None
+        
+        if not test_data and len(sys.argv) > 2:
+            customer = sys.argv[2]
+        
+        update_main(customer=customer, test_data=test_data, auto_confirm=auto_confirm, full_refresh=full_refresh)
+    
+    elif command == 'post':
+        from taminator.commands.post import main as post_main
+        
+        dry_run = '--dry-run' in sys.argv
+        customer = None
+        
+        for arg in sys.argv[2:]:
+            if not arg.startswith('--'):
+                customer = arg
+                break
+        
+        post_main(customer=customer, dry_run=dry_run)
+    
+    elif command == 'onboard':
+        from taminator.commands.onboard import main as onboard_main
+        
+        customer = sys.argv[2] if len(sys.argv) > 2 else None
+        onboard_main(customer=customer)
+    
+    elif command == 'config':
+        from taminator.commands.config import main as config_main
+        
+        add_token = '--add-token' in sys.argv
+        test_tokens = '--test-tokens' in sys.argv
+        show_tokens = '--show-tokens' in sys.argv
+        
+        config_main(add_token=add_token, test_tokens=test_tokens, show_tokens=show_tokens)
+    
+    elif command == 'fix-tables':
+        from taminator.commands.fix_tables import main as fix_tables_main
+        dry_run = '--dry-run' in sys.argv
+        fix_tables_main(dry_run=dry_run)
+    
+    elif command == 'report-issue':
+        from taminator.commands.report_issue import main as report_issue_main
+
+        def _opt(name):
+            i = sys.argv.index(name) if name in sys.argv else -1
+            if i < 0 or i + 1 >= len(sys.argv):
+                return None
+            next_arg = sys.argv[i + 1]
+            return next_arg if next_arg and not next_arg.startswith('-') else None
+        bug = '--bug' in sys.argv
+        feature = '--feature' in sys.argv
+        gitlab = '--gitlab' in sys.argv
+        debug_report = _opt('--debug-report')
+
+        report_issue_main(bug=bug, feature=feature, gitlab=gitlab, debug_report_path=debug_report)
+    
+    elif command == 'google-connect':
+        sys.path.insert(0, os.path.join(_root, 'src'))
+        try:
+            from taminator.integrations.google_drive import run_oauth_flow
+            ok, err = run_oauth_flow()
+            if ok:
+                console.print("\nGoogle Drive connected. You can use \"Open in Google Docs\" in the web UI.", style="green")
+            else:
+                console.print("\n" + err, style="red bold")
+                sys.exit(1)
+        except ImportError as e:
+            console.print("\nGoogle integration not available. Install: pip install google-api-python-client google-auth-oauthlib", style="red")
+            sys.exit(1)
+        return
+
+    elif command == 'serve':
+        # Browser-based UI: run local web server
+        # Ensure packaged app finds USER-GUIDE.md: set Resources path if not already set by Electron
+        if not os.environ.get("TAMINATOR_RESOURCES"):
+            os.environ["TAMINATOR_RESOURCES"] = os.path.realpath(os.path.dirname(os.path.abspath(__file__)))
+        import web_server
+        port = 8765
+        no_browser = '--no-browser' in sys.argv
+        for i, arg in enumerate(sys.argv[2:], 2):
+            if arg == '--port' and i + 1 < len(sys.argv):
+                try:
+                    port = int(sys.argv[i + 1])
+                except ValueError:
+                    pass
+                break
+        web_server.serve(port=port, open_browser=not no_browser)
+        return
+    
+    elif command in ['docs', 'guide', 'doc']:
+        show_docs()
+        return
+
+    elif command in ['-h', '--help', 'help']:
+        show_help()
+    
+    else:
+        console.print(f"\n❌ Unknown command: {command}\n", style="red bold")
+        show_help()
+
+
+def show_help():
+    help_text = """
+╔═══════════════════════════════════════════════════════════════╗
+║  Taminator — RFE and Bug Report Generator                      ║
+╚═══════════════════════════════════════════════════════════════╝
+
+Usage:
+  tam-rfe <command> [options]
+
+Commands:
+  check <customer>       Check if customer report is up-to-date
+  update <customer>      Update report with current JIRA statuses
+  post <customer>        Post report to customer portal
+  onboard <customer>     Onboard new customer
+  config                 Manage configuration and tokens
+  docs                   Show full user guide (in-terminal documentation)
+  report-issue [--gitlab] [--debug-report FILE]  Submit bug/feature (GitHub) or open GitLab issue and attach debug report
+  serve                  Start browser-based UI (default: http://127.0.0.1:8765)
+  google-connect         Run OAuth2 flow to connect Google Drive (for Open in Google Docs)
+
+Options:
+  --version, -V         Show version (e.g. 2.0.0-tech-preview)
+  --test-data           Use test data for demonstration
+  --help, -h            Show this help message
+
+Examples:
+  tam-rfe check tdbank
+  tam-rfe check --test-data
+  tam-rfe update wellsfargo
+  tam-rfe serve              # open browser UI
+  tam-rfe serve --no-browser  # serve only, no browser
+  tam-rfe onboard newcustomer
+
+Authentication:
+  Taminator uses Auth-Box for secure authentication management.
+  On first use, you'll be prompted to configure required tokens.
+
+Documentation:
+  tam-rfe docs            Show full user guide in terminal
+  https://gitlab.cee.redhat.com/jbyrd/taminator
+"""
+    console.print(help_text, style="cyan")
+
+
+def show_docs():
+    """Print full user documentation. Prefer bundled markdown; fall back to short summary + URL."""
+    # Paths relative to tam-rfe location: _root is taminator app dir; repo root is _root/..
+    repo_root = os.path.join(_root, '..')
+    candidates = [
+        os.path.join(repo_root, 'README.md'),
+        os.path.join(_root, '..', 'README.md'),
+        os.path.join(_root, 'README.md'),
+        os.path.join(repo_root, 'GETTING-STARTED.md'),
+        os.path.join(_root, '..', 'GETTING-STARTED.md'),
+        os.path.join(_root, 'GETTING-STARTED.md'),
+    ]
+    seen = set()
+    parts = []
+    for path in candidates:
+        norm = os.path.normpath(path)
+        if norm in seen or not os.path.isfile(path):
+            continue
+        seen.add(norm)
+        try:
+            with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                parts.append(f.read())
+        except OSError:
+            continue
+    if parts:
+        text = '\n\n---\n\n'.join(parts)
+        # Use pager if stdout is a TTY and content is long
+        if sys.stdout.isatty() and len(text) > 4000:
+            import subprocess
+            try:
+                p = subprocess.Popen(
+                    ['less', '-R', '-'],
+                    stdin=subprocess.PIPE,
+                    text=True,
+                )
+                p.communicate(input=text)
+                return
+            except (OSError, FileNotFoundError):
+                pass
+        console.print(text, style="dim")
+    else:
+        console.print("\nFull documentation is available in the repository and in the in-app User Guide.", style="cyan")
+        console.print("  Repository: https://gitlab.cee.redhat.com/jbyrd/taminator\n", style="dim")
+        console.print("Run from the repo (e.g. ~/taminator/taminator) so that tam-rfe docs can find README.md and GETTING-STARTED.md.\n", style="yellow")
+
+
+if __name__ == '__main__':
+    main()
+
