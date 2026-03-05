@@ -297,6 +297,8 @@
       <h1><span class="brand-name">Taminator</span></h1>
   </div>
     <p class="hero-tagline">Quickly customize and maintain RFE and Bug reports for your accounts</p>
+    <p class="hero-version" id="appVersion" style="font-size:0.85rem; color:var(--rh-text-muted); margin:0.25rem 0 0 0;">Version …</p>
+    <p class="hero-version" style="font-size:0.85rem; margin:0.15rem 0 0 0; display:block;"><a href="https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues" target="_blank" rel="noopener">Report Issues on GitLab</a></p>
   </header>
 
   <nav class="nav" role="navigation" aria-label="Main">
@@ -321,8 +323,7 @@
       <div class="status-indicators" aria-live="polite" role="status" aria-label="Connection and token status">
         <span class="indicator" data-token="vpn" title="Red Hat VPN. Required to reach JIRA and internal APIs. Connect to Red Hat VPN; verify in Settings."><span class="dot pending" aria-hidden="true"></span><span>VPN</span><span class="status-text">Checking…</span></span>
         <span class="indicator" data-token="jira" title="JIRA API token. Required for Check and Update. Get it: issues.redhat.com → Personal Access Tokens. Configure in Settings."><span class="dot pending" aria-hidden="true"></span><span>JIRA</span><span class="status-text">Checking…</span></span>
-        <span class="indicator" data-token="portal" title="Red Hat Customer Portal token. Required for posting reports. Get it: access.redhat.com/management/api → Generate Token. Configure in Settings."><span class="dot pending" aria-hidden="true"></span><span>Portal</span><span class="status-text">Checking…</span></span>
-        <span class="indicator" data-token="hydra" title="Hydra uses the Customer Portal token (above) or Red Hat username/password in env. See Settings."><span class="dot pending" aria-hidden="true"></span><span>Hydra</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="portal" title="Customer Portal token: posting and case discovery (Hydra). Get it: access.redhat.com/management/api. Configure in Settings."><span class="dot pending" aria-hidden="true"></span><span>Portal (Portal & Hydra)</span><span class="status-text">Checking…</span></span>
         <span class="indicator" data-token="google" title="Google Drive/Docs. Connect in Library or Settings to open reports in Google Docs."><span class="dot pending" aria-hidden="true"></span><span>Google</span><span class="status-text">Checking…</span></span>
       </div>
       <label for="customer">Customer name or account number</label>
@@ -384,8 +385,7 @@
       <div class="status-indicators" aria-live="polite" role="status" aria-label="Connection and token status">
         <span class="indicator" data-token="vpn" title="Red Hat VPN."><span class="dot pending" aria-hidden="true"></span><span>VPN</span><span class="status-text">Checking…</span></span>
         <span class="indicator" data-token="jira" title="JIRA token."><span class="dot pending" aria-hidden="true"></span><span>JIRA</span><span class="status-text">Checking…</span></span>
-        <span class="indicator" data-token="portal" title="Portal token."><span class="dot pending" aria-hidden="true"></span><span>Portal</span><span class="status-text">Checking…</span></span>
-        <span class="indicator" data-token="hydra" title="Hydra: Portal token or username/password in env."><span class="dot pending" aria-hidden="true"></span><span>Hydra</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="portal" title="Customer Portal token (posting and Hydra case discovery)."><span class="dot pending" aria-hidden="true"></span><span>Portal (Portal & Hydra)</span><span class="status-text">Checking…</span></span>
         <span class="indicator" data-token="google" title="Google Drive/Docs."><span class="dot pending" aria-hidden="true"></span><span>Google</span><span class="status-text">Checking…</span></span>
       </div>
       <h2 style="font-size:1.1rem; margin-top:0">Report Manager</h2>
@@ -482,6 +482,22 @@
         </form>
       </div>
       <div class="config-section" style="margin-top:1.25rem">
+        <h3 style="font-size:1rem; margin-bottom:0.35rem">Generate from case list (paste)</h3>
+        <p class="setting-blurb" style="margin-bottom:0.5rem">Paste case numbers or a case list (e.g. from Salesforce). The tool looks up each case via the Customer Portal API, finds linked JIRAs, fetches JIRA status, and <strong>automatically adds or updates accounts</strong> from the API response. You can then use Check/Update Reports for that customer.</p>
+        <div style="margin-bottom:0.5rem">
+          <label for="fromPasteCaseList" class="sr-only">Paste case numbers or case list</label>
+          <textarea id="fromPasteCaseList" rows="6" placeholder="Paste case numbers (one per line or comma-separated) or a table dump (e.g. from Salesforce). Case numbers like 04369905 will be detected." style="width:100%; padding:0.5rem; font-family:inherit; font-size:0.9rem; border:1px solid var(--rh-border); border-radius:6px; resize:vertical" aria-describedby="fromPasteResult"></textarea>
+        </div>
+        <div class="actions" style="margin-bottom:0.5rem">
+          <button type="button" id="btnFromPaste" class="small">Find JIRAs &amp; generate report</button>
+          <span id="fromPasteResult" class="config-result" role="status" aria-live="polite"></span>
+        </div>
+        <div id="fromPasteReport" style="display:none; margin-top:0.75rem; padding:0.75rem; background:var(--rh-surface); border:1px solid var(--rh-border); border-radius:6px; max-height:320px; overflow:auto">
+          <div id="fromPasteMessage" style="font-size:0.9rem; margin-bottom:0.5rem"></div>
+          <pre id="fromPasteMarkdown" style="margin:0; font-size:0.8rem; white-space:pre-wrap; word-break:break-word"></pre>
+        </div>
+      </div>
+      <div class="config-section" style="margin-top:1.25rem">
         <h3 style="font-size:1rem; margin-bottom:0.35rem">Configured accounts</h3>
         <p class="setting-blurb" style="margin-bottom:0.5rem">Add customer accounts (name and Red Hat account number(s)). One report can include <strong>multiple account numbers</strong> for the same customer (e.g. when one TAM manages several accounts for the same product). Enter numbers comma-separated. <strong>SBR Group</strong> filters which cases appear. Stored in <code>~/.config/taminator/accounts.json</code>.</p>
         <div id="accountsListContainer" style="margin-bottom:0.75rem">
@@ -530,8 +546,7 @@
       <div class="status-indicators" aria-live="polite" role="status" aria-label="Connection and token status">
         <span class="indicator" data-token="vpn" title="Red Hat VPN."><span class="dot pending" aria-hidden="true"></span><span>VPN</span><span class="status-text">Checking…</span></span>
         <span class="indicator" data-token="jira" title="JIRA token."><span class="dot pending" aria-hidden="true"></span><span>JIRA</span><span class="status-text">Checking…</span></span>
-        <span class="indicator" data-token="portal" title="Portal token."><span class="dot pending" aria-hidden="true"></span><span>Portal</span><span class="status-text">Checking…</span></span>
-        <span class="indicator" data-token="hydra" title="Hydra: Portal token or username/password in env."><span class="dot pending" aria-hidden="true"></span><span>Hydra</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="portal" title="Customer Portal token (posting and Hydra case discovery)."><span class="dot pending" aria-hidden="true"></span><span>Portal (Portal & Hydra)</span><span class="status-text">Checking…</span></span>
         <span class="indicator" data-token="google" title="Google Drive/Docs."><span class="dot pending" aria-hidden="true"></span><span>Google</span><span class="status-text">Checking…</span></span>
       </div>
       <h2 style="font-size:1.1rem; margin-top:0">Report library</h2>
@@ -578,8 +593,7 @@
       <div class="status-indicators" aria-live="polite" role="status" aria-label="Connection and token status">
         <span class="indicator" data-token="vpn" title="Red Hat VPN."><span class="dot pending" aria-hidden="true"></span><span>VPN</span><span class="status-text">Checking…</span></span>
         <span class="indicator" data-token="jira" title="JIRA token."><span class="dot pending" aria-hidden="true"></span><span>JIRA</span><span class="status-text">Checking…</span></span>
-        <span class="indicator" data-token="portal" title="Portal token."><span class="dot pending" aria-hidden="true"></span><span>Portal</span><span class="status-text">Checking…</span></span>
-        <span class="indicator" data-token="hydra" title="Hydra: Portal token or username/password in env."><span class="dot pending" aria-hidden="true"></span><span>Hydra</span><span class="status-text">Checking…</span></span>
+        <span class="indicator" data-token="portal" title="Customer Portal token (posting and Hydra case discovery)."><span class="dot pending" aria-hidden="true"></span><span>Portal (Portal & Hydra)</span><span class="status-text">Checking…</span></span>
         <span class="indicator" data-token="google" title="Google Drive/Docs."><span class="dot pending" aria-hidden="true"></span><span>Google</span><span class="status-text">Checking…</span></span>
       </div>
       <h2 style="font-size:1.1rem; margin-top:0">VPN and tokens</h2>
@@ -629,13 +643,13 @@
           </div>
         </div>
         <div class="token-row">
-          <label class="token-label" for="tokenPortal">Red Hat Customer Portal</label>
-          <input type="password" id="tokenPortal" placeholder="Paste token" autocomplete="off" data-type="portal" title="Portal API token." aria-describedby="blurbPortal">
+          <label class="token-label" for="tokenPortal">Red Hat Customer Portal (Portal & Hydra)</label>
+          <input type="password" id="tokenPortal" placeholder="Paste token" autocomplete="off" data-type="portal" title="Portal API token; also used for Hydra case discovery." aria-describedby="blurbPortal">
           <button type="button" class="token-save secondary small" data-type="portal">Save</button>
           <span class="token-result" id="resultPortal"></span>
         </div>
         <div class="config-section" style="margin-top:0.75rem">
-          <p class="subtitle" style="margin-bottom:0.35rem"><strong>Hydra basic auth (save locally)</strong></p>
+          <p class="subtitle" style="margin-bottom:0.35rem"><strong>Optional: Red Hat username/password (alternative to Portal token for Hydra)</strong></p>
           <div class="token-row" style="margin-bottom:0.5rem">
             <label class="token-label" for="hydraUsername">Red Hat username</label>
             <input type="text" id="hydraUsername" placeholder="" autocomplete="username" data-hydra="username" style="min-width:220px" title="Red Hat / Customer Portal login (saved in ~/.config/taminator/ui_tokens.json)">
@@ -797,6 +811,26 @@
       setLayout(mode === "wide" ? "wide" : (mode === "full" ? "full" : "default"));
     }
     initLayout();
+    function setVersion(v) {
+      var el = document.getElementById("appVersion");
+      if (el) el.textContent = "Version " + (v || "—");
+    }
+    function fetchVersion(retries) {
+      retries = retries != null ? retries : 2;
+      fetch("/api/version").then(function (r) {
+        if (!r.ok) throw new Error("version not ok");
+        return r.json();
+      }).then(function (d) {
+        setVersion(d && d.version ? d.version : "—");
+      }).catch(function () {
+        if (retries > 0) {
+          setTimeout(function () { fetchVersion(retries - 1); }, 800);
+        } else {
+          setVersion("—");
+        }
+      });
+    }
+    fetchVersion();
     document.getElementById("layoutDefault").addEventListener("click", function () { setLayout("default"); });
     document.getElementById("layoutWide").addEventListener("click", function () { setLayout("wide"); });
     document.getElementById("layoutFull").addEventListener("click", function () { setLayout("full"); });
@@ -1435,6 +1469,54 @@
           .catch(function (err) {
             buildReportResult.textContent = err.message || "Request failed.";
             buildReportResult.style.color = "var(--rh-error-text)";
+          });
+      });
+    }
+    var btnFromPaste = document.getElementById("btnFromPaste");
+    var fromPasteCaseList = document.getElementById("fromPasteCaseList");
+    var fromPasteResult = document.getElementById("fromPasteResult");
+    var fromPasteReport = document.getElementById("fromPasteReport");
+    var fromPasteMessage = document.getElementById("fromPasteMessage");
+    var fromPasteMarkdown = document.getElementById("fromPasteMarkdown");
+    if (btnFromPaste && fromPasteResult) {
+      btnFromPaste.addEventListener("click", function () {
+        var pasted = (fromPasteCaseList && fromPasteCaseList.value) ? fromPasteCaseList.value.trim() : "";
+        if (!pasted) {
+          fromPasteResult.textContent = "Paste case numbers or a case list first.";
+          fromPasteResult.style.color = "var(--rh-error-text)";
+          if (fromPasteReport) fromPasteReport.style.display = "none";
+          return;
+        }
+        fromPasteResult.textContent = "Looking up cases and JIRAs…";
+        fromPasteResult.style.color = "var(--rh-text-muted)";
+        if (fromPasteReport) fromPasteReport.style.display = "none";
+        fetch("/api/cases/from-paste", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pasted: pasted })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.ok) {
+              fromPasteResult.textContent = data.message || "Done.";
+              fromPasteResult.style.color = "var(--rh-success-text)";
+              if (fromPasteReport && fromPasteMessage && fromPasteMarkdown) {
+                fromPasteReport.style.display = "block";
+                var msg = "Found " + (data.cases && data.cases.length) + " case(s).";
+                if (data.accounts_ensured && data.accounts_ensured.length) msg += " Added/updated " + data.accounts_ensured.length + " account(s): " + (data.accounts_ensured.map(function (a) { return a.customer_name || a.id; }).join(", ")) + ".";
+                fromPasteMessage.textContent = msg;
+                fromPasteMarkdown.textContent = data.report_markdown || "";
+                loadReportAccountTiles();
+                loadAccounts();
+              }
+            } else {
+              fromPasteResult.textContent = (data && data.error) || "Request failed.";
+              fromPasteResult.style.color = "var(--rh-error-text)";
+            }
+          })
+          .catch(function (err) {
+            fromPasteResult.textContent = err.message || "Request failed.";
+            fromPasteResult.style.color = "var(--rh-error-text)";
           });
       });
     }
