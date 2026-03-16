@@ -1,0 +1,159 @@
+---
+# Taminator build & release — Ansible-driven (macOS + Linux only, no Windows).
+# Uses taminator/taminator/ansible playbooks so builds stay aligned with local pipeline.
+# Trigger: push tag v*.*.* or workflow_dispatch.
+
+name: Electron Build & Release (Ansible)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: Linux
+            runner: ubuntu-latest
+            playbook: taminator/taminator/ansible/playbooks/build-linux.yml
+            artifact_pattern: 'taminator/taminator/gui/dist/*.AppImage'
+          - os: macOS
+            runner: macos-latest
+            playbook: taminator/taminator/ansible/playbooks/build-mac.yml
+            artifact_pattern: 'taminator/taminator/gui/dist/*.dmg'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Run Ansible playbook (${{ matrix.os }})
+        run: |
+          ansible-playbook -i taminator/taminator/ansible/inventory-build.yml ${{ matrix.playbook }}
+
+      - name: List dist directory
+        working-directory: taminator/taminator/gui
+        run: ls -la dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-${{ matrix.os }}-${{ github.ref_name }}
+          path: ${{ matrix.artifact_pattern }}
+          retention-days: 30
+
+  build-linux-arm64:
+    name: Build Linux ARM64 (AppImage)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure build icon for inner gui
+        run: |
+          if [ ! -f taminator/gui/build/icon.png ]; then
+            echo "::error::Missing taminator/gui/build/icon.png"
+            exit 1
+          fi
+          mkdir -p taminator/taminator/gui/build
+          cp taminator/gui/build/icon.png taminator/taminator/gui/build/icon.png
+      - uses: uraimo/run-on-arch-action@v3
+        name: Build AppImage on aarch64
+        with:
+          arch: aarch64
+          distro: ubuntu20.04
+          setup: |
+            mkdir -p "${PWD}/arm64-artifacts"
+          dockerRunArgs: |
+            --volume "${PWD}:/workspace"
+            --volume "${PWD}/arm64-artifacts:/artifacts"
+          install: |
+            apt-get update -qq
+            apt-get install -qq -y curl ca-certificates
+            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+            apt-get install -qq -y nodejs
+            apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
+          run: |
+            set -e
+            cd /workspace/taminator/taminator/gui
+            npm config set fetch-retries 5
+            npm config set fetch-timeout 300000
+            npm config set fetch-retry-mintimeout 20000
+            npm ci
+            npx electron-builder --linux AppImage --publish never
+            cp -v dist/*.AppImage /artifacts/ 2>/dev/null || true
+            ls -la /artifacts/
+      - name: Upload Linux ARM64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-Linux-arm64-${{ github.ref_name }}
+          path: arm64-artifacts/*.AppImage
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: [build, build-linux-arm64]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: List artifacts
+        run: find artifacts/ -type f
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Read release notes
+        id: release_notes
+        run: |
+          if [ -f "v${{ steps.version.outputs.version }}-release-notes.md" ]; then
+            echo "notes_file=v${{ steps.version.outputs.version }}-release-notes.md" >> $GITHUB_OUTPUT
+          else
+            echo "notes_file=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Taminator v${{ steps.version.outputs.version }}
+          body_path: ${{ steps.release_notes.outputs.notes_file }}
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/**/*.AppImage
+            artifacts/**/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release Summary
+        run: |
+          echo "✅ Release created successfully!"
+          echo "🔗 https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          find artifacts/ -type f -exec basename {} \;

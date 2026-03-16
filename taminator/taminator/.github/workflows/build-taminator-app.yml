@@ -1,0 +1,94 @@
+# GitHub Actions: Build Taminator for Linux and macOS
+# Use in: https://github.com/thebyrdman-git/taminator-ci
+#
+# When you sync this taminator/ tree to the root of taminator-ci, this file
+# is already at .github/workflows/build-taminator-app.yml.
+# Repo layout at root: gui/, web/, web_server.py, tam-rfe, src/, etc.
+# After a run, download artifacts from the Actions tab and share with testers.
+
+name: Build Taminator (Linux + macOS)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Linux (AppImage)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Ensure python-bundle exists
+        run: |
+          if [ -f scripts/bundle-python-deps.sh ] && [ -f requirements-bundle.txt ]; then
+            chmod +x scripts/bundle-python-deps.sh
+            ./scripts/bundle-python-deps.sh || true
+          fi
+          if [ ! -d python-bundle ]; then
+            mkdir -p python-bundle/bin
+            echo "Using empty python-bundle (app will use system Python if available)"
+          fi
+
+      - name: Install dependencies
+        working-directory: gui
+        run: npm ci
+
+      - name: Build Linux (AppImage)
+        working-directory: gui
+        run: npm run build:linux
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-linux-x64
+          path: |
+            gui/dist/*.AppImage
+            gui/dist/*.deb
+            gui/dist/*.rpm
+          retention-days: 30
+
+  build-mac:
+    name: macOS (DMG)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Ensure python-bundle exists
+        run: |
+          if [ -f scripts/bundle-python-deps.sh ] && [ -f requirements-bundle.txt ]; then
+            chmod +x scripts/bundle-python-deps.sh
+            ./scripts/bundle-python-deps.sh || true
+          fi
+          if [ ! -d python-bundle ]; then
+            mkdir -p python-bundle/bin
+            echo "Using empty python-bundle (app will use system Python if available)"
+          fi
+
+      - name: Install dependencies
+        working-directory: gui
+        run: npm ci
+
+      - name: Build macOS (DMG)
+        working-directory: gui
+        run: npm run build:mac
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-macos
+          path: gui/dist/*.dmg
+          retention-days: 30

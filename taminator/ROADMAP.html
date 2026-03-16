@@ -1,0 +1,54 @@
+<h1>Taminator Roadmap</h1>
+<p>Taminator is by TAMs, for TAMs. Roadmap items are driven by TAM feedback; suggestions are welcome and will be evaluated. If your organization has the roadmap on GitLab, a link may appear at the bottom of this page.</p>
+<hr>
+
+<h2>New features</h2>
+<p>This section describes new features and enhancements recently added to Taminator.</p>
+<ul>
+  <li><strong>Report formats</strong> — Reports can be generated and exported as Markdown, HTML, plain text, and CSV (e.g. for Google Sheets). Format is selectable in Report Manager when building or customizing the template; Check/Update produces the report in the chosen format. CSV columns align with the report table (case, summary, status, JIRA link).</li>
+  <li><strong>Roadmap in app</strong> — This roadmap is shown inside the app via the <strong>Roadmap</strong> item in the top nav. An optional link to the roadmap on GitLab can appear at the bottom of this page if configured for your environment.</li>
+  <li><strong>Gmail draft</strong> — From Check/Update Reports (after running Check or Update) and from Library (per-report actions), a <strong>Create Gmail draft</strong> button sends the current report body to Gmail as a new draft. The body is converted from markdown to HTML with Google Docs–style inline formatting (Arial, heading sizes, list indentation) so it looks like content pasted from Docs, not raw markdown. Requires Google connected in Settings (same OAuth as Drive/Docs).</li>
+  <li><strong>Google Drive &amp; Docs</strong> — In Settings, one-time setup: add a Google Cloud Client ID and Secret, then click <strong>Connect Google</strong> to complete OAuth. After that, from Check/Update Reports and Library you can open the current report as a new Google Doc, and use <strong>Back up to Google Drive</strong> to upload all report files to a new folder. Credentials are stored in <code>~/.config/taminator/</code>; the User Guide has step-by-step instructions for obtaining the Client ID and Secret.</li>
+  <li><strong>Trimmed UI copy</strong> — Report Manager, Check/Update Reports, Library, and Settings panels show only short introductory text and action buttons. Long instructions (e.g. how to get tokens, how to set env vars, how to get a Google Client ID) were moved to the User Guide. Each panel includes “See User Guide: [section]” links that open the User Guide panel and scroll to the relevant section.</li>
+  <li><strong>User Guide</strong> — One in-app panel (User Guide in the nav) holds all extended documentation. It is built from the repo’s user-guide markdown (e.g. <code>USER-GUIDE.md</code> or README + GETTING-STARTED). Other panels link to it using <code>#guide-&lt;section-id&gt;</code> so the guide opens and scrolls to the right heading. Keeps the UI minimal while keeping full instructions one click away.</li>
+  <li><strong>Refresh behavior</strong> — The app uses the URL hash (e.g. <code>#reports</code>, <code>#config</code>, <code>#roadmap</code>) to remember the current panel. When you refresh the browser (F5 or reload), the same panel is shown again instead of resetting to the default. Hash is updated when you switch panels via the nav.</li>
+  <li><strong>Red Hat look and feel</strong> — The entire UI uses Red Hat design tokens (brand red, canvas, text, borders, success/error states). Links are styled with Red Hat red, not blue. Buttons, nav, cards, and status indicators use the same palette. Gmail draft bodies use Docs-style inline styles (font family, sizes, margins) so emails match the look of content copied from Google Docs into Gmail.</li>
+</ul>
+<hr>
+
+<h2>Near term</h2>
+<ul>
+  <li><strong>JIRA watchers and clones</strong> — Track watchers and clone/backport links <a href="docs/RFE-JIRA-WATCHERS-AND-CLONES.md">docs/RFE-JIRA-WATCHERS-AND-CLONES.md</a>.</li>
+  <li><strong>Slack feedback bot</strong> — Optional bot to collect feedback in Slack (idea doc).</li>
+  <li><strong>JIRA Cloud integration</strong> — Support JIRA Cloud (e.g. <code>*.atlassian.net</code>) alongside Red Hat JIRA (issues.redhat.com). See <a href="docs/JIRA_CLOUD_INTEGRATION.md">JIRA Cloud integration plan</a>.</li>
+</ul>
+<hr>
+
+<h2>JIRA Cloud integration (plan)</h2>
+<p><strong>Goal:</strong> Let Taminator work with JIRA Cloud instances (e.g. customer or partner Atlassian sites) in addition to Red Hat’s JIRA (issues.redhat.com).</p>
+<p><strong>Current state:</strong> The app is built for Red Hat JIRA only: base URL <code>https://issues.redhat.com/rest/api/2</code>, Bearer token auth, used for check/update (issue status) and report generation.</p>
+<p><strong>Planned approach:</strong></p>
+<ol>
+  <li><strong>Configurable JIRA base URL</strong><br>
+    Add a setting (e.g. in Settings or <code>~/.config/taminator</code>) for “JIRA URL” (default: <code>https://issues.redhat.com</code>). For JIRA Cloud, user sets e.g. <code>https://yourcompany.atlassian.net</code>. API path remains <code>/rest/api/2</code> (or configurable <code>/rest/api/3</code> if needed).</li>
+  <li><strong>Auth for JIRA Cloud</strong><br>
+    Red Hat JIRA: keep current Bearer token (Personal Access Token). JIRA Cloud: use <a href="https://id.atlassian.com/manage-profile/security/api-tokens">Atlassian API token</a> (email + API token). Optional: store “JIRA type” (redhat | cloud) or infer from URL (<code>*.atlassian.net</code> → Cloud). For Cloud, UI/CLI collects email + API token; for Red Hat, keep existing token flow.</li>
+  <li><strong>API compatibility</strong><br>
+    Use same REST endpoints where possible: <code>/rest/api/2/issue/{key}</code>, fields <code>status</code>, <code>summary</code>, <code>assignee</code>, <code>updated</code>. JIRA Cloud’s REST API is largely compatible; any field or path differences handled with small conditionals or a thin adapter.</li>
+  <li><strong>Browse links</strong><br>
+    Today: <code>https://issues.redhat.com/browse/{id}</code>. For Cloud: <code>https://&lt;tenant&gt;.atlassian.net/browse/{id}</code>. Generate from configured base URL.</li>
+  <li><strong>Phasing</strong><br>
+    <strong>Phase A:</strong> Add configurable base URL + browse link generation (no new auth yet); keep Red Hat token.<br>
+    <strong>Phase B:</strong> Add JIRA Cloud auth (email + API token) in Settings and CLI; when URL is Cloud, use that auth. Same check/update and report flow.<br>
+    <strong>Phase C:</strong> Any extra Cloud-only features (e.g. Cloud-specific fields or permissions) as needed.</li>
+</ol>
+<p><strong>Out of scope for initial plan:</strong> OAuth 2.0 for JIRA Cloud (optional later); multiple JIRA instances in one run.</p>
+<p>Detailed steps, env vars, and file changes are in <a href="docs/JIRA_CLOUD_INTEGRATION.md">docs/JIRA_CLOUD_INTEGRATION.md</a>.</p>
+<hr>
+
+<h2>Future ideas</h2>
+<ul>
+  <li><strong>Additional integrations</strong> — Considered as TAMs suggest them.</li>
+</ul>
+<hr>
+<p><em>Last updated: 2026. This file lives in the repo; update it as plans change.</em></p>

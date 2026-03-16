@@ -1,0 +1,39 @@
+---
+# Taminator Electron build pipeline - single source of truth for paths and versions.
+# Used by Ansible playbooks and should align with .github/workflows/electron-build.yml.
+
+# Repo layout (relative to repo root)
+gui_path: "taminator/taminator/gui"
+icon_source: "taminator/gui/build/icon.png"
+icon_dest: "taminator/taminator/gui/build/icon.png"
+
+# Node and npm
+node_version: "20"
+npm_ci_retries: 3
+npm_ci_retry_delay_sec: 30
+
+# electron-builder targets and artifact patterns (for CI artifact upload)
+build_targets:
+  mac:
+    builder_arg: "mac"
+    artifact_pattern: "taminator/taminator/gui/dist/*.dmg"
+    runner: macos-latest
+  linux:
+    builder_arg: "linux"
+    artifact_pattern: "taminator/taminator/gui/dist/*.AppImage"
+    runner: ubuntu-latest
+  linux_arm64:
+    builder_arg: "linux"
+    builder_extra: "--arm64"
+    artifact_pattern: "arm64-artifacts/*.AppImage"
+    runner: ubuntu-24.04
+  win:
+    builder_arg: "win"
+    artifact_pattern: "taminator/taminator/gui/dist/*.exe"
+    runner: windows-latest
+
+# Cache paths (for CI)
+cache_paths:
+  - "~/.cache/electron"
+  - "~/.cache/electron-builder"
+  - "{{ gui_path }}/node_modules/electron"

@@ -1,0 +1,43 @@
+---
+# Build Taminator Electron app for macOS (DMG).
+# Single source of truth for local Mac build; aligns with .github/workflows/electron-build.yml.
+# Optionally runs content sync first so version, USER-GUIDE, and icon stay consistent.
+#
+# Run from repo root (parent of taminator/):
+#   ansible-playbook -i inventory-build.yml taminator/ansible/playbooks/build-mac.yml
+# Or from taminator/taminator/ansible/:
+#   ansible-playbook -i inventory-build.yml playbooks/build-mac.yml
+# Skip content sync (use existing files only):
+#   ansible-playbook -i inventory-build.yml playbooks/build-mac.yml -e sync_content_before_build=false
+
+- name: Taminator build (macOS)
+  hosts: localhost
+  gather_facts: true
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    build_platform: mac
+    sync_content_before_build: true
+  vars_files:
+    - "{{ playbook_dir }}/../vars/build-pipeline.yml"
+    - "{{ playbook_dir }}/../vars/content-consistency.yml"
+  tasks:
+    - name: Sync content before build (version, USER-GUIDE, icon)
+      include_role:
+        name: ../roles/taminator_content_sync
+        apply:
+          vars:
+            repo_root: "{{ repo_root }}"
+      when: sync_content_before_build | default(true) | bool
+      tags:
+        - sync
+
+    - name: Run build
+      include_role:
+        name: ../roles/taminator_build
+        apply:
+          vars:
+            repo_root: "{{ repo_root }}"
+            build_platform: "{{ build_platform }}"
+            npm_ci_retries: 3
+      tags:
+        - build

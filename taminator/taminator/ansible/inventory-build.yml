@@ -1,0 +1,8 @@
+---
+# Inventory for Taminator build pipeline (localhost only).
+# Use: ansible-playbook -i inventory-build.yml playbooks/build-mac.yml
+all:
+  hosts:
+    localhost:
+      ansible_connection: local
+      ansible_python_interpreter: auto

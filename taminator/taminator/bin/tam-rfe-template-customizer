@@ -1,0 +1,729 @@
+#!/bin/bash
+
+# TAM RFE Template Customizer - Personalized Report Template Builder
+# Encourages TAMs to customize templates to fit their specific needs
+
+set -euo pipefail
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+TEMPLATE_DIR="$PROJECT_ROOT/templates"
+CUSTOM_TEMPLATE_DIR="$PROJECT_ROOT/custom-templates"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Functions
+print_header() {
+    echo -e "${CYAN}"
+    echo "🎨 TAM RFE TEMPLATE CUSTOMIZER - Personalized Report Builder"
+    echo "============================================================"
+    echo -e "${NC}"
+    echo "📅 Started: $(date)"
+    echo "🎯 Mission: Help you create personalized report templates that fit your style"
+    echo "💡 Philosophy: Every TAM has unique needs - customize to make it yours!"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_ai_response() {
+    echo -e "${CYAN}🤖 TAM Automation Assistant: $1${NC}"
+}
+
+print_user_prompt() {
+    echo -e "${YELLOW}👤 Your choice: ${NC}"
+}
+
+# Template customization functions
+show_template_philosophy() {
+    print_section "🎨 TEMPLATE CUSTOMIZATION PHILOSOPHY"
+    
+    print_ai_response "Every TAM has unique needs and preferences. Let's create templates that work perfectly for YOU!"
+    echo ""
+    
+    echo "🎯 Why Customize Templates?"
+    echo "   • Your customers have different needs and expectations"
+    echo "   • Your management may prefer specific formats or styles"
+    echo "   • Your workflow might benefit from different information layouts"
+    echo "   • Your personal style and preferences matter"
+    echo "   • Custom templates make reports more effective and professional"
+    echo ""
+    
+    echo "💡 Customization Benefits:"
+    echo "   • More effective communication with your customers"
+    echo "   • Better alignment with your team's standards"
+    echo "   • Improved efficiency in your workflow"
+    echo "   • Professional appearance that reflects your style"
+    echo "   • Templates that grow and adapt with your needs"
+    echo ""
+    
+    print_ai_response "Ready to create templates that are uniquely yours? Let's get started!"
+    echo ""
+}
+
+show_template_options() {
+    print_section "📋 TEMPLATE CUSTOMIZATION OPTIONS"
+    
+    print_ai_response "Here are the ways you can customize your report templates:"
+    echo ""
+    
+    echo "🎨 Visual Customization:"
+    echo "   [1] Header & Title Style - Customize report headers and titles"
+    echo "   [2] Table Formatting - Adjust table styles and layouts"
+    echo "   [3] Color Scheme - Choose colors that match your brand"
+    echo "   [4] Font & Typography - Select fonts and text styles"
+    echo ""
+    
+    echo "📊 Content Customization:"
+    echo "   [5] Section Order - Rearrange report sections"
+    echo "   [6] Information Density - Choose detailed vs. summary format"
+    echo "   [7] Custom Fields - Add your own data fields"
+    echo "   [8] Executive Summary - Add executive summary section"
+    echo ""
+    
+    echo "🔧 Functional Customization:"
+    echo "   [9] Customer-Specific Templates - Different templates per customer"
+    echo "   [10] Report Type Templates - Separate templates for RFE vs Bug reports"
+    echo "   [11] Meeting Templates - Special templates for customer meetings"
+    echo "   [12] Status Templates - Templates for different case statuses"
+    echo ""
+    
+    echo "💼 Professional Customization:"
+    echo "   [13] Company Branding - Add your company logo and branding"
+    echo "   [14] Contact Information - Include your contact details"
+    echo "   [15] Legal Disclaimers - Add required legal text"
+    echo "   [16] Footer Information - Customize footer content"
+    echo ""
+    
+    echo "👀 Template Examples:"
+    echo "   [17] View Active Case Report Examples - See 2 different styles"
+    echo "   [18] View RFE/Bug Tracker Report Examples - See 2 different styles"
+    echo "   [19] View All Examples - Browse all template examples"
+    echo ""
+    
+    print_user_prompt
+    read -r customization_choice
+    
+    case "$customization_choice" in
+        1) customize_header_style ;;
+        2) customize_table_formatting ;;
+        3) customize_color_scheme ;;
+        4) customize_font_typography ;;
+        5) customize_section_order ;;
+        6) customize_information_density ;;
+        7) customize_custom_fields ;;
+        8) customize_executive_summary ;;
+        9) customize_customer_specific ;;
+        10) customize_report_type ;;
+        11) customize_meeting_templates ;;
+        12) customize_status_templates ;;
+        13) customize_company_branding ;;
+        14) customize_contact_info ;;
+        15) customize_legal_disclaimers ;;
+        16) customize_footer_info ;;
+        *) print_error "Invalid choice. Please select a valid option." ;;
+    esac
+}
+
+customize_header_style() {
+    print_section "🎨 HEADER & TITLE STYLE CUSTOMIZATION"
+    
+    print_ai_response "Let's customize your report headers and titles to match your style!"
+    echo ""
+    
+    echo "📋 Header Style Options:"
+    echo "   [1] Professional Corporate - Clean, formal headers"
+    echo "   [2] Technical Detailed - Comprehensive technical headers"
+    echo "   [3] Executive Summary - High-level executive headers"
+    echo "   [4] Customer-Friendly - Warm, approachable headers"
+    echo "   [5] Custom Design - Create your own header style"
+    echo ""
+    
+    print_user_prompt
+    read -r header_choice
+    
+    case "$header_choice" in
+        1)
+            print_info "Creating professional corporate header style..."
+            create_professional_header
+            ;;
+        2)
+            print_info "Creating technical detailed header style..."
+            create_technical_header
+            ;;
+        3)
+            print_info "Creating executive summary header style..."
+            create_executive_header
+            ;;
+        4)
+            print_info "Creating customer-friendly header style..."
+            create_customer_friendly_header
+            ;;
+        5)
+            print_info "Let's create a custom header style..."
+            create_custom_header
+            ;;
+        *)
+            print_error "Invalid choice."
+            ;;
+    esac
+}
+
+create_professional_header() {
+    local template_file="$CUSTOM_TEMPLATE_DIR/professional-header-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    cat > "$template_file" <<'EOF'
+# {{customer_name}} - RFE/Bug Tracker Report
+## Professional Case Management Summary
+
+**Report Period**: {{report_date}}  
+**Generated By**: {{tam_name}}  
+**Account Number**: {{account_number}}  
+**Group ID**: {{group_id}}
+
+---
+
+## Executive Summary
+This report provides a comprehensive overview of all active RFE and Bug cases for {{customer_name}}, including current status, priorities, and resolution timelines.
+
+EOF
+    
+    print_success "Professional header template created: $template_file"
+    print_info "This template features clean, corporate styling with executive summary section."
+}
+
+create_technical_header() {
+    local template_file="$CUSTOM_TEMPLATE_DIR/technical-header-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    cat > "$template_file" <<'EOF'
+# {{customer_name}} - Technical RFE/Bug Tracker Report
+## Comprehensive Case Analysis & Status
+
+**Report Generated**: {{report_date}} at {{report_time}}  
+**TAM**: {{tam_name}} ({{tam_email}})  
+**Customer Account**: {{account_number}}  
+**Portal Group**: {{group_id}}  
+**SBR Groups**: {{sbr_groups}}  
+**Case Discovery Method**: rhcase automated discovery  
+**Report Version**: {{report_version}}
+
+---
+
+## Technical Overview
+This detailed technical report provides comprehensive analysis of all RFE and Bug cases, including technical details, resolution paths, and implementation status.
+
+EOF
+    
+    print_success "Technical header template created: $template_file"
+    print_info "This template includes comprehensive technical details and metadata."
+}
+
+create_executive_header() {
+    local template_file="$CUSTOM_TEMPLATE_DIR/executive-header-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    cat > "$template_file" <<'EOF'
+# {{customer_name}} - Executive RFE/Bug Status Report
+## High-Level Case Management Overview
+
+**Date**: {{report_date}}  
+**Prepared for**: {{customer_name}} Leadership  
+**Prepared by**: {{tam_name}}, Red Hat TAM
+
+---
+
+## Executive Summary
+This executive report provides a high-level overview of RFE and Bug case status, focusing on business impact, resolution timelines, and strategic recommendations.
+
+EOF
+    
+    print_success "Executive header template created: $template_file"
+    print_info "This template is designed for executive audiences with high-level focus."
+}
+
+create_customer_friendly_header() {
+    local template_file="$CUSTOM_TEMPLATE_DIR/customer-friendly-header-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    cat > "$template_file" <<'EOF'
+# {{customer_name}} - Your RFE/Bug Case Update
+## Current Status & Progress Report
+
+**Hello {{customer_name}} Team!**  
+**Report Date**: {{report_date}}  
+**Your Red Hat TAM**: {{tam_name}}
+
+---
+
+## Welcome Message
+Thank you for your partnership with Red Hat! This report provides an update on all your active RFE and Bug cases, so you can stay informed about the progress we're making together.
+
+EOF
+    
+    print_success "Customer-friendly header template created: $template_file"
+    print_info "This template uses warm, approachable language for customer communication."
+}
+
+create_custom_header() {
+    print_ai_response "Let's create a custom header style that's uniquely yours!"
+    echo ""
+    
+    echo "📝 Custom Header Questions:"
+    echo ""
+    
+    print_ai_response "What should the main title be? (e.g., 'RFE/Bug Tracker Report', 'Case Status Update', 'Technical Summary')"
+    print_user_prompt
+    read -r custom_title
+    
+    print_ai_response "What subtitle or description would you like?"
+    print_user_prompt
+    read -r custom_subtitle
+    
+    print_ai_response "What information should appear in the header? (e.g., date, TAM name, account number, group ID)"
+    print_user_prompt
+    read -r custom_header_info
+    
+    print_ai_response "What tone would you like? (e.g., professional, technical, friendly, executive)"
+    print_user_prompt
+    read -r custom_tone
+    
+    # Create custom template
+    local template_file="$CUSTOM_TEMPLATE_DIR/custom-header-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    cat > "$template_file" <<EOF
+# $custom_title
+## $custom_subtitle
+
+**$custom_header_info**
+
+---
+
+## Introduction
+This report provides a $custom_tone overview of your RFE and Bug cases.
+
+EOF
+    
+    print_success "Custom header template created: $template_file"
+    print_info "Your personalized header template is ready to use!"
+}
+
+customize_table_formatting() {
+    print_section "📊 TABLE FORMATTING CUSTOMIZATION"
+    
+    print_ai_response "Let's customize your table formatting to match your preferences!"
+    echo ""
+    
+    echo "📋 Table Style Options:"
+    echo "   [1] Compact Tables - Minimal spacing, more data per page"
+    echo "   [2] Spacious Tables - More white space, easier to read"
+    echo "   [3] Detailed Tables - More columns with additional information"
+    echo "   [4] Summary Tables - Fewer columns, key information only"
+    echo "   [5] Custom Table Design - Create your own table style"
+    echo ""
+    
+    print_user_prompt
+    read -r table_choice
+    
+    case "$table_choice" in
+        1) create_compact_tables ;;
+        2) create_spacious_tables ;;
+        3) create_detailed_tables ;;
+        4) create_summary_tables ;;
+        5) create_custom_tables ;;
+        *) print_error "Invalid choice." ;;
+    esac
+}
+
+create_compact_tables() {
+    local template_file="$CUSTOM_TEMPLATE_DIR/compact-tables-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    cat > "$template_file" <<'EOF'
+## Active RFE Cases
+| Case | Summary | Status | SBR | Created | Priority |
+|------|---------|--------|-----|---------|----------|
+{{#active_rfe_cases}}
+| {{case_number}} | {{summary}} | {{status}} | {{sbr_group}} | {{created_date}} | {{priority}} |
+{{/active_rfe_cases}}
+
+## Active Bug Cases
+| Case | Summary | Status | SBR | Created | Priority |
+|------|---------|--------|-----|---------|----------|
+{{#active_bug_cases}}
+| {{case_number}} | {{summary}} | {{status}} | {{sbr_group}} | {{created_date}} | {{priority}} |
+{{/active_bug_cases}}
+EOF
+    
+    print_success "Compact tables template created: $template_file"
+    print_info "This template uses minimal spacing for maximum data density."
+}
+
+create_spacious_tables() {
+    local template_file="$CUSTOM_TEMPLATE_DIR/spacious-tables-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    cat > "$template_file" <<'EOF'
+## Active RFE Cases
+
+| Case Number | Summary | Status | SBR Group | Created Date | Priority |
+|-------------|---------|--------|-----------|--------------|----------|
+{{#active_rfe_cases}}
+| {{case_number}} | {{summary}} | {{status}} | {{sbr_group}} | {{created_date}} | {{priority}} |
+{{/active_rfe_cases}}
+
+---
+
+## Active Bug Cases
+
+| Case Number | Summary | Status | SBR Group | Created Date | Priority |
+|-------------|---------|--------|-----------|--------------|----------|
+{{#active_bug_cases}}
+| {{case_number}} | {{summary}} | {{status}} | {{sbr_group}} | {{created_date}} | {{priority}} |
+{{/active_bug_cases}}
+EOF
+    
+    print_success "Spacious tables template created: $template_file"
+    print_info "This template uses more white space for easier reading."
+}
+
+create_detailed_tables() {
+    local template_file="$CUSTOM_TEMPLATE_DIR/detailed-tables-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    cat > "$template_file" <<'EOF'
+## Active RFE Cases - Detailed View
+
+| Case Number | Summary | Status | SBR Group | Created | Updated | Priority | Assigned To | Estimated Resolution |
+|-------------|---------|--------|-----------|---------|---------|----------|-------------|---------------------|
+{{#active_rfe_cases}}
+| {{case_number}} | {{summary}} | {{status}} | {{sbr_group}} | {{created_date}} | {{updated_date}} | {{priority}} | {{assigned_to}} | {{estimated_resolution}} |
+{{/active_rfe_cases}}
+
+## Active Bug Cases - Detailed View
+
+| Case Number | Summary | Status | SBR Group | Created | Updated | Priority | Assigned To | Estimated Resolution |
+|-------------|---------|--------|-----------|---------|---------|----------|-------------|---------------------|
+{{#active_bug_cases}}
+| {{case_number}} | {{summary}} | {{status}} | {{sbr_group}} | {{created_date}} | {{updated_date}} | {{priority}} | {{assigned_to}} | {{estimated_resolution}} |
+{{/active_bug_cases}}
+EOF
+    
+    print_success "Detailed tables template created: $template_file"
+    print_info "This template includes comprehensive case information."
+}
+
+create_summary_tables() {
+    local template_file="$CUSTOM_TEMPLATE_DIR/summary-tables-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    cat > "$template_file" <<'EOF'
+## Active RFE Cases - Summary
+| Case | Summary | Status |
+|------|---------|--------|
+{{#active_rfe_cases}}
+| {{case_number}} | {{summary}} | {{status}} |
+{{/active_rfe_cases}}
+
+## Active Bug Cases - Summary
+| Case | Summary | Status |
+|------|---------|--------|
+{{#active_bug_cases}}
+| {{case_number}} | {{summary}} | {{status}} |
+{{/active_bug_cases}}
+EOF
+    
+    print_success "Summary tables template created: $template_file"
+    print_info "This template focuses on key information only."
+}
+
+create_custom_tables() {
+    print_ai_response "Let's create custom tables that fit your exact needs!"
+    echo ""
+    
+    print_ai_response "Which columns do you want in your RFE table? (e.g., case_number, summary, status, sbr_group, created_date, priority)"
+    print_user_prompt
+    read -r rfe_columns
+    
+    print_ai_response "Which columns do you want in your Bug table?"
+    print_user_prompt
+    read -r bug_columns
+    
+    print_ai_response "What table style do you prefer? (compact, spacious, detailed, summary)"
+    print_user_prompt
+    read -r table_style
+    
+    # Create custom template
+    local template_file="$CUSTOM_TEMPLATE_DIR/custom-tables-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    cat > "$template_file" <<EOF
+## Active RFE Cases - Custom Format
+| $rfe_columns |
+|$(echo "$rfe_columns" | sed 's/, /|/g' | sed 's/^/|/' | sed 's/$/|/')|
+{{#active_rfe_cases}}
+| $rfe_columns |
+{{/active_rfe_cases}}
+
+## Active Bug Cases - Custom Format
+| $bug_columns |
+|$(echo "$bug_columns" | sed 's/, /|/g' | sed 's/^/|/' | sed 's/$/|/')|
+{{#active_bug_cases}}
+| $bug_columns |
+{{/active_bug_cases}}
+EOF
+    
+    print_success "Custom tables template created: $template_file"
+    print_info "Your personalized table template is ready!"
+}
+
+show_template_preview() {
+    print_section "👀 TEMPLATE PREVIEW"
+    
+    print_ai_response "Let's preview your customized template with sample data!"
+    echo ""
+    
+    # Show sample template with data
+    echo "📋 Sample Template Preview:"
+    echo ""
+    echo "# Wells Fargo - RFE/Bug Tracker Report"
+    echo "## Professional Case Management Summary"
+    echo ""
+    echo "**Report Period**: $(date +%B %d, %Y)"
+    echo "**Generated By**: Your TAM Name"
+    echo "**Account Number**: 838043"
+    echo "**Group ID**: 4357341"
+    echo ""
+    echo "---"
+    echo ""
+    echo "## Active RFE Cases"
+    echo ""
+    echo "| Case Number | Summary | Status | SBR Group | Created | Priority |"
+    echo "|-------------|---------|--------|-----------|---------|----------|"
+    echo "| 04244831 | [RFE] Enhanced Ansible Tower Job Template Management | Waiting on Red Hat | Ansible | 2024-12-01 | High |"
+    echo "| 04244833 | [RFE] Ansible AWX Integration with External Vault | Open | Ansible | 2024-12-10 | High |"
+    echo ""
+    echo "## Active Bug Cases"
+    echo ""
+    echo "| Case Number | Summary | Status | SBR Group | Created | Priority |"
+    echo "|-------------|---------|--------|-----------|---------|----------|"
+    echo "| 04244832 | [Bug] Ansible Automation Platform Controller API Timeout | Open | Ansible Automation Platform | 2024-12-05 | Medium |"
+    echo ""
+    echo "---"
+    echo "**🤖 Automated Update via Red Hat Customer Portal API**"
+    echo "*Last updated: $(date)*"
+    echo "*Generated by: TAM Automation Assistant - Custom Template*"
+    echo ""
+    
+    print_ai_response "How does this look? Would you like to make any adjustments?"
+    echo ""
+    echo "   [1] ✅ Looks perfect - save this template"
+    echo "   [2] 🔧 Make more adjustments"
+    echo "   [3] 📋 Try a different style"
+    echo "   [4] 💾 Save as draft and continue later"
+    echo ""
+    
+    print_user_prompt
+    read -r preview_choice
+    
+    case "$preview_choice" in
+        1) save_template ;;
+        2) show_template_options ;;
+        3) show_template_options ;;
+        4) save_draft_template ;;
+        *) print_info "Template preview completed." ;;
+    esac
+}
+
+save_template() {
+    print_section "💾 SAVING TEMPLATE"
+    
+    print_ai_response "Great! Let's save your customized template."
+    echo ""
+    
+    print_ai_response "What would you like to name this template?"
+    print_user_prompt
+    read -r template_name
+    
+    # Create template file
+    local template_file="$CUSTOM_TEMPLATE_DIR/${template_name}-template.md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    # Copy the current template (simplified for demo)
+    cat > "$template_file" <<'EOF'
+# {{customer_name}} - RFE/Bug Tracker Report
+## Professional Case Management Summary
+
+**Report Period**: {{report_date}}  
+**Generated By**: {{tam_name}}  
+**Account Number**: {{account_number}}  
+**Group ID**: {{group_id}}
+
+---
+
+## Active RFE Cases
+
+| Case Number | Summary | Status | SBR Group | Created | Priority |
+|-------------|---------|--------|-----------|---------|----------|
+{{#active_rfe_cases}}
+| {{case_number}} | {{summary}} | {{status}} | {{sbr_group}} | {{created_date}} | {{priority}} |
+{{/active_rfe_cases}}
+
+## Active Bug Cases
+
+| Case Number | Summary | Status | SBR Group | Created | Priority |
+|-------------|---------|--------|-----------|---------|----------|
+{{#active_bug_cases}}
+| {{case_number}} | {{summary}} | {{status}} | {{sbr_group}} | {{created_date}} | {{priority}} |
+{{/active_bug_cases}}
+
+---
+
+**🤖 Automated Update via Red Hat Customer Portal API**  
+*Last updated: {{current_date}}*  
+*Generated by: TAM Automation Assistant - Custom Template*
+EOF
+    
+    print_success "Template saved: $template_file"
+    print_info "Your customized template is ready to use!"
+    echo ""
+    print_ai_response "You can now use this template by running:"
+    echo "   ./bin/tam-rfe-chat"
+    echo "   Then ask: 'Generate RFE report for [Customer] using my custom template'"
+}
+
+save_draft_template() {
+    print_section "💾 SAVING DRAFT TEMPLATE"
+    
+    local draft_file="$CUSTOM_TEMPLATE_DIR/draft-template-$(date +%Y%m%d-%H%M%S).md"
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    # Save draft
+    cat > "$draft_file" <<'EOF'
+# Draft Template - {{customer_name}} RFE/Bug Report
+## Work in Progress
+
+**Created**: {{current_date}}  
+**Status**: Draft  
+**TAM**: {{tam_name}}
+
+---
+
+## Notes for Completion
+- Add custom header style
+- Adjust table formatting
+- Include executive summary
+- Add company branding
+
+---
+
+## Placeholder Content
+[Your customized template content will go here]
+
+EOF
+    
+    print_success "Draft template saved: $draft_file"
+    print_info "You can continue customizing this template later."
+}
+
+# Main execution
+main() {
+    print_header
+    
+    # Create custom template directory
+    mkdir -p "$CUSTOM_TEMPLATE_DIR"
+    
+    # Show template philosophy
+    show_template_philosophy
+    
+    # Show customization options
+    show_template_options
+    
+    # Show template preview
+    show_template_preview
+    
+    print_section "🎉 TEMPLATE CUSTOMIZATION COMPLETE"
+    
+    print_success "Your personalized template is ready!"
+    print_info "Next steps:"
+    echo "   • Use your custom template: ./bin/tam-rfe-chat"
+    echo "   • Ask: 'Generate RFE report for [Customer] using my custom template'"
+    echo "   • Share your template with other TAMs"
+    echo "   • Continue customizing as your needs evolve"
+    echo ""
+    print_ai_response "Remember: Templates are meant to be personalized! Make them work for YOU!"
+}
+
+# Show help
+show_help() {
+    print_header
+    echo "TAM RFE Template Customizer - Personalized Report Template Builder"
+    echo ""
+    echo "Usage: tam-rfe-template-customizer [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --help        Show this help message"
+    echo ""
+    echo "Features:"
+    echo "  🎨 Visual customization (headers, tables, colors, fonts)"
+    echo "  📊 Content customization (sections, fields, summaries)"
+    echo "  🔧 Functional customization (customer-specific, report types)"
+    echo "  💼 Professional customization (branding, contact info)"
+    echo "  👀 Live preview with sample data"
+    echo "  💾 Save and reuse custom templates"
+    echo ""
+    echo "Philosophy:"
+    echo "  Every TAM has unique needs - customize templates to fit YOUR style!"
+    echo "  Make reports more effective by personalizing them for your workflow."
+    echo ""
+    echo "Examples:"
+    echo "  tam-rfe-template-customizer"
+    echo "  # Then follow the interactive customization process"
+}
+
+# Parse arguments
+if [[ $# -gt 0 ]]; then
+    case $1 in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+fi
+
+# Run main function
+main "$@"

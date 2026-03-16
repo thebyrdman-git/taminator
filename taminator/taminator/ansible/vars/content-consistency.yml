@@ -1,0 +1,21 @@
+---
+# Content consistency - single source of truth for version and canonical content paths.
+# Use with roles taminator_content_sync and taminator_verify_consistency.
+# Run ensure-content-consistent.yml before releases or in CI to keep everything in sync.
+# Paths are relative to inner taminator dir (the one containing gui/, tam-rfe, web_server.py).
+
+# App version - single source of truth. Written to VERSION and gui/package.json.
+app_version: "2.1.6"
+
+# Paths relative to inner taminator (repo_root in playbooks)
+version_file: "VERSION"
+package_json_path: "gui/package.json"
+user_guide_inner: "USER-GUIDE.md"           # inner copy (used by packager and web server)
+user_guide_outer: "../USER-GUIDE.md"        # outer taminator (canonical source for sync)
+readme_inner: "README.md"
+getting_started_inner: "GETTING-STARTED.md"
+icon_outer: "../gui/build/icon.png"         # outer gui build icon (canonical)
+icon_inner_build: "gui/build/icon.png"      # inner gui/build (for electron-builder)
+
+# Node version (must match .github/workflows and .gitlab-ci.yml)
+node_version: "20"

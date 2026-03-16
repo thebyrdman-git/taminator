@@ -1,0 +1,12 @@
+---
+description: Run verification before shipping so CI and local stay in sync
+globs: ["**/*.js", "**/package.json", ".github/workflows/*.yml", "scripts/*.sh"]
+alwaysApply: false
+---
+
+# Verification before shipping
+
+- Before pushing or tagging (or when the user says they want to ship or release), run the project verify script so you have confidence in what is being shipped.
+- From repo root: `./scripts/verify.sh` (or `bash scripts/verify.sh` on Windows). This runs the same checks CI runs: icon exists, GUI lint (ESLint), optional Python/tam-rfe smoke.
+- If verify fails, fix the reported issues before suggesting a push or tag.
+- In the GUI directory, `npm run lint` runs ESLint; fix any errors or warnings before considering the change complete.

@@ -1,0 +1,409 @@
+#!/bin/bash
+
+# TAM RFE API Test - Comprehensive API Testing
+# Tests Red Hat Customer Portal API integration for seamless posting
+
+set -euo pipefail
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+SRC_DIR="$PROJECT_ROOT/src"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Functions
+print_header() {
+    echo -e "${CYAN}"
+    echo "🧪 TAM RFE API TEST - Red Hat Customer Portal Integration"
+    echo "========================================================="
+    echo -e "${NC}"
+    echo "📅 Started: $(date)"
+    echo "🎯 Purpose: Test seamless posting to customer group discussions"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+# Test functions
+test_api_client_initialization() {
+    print_section "🔧 TESTING API CLIENT INITIALIZATION"
+    
+    print_info "Testing Red Hat Portal API client initialization..."
+    
+    if python3 -c "
+import sys
+sys.path.append('$SRC_DIR')
+from redhat_portal_api_client import RedHatPortalAPIClient
+client = RedHatPortalAPIClient()
+print('✅ API client initialized successfully')
+"; then
+        print_success "API client initialization works"
+        return 0
+    else
+        print_error "API client initialization failed"
+        return 1
+    fi
+}
+
+test_rfe_discussion_client() {
+    print_section "🔧 TESTING RFE DISCUSSION CLIENT"
+    
+    print_info "Testing RFE Discussion API client initialization..."
+    
+    if python3 -c "
+import sys
+sys.path.append('$SRC_DIR')
+from rfe_discussion_api_client import RFEDiscussionAPIClient
+client = RFEDiscussionAPIClient()
+print('✅ RFE Discussion client initialized successfully')
+print('✅ Customer groups loaded:', len(client.customer_groups))
+"; then
+        print_success "RFE Discussion client initialization works"
+        return 0
+    else
+        print_error "RFE Discussion client initialization failed"
+        return 1
+    fi
+}
+
+test_authentication() {
+    print_section "🔐 TESTING AUTHENTICATION"
+    
+    print_info "Testing Red Hat Customer Portal authentication..."
+    
+    # Check if credentials are set
+    if [[ -z "${REDHAT_PORTAL_USERNAME:-}" ]] || [[ -z "${REDHAT_PORTAL_PASSWORD:-}" ]]; then
+        print_warning "Red Hat Portal credentials not set"
+        print_info "Set REDHAT_PORTAL_USERNAME and REDHAT_PORTAL_PASSWORD environment variables"
+        print_info "Example:"
+        echo "  export REDHAT_PORTAL_USERNAME='your-username'"
+        echo "  export REDHAT_PORTAL_PASSWORD='your-password'"
+        return 1
+    fi
+    
+    print_info "Credentials found, testing authentication..."
+    
+    if python3 -c "
+import sys
+import os
+sys.path.append('$SRC_DIR')
+from redhat_portal_api_client import RedHatPortalAPIClient
+client = RedHatPortalAPIClient()
+if client.authenticate():
+    print('✅ Authentication successful')
+else:
+    print('❌ Authentication failed')
+    exit(1)
+"; then
+        print_success "Authentication works"
+        return 0
+    else
+        print_error "Authentication failed"
+        print_info "Check your Red Hat Customer Portal credentials"
+        return 1
+    fi
+}
+
+test_connection() {
+    print_section "🌐 TESTING CONNECTION"
+    
+    print_info "Testing connection to Red Hat Customer Portal..."
+    
+    if python3 -c "
+import sys
+sys.path.append('$SRC_DIR')
+from redhat_portal_api_client import RedHatPortalAPIClient
+client = RedHatPortalAPIClient()
+if client.authenticate() and client.test_connection():
+    print('✅ Connection test successful')
+else:
+    print('❌ Connection test failed')
+    exit(1)
+"; then
+        print_success "Connection test works"
+        return 0
+    else
+        print_error "Connection test failed"
+        print_info "Check your network connection and Red Hat VPN access"
+        return 1
+    fi
+}
+
+test_group_access() {
+    print_section "👥 TESTING GROUP ACCESS"
+    
+    print_info "Testing access to customer portal groups..."
+    
+    local groups=("4357341:Wells Fargo" "7028358:TD Bank" "6956770:JPMC" "7095107:Fannie Mae")
+    local success_count=0
+    
+    for group_info in "${groups[@]}"; do
+        local group_id="${group_info%:*}"
+        local group_name="${group_info#*:}"
+        
+        print_info "Testing access to $group_name (Group $group_id)..."
+        
+        if python3 -c "
+import sys
+sys.path.append('$SRC_DIR')
+from redhat_portal_api_client import RedHatPortalAPIClient
+client = RedHatPortalAPIClient()
+if client.authenticate():
+    discussions = client.get_group_discussions('$group_id', limit=1)
+    if discussions is not None:
+        print('✅ Access to $group_name group: OK')
+    else:
+        print('❌ Access to $group_name group: Denied')
+        exit(1)
+else:
+    print('❌ Authentication failed')
+    exit(1)
+"; then
+            print_success "$group_name group access works"
+            ((success_count++))
+        else
+            print_error "$group_name group access failed"
+        fi
+    done
+    
+    if [[ $success_count -eq ${#groups[@]} ]]; then
+        print_success "All group access tests passed ($success_count/${#groups[@]})"
+        return 0
+    else
+        print_warning "Some group access tests failed ($success_count/${#groups[@]})"
+        return 1
+    fi
+}
+
+test_discussion_creation() {
+    print_section "📝 TESTING DISCUSSION CREATION"
+    
+    print_info "Testing discussion creation in customer portal groups..."
+    
+    # Test with Wells Fargo group
+    local test_title="API Test Discussion - $(date +%Y%m%d-%H%M%S)"
+    local test_content="This is a test discussion created by the TAM RFE Automation API test suite."
+    
+    print_info "Creating test discussion in Wells Fargo group..."
+    print_info "Title: $test_title"
+    
+    if python3 -c "
+import sys
+sys.path.append('$SRC_DIR')
+from redhat_portal_api_client import RedHatPortalAPIClient
+client = RedHatPortalAPIClient()
+if client.authenticate():
+    result = client.create_group_discussion(
+        group_id='4357341',
+        title='$test_title',
+        body='$test_content'
+    )
+    if result and result.get('success'):
+        print('✅ Discussion creation successful')
+        print('✅ Discussion ID:', result.get('discussion_id'))
+    else:
+        print('❌ Discussion creation failed')
+        print('❌ Error:', result.get('error', 'Unknown error') if result else 'No result')
+        exit(1)
+else:
+    print('❌ Authentication failed')
+    exit(1)
+"; then
+        print_success "Discussion creation works"
+        return 0
+    else
+        print_error "Discussion creation failed"
+        return 1
+    fi
+}
+
+test_rfe_posting() {
+    print_section "🚀 TESTING RFE POSTING"
+    
+    print_info "Testing complete RFE posting workflow..."
+    
+    if python3 -c "
+import sys
+sys.path.append('$SRC_DIR')
+from rfe_discussion_api_client import RFEDiscussionAPIClient
+client = RFEDiscussionAPIClient()
+test_cases = [
+    {
+        'caseNumber': 'TEST001',
+        'summary': 'Test RFE Case - API Integration',
+        'rfe_type': 'RFE',
+        'status': 'Open',
+        'sbr_group': 'Ansible',
+        'created_date': '2024-12-01',
+        'updated_date': '2024-12-19',
+        'priority': 'High'
+    }
+]
+result = client.post_rfe_discussion('wellsfargo', test_cases)
+if result and result.get('success'):
+    print('✅ RFE posting successful')
+    print('✅ Discussion ID:', result.get('discussion_id'))
+else:
+    print('❌ RFE posting failed')
+    print('❌ Error:', result.get('error', 'Unknown error') if result else 'No result')
+    exit(1)
+"; then
+        print_success "RFE posting works"
+        return 0
+    else
+        print_error "RFE posting failed"
+        return 1
+    fi
+}
+
+test_complete_workflow() {
+    print_section "🔄 TESTING COMPLETE WORKFLOW"
+    
+    print_info "Testing complete RFE automation workflow..."
+    
+    if timeout 60 python3 "$PROJECT_ROOT/src/ultimate_rfe_portal_system.py" wellsfargo --test; then
+        print_success "Complete workflow works"
+        return 0
+    else
+        print_error "Complete workflow failed"
+        return 1
+    fi
+}
+
+# Main execution
+main() {
+    print_header
+    
+    local total_tests=7
+    local passed_tests=0
+    
+    # Run all tests
+    if test_api_client_initialization; then ((passed_tests++)); fi
+    echo ""
+    
+    if test_rfe_discussion_client; then ((passed_tests++)); fi
+    echo ""
+    
+    if test_authentication; then ((passed_tests++)); fi
+    echo ""
+    
+    if test_connection; then ((passed_tests++)); fi
+    echo ""
+    
+    if test_group_access; then ((passed_tests++)); fi
+    echo ""
+    
+    if test_discussion_creation; then ((passed_tests++)); fi
+    echo ""
+    
+    if test_rfe_posting; then ((passed_tests++)); fi
+    echo ""
+    
+    if test_complete_workflow; then ((passed_tests++)); fi
+    echo ""
+    
+    # Summary
+    print_section "📊 TEST RESULTS SUMMARY"
+    
+    if [[ $passed_tests -eq $total_tests ]]; then
+        print_success "All tests passed ($passed_tests/$total_tests)"
+        echo ""
+        print_success "🎉 API INTEGRATION IS WORKING PERFECTLY!"
+        print_success "✅ The tool can seamlessly post RFE/Bug reports to customer portals"
+        echo ""
+        print_info "Ready for production deployment:"
+        echo "  • API client initializes correctly"
+        echo "  • Authentication works with Red Hat Customer Portal"
+        echo "  • Connection to Red Hat systems is established"
+        echo "  • Access to all customer groups is confirmed"
+        echo "  • Discussion creation works in customer portals"
+        echo "  • RFE posting workflow functions correctly"
+        echo "  • Complete automation workflow is operational"
+        return 0
+    else
+        print_warning "Some tests failed ($passed_tests/$total_tests)"
+        echo ""
+        print_info "Next steps:"
+        echo "  1. Check Red Hat Customer Portal credentials"
+        echo "  2. Verify Red Hat VPN connection"
+        echo "  3. Confirm access to customer portal groups"
+        echo "  4. Review API configuration settings"
+        return 1
+    fi
+}
+
+# Show help
+show_help() {
+    print_header
+    echo "TAM RFE API Test - Comprehensive API Testing Suite"
+    echo ""
+    echo "Usage: tam-rfe-api-test [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --help        Show this help message"
+    echo ""
+    echo "Tests:"
+    echo "  🔧 API Client Initialization"
+    echo "  🔧 RFE Discussion Client"
+    echo "  🔐 Authentication"
+    echo "  🌐 Connection"
+    echo "  👥 Group Access"
+    echo "  📝 Discussion Creation"
+    echo "  🚀 RFE Posting"
+    echo "  🔄 Complete Workflow"
+    echo ""
+    echo "Prerequisites:"
+    echo "  • Red Hat Customer Portal credentials"
+    echo "  • Red Hat VPN connection"
+    echo "  • Access to customer portal groups"
+    echo ""
+    echo "Environment Variables:"
+    echo "  REDHAT_PORTAL_USERNAME    Red Hat Customer Portal username"
+    echo "  REDHAT_PORTAL_PASSWORD    Red Hat Customer Portal password"
+    echo "  REDHAT_PORTAL_ENVIRONMENT API environment (qa, stage, production)"
+}
+
+# Parse arguments
+if [[ $# -gt 0 ]]; then
+    case $1 in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+fi
+
+# Run main function
+main "$@"

@@ -1,0 +1,9 @@
+---
+# Defaults for taminator_build role (override with -e or group_vars)
+build_platform: "mac"   # mac | linux | win
+repo_root: "{{ playbook_dir }}/../.."
+gui_path: "{{ repo_root }}/gui"
+icon_source: "{{ repo_root }}/taminator/gui/build/icon.png"
+icon_dest: "{{ gui_path }}/build/icon.png"
+node_version: "20"
+npm_ci_retries: 3

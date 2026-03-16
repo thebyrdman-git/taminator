@@ -1,0 +1,286 @@
+#!/usr/bin/env bash
+
+# TAM RFE Monitor - Professional RFE Automation with Monitoring
+# Purpose: Execute RFE automation with comprehensive monitoring and email alerts
+# Usage: tam-rfe-monitor [customer] [--test|--daily|--help]
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+ULTIMATE_SYSTEM="$PROJECT_ROOT/src/ultimate_rfe_portal_system.py"
+MONITORING_SYSTEM="$PROJECT_ROOT/../../src/rfe_monitoring_system.py"
+
+# Logging
+LOG_FILE="/tmp/tam-rfe-monitor-$(date +%Y%m%d-%H%M%S).log"
+exec 1> >(tee -a "$LOG_FILE")
+exec 2> >(tee -a "$LOG_FILE" >&2)
+
+print_header() {
+    echo -e "${CYAN}"
+    echo "🛡️  TAM RFE MONITOR - Professional RFE Automation"
+    echo "================================================="
+    echo -e "${NC}"
+    echo "📅 Started: $(date)"
+    echo "📁 Log File: $LOG_FILE"
+    echo "📧 Admin Email: jbyrd@redhat.com"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+monitor_rfe_execution() {
+    local customer="$1"
+    local mode="${2:-daily}"
+    
+    print_section "🔍 MONITORING RFE EXECUTION: $customer"
+    
+    # Validate customer
+    case "$customer" in
+        wellsfargo|tdbank|jpmc|fanniemae)
+            print_success "Customer validated: $customer"
+            ;;
+        *)
+            print_error "Unknown customer: $customer"
+            print_info "Available customers: wellsfargo, tdbank, jpmc, fanniemae"
+            return 1
+            ;;
+    esac
+    
+    # Determine execution mode
+    local test_flag=""
+    if [[ "$mode" == "test" ]]; then
+        test_flag="--test"
+        print_info "Running in TEST mode (no portal posting)"
+    else
+        print_info "Running in PRODUCTION mode (with portal posting)"
+    fi
+    
+    # Execute RFE automation
+    print_info "Executing: python3 $ULTIMATE_SYSTEM $customer $test_flag"
+    
+    # Execute with monitoring
+    python3 -c "
+import sys
+import os
+sys.path.insert(0, '$PROJECT_ROOT/src')
+sys.path.insert(0, '$PROJECT_ROOT/../src')
+
+try:
+    import sys
+    sys.path.append("/home/jbyrd/pai/src")
+    from ultimate_rfe_portal_system import UltimateRFEPortalSystem
+    from rfe_monitoring_system import RFEMonitoringSystem
+    
+    # Initialize systems
+    rfe_system = UltimateRFEPortalSystem()
+    monitor = RFEMonitoringSystem()
+    
+    # Execute with monitoring
+    result = monitor.monitor_rfe_execution('$customer', 'python3 $ULTIMATE_SYSTEM $customer $test_flag')
+    
+    print(f'\\n📊 EXECUTION SUMMARY:')
+    print(f'Customer: {result[\"customer\"].title()}')
+    print(f'Success: {\"✅ YES\" if result[\"success\"] else \"❌ NO\"}')
+    print(f'Execution Time: {result[\"execution_time\"]:.1f} seconds')
+    print(f'Exit Code: {result[\"exit_code\"]}')
+    
+    if result['success']:
+        print(f'\\n🎉 RFE automation completed successfully!')
+        print(f'📧 Success notification sent to jbyrd@redhat.com')
+    else:
+        print(f'\\n💥 RFE automation failed!')
+        print(f'📧 Failure alert sent to jbyrd@redhat.com')
+        print(f'Error: {result[\"error\"][:200]}...' if len(result['error']) > 200 else result['error'])
+    
+    sys.exit(0 if result['success'] else 1)
+    
+except ImportError as e:
+    print(f'❌ Import error: {e}')
+    print('💡 Run: tam-rfe-deploy --install')
+    sys.exit(1)
+except Exception as e:
+    print(f'❌ Execution error: {e}')
+    sys.exit(1)
+"
+    
+    return $?
+}
+
+run_daily_monitoring() {
+    print_section "📅 DAILY RFE MONITORING"
+    
+    local results=()
+    local overall_success=true
+    
+    # Monitor all ready customers
+    for customer in wellsfargo tdbank jpmc fanniemae; do
+        echo ""
+        print_info "Processing $customer..."
+        
+        if monitor_rfe_execution "$customer" "daily"; then
+            print_success "$customer automation completed"
+            results+=("$customer:success")
+        else
+            print_error "$customer automation failed"
+            results+=("$customer:failed")
+            overall_success=false
+        fi
+    done
+    
+    # Send daily summary
+    echo ""
+    print_section "📊 DAILY SUMMARY"
+    
+    local success_count=0
+    local total_count=${#results[@]}
+    
+    for result in "${results[@]}"; do
+        customer=$(echo "$result" | cut -d: -f1)
+        status=$(echo "$result" | cut -d: -f2)
+        
+        if [[ "$status" == "success" ]]; then
+            print_success "$customer: Completed successfully"
+            ((success_count++))
+        else
+            print_error "$customer: Failed"
+        fi
+    done
+    
+    echo ""
+    print_info "Overall Success Rate: $success_count/$total_count customers"
+    
+    if [[ "$overall_success" == true ]]; then
+        print_success "All RFE automations completed successfully"
+        return 0
+    else
+        print_error "Some RFE automations failed - check email alerts"
+        return 1
+    fi
+}
+
+test_monitoring_system() {
+    print_section "🧪 TESTING MONITORING SYSTEM"
+    
+    print_info "Testing email notification system..."
+    
+    python3 -c "
+import sys
+sys.path.insert(0, '$PROJECT_ROOT/../src')
+sys.path.append('/home/jbyrd/pai/src')
+
+try:
+    from rfe_monitoring_system import RFEMonitoringSystem
+    
+    monitor = RFEMonitoringSystem()
+    success = monitor.test_monitoring_system()
+    
+    if success:
+        print('✅ Monitoring system test PASSED')
+        print('📧 Test email sent to jbyrd@redhat.com')
+        sys.exit(0)
+    else:
+        print('❌ Monitoring system test FAILED')
+        sys.exit(1)
+        
+except ImportError as e:
+    print(f'❌ Import error: {e}')
+    print('💡 Run: tam-rfe-deploy --install')
+    sys.exit(1)
+except Exception as e:
+    print(f'❌ Test error: {e}')
+    sys.exit(1)
+"
+    
+    return $?
+}
+
+show_help() {
+    echo "TAM RFE Monitor - Professional RFE Automation with Monitoring"
+    echo ""
+    echo "Usage: tam-rfe-monitor [CUSTOMER] [OPTIONS]"
+    echo ""
+    echo "Customers:"
+    echo "  wellsfargo    Run Wells Fargo RFE automation with monitoring"
+    echo "  tdbank        Run TD Bank RFE automation with monitoring"
+    echo "  jpmc          Run JPMC RFE automation with monitoring"
+    echo "  fanniemae     Run Fannie Mae RFE automation with monitoring"
+    echo ""
+    echo "Options:"
+    echo "  --test        Test mode (content generation only, no portal posting)"
+    echo "  --daily       Daily mode (full automation with portal posting)"
+    echo "  --all-daily   Run daily automation for all ready customers"
+    echo "  --test-system Test monitoring system (send test email)"
+    echo "  --help        Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  tam-rfe-monitor wellsfargo --daily     # Full Wells Fargo automation"
+    echo "  tam-rfe-monitor tdbank --test          # Test TD Bank (no posting)"
+    echo "  tam-rfe-monitor --all-daily            # All customers daily"
+    echo "  tam-rfe-monitor --test-system          # Test monitoring system"
+    echo ""
+    echo "Features:"
+    echo "  📧 Email alerts to jbyrd@redhat.com on failures"
+    echo "  ⏱️  Execution time monitoring and timeout detection"
+    echo "  📊 Daily summary reports"
+    echo "  🛡️  Comprehensive error handling and logging"
+}
+
+main() {
+    print_header
+    
+    case "${1:-}" in
+        wellsfargo|tdbank|jpmc|fanniemae)
+            local customer="$1"
+            local mode="${2#--}"  # Remove -- prefix
+            mode="${mode:-daily}"  # Default to daily
+            
+            monitor_rfe_execution "$customer" "$mode"
+            ;;
+        --all-daily)
+            run_daily_monitoring
+            ;;
+        --test-system)
+            test_monitoring_system
+            ;;
+        --help|"")
+            show_help
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

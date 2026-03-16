@@ -1,0 +1,286 @@
+/**
+ * Windows XP Luna Blue Theme for Taminator
+ * Authentic Windows XP aesthetic with Luna Blue color scheme
+ */
+
+:root[data-theme="windows-xp"] {
+  /* Primary Colors - Luna Blue */
+  --xp-blue-start: #0054E3;
+  --xp-blue-end: #3A84FF;
+  --xp-taskbar-blue: #245EDC;
+  --xp-green: #63B521;
+  --xp-green-hover: #7FD42F;
+  
+  /* Window Colors */
+  --xp-window-border: #0054E3;
+  --xp-title-bar-start: #0054E3;
+  --xp-title-bar-end: #3A84FF;
+  --xp-window-bg: #ECE9D8;
+  
+  /* Button Colors */
+  --xp-button-face: #ECE9D8;
+  --xp-button-shadow: #ACA899;
+  --xp-button-highlight: #FFFFFF;
+  --xp-button-text: #000000;
+  
+  /* Menu Colors */
+  --xp-menu-bar: #F1EFE2;
+  --xp-menu-hover: #B6BDD2;
+  --xp-menu-selected: #316AC5;
+  
+  /* Fonts */
+  --xp-font: "Tahoma", "MS Sans Serif", sans-serif;
+}
+
+/* Global XP styling */
+body[data-theme="windows-xp"] {
+  font-family: var(--xp-font);
+  font-size: 11px;
+  background: #5A7EDC;
+}
+
+.app-container[data-theme="windows-xp"] {
+  background: var(--xp-window-bg);
+  border-radius: 8px 8px 0 0;
+  border: 3px solid;
+  border-color: var(--xp-button-highlight) var(--xp-button-shadow) 
+                var(--xp-button-shadow) var(--xp-button-highlight);
+  box-shadow: 0 0 0 1px var(--xp-window-border);
+}
+
+/* XP Title Bar */
+.header[data-theme="windows-xp"] {
+  background: linear-gradient(to right, 
+    var(--xp-title-bar-start) 0%, 
+    var(--xp-title-bar-end) 100%);
+  padding: 6px 10px;
+  border-radius: 8px 8px 0 0;
+  color: white;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #5B8FF5;
+}
+
+/* XP Buttons */
+.btn[data-theme="windows-xp"],
+button[data-theme="windows-xp"] {
+  background: var(--xp-button-face);
+  border: 1px solid;
+  border-color: var(--xp-button-highlight) var(--xp-button-shadow) 
+                var(--xp-button-shadow) var(--xp-button-highlight);
+  border-radius: 3px;
+  padding: 4px 12px;
+  font-family: var(--xp-font);
+  font-size: 11px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.8);
+  color: var(--xp-button-text);
+}
+
+.btn[data-theme="windows-xp"]:hover,
+button[data-theme="windows-xp"]:hover {
+  background: linear-gradient(to bottom, #FEFEFE, #ECE9D8);
+  border-color: #0054E3;
+}
+
+.btn[data-theme="windows-xp"]:active,
+button[data-theme="windows-xp"]:active {
+  background: #D5D2C8;
+  border-color: var(--xp-button-shadow) var(--xp-button-highlight) 
+                var(--xp-button-highlight) var(--xp-button-shadow);
+  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+/* XP Primary Button */
+.btn-primary[data-theme="windows-xp"] {
+  background: linear-gradient(to bottom, #EFF6FD, #C6DCFC);
+  border-color: #4393E8 #4393E8 #003C74 #003C74;
+}
+
+.btn-primary[data-theme="windows-xp"]:hover {
+  background: linear-gradient(to bottom, #F5FAFF, #D6E8FF);
+}
+
+/* XP Cards */
+.card[data-theme="windows-xp"] {
+  background: white;
+  border: 2px solid;
+  border-color: var(--xp-button-highlight) var(--xp-button-shadow) 
+                var(--xp-button-shadow) var(--xp-button-highlight);
+  border-radius: 0;
+  padding: 12px;
+}
+
+.card-title[data-theme="windows-xp"] {
+  color: var(--xp-blue-start);
+  font-weight: bold;
+  font-size: 12px;
+}
+
+/* XP Sidebar */
+.sidebar[data-theme="windows-xp"] {
+  background: linear-gradient(to bottom, #5281D9, #2854C0);
+  border-right: 1px solid #1941A5;
+}
+
+.nav-item[data-theme="windows-xp"] {
+  color: white;
+  padding: 8px 16px;
+  margin: 2px 4px;
+  border-radius: 2px;
+}
+
+.nav-item[data-theme="windows-xp"]:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.nav-item.active[data-theme="windows-xp"] {
+  background: rgba(255,255,255,0.2);
+  border-left: 3px solid var(--xp-green);
+}
+
+/* XP Input Fields */
+input[data-theme="windows-xp"],
+textarea[data-theme="windows-xp"],
+select[data-theme="windows-xp"] {
+  background: white;
+  border: 1px solid;
+  border-color: #7F9DB9 #7F9DB9 #C5D9F1 #C5D9F1;
+  padding: 4px;
+  font-family: var(--xp-font);
+  font-size: 11px;
+}
+
+input[data-theme="windows-xp"]:focus,
+textarea[data-theme="windows-xp"]:focus,
+select[data-theme="windows-xp"]:focus {
+  outline: 1px solid var(--xp-blue-start);
+  outline-offset: -1px;
+}
+
+/* XP Groupbox */
+.xp-groupbox {
+  border: 1px solid var(--xp-button-shadow);
+  padding: 16px 12px 12px 12px;
+  margin: 12px 0;
+  position: relative;
+}
+
+.xp-groupbox-title {
+  position: absolute;
+  top: -8px;
+  left: 8px;
+  background: var(--xp-window-bg);
+  padding: 0 6px;
+  color: var(--xp-blue-start);
+  font-weight: bold;
+  font-size: 11px;
+}
+
+/* XP Status Bar */
+.status-bar[data-theme="windows-xp"] {
+  background: var(--xp-button-face);
+  border-top: 1px solid white;
+  border-bottom: 1px solid var(--xp-button-shadow);
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+/* XP Scrollbar */
+*[data-theme="windows-xp"]::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+*[data-theme="windows-xp"]::-webkit-scrollbar-track {
+  background: var(--xp-button-face);
+  border: 1px solid var(--xp-button-shadow);
+}
+
+*[data-theme="windows-xp"]::-webkit-scrollbar-thumb {
+  background: linear-gradient(to right, #E8E6DC, #D4D2C8);
+  border: 1px solid;
+  border-color: white var(--xp-button-shadow) 
+                var(--xp-button-shadow) white;
+}
+
+*[data-theme="windows-xp"]::-webkit-scrollbar-button {
+  background: var(--xp-button-face);
+  border: 1px solid;
+  border-color: white var(--xp-button-shadow) 
+                var(--xp-button-shadow) white;
+  height: 16px;
+}
+
+/* XP Progress Bar */
+.spinner[data-theme="windows-xp"] {
+  border: 1px solid var(--xp-button-shadow);
+  border-top-color: #0B6D0B;
+  width: 16px;
+  height: 16px;
+}
+
+/* XP Badge Styles */
+.status-badge[data-theme="windows-xp"] {
+  border: 1px solid;
+  border-radius: 2px;
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+.status-badge.success[data-theme="windows-xp"] {
+  background: #E5FFE5;
+  border-color: #0B6D0B;
+  color: #0B6D0B;
+}
+
+.status-badge.warning[data-theme="windows-xp"] {
+  background: #FFF8E6;
+  border-color: #C67605;
+  color: #C67605;
+}
+
+.status-badge.error[data-theme="windows-xp"] {
+  background: #FFE5E5;
+  border-color: #C10B0B;
+  color: #C10B0B;
+}
+
+/* XP Window Controls */
+.xp-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.xp-controls button {
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  background: linear-gradient(to bottom, #F1F1F1, #D4D4D4);
+  border: 1px solid;
+  border-color: white #8B8B8B #8B8B8B white;
+  font-size: 10px;
+  font-weight: bold;
+  color: #333;
+}
+
+.xp-controls button:hover {
+  background: linear-gradient(to bottom, #F8F8F8, #E0E0E0);
+  border-color: #0054E3;
+}
+
+.xp-controls button:active {
+  background: #C0C0C0;
+  border-color: #8B8B8B white white #8B8B8B;
+}
+
+/* Clippy Integration with XP */
+.clippy-bubble[data-theme="windows-xp"] {
+  background: #FFFFCC;
+  border: 1px solid #8B8B00;
+  border-radius: 0;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+

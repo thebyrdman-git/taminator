@@ -1,0 +1,69 @@
+---
+# Quick playbook to configure Red Hat VPN on Alma 9 VM
+- name: Configure Red Hat VPN on VM
+  hosts: alma9_vm
+  become: true
+  tasks:
+    - name: Copy VPN profiles RPM to VM
+      copy:
+        src: ~/Downloads/redhat-internal-NetworkManager-openvpn-profiles-0.1-65.fc42.noarch.rpm
+        dest: /tmp/vpn-profiles.rpm
+        mode: '0644'
+
+    - name: Install/Upgrade VPN profiles package
+      dnf:
+        name: /tmp/vpn-profiles.rpm
+        state: present
+        disable_gpg_check: true
+
+    - name: Install NetworkManager OpenVPN plugin
+      dnf:
+        name:
+          - NetworkManager-openvpn
+          - NetworkManager-openvpn-gnome
+        state: present
+
+    - name: Ensure NetworkManager is running
+      systemd:
+        name: NetworkManager
+        state: reloaded
+
+    - name: Configure Kerberos for Red Hat IPA
+      copy:
+        dest: /etc/krb5.conf.d/redhat-ipa.conf
+        content: |
+          [libdefaults]
+            default_realm = IPA.REDHAT.COM
+            dns_lookup_realm = true
+            dns_lookup_kdc = true
+            rdns = false
+            dns_canonicalize_hostname = true
+            ticket_lifetime = 24h
+            renew_lifetime = 7d
+            forwardable = true
+
+          [realms]
+            IPA.REDHAT.COM = {
+              default_domain = ipa.redhat.com
+              dns_lookup_kdc = true
+            }
+
+          [domain_realm]
+            .redhat.com = IPA.REDHAT.COM
+            redhat.com = IPA.REDHAT.COM
+        mode: '0644'
+
+    - name: Display available VPN connections
+      command: nmcli connection show
+      register: vpn_connections
+      changed_when: false
+
+    - name: Show VPN connections
+      debug:
+        msg: "{{ vpn_connections.stdout_lines }}"
+
+    - name: Cleanup temporary RPM
+      file:
+        path: /tmp/vpn-profiles.rpm
+        state: absent
+

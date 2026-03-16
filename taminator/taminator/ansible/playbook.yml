@@ -1,0 +1,375 @@
+---
+# TAM RFE Automation Tool - Ansible Deployment Playbook
+# Automates the complete setup and configuration of the TAM RFE Automation Tool
+
+- name: Deploy TAM RFE Automation Tool
+  hosts: localhost
+  become: false
+  vars:
+    tool_version: "1.0.0"
+    tool_name: "tam-rfe-automation"
+    install_dir: "{{ ansible_env.HOME }}/{{ tool_name }}"
+    python_version: "3.7"
+    
+  tasks:
+    - name: Display deployment banner
+      debug:
+        msg: |
+          🚀 TAM RFE Automation Tool - Ansible Deployment
+          =============================================
+          📅 Deployment started: {{ ansible_date_time.iso8601 }}
+          🎯 Target: {{ ansible_hostname }}
+          📁 Install directory: {{ install_dir }}
+          💝 Built with passion for helping new TAMs succeed!
+
+    - name: Check system requirements
+      block:
+        - name: Check if running on supported platform
+          assert:
+            that:
+              - ansible_os_family in ['RedHat', 'Debian', 'Darwin', 'Windows']
+            fail_msg: "Unsupported operating system: {{ ansible_os_family }}"
+            success_msg: "✅ Supported platform: {{ ansible_os_family }}"
+
+        - name: Check available disk space (minimum 2GB)
+          assert:
+            that:
+              - ansible_mounts | selectattr('mount', '==', '/') | map(attribute='size_available') | first | int > 2147483648
+            fail_msg: "Insufficient disk space. Minimum 2GB required."
+            success_msg: "✅ Sufficient disk space available"
+
+        - name: Check available memory (minimum 4GB)
+          assert:
+            that:
+              - ansible_memtotal_mb | int > 4096
+            fail_msg: "Insufficient memory. Minimum 4GB required."
+            success_msg: "✅ Sufficient memory available"
+
+    - name: Install system dependencies
+      block:
+        - name: Install Python and development tools (RedHat/CentOS/Fedora)
+          package:
+            name:
+              - python3
+              - python3-pip
+              - python3-devel
+              - gcc
+              - make
+              - curl
+              - wget
+              - git
+            state: present
+          when: ansible_os_family == 'RedHat'
+          become: true
+
+        - name: Install Python and development tools (Debian/Ubuntu)
+          package:
+            name:
+              - python3
+              - python3-pip
+              - python3-dev
+              - build-essential
+              - curl
+              - wget
+              - git
+            state: present
+          when: ansible_os_family == 'Debian'
+          become: true
+
+        - name: Install Python and development tools (macOS)
+          homebrew:
+            name:
+              - python@3.9
+              - git
+              - curl
+              - wget
+            state: present
+          when: ansible_os_family == 'Darwin'
+
+        - name: Verify Python installation
+          command: python3 --version
+          register: python_version_check
+          changed_when: false
+
+        - name: Display Python version
+          debug:
+            msg: "✅ Python installed: {{ python_version_check.stdout }}"
+
+    - name: Create installation directory
+      file:
+        path: "{{ install_dir }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Download and extract TAM RFE Automation Tool
+      block:
+        - name: Create temporary directory
+          file:
+            path: "/tmp/{{ tool_name }}-{{ tool_version }}"
+            state: directory
+            mode: '0755'
+
+        - name: Download tool package (if not already present)
+          get_url:
+            url: "{{ tool_download_url | default('file:///path/to/tool/package') }}"
+            dest: "/tmp/{{ tool_name }}-{{ tool_version }}.tar.gz"
+            mode: '0644'
+          when: tool_download_url is defined
+
+        - name: Extract tool package
+          unarchive:
+            src: "/tmp/{{ tool_name }}-{{ tool_version }}.tar.gz"
+            dest: "/tmp/{{ tool_name }}-{{ tool_version }}"
+            remote_src: true
+            creates: "/tmp/{{ tool_name }}-{{ tool_version }}/{{ tool_name }}.py"
+          when: tool_download_url is defined
+
+        - name: Copy tool files from local source
+          copy:
+            src: "{{ item }}"
+            dest: "{{ install_dir }}/{{ item | basename }}"
+            mode: '0644'
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+          with_fileglob:
+            - "{{ playbook_dir }}/../*.py"
+            - "{{ playbook_dir }}/../*.md"
+            - "{{ playbook_dir }}/../*.json"
+            - "{{ playbook_dir }}/../*.yaml"
+            - "{{ playbook_dir }}/../*.yml"
+
+        - name: Copy directories
+          copy:
+            src: "{{ item }}"
+            dest: "{{ install_dir }}/"
+            mode: '0755'
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+          with_fileglob:
+            - "{{ playbook_dir }}/../src"
+            - "{{ playbook_dir }}/../config"
+            - "{{ playbook_dir }}/../bin"
+            - "{{ playbook_dir }}/../docs"
+            - "{{ playbook_dir }}/../templates"
+            - "{{ playbook_dir }}/../examples"
+
+    - name: Install Python dependencies
+      pip:
+        name:
+          - requests>=2.25.0
+          - pathlib2>=2.3.0
+          - python-dateutil>=2.8.0
+          - pyinstaller>=4.0
+          - setuptools>=50.0.0
+          - wheel>=0.36.0
+        state: present
+        executable: pip3
+
+    - name: Install Red Hat specific tools
+      block:
+        - name: Check if rhcase is available
+          command: which rhcase
+          register: rhcase_check
+          failed_when: false
+          changed_when: false
+
+        - name: Install rhcase if not present
+          pip:
+            name: rhcase
+            state: present
+          when: rhcase_check.rc != 0
+          become: true
+
+        - name: Verify rhcase installation
+          command: rhcase --help
+          register: rhcase_verify
+          changed_when: false
+          when: rhcase_check.rc == 0 or rhcase_check.rc != 0
+
+    - name: Configure Cursor IDE (optional)
+      block:
+        - name: Check if Cursor IDE is installed
+          command: which cursor
+          register: cursor_check
+          failed_when: false
+          changed_when: false
+
+        - name: Display Cursor IDE installation instructions
+          debug:
+            msg: |
+              📝 Cursor IDE Installation (Optional but Recommended):
+              =====================================================
+              1. Visit: https://cursor.sh/
+              2. Download for your platform: {{ ansible_os_family }}
+              3. Install following the platform-specific instructions
+              4. Launch Cursor and sign in (free account is fine)
+              
+              💡 Cursor IDE provides AI-powered assistance for working with the tool
+          when: cursor_check.rc != 0
+
+        - name: Display Cursor IDE configuration
+          debug:
+            msg: "✅ Cursor IDE is already installed: {{ cursor_check.stdout }}"
+          when: cursor_check.rc == 0
+
+    - name: Create configuration files
+      block:
+        - name: Create user configuration directory
+          file:
+            path: "{{ ansible_env.HOME }}/.config/{{ tool_name }}"
+            state: directory
+            mode: '0755'
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+
+        - name: Create default user configuration
+          copy:
+            content: |
+              {
+                "user_info": {
+                  "name": "{{ ansible_user }}",
+                  "email": "{{ ansible_user }}@redhat.com",
+                  "role": "TAM",
+                  "onboarding_completed": false
+                },
+                "customers": [],
+                "preferences": {
+                  "default_sbr_groups": ["Ansible", "Ansible Automation Platform"],
+                  "default_time_range": "Last 30 days",
+                  "report_format": "standard",
+                  "delivery_method": "both"
+                },
+                "notifications": {
+                  "email": true,
+                  "slack": false,
+                  "portal": true
+                }
+              }
+            dest: "{{ ansible_env.HOME }}/.config/{{ tool_name }}/user_config.json"
+            mode: '0644'
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+
+        - name: Create onboarding status file
+          copy:
+            content: |
+              {
+                "onboarding_started": "{{ ansible_date_time.iso8601 }}",
+                "onboarding_completed": false,
+                "steps_completed": [],
+                "next_step": "welcome_and_system_check"
+              }
+            dest: "{{ ansible_env.HOME }}/.tam-rfe-onboarding"
+            mode: '0644'
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+
+    - name: Set up executable permissions
+      file:
+        path: "{{ install_dir }}/{{ item }}"
+        mode: '0755'
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+      with_fileglob:
+        - "{{ install_dir }}/bin/*"
+        - "{{ install_dir }}/*.py"
+        - "{{ install_dir }}/build-standalone.sh"
+
+    - name: Create symbolic links for easy access
+      file:
+        src: "{{ install_dir }}/bin/{{ item }}"
+        dest: "{{ ansible_env.HOME }}/.local/bin/{{ item }}"
+        state: link
+        mode: '0755'
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+      with_items:
+        - "tam-rfe-chat"
+        - "tam-rfe-onboard-intelligent"
+        - "tam-rfe-verify"
+        - "tam-rfe-monitor-simple"
+      ignore_errors: true
+
+    - name: Create desktop shortcut (Linux)
+      block:
+        - name: Create desktop directory
+          file:
+            path: "{{ ansible_env.HOME }}/Desktop"
+            state: directory
+            mode: '0755'
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+          when: ansible_os_family in ['RedHat', 'Debian']
+
+        - name: Create desktop shortcut
+          copy:
+            content: |
+              [Desktop Entry]
+              Version=1.0
+              Type=Application
+              Name=TAM RFE Automation Tool
+              Comment=Automate RFE/Bug tracker reporting for TAMs
+              Exec={{ install_dir }}/bin/tam-rfe-chat
+              Icon=applications-office
+              Terminal=true
+              Categories=Office;Development;
+              StartupNotify=true
+            dest: "{{ ansible_env.HOME }}/Desktop/tam-rfe-automation.desktop"
+            mode: '0755'
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+          when: ansible_os_family in ['RedHat', 'Debian']
+
+    - name: Verify installation
+      block:
+        - name: Test Python script execution
+          command: "{{ install_dir }}/tam-rfe-standalone.py --version"
+          register: version_test
+          changed_when: false
+
+        - name: Test chat interface
+          command: "{{ install_dir }}/bin/tam-rfe-chat --help"
+          register: chat_test
+          changed_when: false
+
+        - name: Display installation verification
+          debug:
+            msg: |
+              ✅ Installation Verification:
+              ============================
+              📦 Tool version: {{ version_test.stdout | default('Not available') }}
+              💬 Chat interface: {{ 'Working' if chat_test.rc == 0 else 'Not working' }}
+              📁 Installation directory: {{ install_dir }}
+              👤 User: {{ ansible_user }}
+
+    - name: Display completion message
+      debug:
+        msg: |
+          🎉 TAM RFE Automation Tool Installation Complete!
+          ================================================
+          
+          🚀 Quick Start:
+          1. Open terminal and run: {{ install_dir }}/bin/tam-rfe-chat
+          2. Or use the desktop shortcut (Linux)
+          3. Follow the guided onboarding process
+          4. Generate your first report in minutes!
+          
+          📚 Documentation:
+          - User Guide: {{ install_dir }}/docs/BRAND-NEW-TAM-GUIDE.md
+          - Getting Started: {{ install_dir }}/GETTING-STARTED.md
+          - Prerequisites: {{ install_dir }}/docs/PREREQUISITES-GUIDE.md
+          
+          💝 Built with passion for helping new TAMs succeed!
+          
+          🆘 Need Help?
+          - Run the tool and ask for assistance
+          - Check the documentation in {{ install_dir }}/docs/
+          - Contact your TAM manager for support
+
+    - name: Clean up temporary files
+      file:
+        path: "/tmp/{{ tool_name }}-{{ tool_version }}"
+        state: absent
+      ignore_errors: true

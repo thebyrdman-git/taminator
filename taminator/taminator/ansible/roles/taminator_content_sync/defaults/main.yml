@@ -1,0 +1,6 @@
+---
+# Defaults for taminator_content_sync - override with vars or -e
+sync_version: true       # write app_version to VERSION and package.json
+sync_user_guide: true    # copy USER-GUIDE.md from outer to inner
+sync_icon: true         # copy icon to inner gui/build
+sync_docs: false         # copy README, GETTING-STARTED from outer to inner (optional)

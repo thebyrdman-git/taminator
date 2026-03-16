@@ -1,0 +1,116 @@
+{
+    "author": "Jimmy Byrd",
+    "build": {
+        "appId": "com.redhat.taminator",
+        "asarUnpack": [
+            "../gui_auth_check.py",
+            "../src/**/*"
+        ],
+        "directories": {
+            "buildResources": "build",
+            "output": "dist"
+        },
+        "extraResources": [
+            {
+                "from": "../web",
+                "to": "web"
+            },
+            {
+                "from": "../web_server.py",
+                "to": "."
+            },
+            {
+                "from": "../tam-rfe",
+                "to": "."
+            },
+            {
+                "from": "../src",
+                "to": "src"
+            },
+            {
+                "from": "../python-bundle",
+                "to": "python-bundle"
+            },
+            {
+                "from": "../USER-GUIDE.md",
+                "to": "USER-GUIDE.md"
+            },
+            {
+                "from": "../VERSION",
+                "to": "VERSION"
+            }
+        ],
+        "files": [
+            "main.js",
+            "index.html",
+            "public/**/*",
+            "package.json",
+            "../gui_auth_check.py",
+            "../src/**/*"
+        ],
+        "linux": {
+            "category": "Development",
+            "description": "RFE/Bug tracking tool for Red Hat TAMs",
+            "icon": "../web/taminator_logo.png",
+            "maintainer": "jbyrd@redhat.com",
+            "synopsis": "RFE and Bug Report Generator",
+            "target": [
+                "AppImage",
+                "deb",
+                "rpm"
+            ],
+            "vendor": "Red Hat"
+        },
+        "mac": {
+            "category": "public.app-category.developer-tools",
+            "icon": "../web/taminator_logo.png",
+            "target": [
+                {
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ],
+                    "target": "dmg"
+                }
+            ],
+            "type": "distribution"
+        },
+        "productName": "Taminator"
+    },
+    "dependencies": {
+        "@patternfly/react-core": "^5.4.2",
+        "@patternfly/react-icons": "^5.4.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1"
+    },
+    "description": "Taminator RFE Tool - GUI Application",
+    "devDependencies": {
+        "electron": "^33.2.0",
+        "electron-builder": "^25.1.8",
+        "eslint": "^8.57.0"
+    },
+    "homepage": "https://gitlab.cee.redhat.com/jbyrd/taminator",
+    "license": "ISC",
+    "main": "main.js",
+    "name": "taminator-gui",
+    "repository": {
+        "type": "git",
+        "url": "https://gitlab.cee.redhat.com/jbyrd/taminator.git"
+    },
+    "scripts": {
+        "build": "electron-builder",
+        "build:linux": "electron-builder --linux",
+        "build:linux:appimage": "electron-builder --linux AppImage",
+        "build:linux:arm64": "electron-builder --linux --arm64",
+        "build:linux:arm64:appimage": "electron-builder --linux --arm64 -c electron-builder-linux-appimage.json",
+        "build:linux:rpm": "electron-builder --linux rpm",
+        "build:mac": "electron-builder --mac",
+        "build:win": "electron-builder --win",
+        "dev": "electron . --dev",
+        "lint": "eslint . --ext .js",
+        "prebuild": "node -e \"var p=require('path'),f=require('fs'); var from=p.join(__dirname,'../../USER-GUIDE.md'); var to=p.join(__dirname,'../USER-GUIDE.md'); if(f.existsSync(from)) f.copyFileSync(from,to);\"",
+        "start": "electron .",
+        "verify": "npm run lint"
+    },
+    "version": "2.1.6"
+}

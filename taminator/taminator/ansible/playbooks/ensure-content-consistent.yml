@@ -1,0 +1,37 @@
+---
+# Ensure Taminator content is up-to-date and consistent.
+# 1) Sync: write app_version to VERSION and package.json; copy USER-GUIDE and icon.
+# 2) Verify: assert versions match (optional, run with tag 'verify' only to check without changing).
+#
+# Run from taminator/taminator/ansible/:
+#   ansible-playbook -i inventory-build.yml playbooks/ensure-content-consistent.yml
+# Sync only (default):
+#   ansible-playbook -i inventory-build.yml playbooks/ensure-content-consistent.yml
+# Verify only (no changes):
+#   ansible-playbook -i inventory-build.yml playbooks/ensure-content-consistent.yml --tags verify
+
+- name: Content consistency (sync and verify)
+  hosts: localhost
+  gather_facts: true
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+  vars_files:
+    - "{{ playbook_dir }}/../vars/content-consistency.yml"
+  tasks:
+    - name: Include sync role (sync version, USER-GUIDE, icon)
+      include_role:
+        name: ../roles/taminator_content_sync
+        apply:
+          vars:
+            repo_root: "{{ repo_root }}"
+      tags:
+        - sync
+
+    - name: Include verify role (assert versions match)
+      include_role:
+        name: ../roles/taminator_verify_consistency
+        apply:
+          vars:
+            repo_root: "{{ repo_root }}"
+      tags:
+        - verify

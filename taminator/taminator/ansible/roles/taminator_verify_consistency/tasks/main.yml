@@ -1,0 +1,34 @@
+---
+# Verify content consistency (no changes). Use in CI or before release.
+# Fails if version or key content is out of sync.
+
+- name: Set paths from repo_root
+  set_fact:
+    version_path: "{{ repo_root }}/{{ version_file }}"
+    package_json: "{{ repo_root }}/{{ package_json_path }}"
+
+- name: Read VERSION file
+  slurp:
+    src: "{{ version_path }}"
+  register: version_file_content
+
+- name: VERSION file must match app_version
+  assert:
+    that: (version_file_content.content | b64decode | trim) == app_version
+    fail_msg: "VERSION file ({{ version_path }}) contains '{{ version_file_content.content | b64decode | trim }}'; expected '{{ app_version }}'. Run ensure-content-consistent.yml or update vars."
+    success_msg: "VERSION file matches app_version ({{ app_version }})."
+
+- name: Read package.json
+  slurp:
+    src: "{{ package_json }}"
+  register: pkg_slurp
+
+- name: package.json version must match app_version
+  assert:
+    that: (pkg_slurp.content | b64decode | from_json).version == app_version
+    fail_msg: "package.json version does not match app_version ({{ app_version }}). Run ensure-content-consistent.yml or update vars."
+    success_msg: "package.json version matches app_version ({{ app_version }})."
+
+- name: Content consistency check passed
+  debug:
+    msg: "All version and content checks passed (app_version={{ app_version }})."

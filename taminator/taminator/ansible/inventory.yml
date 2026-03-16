@@ -1,0 +1,155 @@
+---
+# TAM RFE Automation Tool - Ansible Inventory
+# Defines target systems for deployment
+
+all:
+  children:
+    tam_workstations:
+      hosts:
+        localhost:
+          ansible_connection: local
+          ansible_user: "{{ ansible_env.USER }}"
+          tool_install_path: "{{ ansible_env.HOME }}/tam-rfe-automation"
+          redhat_vpn_required: true
+          cursor_ide_optional: true
+          
+    # Example for multiple TAM workstations
+    # tam_workstations:
+    #   hosts:
+    #     tam-workstation-01.redhat.com:
+    #       ansible_host: 192.168.1.100
+    #       ansible_user: tamuser1
+    #       tool_install_path: /home/tamuser1/tam-rfe-automation
+    #       redhat_vpn_required: true
+    #       cursor_ide_optional: true
+    #     tam-workstation-02.redhat.com:
+    #       ansible_host: 192.168.1.101
+    #       ansible_user: tamuser2
+    #       tool_install_path: /home/tamuser2/tam-rfe-automation
+    #       redhat_vpn_required: true
+    #       cursor_ide_optional: true
+    #     tam-workstation-03.redhat.com:
+    #       ansible_host: 192.168.1.102
+    #       ansible_user: tamuser3
+    #       tool_install_path: /home/tamuser3/tam-rfe-automation
+    #       redhat_vpn_required: true
+    #       cursor_ide_optional: true
+
+  vars:
+    # Global variables
+    tool_version: "1.0.0"
+    tool_name: "tam-rfe-automation"
+    python_version: "3.7"
+    
+    # Red Hat specific settings
+    redhat_vpn_hosts:
+      - "access.redhat.com"
+      - "rhcase.redhat.com"
+      - "portal.redhat.com"
+    
+    # Tool configuration
+    tool_config:
+      default_sbr_groups:
+        - "Ansible"
+        - "Ansible Automation Platform"
+        - "OpenShift"
+        - "OpenShift Container Platform"
+        - "RHEL"
+        - "Red Hat Enterprise Linux"
+        - "Satellite"
+        - "Red Hat Satellite"
+      
+      default_time_range: "Last 30 days"
+      default_report_format: "standard"
+      default_delivery_method: "both"
+      
+      notification_settings:
+        email: true
+        slack: false
+        portal: true
+      
+      automation_settings:
+        auto_generate: false
+        schedule: "weekly"
+        time: "09:00"
+        timezone: "UTC"
+    
+    # Platform-specific settings
+    platform_settings:
+      RedHat:
+        package_manager: "yum"
+        python_package: "python3"
+        pip_package: "python3-pip"
+        dev_packages:
+          - "python3-devel"
+          - "gcc"
+          - "make"
+          - "curl"
+          - "wget"
+          - "git"
+      
+      Debian:
+        package_manager: "apt"
+        python_package: "python3"
+        pip_package: "python3-pip"
+        dev_packages:
+          - "python3-dev"
+          - "build-essential"
+          - "curl"
+          - "wget"
+          - "git"
+      
+      Darwin:
+        package_manager: "homebrew"
+        python_package: "python@3.9"
+        pip_package: "pip3"
+        dev_packages:
+          - "git"
+          - "curl"
+          - "wget"
+      
+      Windows:
+        package_manager: "chocolatey"
+        python_package: "python3"
+        pip_package: "pip3"
+        dev_packages:
+          - "git"
+          - "curl"
+          - "wget"
+    
+    # Deployment settings
+    deployment_settings:
+      create_desktop_shortcut: true
+      create_symlinks: true
+      symlink_directory: "{{ ansible_env.HOME }}/.local/bin"
+      desktop_directory: "{{ ansible_env.HOME }}/Desktop"
+      
+      # File permissions
+      file_permissions:
+        directories: "0755"
+        executables: "0755"
+        config_files: "0644"
+        data_files: "0644"
+      
+      # User and group
+      file_owner: "{{ ansible_user }}"
+      file_group: "{{ ansible_user }}"
+    
+    # Validation settings
+    validation_settings:
+      minimum_disk_space_gb: 2
+      minimum_memory_gb: 4
+      required_python_version: "3.7"
+      supported_platforms:
+        - "RedHat"
+        - "Debian"
+        - "Darwin"
+        - "Windows"
+    
+    # Logging settings
+    logging_settings:
+      log_level: "INFO"
+      log_file: "{{ ansible_env.HOME }}/.config/{{ tool_name }}/ansible-deployment.log"
+      log_rotation: true
+      max_log_size: "10MB"
+      max_log_files: 5

@@ -1,0 +1,37 @@
+---
+# Build Taminator Electron app for Linux (AppImage).
+# For release artifacts, prefer GitHub Actions (see .cursor/rules/linux-builds-github-actions.mdc).
+# Optionally runs content sync first (same as build-mac) so version, USER-GUIDE, and icon stay consistent.
+#
+# Run from repo root: ansible-playbook -i taminator/taminator/ansible/inventory-build.yml taminator/taminator/ansible/playbooks/build-linux.yml
+# Or from taminator/taminator/ansible/: ansible-playbook -i inventory-build.yml playbooks/build-linux.yml
+
+- name: Taminator build (Linux)
+  hosts: localhost
+  gather_facts: true
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    build_platform: linux
+    sync_content_before_build: true
+  vars_files:
+    - "{{ playbook_dir }}/../vars/build-pipeline.yml"
+    - "{{ playbook_dir }}/../vars/content-consistency.yml"
+  tasks:
+    - name: Sync content before build (version, USER-GUIDE, icon)
+      include_role:
+        name: ../roles/taminator_content_sync
+        apply:
+          vars:
+            repo_root: "{{ repo_root }}"
+      when: sync_content_before_build | default(true) | bool
+      tags: [sync]
+
+    - name: Run build
+      include_role:
+        name: ../roles/taminator_build
+        apply:
+          vars:
+            repo_root: "{{ repo_root }}"
+            build_platform: "{{ build_platform }}"
+            npm_ci_retries: 3
+      tags: [build]

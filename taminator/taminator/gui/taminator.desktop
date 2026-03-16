@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Taminator
+Comment=Tool for generating and maintaining RFE and bug reports for TAMs
+GenericName=RFE Tool
+Exec=taminator %U
+Icon=taminator
+Terminal=false
+Categories=Development;Utility;
+Keywords=rfe;bug;jira;redhat;tam;
+StartupWMClass=Taminator
+MimeType=x-scheme-handler/taminator;
+

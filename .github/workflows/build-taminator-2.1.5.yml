@@ -1,0 +1,233 @@
+---
+# Build Taminator 2.1.5 — all packages (Mac + Linux x64 + Linux ARM64).
+# Run from Actions tab → "Build Taminator 2.1.5" → Run workflow.
+#
+# Expected outputs (artifact name → files):
+#   taminator-2.1.5-linux-x64   → Taminator-2.1.5-x86_64.AppImage (or similar)
+#   taminator-2.1.5-mac        → Taminator-2.1.5.dmg (Intel), Taminator-2.1.5-arm64.dmg (Apple Silicon)
+#   taminator-2.1.5-linux-arm64 → Taminator-2.1.5-arm64.AppImage
+#
+# Prerequisites in repo: app_version 2.1.5 in vars/content-consistency.yml; icon at taminator/gui/build/icon.png.
+#
+# How we verify packages reflect the latest fixes:
+#   - Each job checks out the repo once at the start; the whole build uses that tree.
+#   - Validate ensures package.json version matches version_expected (no stale version).
+#   - We record and log ref + commit SHA at the start of validate and each build job so the run
+#     is explicitly tied to one commit; confirm the logged SHA is the commit that has your fixes.
+#   - For releases, run from the branch/commit you want, or push a tag and trigger from that tag.
+#
+# Release: set "Create release" to true to create a GitHub Release for the version and attach all
+# built artifacts. The tag (e.g. v2.1.5) must already exist; push the tag first, then run this workflow.
+
+name: Build Taminator 2.1.5
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_expected:
+        description: 'Expected version (must match package.json)'
+        required: true
+        default: '2.1.5'
+      create_release:
+        description: 'Create GitHub Release and attach artifacts (tag must exist)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate version and prerequisites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record build source (ref and commit)
+        run: |
+          echo "Build ref: ${{ github.ref }}"
+          echo "Build SHA: ${{ github.sha }}"
+          echo "Short SHA: $(git rev-parse --short HEAD)"
+          git log -1 --oneline
+          echo "All packages in this run will be built from the above commit."
+      - name: Check build icon exists
+        run: |
+          if [ ! -f taminator/gui/build/icon.png ]; then
+            echo "::error::Missing taminator/gui/build/icon.png — add a 512x512 PNG."
+            exit 1
+          fi
+          echo "Build icon OK"
+      - name: Read version from package.json
+        id: pkg_version
+        run: |
+          V=$(jq -r '.version' taminator/taminator/gui/package.json)
+          echo "version=$V" >> $GITHUB_OUTPUT
+          echo "Package version: $V"
+      - name: Fail if version mismatch
+        run: |
+          if [ "${{ steps.pkg_version.outputs.version }}" != "${{ github.event.inputs.version_expected }}" ]; then
+            echo "::error::package.json version (${{ steps.pkg_version.outputs.version }}) != expected (${{ github.event.inputs.version_expected }}). Update vars/content-consistency.yml and run ensure-content-consistent.yml, or change the workflow input."
+            exit 1
+          fi
+          echo "Version match: ${{ github.event.inputs.version_expected }}"
+
+  build-linux:
+    name: Build Linux (AppImage x64)
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build from commit
+        run: |
+          echo "Building Linux x64 from commit ${{ github.sha }} (ref: ${{ github.ref }})"
+          git log -1 --oneline
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install ansible
+      - name: Run Ansible build (Linux)
+        run: |
+          ansible-playbook -i taminator/taminator/ansible/inventory-build.yml taminator/taminator/ansible/playbooks/build-linux.yml
+      - name: List built Linux artifacts
+        working-directory: taminator/taminator/gui/dist
+        run: ls -la *.AppImage 2>/dev/null || true
+      - name: Upload Linux AppImage (x64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-2.1.5-linux-x64
+          path: taminator/taminator/gui/dist/*.AppImage
+          retention-days: 30
+
+  build-mac:
+    name: Build macOS (DMG x64 + arm64)
+    needs: validate
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build from commit
+        run: |
+          echo "Building macOS from commit ${{ github.sha }} (ref: ${{ github.ref }})"
+          git log -1 --oneline
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install ansible
+      - name: Run Ansible build (macOS)
+        run: |
+          ansible-playbook -i taminator/taminator/ansible/inventory-build.yml taminator/taminator/ansible/playbooks/build-mac.yml
+      - name: List built macOS artifacts
+        working-directory: taminator/taminator/gui/dist
+        run: ls -la *.dmg *.blockmap 2>/dev/null || true
+      - name: Upload macOS DMGs (Intel x64 + Apple Silicon arm64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-2.1.5-mac
+          path: |
+            taminator/taminator/gui/dist/*.dmg
+          retention-days: 30
+
+  build-linux-arm64:
+    name: Build Linux ARM64 (AppImage)
+    needs: validate
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build from commit
+        run: |
+          echo "Building Linux ARM64 from commit ${{ github.sha }} (ref: ${{ github.ref }})"
+          git log -1 --oneline
+      - name: Ensure build icon
+        run: |
+          [ -f taminator/gui/build/icon.png ] || { echo "::error::Missing taminator/gui/build/icon.png"; exit 1; }
+          mkdir -p taminator/taminator/gui/build
+          cp taminator/gui/build/icon.png taminator/taminator/gui/build/icon.png
+      - uses: uraimo/run-on-arch-action@v3
+        with:
+          arch: aarch64
+          distro: ubuntu20.04
+          setup: mkdir -p "${PWD}/arm64-artifacts"
+          dockerRunArgs: |
+            --volume "${PWD}:/workspace"
+            --volume "${PWD}/arm64-artifacts:/artifacts"
+          install: |
+            apt-get update -qq && apt-get install -qq -y curl ca-certificates
+            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+            apt-get install -qq -y nodejs
+            apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
+          run: |
+            set -e
+            cd /workspace/taminator/taminator/gui
+            npm config set fetch-retries 5
+            npm config set fetch-timeout 300000
+            npm ci
+            npx electron-builder --linux AppImage --publish never
+            cp -v dist/*.AppImage /artifacts/ 2>/dev/null || true
+            ls -la /artifacts/
+      - name: List built Linux ARM64 artifacts
+        run: ls -la arm64-artifacts/
+      - name: Upload Linux ARM64 AppImage (aarch64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: taminator-2.1.5-linux-arm64
+          path: arm64-artifacts/*.AppImage
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    needs: [build-linux, build-mac, build-linux-arm64]
+    if: github.event.inputs.create_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout (fetch tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure release tag exists
+        run: |
+          TAG="v${{ github.event.inputs.version_expected }}"
+          git fetch origin tag "$TAG" --no-recurse-submodules 2>/dev/null || true
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG not found. Push the tag first, then run this workflow with Create release = true."
+            exit 1
+          fi
+          echo "Tag $TAG found"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: List artifacts for release
+        run: find artifacts/ -type f
+
+      - name: Resolve release notes file
+        id: notes
+        run: |
+          F="v${{ github.event.inputs.version_expected }}-release-notes.md"
+          if [ -f "$F" ]; then
+            echo "path=$F" >> $GITHUB_OUTPUT
+          else
+            echo "path=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.event.inputs.version_expected }}
+          name: Taminator v${{ github.event.inputs.version_expected }}
+          body_path: ${{ steps.notes.outputs.path }}
+          draft: false
+          files: |
+            artifacts/**/*.AppImage
+            artifacts/**/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release summary
+        run: |
+          echo "Release created: https://github.com/${{ github.repository }}/releases/tag/v${{ github.event.inputs.version_expected }}"
+          find artifacts/ -type f -exec basename {} \;

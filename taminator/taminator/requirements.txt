@@ -1,0 +1,37 @@
+# Taminator Requirements
+# Version: 2.0.0-alpha
+
+# UI/Output
+rich>=13.0.0              # Beautiful terminal output
+click>=8.1.0              # CLI framework
+
+# HTTP/API
+requests>=2.31.0          # HTTP library for API calls
+
+# Google Drive/Docs (markdown→HTML for formatted Docs)
+markdown>=3.5.0            # Convert markdown to HTML for Google Docs import
+google-auth>=2.22.0       # Google auth
+google-auth-oauthlib>=1.0.0
+google-auth-httplib2>=0.1.0
+google-api-python-client>=2.100.0
+
+# Templates
+jinja2>=3.1.0             # Template rendering
+
+# Configuration
+pyyaml>=6.0               # YAML config files
+
+# Security/Storage
+keyring>=24.0.0           # Secure token storage
+cryptography>=41.0.0      # Encryption utilities
+
+# Testing
+pytest>=7.4.0             # Testing framework
+pytest-cov>=4.1.0         # Test coverage
+pytest-mock>=3.11.0       # Mocking for tests
+
+# Development
+black>=23.0.0             # Code formatting
+flake8>=6.0.0             # Linting
+mypy>=1.5.0               # Type checking
+

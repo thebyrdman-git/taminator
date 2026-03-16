@@ -1,0 +1,92 @@
+---
+# Keep content up-to-date and consistent: version, USER-GUIDE, icon.
+# repo_root = inner taminator dir (contains gui/, VERSION, tam-rfe).
+
+- name: Set paths from repo_root
+  set_fact:
+    version_path: "{{ repo_root }}/{{ version_file }}"
+    package_json: "{{ repo_root }}/{{ package_json_path }}"
+    user_guide_src: "{{ repo_root }}/{{ user_guide_outer }}"
+    user_guide_dst: "{{ repo_root }}/{{ user_guide_inner }}"
+    icon_src: "{{ repo_root }}/{{ icon_outer }}"
+    icon_dst: "{{ repo_root }}/{{ icon_inner_build }}"
+
+- name: Ensure VERSION file has app_version
+  copy:
+    content: "{{ app_version }}\n"
+    dest: "{{ version_path }}"
+    mode: "0644"
+  when: sync_version | default(true) | bool
+
+- name: Update version in package.json
+  when: sync_version | default(true) | bool
+  block:
+    - name: Read package.json
+      slurp:
+        src: "{{ package_json }}"
+      register: pkg_slurp
+
+    - name: Parse package.json
+      set_fact:
+        pkg_json: "{{ pkg_slurp.content | b64decode | from_json }}"
+
+    - name: Remember current version
+      set_fact:
+        pkg_version_before: "{{ pkg_json.version | default('') }}"
+
+    - name: Set version in package.json
+      set_fact:
+        pkg_json: "{{ pkg_json | combine({'version': app_version}, recursive=false) }}"
+
+    - name: Write package.json
+      copy:
+        content: "{{ pkg_json | to_nice_json }}"
+        dest: "{{ package_json }}"
+        mode: "0644"
+      when: pkg_version_before != app_version
+
+- name: Check if canonical USER-GUIDE exists (outer)
+  stat:
+    path: "{{ user_guide_src }}"
+  register: user_guide_src_stat
+  when: sync_user_guide | default(true) | bool
+
+- name: Sync USER-GUIDE.md from outer to inner
+  copy:
+    src: "{{ user_guide_src }}"
+    dest: "{{ user_guide_dst }}"
+    mode: "0644"
+    force: true
+  when: sync_user_guide | default(true) | bool and user_guide_src_stat.stat.exists | default(false)
+
+- name: Ensure inner gui/build directory exists
+  file:
+    path: "{{ repo_root }}/gui/build"
+    state: directory
+    mode: "0755"
+  when: sync_icon | default(true) | bool
+
+- name: Check if canonical icon exists (outer)
+  stat:
+    path: "{{ icon_src }}"
+  register: icon_src_stat
+  when: sync_icon | default(true) | bool
+
+- name: Sync build icon to inner gui/build
+  copy:
+    src: "{{ icon_src }}"
+    dest: "{{ icon_dst }}"
+    mode: "0644"
+    force: true
+  when: sync_icon | default(true) | bool and icon_src_stat.stat.exists | default(false)
+
+- name: Sync README and GETTING-STARTED (optional)
+  copy:
+    src: "{{ repo_root }}/../{{ item.src }}"
+    dest: "{{ repo_root }}/{{ item.dest }}"
+    mode: "0644"
+    force: true
+  loop:
+    - { src: "README.md", dest: "README.md" }
+    - { src: "GETTING-STARTED.md", dest: "GETTING-STARTED.md" }
+  when: sync_docs | default(false) | bool

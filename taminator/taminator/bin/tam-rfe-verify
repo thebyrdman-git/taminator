@@ -1,0 +1,298 @@
+#!/usr/bin/env bash
+
+# TAM RFE Verification Tool - Comprehensive System Validation
+# Purpose: Verify RFE automation tool is working correctly
+# Usage: tam-rfe-verify [--quick|--full|--help]
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+VERIFICATION_SYSTEM="$PROJECT_ROOT/src/rfe_verification_system.py"
+
+# Logging
+LOG_FILE="/tmp/tam-rfe-verify-$(date +%Y%m%d-%H%M%S).log"
+exec 1> >(tee -a "$LOG_FILE")
+exec 2> >(tee -a "$LOG_FILE" >&2)
+
+print_header() {
+    echo -e "${CYAN}"
+    echo "🧪 TAM RFE VERIFICATION TOOL"
+    echo "============================"
+    echo -e "${NC}"
+    echo "📅 Started: $(date)"
+    echo "📁 Log File: $LOG_FILE"
+    echo "🎯 Purpose: Verify RFE automation tool is working correctly"
+    echo ""
+}
+
+print_section() {
+    echo -e "${BLUE}$1${NC}"
+    echo "$(echo "$1" | sed 's/./=/g')"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${PURPLE}💡 $1${NC}"
+}
+
+quick_verification() {
+    print_section "⚡ QUICK VERIFICATION"
+    
+    local all_good=true
+    
+    # Check critical components
+    echo "🔍 Checking critical components..."
+    
+    # Python
+    if command -v python3 >/dev/null 2>&1; then
+        python_version=$(python3 --version 2>&1)
+        if [[ "$python_version" == *"Python 3.8"* ]] || [[ "$python_version" == *"Python 3.9"* ]] || [[ "$python_version" == *"Python 3.10"* ]]; then
+            print_success "Python 3.8+ available: $python_version"
+        else
+            print_error "Python version too old: $python_version"
+            all_good=false
+        fi
+    else
+        print_error "Python 3 not found"
+        all_good=false
+    fi
+    
+    # Git
+    if command -v git >/dev/null 2>&1; then
+        print_success "Git available: $(git --version)"
+    else
+        print_error "Git not found"
+        all_good=false
+    fi
+    
+    # rhcase
+    if command -v rhcase >/dev/null 2>&1; then
+        if rhcase --version >/dev/null 2>&1; then
+            print_success "rhcase configured and working"
+        else
+            print_error "rhcase not configured"
+            all_good=false
+        fi
+    else
+        print_error "rhcase not found"
+        all_good=false
+    fi
+    
+    # Cursor IDE
+    if command -v cursor >/dev/null 2>&1; then
+        print_success "Cursor IDE available"
+    else
+        print_warning "Cursor IDE not found (recommended but not critical)"
+    fi
+    
+    # Red Hat connectivity
+    echo ""
+    echo "🌐 Checking Red Hat connectivity..."
+    
+    if curl -s --connect-timeout 5 https://access.redhat.com >/dev/null 2>&1; then
+        print_success "Red Hat VPN connectivity verified"
+    else
+        print_error "Red Hat VPN connectivity failed"
+        all_good=false
+    fi
+    
+    # Python dependencies
+    echo ""
+    echo "📦 Checking Python dependencies..."
+    
+    if python3 -c "import requests, yaml, json" >/dev/null 2>&1; then
+        print_success "Core Python dependencies available"
+    else
+        print_error "Missing Python dependencies"
+        all_good=false
+    fi
+    
+    # RFE tool components
+    echo ""
+    echo "🔧 Checking RFE tool components..."
+    
+    if [[ -f "$PROJECT_ROOT/src/rfe_verification_system.py" ]]; then
+        print_success "RFE verification system available"
+    else
+        print_error "RFE verification system not found"
+        all_good=false
+    fi
+    
+    # Configuration
+    echo ""
+    echo "⚙️  Checking configuration..."
+    
+    if [[ -d "$HOME/.config/tam-rfe-automation" ]]; then
+        print_success "TAM RFE automation configuration directory exists"
+    else
+        print_warning "TAM RFE automation configuration directory not found"
+    fi
+    
+    # Summary
+    echo ""
+    if [[ "$all_good" == true ]]; then
+        print_success "Quick verification PASSED - Tool appears to be working"
+        return 0
+    else
+        print_error "Quick verification FAILED - Issues detected"
+        print_info "Run 'tam-rfe-verify --full' for detailed analysis"
+        return 1
+    fi
+}
+
+full_verification() {
+    print_section "🔬 FULL VERIFICATION"
+    
+    echo "Running comprehensive verification system..."
+    echo ""
+    
+    # Check if verification system exists
+    if [[ ! -f "$VERIFICATION_SYSTEM" ]]; then
+        print_error "Verification system not found: $VERIFICATION_SYSTEM"
+        return 1
+    fi
+    
+    # Run verification system
+    if python3 "$VERIFICATION_SYSTEM"; then
+        print_success "Full verification completed successfully"
+        return 0
+    else
+        print_error "Full verification failed"
+        return 1
+    fi
+}
+
+test_specific_component() {
+    local component="$1"
+    
+    print_section "🧪 TESTING COMPONENT: $component"
+    
+    case "$component" in
+        "rhcase")
+            echo "Testing rhcase connectivity..."
+            if rhcase list 838043 --months 1 >/dev/null 2>&1; then
+                print_success "rhcase connectivity test PASSED"
+            else
+                print_error "rhcase connectivity test FAILED"
+                return 1
+            fi
+            ;;
+        "python")
+            echo "Testing Python environment..."
+            if python3 -c "import sys; print(f'Python {sys.version}')"; then
+                print_success "Python environment test PASSED"
+            else
+                print_error "Python environment test FAILED"
+                return 1
+            fi
+            ;;
+        "connectivity")
+            echo "Testing Red Hat connectivity..."
+            if curl -s --connect-timeout 10 https://access.redhat.com >/dev/null 2>&1; then
+                print_success "Red Hat connectivity test PASSED"
+            else
+                print_error "Red Hat connectivity test FAILED"
+                return 1
+            fi
+            ;;
+        "dependencies")
+            echo "Testing Python dependencies..."
+            if python3 -c "import requests, yaml, json, jinja2, datetime"; then
+                print_success "Python dependencies test PASSED"
+            else
+                print_error "Python dependencies test FAILED"
+                return 1
+            fi
+            ;;
+        *)
+            print_error "Unknown component: $component"
+            print_info "Available components: rhcase, python, connectivity, dependencies"
+            return 1
+            ;;
+    esac
+}
+
+show_help() {
+    echo "TAM RFE Verification Tool - Comprehensive System Validation"
+    echo ""
+    echo "Usage: tam-rfe-verify [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --quick           Run quick verification (default)"
+    echo "  --full            Run comprehensive verification system"
+    echo "  --test COMPONENT  Test specific component"
+    echo "  --help            Show this help message"
+    echo ""
+    echo "Components for --test:"
+    echo "  rhcase           Test rhcase connectivity"
+    echo "  python           Test Python environment"
+    echo "  connectivity     Test Red Hat connectivity"
+    echo "  dependencies     Test Python dependencies"
+    echo ""
+    echo "Examples:"
+    echo "  tam-rfe-verify                    # Quick verification"
+    echo "  tam-rfe-verify --full             # Full verification"
+    echo "  tam-rfe-verify --test rhcase      # Test rhcase only"
+    echo "  tam-rfe-verify --test python      # Test Python only"
+    echo ""
+    echo "Features:"
+    echo "  ✅ Quick system health check"
+    echo "  🔬 Comprehensive test suite"
+    echo "  🧪 Component-specific testing"
+    echo "  📊 Detailed reporting and recommendations"
+    echo "  🚨 Critical failure detection"
+}
+
+main() {
+    print_header
+    
+    case "${1:-}" in
+        --quick|"")
+            quick_verification
+            ;;
+        --full)
+            full_verification
+            ;;
+        --test)
+            if [[ -z "${2:-}" ]]; then
+                print_error "Component name required for --test"
+                show_help
+                exit 1
+            fi
+            test_specific_component "$2"
+            ;;
+        --help)
+            show_help
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
+

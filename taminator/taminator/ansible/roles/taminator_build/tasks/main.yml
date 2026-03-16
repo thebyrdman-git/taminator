@@ -1,0 +1,95 @@
+---
+# Taminator Electron app build - single role for consistent pipeline.
+# Aligns with .github/workflows/electron-build.yml steps.
+
+- name: Resolve repo root when not set
+  set_fact:
+    repo_root: "{{ playbook_dir }}/../.."
+  when: repo_root is not defined or repo_root == ""
+
+- name: Set gui_dir and paths (repo_root = directory containing gui/, i.e. taminator/taminator)
+  set_fact:
+    gui_dir: "{{ repo_root }}/gui"
+    icon_src: "{{ repo_root }}/../gui/build/icon.png"
+    icon_dst: "{{ repo_root }}/gui/build/icon.png"
+
+- name: Ensure build icon exists (source)
+  assert:
+    that: icon_src | length > 0
+    fail_msg: "Icon source path is empty."
+- name: Check icon source file exists
+  stat:
+    path: "{{ icon_src }}"
+  register: icon_src_stat
+- name: Fail if build icon missing
+  fail:
+    msg: "Missing {{ icon_src }} — add a 512x512 PNG and commit it. See .github/workflows/electron-build.yml."
+  when: not icon_src_stat.stat.exists
+
+- name: Ensure gui build directory exists
+  file:
+    path: "{{ gui_dir }}/build"
+    state: directory
+    mode: "0755"
+
+- name: Copy build icon to inner gui
+  copy:
+    src: "{{ icon_src }}"
+    dest: "{{ icon_dst }}"
+    mode: "0644"
+    force: true
+
+- name: Set up Node.js (version {{ node_version }}) when not in CI
+  block:
+    - name: Check for node
+      command: which node
+      register: node_check
+      changed_when: false
+      failed_when: false
+    - name: Install Node via nvm or system (placeholder - use pre-installed or actions/setup-node in CI)
+      debug:
+        msg: "Ensure Node {{ node_version }} is installed (e.g. nvm, homebrew, or CI setup-node). Skipping install in playbook."
+      when: node_check.rc != 0
+  when: ansible_env.CI is not defined or ansible_env.CI == ""
+
+- name: Install npm dependencies (npm ci)
+  command: npm ci
+  args:
+    chdir: "{{ gui_dir }}"
+  environment:
+    npm_config_fetch_retries: 5
+    npm_config_fetch_timeout: 600000
+    npm_config_fetch_retry_mintimeout: 60000
+  register: npm_ci_result
+  retries: "{{ npm_ci_retries | int }}"
+  delay: "{{ npm_ci_retry_delay_sec | default(30) }}"
+  until: npm_ci_result.rc == 0
+
+- name: Run electron-builder (mac)
+  command: npx electron-builder --mac --publish never
+  args:
+    chdir: "{{ gui_dir }}"
+  when: build_platform == "mac"
+
+- name: Run electron-builder (linux)
+  command: npx electron-builder --linux --publish never
+  args:
+    chdir: "{{ gui_dir }}"
+  when: build_platform == "linux"
+
+- name: Run electron-builder (win)
+  command: npx electron-builder --win --publish never
+  args:
+    chdir: "{{ gui_dir }}"
+  when: build_platform == "win"
+
+- name: List dist directory
+  command: ls -la dist/
+  args:
+    chdir: "{{ gui_dir }}"
+  register: dist_list
+  changed_when: false
+
+- name: Show built artifacts
+  debug:
+    msg: "{{ dist_list.stdout_lines }}"
