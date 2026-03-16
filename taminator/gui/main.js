@@ -37,7 +37,7 @@ function getServerPaths() {
   };
 }
 
-function waitForServer(timeoutMs, serverStderrBuffer) {
+function waitForServer(timeoutMs, serverStderrBuffer, serverStdoutBuffer) {
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + (timeoutMs || 45000);
     function tryOnce() {
@@ -47,10 +47,13 @@ function waitForServer(timeoutMs, serverStderrBuffer) {
       });
       req.on('error', () => {
         if (Date.now() > deadline) {
-          const msg = serverStderrBuffer && serverStderrBuffer.length
-            ? `Server did not start in time.\n\nServer output:\n${serverStderrBuffer.join('').trim()}`
-            : 'Server did not start in time';
-          return reject(new Error(msg));
+          const stderr = serverStderrBuffer && serverStderrBuffer.length ? serverStderrBuffer.join('').trim() : '';
+          const stdout = serverStdoutBuffer && serverStdoutBuffer.length ? serverStdoutBuffer.join('').trim() : '';
+          const msg = 'Server did not start in time.' + (stderr || stdout ? '\n\nServer stderr:\n' + stderr + (stdout ? '\n\nServer stdout:\n' + stdout : '') : '');
+          const err = new Error(msg);
+          err.serverStderr = stderr;
+          err.serverStdout = stdout;
+          return reject(err);
         }
         setTimeout(tryOnce, 300);
       });
@@ -76,26 +79,80 @@ function findPython3() {
   return 'python3';
 }
 
+function getServerStartupDebugInfo() {
+  const fs = require('fs');
+  const paths = getServerPaths();
+  const python = findPython3();
+  const tamRfeExists = fs.existsSync(paths.tamRfe);
+  const cwdExists = paths.cwd && fs.existsSync(paths.cwd);
+  const webServerPy = path.join(paths.cwd || '', 'web_server.py');
+  const webServerPyExists = paths.cwd && fs.existsSync(webServerPy);
+  return {
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath || '(unset)',
+    cwd: paths.cwd || '(unset)',
+    cwdExists,
+    tamRfe: paths.tamRfe || '(unset)',
+    tamRfeExists,
+    webServerPy,
+    webServerPyExists,
+    python,
+    port: WEB_UI_PORT
+  };
+}
+
 function startWebServer() {
   return new Promise((resolve, reject) => {
     const fs = require('fs');
-    const { cwd, tamRfe, env } = getServerPaths();
-    if (!fs.existsSync(tamRfe)) {
-      return reject(new Error('tam-rfe not found at ' + tamRfe));
-    }
+    const os = require('os');
+    const paths = getServerPaths();
+    const { cwd, tamRfe, env } = paths;
     const python = findPython3();
+    const debugInfo = getServerStartupDebugInfo();
+
+    // Debug: log startup paths (visible when running from terminal or in logs)
+    console.log('[Main] Server startup debug:', JSON.stringify(debugInfo, null, 2));
+
+    if (!fs.existsSync(tamRfe)) {
+      const err = new Error('tam-rfe not found at ' + tamRfe);
+      err.debugInfo = debugInfo;
+      err.serverStderr = '';
+      err.serverStdout = '';
+      return reject(err);
+    }
+
     const serverStderrBuffer = [];
+    const serverStdoutBuffer = [];
     serverProcess = spawn(python, [tamRfe, 'serve', '--no-browser'], { cwd, env, stdio: 'pipe' });
-    serverProcess.on('error', (err) => reject(err));
-    serverProcess.stderr.on('data', (d) => {
-      serverStderrBuffer.push(d.toString());
-      console.log('[Server]', d.toString().trim());
+    serverProcess.on('error', (err) => {
+      err.debugInfo = debugInfo;
+      err.serverStderr = serverStderrBuffer.join('');
+      err.serverStdout = serverStdoutBuffer.join('');
+      reject(err);
     });
-    waitForServer(45000, serverStderrBuffer).then(resolve, reject);
+    serverProcess.stderr.on('data', (d) => {
+      const text = d.toString();
+      serverStderrBuffer.push(text);
+      console.log('[Server stderr]', text.trim());
+    });
+    serverProcess.stdout.on('data', (d) => {
+      const text = d.toString();
+      serverStdoutBuffer.push(text);
+      console.log('[Server stdout]', text.trim());
+    });
+    waitForServer(45000, serverStderrBuffer, serverStdoutBuffer)
+      .then(resolve)
+      .catch((err) => {
+        if (!err.debugInfo) err.debugInfo = debugInfo;
+        if (err.serverStderr === undefined) err.serverStderr = serverStderrBuffer.join('');
+        if (err.serverStdout === undefined) err.serverStdout = serverStdoutBuffer.join('');
+        reject(err);
+      });
   });
 }
 
-function createWindow(useServerUI) {
+function createWindow() {
   const fs = require('fs');
   let iconPath = path.join(__dirname, 'build/icon.png');
   
@@ -131,11 +188,8 @@ function createWindow(useServerUI) {
     }
   }
 
-  if (useServerUI) {
-    mainWindow.loadURL(WEB_UI_URL);
-  } else {
-    mainWindow.loadFile('index.html');
-  }
+  // Only load the server-served UI; never load index.html (old UI removed for Linux).
+  mainWindow.loadURL(WEB_UI_URL);
 
   // Open DevTools only in development mode
   if (process.argv.includes('--dev') || process.env.NODE_ENV === 'development') {
@@ -191,12 +245,92 @@ ipcMain.handle('load-settings', async () => {
   return loadSavedSettings();
 });
 
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 app.whenReady().then(() => {
   startWebServer()
-    .then(() => createWindow(true))
+    .then(() => createWindow())
     .catch((err) => {
-      console.error('[Main] Server failed:', err.message);
-      createWindow(false);
+      const fs = require('fs');
+      const os = require('os');
+      const debugInfo = err.debugInfo || getServerStartupDebugInfo();
+      const serverStderr = (err.serverStderr != null) ? String(err.serverStderr).trim() : '';
+      const serverStdout = (err.serverStdout != null) ? String(err.serverStdout).trim() : '';
+      const mainMsg = (err && err.message) ? String(err.message) : 'Unknown error';
+
+      console.error('[Main] Server failed:', mainMsg);
+      console.error('[Main] Debug info:', JSON.stringify(debugInfo, null, 2));
+      if (serverStderr) console.error('[Main] Server stderr:', serverStderr);
+      if (serverStdout) console.error('[Main] Server stdout:', serverStdout);
+
+      // Write debug file so user can open/copy even if window is small
+      const configDir = path.join(os.homedir(), '.config', 'taminator-gui');
+      const debugFile = path.join(configDir, 'server-startup-debug.txt');
+      try {
+        if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
+        const debugContent = [
+          'Taminator server failed to start',
+          '==============================',
+          '',
+          'Error: ' + mainMsg,
+          '',
+          'Debug info:',
+          JSON.stringify(debugInfo, null, 2),
+          '',
+          'Server stderr:',
+          serverStderr || '(none)',
+          '',
+          'Server stdout:',
+          serverStdout || '(none)'
+        ].join('\n');
+        fs.writeFileSync(debugFile, debugContent, 'utf8');
+        console.error('[Main] Debug info written to:', debugFile);
+      } catch (e) {
+        console.error('[Main] Could not write debug file:', e.message);
+      }
+
+      const debugSection = [
+        'platform: ' + debugInfo.platform,
+        'isPackaged: ' + debugInfo.isPackaged,
+        'resourcesPath: ' + (debugInfo.resourcesPath || '(unset)'),
+        'cwd: ' + (debugInfo.cwd || '(unset)'),
+        'cwdExists: ' + debugInfo.cwdExists,
+        'tamRfe: ' + (debugInfo.tamRfe || '(unset)'),
+        'tamRfeExists: ' + debugInfo.tamRfeExists,
+        'webServerPy: ' + (debugInfo.webServerPy || '(unset)'),
+        'webServerPyExists: ' + debugInfo.webServerPyExists,
+        'python: ' + (debugInfo.python || '(unset)'),
+        'port: ' + (debugInfo.port || WEB_UI_PORT)
+      ].join('\n');
+      const errWin = new BrowserWindow({
+        width: 720,
+        height: 560,
+        minWidth: 600,
+        minHeight: 400,
+        webPreferences: { nodeIntegration: false, contextIsolation: true }
+      });
+      const html = `
+        <!DOCTYPE html>
+        <html><head><meta charset="utf-8"><title>Taminator – Server failed to start</title></head>
+        <body style="font-family:system-ui,sans-serif;font-size:13px;margin:12px;color:#1a1a1a;">
+          <h2 style="color:#c00;">Taminator could not start</h2>
+          <p><strong>Error:</strong></p>
+          <pre style="white-space:pre-wrap;font-size:11px;background:#f5f5f5;padding:8px;border:1px solid #ddd;overflow:auto;max-height:100px;">${escapeHtml(mainMsg)}</pre>
+          <p><strong>Debug info (paths and checks):</strong></p>
+          <pre style="white-space:pre-wrap;font-size:11px;background:#f0f0f0;padding:8px;border:1px solid #ddd;overflow:auto;max-height:140px;">${escapeHtml(debugSection)}</pre>
+          ${serverStderr ? '<p><strong>Server stderr:</strong></p><pre style="white-space:pre-wrap;font-size:11px;background:#fff3f3;padding:8px;border:1px solid #fcc;overflow:auto;max-height:120px;">' + escapeHtml(serverStderr) + '</pre>' : ''}
+          ${serverStdout ? '<p><strong>Server stdout:</strong></p><pre style="white-space:pre-wrap;font-size:11px;background:#f5f5f5;padding:8px;overflow:auto;max-height:80px;">' + escapeHtml(serverStdout) + '</pre>' : ''}
+          <p style="font-size:12px;color:#666;">Full debug info was written to:<br><code>${escapeHtml(debugFile)}</code></p>
+          <p style="font-size:11px;">You can open that file to copy the details. Fix the paths or environment so <code>tam-rfe serve</code> can run from the cwd above, then restart the app.</p>
+        </body></html>
+      `;
+      errWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+      errWin.webContents.on('did-finish-load', () => {
+        errWin.webContents.openDevTools({ mode: 'detach' });
+      });
     });
 });
 

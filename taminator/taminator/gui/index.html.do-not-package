@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taminator</title>
+  <meta http-equiv="refresh" content="2;url=http://127.0.0.1:8765">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #151515;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .box {
+      text-align: center;
+      padding: 2rem;
+    }
+    .spinner { margin: 1rem auto; width: 32px; height: 32px; border: 3px solid #333; border-top-color: #ee0000; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    a { color: #73bcf7; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Starting Taminator…</p>
+    <p style="margin-top:1rem;font-size:14px;"><a href="http://127.0.0.1:8765">Open Taminator</a> if this page does not redirect.</p>
+  </div>
+  <script>
+    (function(){
+      var u = 'http://127.0.0.1:8765';
+      function go(){ try { window.location.href = u; } catch (e) {} }
+      var x = new XMLHttpRequest();
+      x.onreadystatechange = function(){ if (x.readyState === 4) { go(); } };
+      x.onerror = function(){ setTimeout(go, 1500); };
+      x.open('GET', u + '/api/status', true);
+      x.timeout = 2000;
+      x.send();
+    })();
+  </script>
+</body>
+</html>

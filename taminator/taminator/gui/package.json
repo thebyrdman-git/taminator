@@ -42,11 +42,11 @@
         ],
         "files": [
             "main.js",
-            "index.html",
             "public/**/*",
             "package.json",
             "../gui_auth_check.py",
-            "../src/**/*"
+            "../src/**/*",
+            "!index.html"
         ],
         "linux": {
             "category": "Development",
