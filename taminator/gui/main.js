@@ -38,6 +38,34 @@ function findPythonHomeForEmbeddedStdlib(bundleDir) {
 }
 
 /**
+ * PEP 405: PYTHONHOME is ignored for the venv interpreter. Shipped pyvenv.cfg still has
+ * home = /usr (build host), so on Fedora sys.prefix stays /usr and encodings is missing.
+ * Rewrite home to this machine's absolute bundle path (stdlib lives under bundle/lib/pythonX.Y).
+ */
+function rewritePyvenvCfgHomeToBundle(bundleDir) {
+  const fs = require('fs');
+  const cfgPath = path.join(bundleDir, 'pyvenv.cfg');
+  if (!fs.existsSync(cfgPath)) return;
+  try {
+    const resolved = path.resolve(bundleDir);
+    let text = fs.readFileSync(cfgPath, 'utf8');
+    const newLine = `home = ${resolved}`;
+    if (new RegExp(`^home\\s*=\\s*${resolved.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm').test(text)) {
+      return;
+    }
+    if (/^home\s*=/m.test(text)) {
+      text = text.replace(/^home\s*=.*/m, newLine);
+    } else {
+      text = `${newLine}\n${text}`;
+    }
+    fs.writeFileSync(cfgPath, text, 'utf8');
+    console.log('[Main] pyvenv.cfg home set to bundle:', resolved);
+  } catch (e) {
+    console.warn('[Main] Could not rewrite pyvenv.cfg:', e.message);
+  }
+}
+
+/**
  * When the app is packed (AppImage, etc.), the venv may be relocated so pyvenv.cfg
  * no longer points at the extracted path; the interpreter can miss site-packages.
  * Return site-packages under lib/python3.x (any version directory) if present.
@@ -90,7 +118,6 @@ function getServerPaths() {
     env.PYTHONPATH = pyPathParts.join(path.delimiter);
     env.TAMINATOR_RESOURCES = path.join(resourcesPath, 'taminator');
     if (bundleDir && sitePackages) env.VIRTUAL_ENV = bundleDir;
-    if (embeddedPythonHome) env.PYTHONHOME = embeddedPythonHome;
     if (appVersion) env.TAMINATOR_APP_VERSION = appVersion;
     return {
       cwd: path.join(resourcesPath, 'taminator'),
@@ -227,6 +254,10 @@ function startWebServer() {
       err.serverStderr = '';
       err.serverStdout = '';
       return reject(err);
+    }
+
+    if (app.isPackaged && bundledPython) {
+      rewritePyvenvCfgHomeToBundle(path.join(process.resourcesPath, 'python-bundle'));
     }
 
     const serverStderrBuffer = [];
