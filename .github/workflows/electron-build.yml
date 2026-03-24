@@ -254,8 +254,8 @@ jobs:
         id: build
         with:
           arch: aarch64
-          distro: ubuntu20.04
-          # ubuntu20.04: NodeSource setup_20.x works; 24.04 install was exiting 100
+          # Jammy has python3.12 + venv + dev for aarch64 in main/universe. Focal + deadsnakes has no arm64 3.12 packages.
+          distro: ubuntu22.04
           setup: |
             mkdir -p "${PWD}/arm64-artifacts"
           dockerRunArgs: |
@@ -263,9 +263,7 @@ jobs:
             --volume "${PWD}/arm64-artifacts:/artifacts"
           install: |
             apt-get update -qq
-            apt-get install -qq -y curl ca-certificates software-properties-common rsync
-            add-apt-repository -y ppa:deadsnakes/ppa
-            apt-get update -qq
+            apt-get install -qq -y curl ca-certificates rsync
             apt-get install -qq -y python3.12 python3.12-venv python3.12-dev python3-pip
             curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
             apt-get install -qq -y nodejs
