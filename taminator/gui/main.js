@@ -92,6 +92,17 @@ function findPythonBundleSitePackages(bundleDir) {
   return null;
 }
 
+/** venv --copies still links bin/python to libpython on the build host; we ship .so under bundle/lib (Ansible). */
+function prependBundledPythonLibLinux(bundleDir, env) {
+  if (process.platform !== 'linux' || !bundleDir) return env;
+  const fs = require('fs');
+  const bundleLib = path.join(bundleDir, 'lib');
+  if (!fs.existsSync(bundleLib)) return env;
+  const prev = env.LD_LIBRARY_PATH || '';
+  const next = prev ? `${bundleLib}:${prev}` : bundleLib;
+  return { ...env, LD_LIBRARY_PATH: next };
+}
+
 function getServerPaths() {
   const fs = require('fs');
   if (app.isPackaged) {
@@ -119,13 +130,14 @@ function getServerPaths() {
     env.TAMINATOR_RESOURCES = path.join(resourcesPath, 'taminator');
     if (bundleDir && sitePackages) env.VIRTUAL_ENV = bundleDir;
     if (appVersion) env.TAMINATOR_APP_VERSION = appVersion;
+    const envWithLib = prependBundledPythonLibLinux(bundleDir, env);
     return {
       cwd: path.join(resourcesPath, 'taminator'),
       tamRfe: path.join(resourcesPath, 'taminator', 'tam-rfe'),
       python: bundledPython,
       sitePackages: sitePackages || null,
       embeddedPythonHome: embeddedPythonHome || null,
-      env
+      env: envWithLib
     };
   }
   const appRoot = path.join(__dirname, '..');

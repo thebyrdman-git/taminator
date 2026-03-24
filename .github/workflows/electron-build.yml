@@ -82,8 +82,16 @@ jobs:
       - name: Verify Python bundle (must import rich before electron-pack)
         run: |
           PY=taminator/taminator/python-bundle/bin/python
+          LIB=taminator/taminator/python-bundle/lib
           test -x "$PY" || { echo "::error::Expected $PY — prepare-python-bundle did not create the venv"; exit 1; }
+          shopt -s nullglob
+          libs=( "$LIB"/libpython*.so* )
+          if [ ${#libs[@]} -eq 0 ]; then
+            echo "::error::No libpython under $LIB — Rocky and other hosts without CI Python libs will fail"
+            exit 1
+          fi
           "$PY" -c "import rich, click" || { echo "::error::venv missing runtime deps (rich/click)"; exit 1; }
+          env LD_LIBRARY_PATH="$LIB" "$PY" -c "import encodings, rich" || { echo "::error::Bundle must run with only LD_LIBRARY_PATH=$LIB (libpython embed)"; exit 1; }
           echo "Python bundle OK: $($PY -c 'import rich; print(rich.__file__)')"
       - name: Build Electron app (Linux)
         working-directory: taminator/gui
@@ -268,6 +276,18 @@ jobs:
             SRC=$("$PY" -c "import sys, os; v='%d.%d' % sys.version_info[:2]; print(os.path.join(sys.base_prefix, 'lib', 'python'+v))")
             mkdir -p "$BUNDLE/lib/python$VER"
             rsync -a --exclude site-packages "$SRC/" "$BUNDLE/lib/python$VER/"
+            mkdir -p "$BUNDLE/lib"
+            copied=0
+            while IFS= read -r line; do
+              so=$(echo "$line" | awk '{print $3}')
+              [ -z "$so" ] || [ "$so" = "not" ] && continue
+              case "$so" in /*)
+                if [ -f "$so" ]; then cp -a "$so" "$BUNDLE/lib/$(basename "$so")"; copied=$((copied + 1)); fi
+                ;;
+              esac
+            done < <(ldd "$PY" | grep libpython || true)
+            [ "$copied" -gt 0 ] || { echo "::error::No libpython from ldd; Rocky/off-host will fail"; exit 1; }
+            export LD_LIBRARY_PATH="$BUNDLE/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
             "$PY" -c "import encodings; import rich, click" || { echo "::error::ARM64 venv stdlib or deps"; exit 1; }
             cd /workspace/taminator/gui
             npm config set fetch-retries 5

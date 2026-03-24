@@ -65,3 +65,36 @@
     "$PY" -c "import encodings; print('embedded stdlib ok')"
   args:
     executable: /bin/bash
+
+# venv --copies still leaves the interpreter dynamically linked to libpython on the build host.
+# Ship those .so files and set LD_LIBRARY_PATH at runtime (see taminator/gui/main.js).
+- name: Embed libpython shared libraries for Linux (ldd → python-bundle/lib)
+  when: ansible_system == 'Linux'
+  shell: |
+    set -e
+    BUNDLE="{{ python_bundle_dir }}"
+    PY="$BUNDLE/bin/python"
+    LIBDIR="$BUNDLE/lib"
+    mkdir -p "$LIBDIR"
+    copied=0
+    while IFS= read -r line; do
+      so=$(echo "$line" | awk '{print $3}')
+      if [ -z "$so" ] || [ "$so" = "not" ]; then continue; fi
+      case "$so" in
+        /*)
+          if [ -f "$so" ]; then
+            base=$(basename "$so")
+            cp -a "$so" "$LIBDIR/$base"
+            copied=$((copied + 1))
+          fi
+          ;;
+      esac
+    done < <(ldd "$PY" | grep libpython || true)
+    if [ "$copied" -eq 0 ]; then
+      echo "ERROR: ldd reported no libpython for $PY; AppImage will not run off-host" >&2
+      exit 1
+    fi
+    export LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    "$PY" -c "import encodings, sys; print('bundle libpython ok', sys.version.split()[0])"
+  args:
+    executable: /bin/bash
