@@ -263,14 +263,17 @@ jobs:
             --volume "${PWD}/arm64-artifacts:/artifacts"
           install: |
             apt-get update -qq
-            apt-get install -qq -y curl ca-certificates python3 python3-venv python3-pip rsync
+            apt-get install -qq -y curl ca-certificates software-properties-common rsync
+            add-apt-repository -y ppa:deadsnakes/ppa
+            apt-get update -qq
+            apt-get install -qq -y python3.12 python3.12-venv python3.12-dev python3-pip
             curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
             apt-get install -qq -y nodejs
             apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
           run: |
             set -e
-            # Python bundle for packaged app (--copies: relocatable; default venv symlinks break on other hosts)
-            python3 -m venv --copies /workspace/taminator/taminator/python-bundle
+            # Match x64 CI: Python 3.12 venv + embedded stdlib + libpython (same as prepare-python-bundle / Rocky).
+            python3.12 -m venv --copies /workspace/taminator/taminator/python-bundle
             /workspace/taminator/taminator/python-bundle/bin/pip install --upgrade pip
             /workspace/taminator/taminator/python-bundle/bin/pip install -r /workspace/taminator/taminator/requirements-runtime.txt
             BUNDLE=/workspace/taminator/taminator/python-bundle
@@ -282,14 +285,26 @@ jobs:
             mkdir -p "$BUNDLE/lib"
             copied=0
             while IFS= read -r line; do
-              so=$(echo "$line" | awk '{print $3}')
-              [ -z "$so" ] || [ "$so" = "not" ] && continue
+              so=$(echo "$line" | sed -n 's/.*libpython[^ ]* => \(.*\) (.*/\1/p')
+              if [ -z "$so" ]; then
+                so=$(echo "$line" | awk '{for(i=1;i<=NF;i++) if($i=="=>"){print $(i+1); exit}}')
+              fi
+              if [ -z "$so" ] || [ "$so" = "not" ]; then continue; fi
               case "$so" in /*)
                 if [ -f "$so" ]; then cp -a "$so" "$BUNDLE/lib/$(basename "$so")"; copied=$((copied + 1)); fi
                 ;;
               esac
-            done < <(ldd "$PY" | grep libpython || true)
-            [ "$copied" -gt 0 ] || { echo "::error::No libpython from ldd; Rocky/off-host will fail"; exit 1; }
+            done < <(ldd "$PY" 2>/dev/null | grep libpython || true)
+            if [ "$copied" -eq 0 ]; then
+              for d in /usr/lib/aarch64-linux-gnu /usr/lib64 /usr/lib; do
+                for f in "$d"/libpython*.so*; do
+                  [ -f "$f" ] || continue
+                  cp -a "$f" "$BUNDLE/lib/"
+                  copied=$((copied + 1))
+                done
+              done
+            fi
+            [ "$copied" -gt 0 ] || { echo "::error::No libpython copied; check ldd output for $PY"; ldd "$PY" || true; exit 1; }
             export LD_LIBRARY_PATH="$BUNDLE/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
             "$PY" -c "import encodings; import rich, click" || { echo "::error::ARM64 venv stdlib or deps"; exit 1; }
             cd /workspace/taminator/gui

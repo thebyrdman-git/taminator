@@ -78,7 +78,10 @@
     mkdir -p "$LIBDIR"
     copied=0
     while IFS= read -r line; do
-      so=$(echo "$line" | awk '{print $3}')
+      so=$(echo "$line" | sed -n 's/.*libpython[^ ]* => \(.*\) (.*/\1/p')
+      if [ -z "$so" ]; then
+        so=$(echo "$line" | awk '{for(i=1;i<=NF;i++) if($i=="=>"){print $(i+1); exit}}')
+      fi
       if [ -z "$so" ] || [ "$so" = "not" ]; then continue; fi
       case "$so" in
         /*)
@@ -89,9 +92,19 @@
           fi
           ;;
       esac
-    done < <(ldd "$PY" | grep libpython || true)
+    done < <(ldd "$PY" 2>/dev/null | grep libpython || true)
     if [ "$copied" -eq 0 ]; then
-      echo "ERROR: ldd reported no libpython for $PY; AppImage will not run off-host" >&2
+      for d in /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /usr/lib64 /usr/lib; do
+        for f in "$d"/libpython*.so*; do
+          [ -f "$f" ] || continue
+          cp -a "$f" "$LIBDIR/"
+          copied=$((copied + 1))
+        done
+      done
+    fi
+    if [ "$copied" -eq 0 ]; then
+      echo "ERROR: no libpython copied for $PY; AppImage will not run off-host" >&2
+      ldd "$PY" || true
       exit 1
     fi
     export LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
