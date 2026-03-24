@@ -194,7 +194,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          python -m venv taminator/taminator/python-bundle
+          python -m venv --copies taminator/taminator/python-bundle
           ./taminator/taminator/python-bundle/Scripts/python.exe -m pip install --upgrade pip
           ./taminator/taminator/python-bundle/Scripts/pip.exe install -r taminator/taminator/requirements-runtime.txt
       - name: Verify Python bundle (macOS)
@@ -258,8 +258,8 @@ jobs:
             apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
           run: |
             set -e
-            # Python bundle for packaged app (same outcome as Ansible role taminator_python_bundle)
-            python3 -m venv /workspace/taminator/taminator/python-bundle
+            # Python bundle for packaged app (--copies: relocatable; default venv symlinks break on other hosts)
+            python3 -m venv --copies /workspace/taminator/taminator/python-bundle
             /workspace/taminator/taminator/python-bundle/bin/pip install --upgrade pip
             /workspace/taminator/taminator/python-bundle/bin/pip install -r /workspace/taminator/taminator/requirements-runtime.txt
             /workspace/taminator/taminator/python-bundle/bin/python -c "import rich, click" || { echo "::error::ARM64 venv missing rich/click"; exit 1; }

@@ -22,8 +22,10 @@
   ignore_errors: true
   when: venv_bin_python.stat.exists is not defined or not venv_bin_python.stat.exists
 
+# --copies: embed interpreter binaries instead of symlinking to /usr/bin/python3.*
+# so the packaged AppImage works on machines where that path/version differs.
 - name: Create Python venv (idempotent)
-  command: "{{ python_bundle_python }} -m venv {{ python_bundle_dir }}"
+  command: "{{ python_bundle_python }} -m venv --copies {{ python_bundle_dir }}"
   args:
     creates: "{{ python_bundle_dir }}/pyvenv.cfg"
   when: (venv_bin_python.stat.exists is not defined or not venv_bin_python.stat.exists) and (venv_bin_python3.stat.exists is not defined or not venv_bin_python3.stat.exists)
