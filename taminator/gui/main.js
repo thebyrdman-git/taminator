@@ -17,7 +17,7 @@ let serverProcess = null;
 /**
  * When the app is packed (AppImage, etc.), the venv may be relocated so pyvenv.cfg
  * no longer points at the extracted path; the interpreter can miss site-packages.
- * Return .../python-bundle/lib/python3.*/site-packages if present.
+ * Return site-packages under lib/python3.x (any version directory) if present.
  */
 function findPythonBundleSitePackages(bundleDir) {
   const fs = require('fs');
