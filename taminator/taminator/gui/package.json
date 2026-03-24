@@ -55,9 +55,7 @@
             "maintainer": "jbyrd@redhat.com",
             "synopsis": "RFE and Bug Report Generator",
             "target": [
-                "AppImage",
-                "deb",
-                "rpm"
+                "AppImage"
             ],
             "vendor": "Red Hat"
         },
