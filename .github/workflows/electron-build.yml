@@ -268,7 +268,7 @@ jobs:
             npm config set fetch-timeout 300000
             npm config set fetch-retry-mintimeout 20000
             npm ci
-            npx electron-builder --linux --arm64 AppImage --publish never
+            npx electron-builder --linux AppImage --arm64 --publish never
             cp -v dist/*.AppImage /artifacts/ 2>/dev/null || true
             APPIMAGE=$(ls -1 /artifacts/*.AppImage 2>/dev/null | head -1)
             test -n "$APPIMAGE" || { echo "::error::No AppImage produced"; exit 1; }
