@@ -18,13 +18,27 @@ function getServerPaths() {
   const fs = require('fs');
   if (app.isPackaged) {
     const resourcesPath = process.resourcesPath;
+    const bundleDir = path.join(resourcesPath, 'python-bundle');
+    let bundledPython = null;
+    if (process.platform === 'win32') {
+      const exe = path.join(bundleDir, 'Scripts', 'python.exe');
+      if (fs.existsSync(exe)) bundledPython = exe;
+    } else {
+      const binPython = path.join(bundleDir, 'bin', 'python');
+      const binPython3 = path.join(bundleDir, 'bin', 'python3');
+      if (fs.existsSync(binPython)) bundledPython = binPython;
+      else if (fs.existsSync(binPython3)) bundledPython = binPython3;
+    }
+    const appVersion = app.getVersion ? app.getVersion() : '';
     return {
       cwd: path.join(resourcesPath, 'taminator'),
       tamRfe: path.join(resourcesPath, 'taminator', 'tam-rfe'),
-      python: null,
+      python: bundledPython,
       env: {
         ...process.env,
-        PYTHONPATH: path.join(resourcesPath, 'src')
+        PYTHONPATH: path.join(resourcesPath, 'src'),
+        TAMINATOR_RESOURCES: path.join(resourcesPath, 'taminator'),
+        ...(appVersion ? { TAMINATOR_APP_VERSION: appVersion } : {})
       }
     };
   }
@@ -79,14 +93,27 @@ function findPython3() {
   return 'python3';
 }
 
+/** Electron / AppImage often provide a minimal PATH; prepend standard locations so venv python and subprocesses resolve tools. */
+function envWithSafePath(env) {
+  if (process.platform === 'win32') return env;
+  const safePath = '/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin';
+  const pathKey = Object.keys(env).find((k) => k.toUpperCase() === 'PATH');
+  const existing = pathKey ? (env[pathKey] || '') : '';
+  const newPath = existing ? `${safePath}:${existing}` : safePath;
+  return { ...env, [pathKey || 'PATH']: newPath };
+}
+
 function getServerStartupDebugInfo() {
   const fs = require('fs');
   const paths = getServerPaths();
-  const python = findPython3();
+  const python = paths.python || findPython3();
   const tamRfeExists = fs.existsSync(paths.tamRfe);
   const cwdExists = paths.cwd && fs.existsSync(paths.cwd);
   const webServerPy = path.join(paths.cwd || '', 'web_server.py');
   const webServerPyExists = paths.cwd && fs.existsSync(webServerPy);
+  const bundleDir = app.isPackaged ? path.join(process.resourcesPath, 'python-bundle') : '';
+  const bundleBinPy = bundleDir ? path.join(bundleDir, 'bin', 'python') : '';
+  const bundleBinPy3 = bundleDir ? path.join(bundleDir, 'bin', 'python3') : '';
   return {
     platform: process.platform,
     isPackaged: app.isPackaged,
@@ -98,6 +125,8 @@ function getServerStartupDebugInfo() {
     webServerPy,
     webServerPyExists,
     python,
+    pythonBundleDir: bundleDir || '(n/a)',
+    pythonBundleBinExists: bundleDir ? (fs.existsSync(bundleBinPy) || fs.existsSync(bundleBinPy3)) : false,
     port: WEB_UI_PORT
   };
 }
@@ -107,8 +136,8 @@ function startWebServer() {
     const fs = require('fs');
     const os = require('os');
     const paths = getServerPaths();
-    const { cwd, tamRfe, env } = paths;
-    const python = findPython3();
+    const { cwd, tamRfe, python: bundledPython, env } = paths;
+    const python = bundledPython || findPython3();
     const debugInfo = getServerStartupDebugInfo();
 
     // Debug: log startup paths (visible when running from terminal or in logs)
@@ -122,9 +151,24 @@ function startWebServer() {
       return reject(err);
     }
 
+    if (app.isPackaged && !bundledPython) {
+      const bundleDir = path.join(process.resourcesPath, 'python-bundle');
+      const err = new Error(
+        'Bundled Python venv is missing from this app package (no ' + bundleDir + '/bin/python). ' +
+        'The AppImage must be built after creating taminator/taminator/python-bundle with runtime deps (rich, etc.). ' +
+        'From repo root run: ansible-playbook -i taminator/taminator/ansible/inventory-build.yml ' +
+        'taminator/taminator/ansible/playbooks/prepare-python-bundle.yml — then rebuild with electron-builder.'
+      );
+      err.debugInfo = debugInfo;
+      err.serverStderr = '';
+      err.serverStdout = '';
+      return reject(err);
+    }
+
     const serverStderrBuffer = [];
     const serverStdoutBuffer = [];
-    serverProcess = spawn(python, [tamRfe, 'serve', '--no-browser'], { cwd, env, stdio: 'pipe' });
+    const serverEnv = envWithSafePath(env);
+    serverProcess = spawn(python, [tamRfe, 'serve', '--no-browser'], { cwd, env: serverEnv, stdio: 'pipe' });
     serverProcess.on('error', (err) => {
       err.debugInfo = debugInfo;
       err.serverStderr = serverStderrBuffer.join('');
@@ -302,6 +346,8 @@ app.whenReady().then(() => {
         'tamRfeExists: ' + debugInfo.tamRfeExists,
         'webServerPy: ' + (debugInfo.webServerPy || '(unset)'),
         'webServerPyExists: ' + debugInfo.webServerPyExists,
+        'pythonBundleDir: ' + (debugInfo.pythonBundleDir != null ? debugInfo.pythonBundleDir : '(n/a)'),
+        'pythonBundleBinExists: ' + (debugInfo.pythonBundleBinExists !== undefined ? debugInfo.pythonBundleBinExists : '(n/a)'),
         'python: ' + (debugInfo.python || '(unset)'),
         'port: ' + (debugInfo.port || WEB_UI_PORT)
       ].join('\n');

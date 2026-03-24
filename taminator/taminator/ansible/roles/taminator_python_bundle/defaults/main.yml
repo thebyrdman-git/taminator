@@ -1,0 +1,5 @@
+---
+# Where to create the venv (relative to repo_root). Inner gui expects ../python-bundle from gui dir.
+python_bundle_dir: "{{ repo_root }}/python-bundle"
+requirements_file: "{{ repo_root }}/requirements-runtime.txt"
+python_bundle_python: "python3"

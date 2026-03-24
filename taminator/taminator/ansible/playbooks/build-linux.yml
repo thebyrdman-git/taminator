@@ -26,6 +26,14 @@
       when: sync_content_before_build | default(true) | bool
       tags: [sync]
 
+    - name: Ensure Python bundle (venv with rich, etc.) for packaged app
+      include_role:
+        name: ../roles/taminator_python_bundle
+        apply:
+          vars:
+            repo_root: "{{ repo_root }}"
+      tags: [bundle, build]
+
     - name: Run build
       include_role:
         name: ../roles/taminator_build

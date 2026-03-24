@@ -1,0 +1,48 @@
+---
+# Ensure a Python venv exists with tam-rfe runtime deps (rich, click, etc.).
+# Idempotent: creates venv once, pip install only when requirements change.
+# Used so the packaged app can run tam-rfe without relying on system Python.
+
+- name: Ensure python-bundle directory exists
+  file:
+    path: "{{ python_bundle_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Check if venv already exists
+  stat:
+    path: "{{ python_bundle_dir }}/bin/python"
+  register: venv_bin_python
+  ignore_errors: true
+
+- name: Check for Linux (venv has bin/python3 on some)
+  stat:
+    path: "{{ python_bundle_dir }}/bin/python3"
+  register: venv_bin_python3
+  ignore_errors: true
+  when: venv_bin_python.stat.exists is not defined or not venv_bin_python.stat.exists
+
+- name: Create Python venv (idempotent)
+  command: "{{ python_bundle_python }} -m venv {{ python_bundle_dir }}"
+  args:
+    creates: "{{ python_bundle_dir }}/pyvenv.cfg"
+  when: (venv_bin_python.stat.exists is not defined or not venv_bin_python.stat.exists) and (venv_bin_python3.stat.exists is not defined or not venv_bin_python3.stat.exists)
+
+- name: Stat venv pyvenv.cfg (so we know venv is ready)
+  stat:
+    path: "{{ python_bundle_dir }}/pyvenv.cfg"
+  register: venv_cfg
+
+- name: Upgrade pip in venv (idempotent)
+  command: "{{ python_bundle_dir }}/bin/python -m pip install --upgrade pip"
+  when: venv_cfg.stat.exists | default(false)
+
+- name: Ensure requirements file exists
+  assert:
+    that: requirements_file is defined and requirements_file | length > 0
+    fail_msg: "requirements_file (e.g. requirements-runtime.txt) must be set for taminator_python_bundle."
+
+# Use the venv's pip via command so the *controller* Python does not need the `packaging`
+# library (Ansible's pip module imports packaging on the machine running ansible-playbook).
+- name: Install runtime requirements into venv
+  command: "{{ python_bundle_dir }}/bin/python -m pip install -r {{ requirements_file }}"

@@ -50,7 +50,8 @@
       { "from": "../taminator/web_server.py", "to": "taminator/web_server.py" },
       { "from": "../taminator/tam-rfe", "to": "taminator/tam-rfe" },
       { "from": "../taminator/VERSION", "to": "taminator/VERSION" },
-      { "from": "../src", "to": "src" }
+      { "from": "../src", "to": "src" },
+      { "from": "../taminator/python-bundle", "to": "python-bundle" }
     ],
     "mac": {
       "category": "public.app-category.developer-tools",

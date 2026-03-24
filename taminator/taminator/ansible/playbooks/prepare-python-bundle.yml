@@ -1,0 +1,21 @@
+---
+# Prepare Python venv bundle for the packaged app (rich, click, etc.).
+# Run from repo root so python-bundle is created under taminator/taminator/.
+# Used by: GitHub Actions before electron-builder, or standalone to refresh the bundle.
+#
+# Run: ansible-playbook -i inventory-build.yml playbooks/prepare-python-bundle.yml -e repo_root=$PWD/taminator/taminator
+# From repo root: ansible-playbook -i taminator/taminator/ansible/inventory-build.yml taminator/taminator/ansible/playbooks/prepare-python-bundle.yml -e repo_root=$PWD/taminator/taminator
+
+- name: Prepare Python bundle for Taminator app
+  hosts: localhost
+  gather_facts: true
+  vars:
+    # playbook_dir = .../ansible/playbooks; repo_root = inner taminator (contains gui/, python-bundle/)
+    repo_root: "{{ playbook_dir }}/../.."
+  tasks:
+    - name: Ensure Python bundle (venv with runtime deps)
+      include_role:
+        name: ../roles/taminator_python_bundle
+        apply:
+          vars:
+            repo_root: "{{ repo_root }}"

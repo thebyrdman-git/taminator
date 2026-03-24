@@ -69,6 +69,22 @@ jobs:
           done
           echo "::error::npm ci failed after 3 attempts"
           exit 1
+      - name: Set up Python (for Ansible + venv)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare Python bundle (venv with rich, etc.) for packaged app
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ansible
+          ansible-playbook -i taminator/taminator/ansible/inventory-build.yml \
+            taminator/taminator/ansible/playbooks/prepare-python-bundle.yml
+      - name: Verify Python bundle (must import rich before electron-pack)
+        run: |
+          PY=taminator/taminator/python-bundle/bin/python
+          test -x "$PY" || { echo "::error::Expected $PY — prepare-python-bundle did not create the venv"; exit 1; }
+          "$PY" -c "import rich, click" || { echo "::error::venv missing runtime deps (rich/click)"; exit 1; }
+          echo "Python bundle OK: $($PY -c 'import rich; print(rich.__file__)')"
       - name: Build Electron app (Linux)
         working-directory: taminator/gui
         env:
@@ -78,11 +94,27 @@ jobs:
         working-directory: taminator/gui
         shell: bash
         run: ls -la dist/
+      - name: Add no-FUSE launcher script (run without installing fuse)
+        working-directory: taminator/gui/dist
+        run: |
+          APPIMAGE=$(ls -1 *.AppImage 2>/dev/null | head -1)
+          test -n "$APPIMAGE" || { echo "::error::No AppImage found"; exit 1; }
+          cat > run-taminator-no-fuse.sh << 'LAUNCHER'
+          #!/bin/bash
+          # Run Taminator AppImage without requiring FUSE (extracts to /tmp and runs).
+          # Use this if you have not installed fuse or the AppImage fails to mount.
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          APPIMAGE="${SCRIPT_DIR}/TAMINATOR_APPIMAGE_PLACEHOLDER"
+          exec "$APPIMAGE" --appimage-extract-and-run
+          LAUNCHER
+          sed -i "s/TAMINATOR_APPIMAGE_PLACEHOLDER/$APPIMAGE/" run-taminator-no-fuse.sh
+          chmod +x run-taminator-no-fuse.sh
+          ls -la run-taminator-no-fuse.sh "$APPIMAGE"
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: taminator-Linux-${{ github.ref_name }}
-          path: taminator/gui/dist/*.AppImage
+          path: taminator/gui/dist/
           retention-days: 30
 
   # Windows + macOS: only on tag push or when manual platform=all.
@@ -147,6 +179,37 @@ jobs:
           done
           echo "::error::npm ci failed after 3 attempts"
           exit 1
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare Python bundle (macOS — Ansible, same as Linux)
+        if: runner.os == 'macOS'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ansible
+          ansible-playbook -i taminator/taminator/ansible/inventory-build.yml \
+            taminator/taminator/ansible/playbooks/prepare-python-bundle.yml
+      - name: Prepare Python bundle (Windows — venv; Ansible role is Unix paths only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -m venv taminator/taminator/python-bundle
+          ./taminator/taminator/python-bundle/Scripts/python.exe -m pip install --upgrade pip
+          ./taminator/taminator/python-bundle/Scripts/pip.exe install -r taminator/taminator/requirements-runtime.txt
+      - name: Verify Python bundle (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          PY=taminator/taminator/python-bundle/bin/python
+          test -x "$PY" || { echo "::error::Missing $PY"; exit 1; }
+          "$PY" -c "import rich, click"
+      - name: Verify Python bundle (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $py = "taminator/taminator/python-bundle/Scripts/python.exe"
+          if (-not (Test-Path $py)) { throw "Missing $py" }
+          & $py -c "import rich, click"
       - name: Build Electron app (${{ matrix.os }})
         working-directory: taminator/gui
         env:
@@ -189,26 +252,40 @@ jobs:
             --volume "${PWD}/arm64-artifacts:/artifacts"
           install: |
             apt-get update -qq
-            apt-get install -qq -y curl ca-certificates
+            apt-get install -qq -y curl ca-certificates python3 python3-venv python3-pip
             curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
             apt-get install -qq -y nodejs
             apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
           run: |
             set -e
+            # Python bundle for packaged app (same outcome as Ansible role taminator_python_bundle)
+            python3 -m venv /workspace/taminator/taminator/python-bundle
+            /workspace/taminator/taminator/python-bundle/bin/pip install --upgrade pip
+            /workspace/taminator/taminator/python-bundle/bin/pip install -r /workspace/taminator/taminator/requirements-runtime.txt
+            /workspace/taminator/taminator/python-bundle/bin/python -c "import rich, click" || { echo "::error::ARM64 venv missing rich/click"; exit 1; }
             cd /workspace/taminator/gui
             npm config set fetch-retries 5
             npm config set fetch-timeout 300000
             npm config set fetch-retry-mintimeout 20000
             npm ci
-            npx electron-builder --linux AppImage --publish never
+            npx electron-builder --linux --arm64 AppImage --publish never
             cp -v dist/*.AppImage /artifacts/ 2>/dev/null || true
+            APPIMAGE=$(ls -1 /artifacts/*.AppImage 2>/dev/null | head -1)
+            test -n "$APPIMAGE" || { echo "::error::No AppImage produced"; exit 1; }
+            BASENAME=$(basename "$APPIMAGE")
+            cat > /artifacts/run-taminator-no-fuse.sh << LAUNCHER
+            #!/bin/bash
+            # Run Taminator AppImage without requiring FUSE (extracts to /tmp and runs).
+            SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+            exec "\$SCRIPT_DIR/$BASENAME" --appimage-extract-and-run
+            LAUNCHER
+            chmod +x /artifacts/run-taminator-no-fuse.sh
             ls -la /artifacts/
-            if [ -z "$(ls -A /artifacts/ 2>/dev/null)" ]; then echo "::error::No AppImage produced"; exit 1; fi
       - name: Upload Linux ARM64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: taminator-Linux-arm64-${{ github.ref_name }}
-          path: arm64-artifacts/*.AppImage
+          path: arm64-artifacts/
           retention-days: 30
         if: success()  # Only upload if build step produced an AppImage
   
@@ -262,6 +339,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: UI content hash (same source for all platforms)
+        id: ui_hash
+        run: |
+          HASH=$(find taminator/taminator/web -type f | sort | xargs sha256sum | sha256sum | awk '{print $1}')
+          echo "ui_hash=$HASH" >> $GITHUB_OUTPUT
+          echo "UI source hash (Linux/Mac/Windows package the same): $HASH"
       - name: Release Summary
         run: |
           echo "✅ Release created successfully!"
@@ -269,3 +352,5 @@ jobs:
           echo ""
           echo "📦 Artifacts:"
           find artifacts/ -type f -exec basename {} \;
+          echo ""
+          echo "🖼 UI content hash (all platforms): ${{ steps.ui_hash.outputs.ui_hash }}"
