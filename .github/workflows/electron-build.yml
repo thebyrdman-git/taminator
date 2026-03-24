@@ -254,8 +254,8 @@ jobs:
         id: build
         with:
           arch: aarch64
-          # Jammy has python3.12 + venv + dev for aarch64 in main/universe. Focal + deadsnakes has no arm64 3.12 packages.
-          distro: ubuntu22.04
+          # python3.12 is not in Ubuntu 22.04 (Jammy) at all. Noble 24.04 ships 3.12 in main (matches x64 CI).
+          distro: ubuntu24.04
           setup: |
             mkdir -p "${PWD}/arm64-artifacts"
           dockerRunArgs: |
@@ -263,10 +263,7 @@ jobs:
             --volume "${PWD}/arm64-artifacts:/artifacts"
           install: |
             apt-get update -qq
-            apt-get install -qq -y curl ca-certificates rsync software-properties-common
-            # Minimal run-on-arch images often omit universe; python3.12 is in universe on Jammy (all arches).
-            add-apt-repository -y universe
-            apt-get update -qq
+            apt-get install -qq -y curl ca-certificates rsync
             apt-get install -qq -y python3.12 python3.12-venv python3.12-dev python3-pip
             curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
             apt-get install -qq -y nodejs
