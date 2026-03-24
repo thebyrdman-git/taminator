@@ -15,6 +15,29 @@ let mainWindow;
 let serverProcess = null;
 
 /**
+ * If prepare-python-bundle embedded encodings under lib/python3.x, use bundle as PYTHONHOME
+ * so the interpreter does not rely on host /usr/lib/python3.x (missing on other distros).
+ */
+function findPythonHomeForEmbeddedStdlib(bundleDir) {
+  const fs = require('fs');
+  if (process.platform === 'win32') return null;
+  const lib = path.join(bundleDir, 'lib');
+  if (!fs.existsSync(lib)) return null;
+  try {
+    for (const name of fs.readdirSync(lib)) {
+      if (/^python\d+\.\d+$/.test(name)) {
+        if (fs.existsSync(path.join(lib, name, 'encodings', '__init__.py'))) {
+          return bundleDir;
+        }
+      }
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return null;
+}
+
+/**
  * When the app is packed (AppImage, etc.), the venv may be relocated so pyvenv.cfg
  * no longer points at the extracted path; the interpreter can miss site-packages.
  * Return site-packages under lib/python3.x (any version directory) if present.
@@ -59,19 +82,23 @@ function getServerPaths() {
     const sitePackages = findPythonBundleSitePackages(bundleDir);
     const pyPathParts = [path.join(resourcesPath, 'src')];
     if (sitePackages) pyPathParts.push(sitePackages);
+    const embeddedPythonHome = findPythonHomeForEmbeddedStdlib(bundleDir);
     const appVersion = app.getVersion ? app.getVersion() : '';
+    const env = { ...process.env };
+    delete env.PYTHONHOME;
+    delete env.PYTHONEXECUTABLE;
+    env.PYTHONPATH = pyPathParts.join(path.delimiter);
+    env.TAMINATOR_RESOURCES = path.join(resourcesPath, 'taminator');
+    if (bundleDir && sitePackages) env.VIRTUAL_ENV = bundleDir;
+    if (embeddedPythonHome) env.PYTHONHOME = embeddedPythonHome;
+    if (appVersion) env.TAMINATOR_APP_VERSION = appVersion;
     return {
       cwd: path.join(resourcesPath, 'taminator'),
       tamRfe: path.join(resourcesPath, 'taminator', 'tam-rfe'),
       python: bundledPython,
       sitePackages: sitePackages || null,
-      env: {
-        ...process.env,
-        PYTHONPATH: pyPathParts.join(path.delimiter),
-        TAMINATOR_RESOURCES: path.join(resourcesPath, 'taminator'),
-        ...(bundleDir && sitePackages ? { VIRTUAL_ENV: bundleDir } : {}),
-        ...(appVersion ? { TAMINATOR_APP_VERSION: appVersion } : {})
-      }
+      embeddedPythonHome: embeddedPythonHome || null,
+      env
     };
   }
   const appRoot = path.join(__dirname, '..');
@@ -79,6 +106,8 @@ function getServerPaths() {
     cwd: path.join(appRoot, 'taminator'),
     tamRfe: path.join(appRoot, 'taminator', 'tam-rfe'),
     python: null,
+    sitePackages: null,
+    embeddedPythonHome: null,
     env: { ...process.env, PYTHONPATH: path.join(appRoot, 'src') }
   };
 }
@@ -161,6 +190,7 @@ function getServerStartupDebugInfo() {
     pythonBundleDir: bundleDir || '(n/a)',
     pythonBundleBinExists: bundleDir ? (fs.existsSync(bundleBinPy) || fs.existsSync(bundleBinPy3)) : false,
     pythonBundleSitePackages: sitePk || '(not found)',
+    pythonBundleEmbeddedHome: paths.embeddedPythonHome != null ? paths.embeddedPythonHome : '(not set)',
     port: WEB_UI_PORT
   };
 }
@@ -383,6 +413,7 @@ app.whenReady().then(() => {
         'pythonBundleDir: ' + (debugInfo.pythonBundleDir != null ? debugInfo.pythonBundleDir : '(n/a)'),
         'pythonBundleBinExists: ' + (debugInfo.pythonBundleBinExists !== undefined ? debugInfo.pythonBundleBinExists : '(n/a)'),
         'pythonBundleSitePackages: ' + (debugInfo.pythonBundleSitePackages != null ? debugInfo.pythonBundleSitePackages : '(n/a)'),
+        'pythonBundleEmbeddedHome: ' + (debugInfo.pythonBundleEmbeddedHome != null ? debugInfo.pythonBundleEmbeddedHome : '(n/a)'),
         'python: ' + (debugInfo.python || '(unset)'),
         'port: ' + (debugInfo.port || WEB_UI_PORT)
       ].join('\n');

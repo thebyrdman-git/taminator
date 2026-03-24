@@ -252,7 +252,7 @@ jobs:
             --volume "${PWD}/arm64-artifacts:/artifacts"
           install: |
             apt-get update -qq
-            apt-get install -qq -y curl ca-certificates python3 python3-venv python3-pip
+            apt-get install -qq -y curl ca-certificates python3 python3-venv python3-pip rsync
             curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
             apt-get install -qq -y nodejs
             apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
@@ -262,7 +262,13 @@ jobs:
             python3 -m venv --copies /workspace/taminator/taminator/python-bundle
             /workspace/taminator/taminator/python-bundle/bin/pip install --upgrade pip
             /workspace/taminator/taminator/python-bundle/bin/pip install -r /workspace/taminator/taminator/requirements-runtime.txt
-            /workspace/taminator/taminator/python-bundle/bin/python -c "import rich, click" || { echo "::error::ARM64 venv missing rich/click"; exit 1; }
+            BUNDLE=/workspace/taminator/taminator/python-bundle
+            PY="$BUNDLE/bin/python"
+            VER=$("$PY" -c "import sys; print('%d.%d' % sys.version_info[:2])")
+            SRC=$("$PY" -c "import sys, os; v='%d.%d' % sys.version_info[:2]; print(os.path.join(sys.base_prefix, 'lib', 'python'+v))")
+            mkdir -p "$BUNDLE/lib/python$VER"
+            rsync -a --exclude site-packages "$SRC/" "$BUNDLE/lib/python$VER/"
+            "$PY" -c "import encodings; import rich, click" || { echo "::error::ARM64 venv stdlib or deps"; exit 1; }
             cd /workspace/taminator/gui
             npm config set fetch-retries 5
             npm config set fetch-timeout 300000

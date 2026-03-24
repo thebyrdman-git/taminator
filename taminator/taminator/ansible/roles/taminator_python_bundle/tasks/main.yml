@@ -48,3 +48,20 @@
 # library (Ansible's pip module imports packaging on the machine running ansible-playbook).
 - name: Install runtime requirements into venv
   command: "{{ python_bundle_dir }}/bin/python -m pip install -r {{ requirements_file }}"
+
+# Venv does not ship the full stdlib; it references sys.base_prefix (e.g. /usr/lib/python3.x).
+# AppImage users on other distros may lack that path/version — copy stdlib into the bundle.
+- name: Embed base Python standard library into python-bundle (Linux, macOS)
+  when: ansible_system in ['Linux', 'Darwin']
+  shell: |
+    set -e
+    BUNDLE="{{ python_bundle_dir }}"
+    PY="$BUNDLE/bin/python"
+    VER=$("$PY" -c "import sys; print('%d.%d' % sys.version_info[:2])")
+    SRC=$("$PY" -c "import sys, os; v='%d.%d' % sys.version_info[:2]; print(os.path.join(sys.base_prefix, 'lib', 'python'+v))")
+    DST="$BUNDLE/lib/python$VER"
+    mkdir -p "$DST"
+    rsync -a --exclude site-packages "$SRC/" "$DST/"
+    "$PY" -c "import encodings; print('embedded stdlib ok')"
+  args:
+    executable: /bin/bash
