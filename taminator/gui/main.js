@@ -342,13 +342,20 @@ function createWindow() {
     }
   });
   
-  // Log when page finishes loading and set app version in UI
+  // Log when page finishes loading and set app version in UI (must match index.html id="appVersion")
+  function injectAppVersionIntoWebUi() {
+    const version = app.getVersion();
+    const js = `(function(v){
+      var el = document.getElementById('appVersion');
+      if (el) el.textContent = 'Version ' + v;
+    })(${JSON.stringify(version)})`;
+    mainWindow.webContents.executeJavaScript(js).catch(() => {});
+  }
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('[Main] Page loaded successfully');
-    const version = app.getVersion();
-    mainWindow.webContents.executeJavaScript(
-      `var el = document.getElementById('app-version'); if (el) el.textContent = 'Taminator v' + ${JSON.stringify(version)};`
-    ).catch(() => {});
+    injectAppVersionIntoWebUi();
+    // Renderer fetch("/api/version") may fail or set "—" before server env is visible; refresh label.
+    setTimeout(injectAppVersionIntoWebUi, 600);
   });
   
   // Log any errors
