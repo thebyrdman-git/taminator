@@ -102,9 +102,10 @@ jobs:
             echo "::error::No libpython under $LIB — Rocky and other hosts without CI Python libs will fail"
             exit 1
           fi
-          "$PY" -c "import rich, click" || { echo "::error::venv missing runtime deps (rich/click)"; exit 1; }
+          # Bundle is built in Docker; host runner may not have matching system libpython — same as production (LD_LIBRARY_PATH=lib)
+          env LD_LIBRARY_PATH="$LIB" "$PY" -c "import rich, click" || { echo "::error::venv missing runtime deps (rich/click)"; exit 1; }
           env LD_LIBRARY_PATH="$LIB" "$PY" -c "import encodings, rich" || { echo "::error::Bundle must run with only LD_LIBRARY_PATH=$LIB (libpython embed)"; exit 1; }
-          echo "Python bundle OK: $($PY -c 'import rich; print(rich.__file__)')"
+          echo "Python bundle OK: $(env LD_LIBRARY_PATH="$LIB" "$PY" -c 'import rich; print(rich.__file__)')"
       - name: Build Electron app (Linux)
         working-directory: taminator/gui
         env:
