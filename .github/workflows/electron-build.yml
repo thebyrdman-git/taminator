@@ -85,8 +85,10 @@ jobs:
               python3 -m pip install --upgrade pip
               # ansible-core 2.14+ needs Python 3.10+; Ubuntu 20.04 ships 3.8 — use 2.13 for the controller
               python3 -m pip install "ansible-core>=2.13.13,<2.14"
+              # Explicit repo_root avoids Jinja recursion on {{ repo_root }} inside the role when playbook_dir resolution differs in Docker
               ansible-playbook -i taminator/taminator/ansible/inventory-build.yml \
-                taminator/taminator/ansible/playbooks/prepare-python-bundle.yml
+                taminator/taminator/ansible/playbooks/prepare-python-bundle.yml \
+                -e repo_root=/workspace/taminator/taminator
             '
           sudo chown -R "$(id -u):$(id -g)" taminator/taminator/python-bundle
       - name: Verify Python bundle (must import rich before electron-pack)
