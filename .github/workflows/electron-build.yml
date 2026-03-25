@@ -112,8 +112,15 @@ jobs:
             echo "::error::No libpython under $LIB — Rocky and other hosts without CI Python libs will fail"
             exit 1
           fi
+          SP=""
+          for d in "$LIB"/python*/site-packages; do
+            [ -d "$d" ] && SP="$d" && break
+          done
+          [ -n "$SP" ] || { echo "::error::No site-packages under $LIB (pip deps)"; exit 1; }
+          # Same as gui/main.js: pyvenv home=bundle fixes stdlib; site-packages still needs PYTHONPATH
+          export PYTHONPATH="$SP"
           # Bundle is built in Docker; host runner may not have matching system libpython — same as production (LD_LIBRARY_PATH=lib)
-          env LD_LIBRARY_PATH="$LIB" "$PY" -c "import rich, click" || { echo "::error::venv import failed (rich/click or stdlib — check pyvenv.cfg home + LD_LIBRARY_PATH)"; exit 1; }
+          env LD_LIBRARY_PATH="$LIB" "$PY" -c "import rich, click" || { echo "::error::venv import failed (rich/click or stdlib — check pyvenv.cfg home + LD_LIBRARY_PATH + PYTHONPATH)"; exit 1; }
           env LD_LIBRARY_PATH="$LIB" "$PY" -c "import encodings, rich" || { echo "::error::Bundle must run with only LD_LIBRARY_PATH=$LIB (libpython embed)"; exit 1; }
           echo "Python bundle OK: $(env LD_LIBRARY_PATH="$LIB" "$PY" -c 'import rich; print(rich.__file__)')"
       - name: Build Electron app (Linux)
@@ -288,7 +295,8 @@ jobs:
             apt-get install -qq -y python3.12 python3.12-venv python3.12-dev python3-pip
             curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
             apt-get install -qq -y nodejs
-            apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2 libxtst6 libgbm1
+            # Noble 24.04: libasound2 renamed to libasound2t64 (no apt candidate for libasound2 on arm64 ports)
+            apt-get install -qq -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2t64 libxtst6 libgbm1
           run: |
             set -e
             # Match x64 CI: Python 3.12 venv + embedded stdlib + libpython (same as prepare-python-bundle / Rocky).
