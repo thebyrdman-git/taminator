@@ -21,12 +21,12 @@ permissions:
 
 jobs:
   # Linux x64: always run on tag; on manual run, always include Linux so we get 2 jobs when platform=linux.
-  # Use ubuntu-20.04 (glibc 2.31) for the python-bundle: libpython from ubuntu-latest links to GLIBC_2.35+
-  # and fails on Rocky/RHEL 9 (glibc 2.34). When the 20.04 runner is removed, use a 20.04/22.04 container
-  # for the Ansible bundle step only, then build the AppImage on ubuntu-latest.
+  # GitHub removed the ubuntu-20.04 *runner* (2025). libpython from ubuntu-latest still links to GLIBC_2.35+
+  # and fails on Rocky/RHEL 9 (glibc 2.34), so we build the python-bundle inside an ubuntu:20.04 *container*
+  # (glibc 2.31), then run electron-builder on the host.
   build-linux:
     name: Build Linux
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -72,16 +72,22 @@ jobs:
           done
           echo "::error::npm ci failed after 3 attempts"
           exit 1
-      - name: Set up Python (for Ansible + venv)
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Prepare Python bundle (venv with rich, etc.) for packaged app
+      - name: Prepare Python bundle in Ubuntu 20.04 container (glibc matches Rocky/RHEL 9 targets)
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install ansible
-          ansible-playbook -i taminator/taminator/ansible/inventory-build.yml \
-            taminator/taminator/ansible/playbooks/prepare-python-bundle.yml
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/workspace" \
+            -w /workspace \
+            ubuntu:20.04 bash -ec '
+              set -e
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update -qq
+              apt-get install -qq -y python3 python3-pip python3-venv rsync ca-certificates
+              python3 -m pip install --upgrade pip
+              python3 -m pip install "ansible-core>=2.14,<2.17"
+              ansible-playbook -i taminator/taminator/ansible/inventory-build.yml \
+                taminator/taminator/ansible/playbooks/prepare-python-bundle.yml
+            '
+          sudo chown -R "$(id -u):$(id -g)" taminator/taminator/python-bundle
       - name: Verify Python bundle (must import rich before electron-pack)
         run: |
           PY=taminator/taminator/python-bundle/bin/python
