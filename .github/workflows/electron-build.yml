@@ -91,6 +91,16 @@ jobs:
                 -e repo_root=/workspace/taminator/taminator
             '
           sudo chown -R "$(id -u):$(id -g)" taminator/taminator/python-bundle
+      - name: Point pyvenv.cfg home at bundle (matches gui/main.js; encodings without host /usr/lib/python3.x)
+        run: |
+          BUNDLE="$(realpath taminator/taminator/python-bundle)"
+          test -f "$BUNDLE/pyvenv.cfg" || { echo "::error::Missing $BUNDLE/pyvenv.cfg"; exit 1; }
+          if grep -q '^home[[:space:]]*=' "$BUNDLE/pyvenv.cfg"; then
+            sed -i.bak "s|^home[[:space:]]*=.*|home = ${BUNDLE}|" "$BUNDLE/pyvenv.cfg"
+          else
+            { printf 'home = %s\n' "$BUNDLE"; cat "$BUNDLE/pyvenv.cfg"; } > "$BUNDLE/pyvenv.cfg.new" && mv "$BUNDLE/pyvenv.cfg.new" "$BUNDLE/pyvenv.cfg"
+          fi
+          rm -f "$BUNDLE/pyvenv.cfg.bak"
       - name: Verify Python bundle (must import rich before electron-pack)
         run: |
           PY=taminator/taminator/python-bundle/bin/python
@@ -103,7 +113,7 @@ jobs:
             exit 1
           fi
           # Bundle is built in Docker; host runner may not have matching system libpython — same as production (LD_LIBRARY_PATH=lib)
-          env LD_LIBRARY_PATH="$LIB" "$PY" -c "import rich, click" || { echo "::error::venv missing runtime deps (rich/click)"; exit 1; }
+          env LD_LIBRARY_PATH="$LIB" "$PY" -c "import rich, click" || { echo "::error::venv import failed (rich/click or stdlib — check pyvenv.cfg home + LD_LIBRARY_PATH)"; exit 1; }
           env LD_LIBRARY_PATH="$LIB" "$PY" -c "import encodings, rich" || { echo "::error::Bundle must run with only LD_LIBRARY_PATH=$LIB (libpython embed)"; exit 1; }
           echo "Python bundle OK: $(env LD_LIBRARY_PATH="$LIB" "$PY" -c 'import rich; print(rich.__file__)')"
       - name: Build Electron app (Linux)
