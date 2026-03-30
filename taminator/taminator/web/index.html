@@ -298,10 +298,12 @@
   </div>
     <p class="hero-tagline">Quickly customize and maintain RFE and Bug reports for your accounts</p>
     <p class="hero-version" id="appVersion" style="font-size:0.85rem; color:var(--rh-text-muted); margin:0.25rem 0 0 0;">Version …</p>
+    <p class="hero-version" style="font-size:0.75rem; color:var(--rh-text-muted); margin:0.1rem 0 0 0;" title="Packaged web UI revision">UI bundle: Report Manager nav</p>
     <p class="hero-version" style="font-size:0.85rem; margin:0.15rem 0 0 0; display:block;"><a href="https://gitlab.cee.redhat.com/jbyrd/taminator/-/issues" target="_blank" rel="noopener">Report Issues on GitLab</a></p>
   </header>
 
   <nav class="nav" role="navigation" aria-label="Main">
+    <!-- UI: Report Manager nav (post-2f1dfad) -->
     <a href="#" id="navOnboard" class="active" aria-current="page">Report Manager</a>
     <a href="#" id="navReports">Check/Update Reports</a>
     <a href="#" id="navLibrary">Library</a>
@@ -821,13 +823,13 @@
         if (!r.ok) throw new Error("version not ok");
         return r.json();
       }).then(function (d) {
-        setVersion(d && d.version ? d.version : "—");
+        var v = d && d.version != null ? String(d.version).trim() : "";
+        if (v) setVersion(v);
       }).catch(function () {
         if (retries > 0) {
           setTimeout(function () { fetchVersion(retries - 1); }, 800);
-        } else {
-          setVersion("—");
         }
+        // Do not set "—" on failure: server may have inlined the version in HTML, or Electron injects it (avoids Linux race).
       });
     }
     fetchVersion();

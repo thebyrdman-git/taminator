@@ -11,6 +11,30 @@ const { spawn } = require('child_process');
 const WEB_UI_PORT = 8765;
 const WEB_UI_URL = `http://127.0.0.1:${WEB_UI_PORT}`;
 
+/** Version for env injection + UI; prefer Electron package.json, else Resources/taminator/VERSION (some Linux builds omit getVersion). */
+function getAppVersionForServer() {
+  const fs = require('fs');
+  let v = '';
+  try {
+    if (app.getVersion) v = (app.getVersion() || '').trim();
+  } catch (_) {
+    /* ignore */
+  }
+  if (v) return v;
+  if (app.isPackaged) {
+    try {
+      const vf = path.join(process.resourcesPath, 'taminator', 'VERSION');
+      if (fs.existsSync(vf)) {
+        const t = fs.readFileSync(vf, 'utf8').trim();
+        if (t) return t;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  return '';
+}
+
 let mainWindow;
 let serverProcess = null;
 
@@ -122,7 +146,7 @@ function getServerPaths() {
     const pyPathParts = [path.join(resourcesPath, 'src')];
     if (sitePackages) pyPathParts.push(sitePackages);
     const embeddedPythonHome = findPythonHomeForEmbeddedStdlib(bundleDir);
-    const appVersion = app.getVersion ? app.getVersion() : '';
+    const appVersion = getAppVersionForServer();
     const env = { ...process.env };
     delete env.PYTHONHOME;
     delete env.PYTHONEXECUTABLE;
@@ -356,7 +380,8 @@ function createWindow() {
   
   // Log when page finishes loading and set app version in UI (must match index.html id="appVersion")
   function injectAppVersionIntoWebUi() {
-    const version = app.getVersion();
+    const version = getAppVersionForServer();
+    if (!version) return;
     const js = `(function(v){
       var el = document.getElementById('appVersion');
       if (el) el.textContent = 'Version ' + v;
