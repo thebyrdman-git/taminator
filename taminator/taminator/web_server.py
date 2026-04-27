@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
 """
-Minimal web server for Taminator browser UI.
-Serves the web app and runs check/update via the CLI (subprocess) for feature parity.
-Run with: tam-rfe serve
+HTTP server for browser UIs that drive the tam-rfe CLI (check/update, etc.).
+
+**Taminator** (``tam-rfe serve``) is TAM-focused. **RFE and Bug Tracker** uses the same
+server module but is a separate product aimed at **anyone who needs the content** (e.g.
+account teams through executives); its static files should live under
+``rfe-and-bug-tracker/web`` (see RFEBUGTRACKER_WEB_ROOT), not conflated with Taminator’s
+own ``web/`` bundle when both exist in a workspace.
+
+**Managed UI:** Set ``RFE_UI_MANAGED=1`` when JIRA/Portal APIs are provisioned server-side.
+The browser then hides token settings and shows Red Hat SSO-oriented chrome (no OIDC
+implementation here; wire SSO at the edge when ready).
 """
 
 import csv
@@ -13,10 +21,13 @@ import re
 import subprocess
 import sys
 import threading
-from datetime import datetime
+import traceback
+from datetime import datetime, timedelta
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 try:
     import requests
@@ -25,12 +36,146 @@ except ImportError:
 
 # Directory containing this script (taminator/taminator)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-WEB_DIR = os.path.join(SCRIPT_DIR, "web")
+
+
+def _resolve_web_dir() -> str:
+    """Directory of static files (index.html) for whichever browser tool is being run.
+
+    Prefer **RFE and Bug Tracker** assets when present; otherwise fall back to **Taminator**’s
+    bundled ``web/`` next to this module.
+
+    Order:
+    1) RFEBUGTRACKER_WEB_ROOT or RFE_BUG_TRACKER_WEB_DIR
+    2) <workspace-root>/rfe-and-bug-tracker/web (or …/rfe-and-bug-tracker with index.html)
+    3) SCRIPT_DIR/web (Taminator app directory)
+
+    Workspace root = parent of the ``taminator`` repo (…/taminator/taminator -> …/redhat).
+    """
+    for env_key in ("RFEBUGTRACKER_WEB_ROOT", "RFE_BUG_TRACKER_WEB_DIR"):
+        raw = os.environ.get(env_key, "").strip()
+        if raw:
+            p = os.path.abspath(os.path.expanduser(raw))
+            if os.path.isfile(os.path.join(p, "index.html")):
+                return p
+    workspace_root = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+    rfe_web = os.path.join(workspace_root, "rfe-and-bug-tracker", "web")
+    if os.path.isfile(os.path.join(rfe_web, "index.html")):
+        return rfe_web
+    rfe_root = os.path.join(workspace_root, "rfe-and-bug-tracker")
+    if os.path.isfile(os.path.join(rfe_root, "index.html")):
+        return rfe_root
+    return os.path.join(SCRIPT_DIR, "web")
+
+
+WEB_DIR = _resolve_web_dir()
 REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 ROADMAP_HTML_FILE = os.path.join(REPO_ROOT, "ROADMAP.html")
 ROADMAP_MD_FILE = os.path.join(REPO_ROOT, "ROADMAP.md")
-GITLAB_ROADMAP_URL = os.environ.get("GITLAB_ROADMAP_URL", "").strip()
+# RFE and Bug Tracker UI (not the Taminator desktop app repo). Override with GITLAB_ROADMAP_URL.
+RFE_BUG_TRACKER_GITLAB_PROJECT = "https://gitlab.cee.redhat.com/jbyrd/rfe-bug-tracker"
+GITLAB_ROADMAP_URL = os.environ.get("GITLAB_ROADMAP_URL", RFE_BUG_TRACKER_GITLAB_PROJECT).strip()
 TAM_RFE = os.path.join(SCRIPT_DIR, "tam-rfe")
+# Stale index.html (older bundles) may still reference jbyrd/taminator; rewrite when serving.
+_GITLAB_LEGACY_RFE_UI_PREFIX = b"https://gitlab.cee.redhat.com/jbyrd/taminator"
+_GITLAB_LEGACY_AUTOMATION_PREFIX = b"https://gitlab.cee.redhat.com/jbyrd/rfe-and-bug-tracker-automation"
+
+
+def _env_truthy(name: str) -> bool:
+    v = os.environ.get(name, "").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
+def _ui_status_payload() -> dict:
+    """Hints for the browser UI: managed deploy (APIs on server; hide token settings; SSO-style chrome)."""
+    managed = _env_truthy("RFE_UI_MANAGED")
+    return {
+        "managed_deployment": managed,
+        "show_token_settings": not managed,
+        "auth_presentation": "red_hat_sso" if managed else "local",
+    }
+
+
+def _taminator_src_path():
+    """Path to the directory that contains the 'taminator' package (for sys.path).
+    Prefer PYTHONPATH (set by Electron when packaged), then SCRIPT_DIR layouts."""
+    # Packaged app: Electron sets PYTHONPATH to Resources/app.asar.unpacked/src
+    for p in os.environ.get("PYTHONPATH", "").split(os.pathsep):
+        p = p.strip()
+        if p and os.path.isdir(p) and os.path.isdir(os.path.join(p, "taminator")):
+            return p
+    candidates = [
+        os.path.join(SCRIPT_DIR, "src"),
+        os.path.join(SCRIPT_DIR, "app.asar.unpacked", "src"),
+    ]
+    resources = os.environ.get("TAMINATOR_RESOURCES", "").strip()
+    if resources and resources != SCRIPT_DIR:
+        candidates.extend([
+            os.path.join(resources, "src"),
+            os.path.join(resources, "app.asar.unpacked", "src"),
+        ])
+    for p in candidates:
+        if os.path.isdir(p) and os.path.isdir(os.path.join(p, "taminator")):
+            return p
+    return candidates[0]  # fallback so insert/remove stay consistent
+
+
+def _ensure_taminator_on_path():
+    """Ensure the taminator package is on sys.path (e.g. when running from packaged app)."""
+    if "taminator" in sys.modules:
+        return
+    src_path = _taminator_src_path()
+    if os.path.isdir(src_path) and os.path.isdir(os.path.join(src_path, "taminator")):
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+
+
+# Support Case column when JIRA is tracked but there is no access.redhat.com case
+# (e.g. external SNOW, ROSA FedRAMP) — not discoverable via Hydra/Portal the usual way.
+NOT_IN_PORTAL_SUPPORT_CASE_LABEL = "Not in Customer Portal"
+
+
+def _parse_jira_keys_from_paste(pasted: str) -> list:
+    """Extract JIRA issue keys from free text: browse URLs, plain PROJ-123, etc. Order preserved, deduped."""
+    if not (pasted or "").strip():
+        return []
+    text = (pasted or "").strip()
+    out = []
+    _ensure_taminator_on_path()
+    from taminator.core.hydra_search import JIRA_ID_PATTERN
+
+    for m in JIRA_ID_PATTERN.finditer(text):
+        out.append(m.group(1).upper())
+    # JIRA/Atlassian browse and selected path forms (picks up keys for projects not in the static prefix list)
+    for m in re.finditer(r"/browse/([A-Za-z][A-Za-z0-9_]*-\d+)", text):
+        out.append(m.group(1).upper())
+    return list(dict.fromkeys(out))
+
+
+def _classify_jira_paste_row_kind(issue_type: str, summary: str) -> str:
+    """RFE vs Bug for pasted JIRA rows, using JIRA issuetype and summary as fallback."""
+    it = (issue_type or "").lower()
+    if re.search(r"(^|[^a-z])bug([^a-z]|$)", it) and "debug" not in it and "debt" not in it:
+        return "Bug"
+    if any(
+        x in it
+        for x in (
+            "feature",
+            "improvement",
+            "story",
+            "enhancement",
+            "epic",
+            "initiative",
+            "new feature",
+        )
+    ) or it in ("task",) or "task" in it.split():
+        return "RFE"
+    from taminator.commands.update import _classify_rfe_or_bug
+
+    k = _classify_rfe_or_bug(summary or "")
+    if k in ("RFE", "Bug"):
+        return k
+    return "RFE"
+
 
 # Same search paths as CustomerReportParser in check.py
 REPORT_SEARCH_PATHS = [
@@ -73,6 +218,15 @@ def _normalize_sbr_groups(val) -> list:
     return [x.strip() for x in str(val).split(",") if x.strip()]
 
 
+def _sbr_groups_set(account_or_groups) -> frozenset:
+    """Normalized SBR group set for comparison. Pass an account dict or a list of group names."""
+    if hasattr(account_or_groups, "get"):
+        groups = account_or_groups.get("sbr_groups") or []
+    else:
+        groups = account_or_groups if account_or_groups is not None else []
+    return frozenset(_normalize_sbr_groups(groups))
+
+
 def _normalize_account_numbers(val) -> list:
     """Return a list of non-empty trimmed strings from account_numbers (list or comma-separated string)."""
     if val is None:
@@ -82,8 +236,40 @@ def _normalize_account_numbers(val) -> list:
     return [x.strip() for x in str(val).split(",") if x.strip()]
 
 
+def _dedupe_accounts(accounts: list) -> list:
+    """Merge two accounts only when they share an account number and the same SBR group."""
+    if not accounts:
+        return []
+    result = [dict(a) for a in accounts]
+    while True:
+        changed = False
+        for i in range(len(result)):
+            if changed:
+                break
+            nums_i = set(result[i].get("account_numbers") or [])
+            sbr_i = _sbr_groups_set(result[i])
+            for j in range(i + 1, len(result)):
+                nums_j = set(result[j].get("account_numbers") or [])
+                if nums_i & nums_j and _sbr_groups_set(result[j]) == sbr_i:
+                    merged_nums = _normalize_account_numbers(list(nums_i | nums_j)) or list(nums_i | nums_j)
+                    result[i]["account_numbers"] = merged_nums
+                    result[i]["account_number"] = merged_nums[0] if merged_nums else result[i].get("account_number")
+                    name_i = (result[i].get("customer_name") or "").strip()
+                    name_j = (result[j].get("customer_name") or "").strip()
+                    if name_j and not name_i:
+                        result[i]["customer_name"] = name_j
+                    if result[j].get("sbr_groups") and not result[i].get("sbr_groups"):
+                        result[i]["sbr_groups"] = result[j]["sbr_groups"]
+                    result.pop(j)
+                    changed = True
+                    break
+        if not changed:
+            break
+    return result
+
+
 def _load_accounts() -> list:
-    """Load accounts from ~/.config/taminator/accounts.json. Returns list of dicts with id, account_number, account_numbers, customer_name, sbr_groups. Each entry has account_numbers (list); account_number is set to first for backward compat."""
+    """Load accounts from ~/.config/taminator/accounts.json. Returns list of dicts with id, account_number, account_numbers, customer_name, sbr_groups. Duplicates (same account number + same SBR group) are merged."""
     if not ACCOUNTS_FILE.exists():
         return []
     try:
@@ -98,9 +284,132 @@ def _load_accounts() -> list:
             a["account_numbers"] = nums
             a["account_number"] = nums[0] if nums else ""
             out.append(a)
-        return out
+        deduped = _dedupe_accounts(out)
+        if len(deduped) < len(out):
+            _save_accounts(deduped)
+            return deduped
+        return deduped
     except Exception:
         return []
+
+
+def _account_numbers_from_loaded_account(a: dict) -> list:
+    nums = a.get("account_numbers") or []
+    if isinstance(nums, list):
+        return [str(x).strip() for x in nums if str(x).strip()]
+    s = str(nums or a.get("account_number") or "").strip()
+    if not s:
+        return []
+    return [x.strip() for x in s.split(",") if x.strip()]
+
+
+def _collect_account_numbers_for_portal_search(accounts: list, account_ids: list) -> list:
+    """Union of Red Hat account numbers for selected customer ids; empty account_ids means all configured customers."""
+    if not accounts:
+        return []
+    want = {(x or "").strip() for x in (account_ids or []) if (x or "").strip()}
+    nums_out = []
+    if not want:
+        for a in accounts:
+            nums_out.extend(_account_numbers_from_loaded_account(a))
+    else:
+        for a in accounts:
+            if (a.get("id") or "").strip() in want:
+                nums_out.extend(_account_numbers_from_loaded_account(a))
+    seen = set()
+    out = []
+    for n in nums_out:
+        if n and n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
+
+
+def _accounts_in_portal_search_scope(accounts: list, account_ids: list) -> list:
+    """Account dicts included in a Portal search: all configured if account_ids empty, else matching ids."""
+    if not accounts:
+        return []
+    want = {(x or "").strip() for x in (account_ids or []) if (x or "").strip()}
+    if not want:
+        return list(accounts)
+    return [a for a in accounts if (a.get("id") or "").strip() in want]
+
+
+def _sbr_products_for_portal_search(accounts: list, account_ids: list) -> list:
+    """Union of SBR strings from accounts in scope (order preserved, case-insensitive dedupe)."""
+    scoped = _accounts_in_portal_search_scope(accounts, account_ids)
+    seen: set = set()
+    out: list = []
+    for a in scoped:
+        for g in _normalize_sbr_groups(a.get("sbr_groups")):
+            key = g.lower()
+            if key not in seen:
+                seen.add(key)
+                out.append(g)
+    return out
+
+
+def _every_account_in_scope_has_sbr(accounts: list, account_ids: list) -> bool:
+    """True when every account row in scope has at least one SBR group (required for full Portal scoping)."""
+    scoped = _accounts_in_portal_search_scope(accounts, account_ids)
+    if not scoped:
+        return False
+    for a in scoped:
+        if not _normalize_sbr_groups(a.get("sbr_groups")):
+            return False
+    return True
+
+
+def _find_account_by_account_numbers(accounts: list, account_numbers: list, sbr_groups=None) -> tuple:
+    """Return (index, account) of the first account with overlapping account numbers and the same SBR group, or (None, None).
+    Duplicates are only merged when they share the same SBR group. sbr_groups: list or [] for no SBR."""
+    want = set(_normalize_account_numbers(account_numbers) or [])
+    if not want:
+        return (None, None)
+    want_sbr = _sbr_groups_set(sbr_groups if sbr_groups is not None else [])
+    for i, a in enumerate(accounts):
+        have = set(a.get("account_numbers") or [])
+        if (have & want) and _sbr_groups_set(a) == want_sbr:
+            return (i, a)
+    return (None, None)
+
+
+def _ensure_account_from_dump(account_numbers: list, customer_name: str) -> dict:
+    """Ensure an account exists: add if none match these account numbers and SBR, else update (merge numbers, customer_name).
+    Only merges into an account that has the same SBR group; from dump we use no SBR ([]), so we only merge into accounts with no SBR."""
+    account_numbers = _normalize_account_numbers(account_numbers) or []
+    if not account_numbers:
+        return {}
+    accounts = _load_accounts()
+    idx, existing = _find_account_by_account_numbers(accounts, account_numbers, sbr_groups=[])
+    if idx is not None:
+        # Merge: add any new account numbers, update customer_name if provided
+        merged_nums = list(dict.fromkeys((existing.get("account_numbers") or []) + account_numbers))
+        merged_nums = _normalize_account_numbers(merged_nums) or merged_nums
+        name = (customer_name or "").strip() or (existing.get("customer_name") or "").strip()
+        accounts[idx] = {
+            **existing,
+            "account_numbers": merged_nums,
+            "account_number": merged_nums[0] if merged_nums else existing.get("account_number"),
+            "customer_name": name or existing.get("customer_name"),
+        }
+        _save_accounts(accounts)
+        return accounts[idx]
+    # Add new account
+    aid = _slug(customer_name) or _slug("Account-" + str(account_numbers[0]))
+    if not aid:
+        aid = "account_" + str(account_numbers[0])
+    existing_ids = {(a.get("id") or "").strip().lower() for a in accounts}
+    base_id = aid
+    idx = 0
+    while aid.lower() in existing_ids:
+        idx += 1
+        aid = f"{base_id}_{idx}"
+    name = customer_name.strip() or f"Account {account_numbers[0]}"
+    entry = {"id": aid, "account_numbers": account_numbers, "account_number": account_numbers[0], "customer_name": name, "created_at": datetime.utcnow().isoformat() + "Z"}
+    accounts.append(entry)
+    _save_accounts(accounts)
+    return entry
 
 
 def _save_accounts(accounts: list) -> None:
@@ -226,7 +535,7 @@ def _build_report_from_structure(
         "notes": f"""---
 
 **{sec_notes}:**
-- This tracker is automatically updated via Taminator
+- This tracker is automatically updated via RFE and Bug Tracker
 - Last check: {timestamp}
 - For questions, contact {tam_val} ({default_contact})""",
     }
@@ -418,8 +727,6 @@ def get_roadmap() -> dict:
 
 def check_vpn() -> dict:
     """Check if Red Hat VPN appears to be up (can reach issues.redhat.com). Returns { ok: bool, message: str }."""
-    if not requests:
-        return {"ok": False, "message": "requests library not available"}
     src_path = os.path.join(SCRIPT_DIR, "src")
     try:
         if src_path not in sys.path:
@@ -433,12 +740,24 @@ def check_vpn() -> dict:
     finally:
         if src_path in sys.path:
             sys.path.remove(src_path)
+    # Use stdlib urllib only: requests + charset_normalizer on large HTML can recurse
+    # deeply on Apple Python 3.9 and abort the worker thread.
     try:
-        r = requests.get("https://issues.redhat.com", timeout=8)
+        req = Request(
+            "https://issues.redhat.com",
+            headers={"User-Agent": "RFE-Bug-Tracker-VPN-check/1.0"},
+            method="GET",
+        )
+        with urlopen(req, timeout=8) as resp:
+            resp.read(8192)
         return {"ok": True, "message": "VPN connectivity OK (issues.redhat.com reachable)"}
-    except requests.exceptions.Timeout:
+    except HTTPError:
+        return {"ok": True, "message": "VPN connectivity OK (issues.redhat.com reachable)"}
+    except URLError as e:
+        return {"ok": False, "message": str(e) or "Cannot reach issues.redhat.com. Connect to Red Hat VPN."}
+    except TimeoutError:
         return {"ok": False, "message": "Timeout reaching issues.redhat.com. Connect to Red Hat VPN and try again."}
-    except requests.exceptions.RequestException as e:
+    except OSError as e:
         return {"ok": False, "message": str(e) or "Cannot reach issues.redhat.com. Connect to Red Hat VPN."}
 
 
@@ -447,28 +766,37 @@ def _get_ui_tokens():
     When Vault is configured (VAULT_ADDR/VAULT_TOKEN), overlays jira/portal tokens from Vault.
     Supports encoded storage (base64 payload) and legacy plain JSON."""
     tokens_file = Path.home() / ".config" / "taminator" / "ui_tokens.json"
+    src_path = _taminator_src_path()
+    inserted = src_path not in sys.path
+    if inserted:
+        sys.path.insert(0, src_path)
     try:
-        from taminator.core.token_store import load_ui_tokens
-        tokens = load_ui_tokens(tokens_file)
-    except ImportError:
-        tokens = {}
-        if tokens_file.exists():
-            try:
-                with open(tokens_file) as f:
-                    tokens = json.load(f)
-            except Exception:
-                pass
-    # Overlay from Vault when configured
-    try:
-        from taminator.core.hybrid_auth import hybrid_auth
-        if hybrid_auth.is_vault_available():
-            for vault_service, key in [("jira", "jira_token"), ("portal", "portal_token")]:
-                t = hybrid_auth.get_token(vault_service, required=False)
-                if t:
-                    tokens[key] = t
-    except Exception:
-        pass
-    return tokens
+        try:
+            from taminator.core.token_store import load_ui_tokens
+            tokens = load_ui_tokens(tokens_file)
+        except ImportError:
+            tokens = {}
+            if tokens_file.exists():
+                try:
+                    with open(tokens_file) as f:
+                        tokens = json.load(f)
+                except Exception:
+                    pass
+        # Overlay from Vault when configured
+        try:
+            from taminator.core.hybrid_auth import hybrid_auth
+            if hybrid_auth.is_vault_available():
+                for vault_service, key in [("jira", "jira_token"), ("portal", "portal_token")]:
+                    t = hybrid_auth.get_token(vault_service, required=False)
+                    # Do not overwrite tokens already loaded from ui_tokens.json (Settings save wins).
+                    if t and not (tokens.get(key) or "").strip():
+                        tokens[key] = t
+        except Exception:
+            pass
+        return tokens
+    finally:
+        if inserted and src_path in sys.path:
+            sys.path.remove(src_path)
 
 
 def _env_with_ui_tokens():
@@ -514,11 +842,17 @@ def _markdown_to_html_fallback(text: str) -> str:
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         s = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", s)
         s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
-        s = re.sub(
-            r"(?<!href=\")(?<!href=')(https?://[^\s<>\"')\]]+)",
-            r'<a href="\1" target="_blank" rel="noopener">\1</a>',
-            s,
-        )
+        # Linear-time bare URL linkify; lookbehind + re.sub on long strings can recurse deeply on py3.9.
+        _url = re.compile(r"https?://[^\s<>\"')\]]{1,4000}")
+        parts = []
+        pos = 0
+        for m in _url.finditer(s):
+            parts.append(s[pos : m.start()])
+            u = m.group(0)
+            parts.append(f'<a href="{u}" target="_blank" rel="noopener">{u}</a>')
+            pos = m.end()
+        parts.append(s[pos:])
+        s = "".join(parts)
         return s
 
     while i < len(lines):
@@ -775,7 +1109,7 @@ def _load_docs_sections():
         except OSError:
             continue
     if not raw_parts:
-        return [{"id": "overview", "title": "User Guide", "content": "<p>Documentation not found. See <a href=\"https://gitlab.cee.redhat.com/jbyrd/taminator\" target=\"_blank\" rel=\"noopener\">GitLab Repository</a>.</p>"}]
+        return [{"id": "overview", "title": "User Guide", "content": "<p>Documentation not found. See <a href=\"https://gitlab.cee.redhat.com/jbyrd/rfe-bug-tracker\" target=\"_blank\" rel=\"noopener\">GitLab Repository</a>.</p>"}]
     full = "\n\n---\n\n".join(raw_parts)
     blocks = re.split(r"\n##\s+", full, maxsplit=0)
     intro = (blocks[0].strip() if blocks else "")
@@ -787,23 +1121,15 @@ def _load_docs_sections():
         rest = block.split("\n", 1)[1].strip() if "\n" in block else ""
         sid = re.sub(r"[^a-z0-9]+", "-", first_line.lower()).strip("-")[:48] or "section"
         sections.append({"id": sid, "title": first_line, "content": rest})
-    def linkify_bare_urls(html_str: str) -> str:
-        if not html_str:
-            return html_str
-        return re.sub(
-            r"(?<!href=\")(?<!href=')(https?://[^\s<>\"')\]]+)",
-            r'<a href="\1" target="_blank" rel="noopener">\1</a>',
-            html_str,
-        )
 
-    try:
-        import markdown
-        for s in sections:
-            s["content"] = markdown.markdown(s["content"] or "", extensions=["extra", "nl2br"])
-            s["content"] = linkify_bare_urls(s["content"])
-    except ImportError:
-        for s in sections:
-            s["content"] = _markdown_to_html_fallback(s.get("content") or "")
+    # Do not use the third-party `markdown` package here: on some macOS/Python 3.9
+    # stacks it recurses thousands of frames for normal docs and trips the interpreter
+    # limit (SIGABRT) or the thread stack (SIGBUS). The local fallback is iterative.
+    # Do not run a second HTML pass with heavy regex (linkify): inline_convert already
+    # linkifies bare URLs per line.
+    for s in sections:
+        raw_md = s.get("content") or ""
+        s["content"] = _markdown_to_html_fallback(raw_md)
     return sections
 
 
@@ -845,12 +1171,16 @@ def get_token_status():
 
 
 def _get_effective_hydra_token():
-    """Return Bearer token for Hydra: username/password (SSO, UI-saved or env) or Customer Portal token. Used for testing."""
+    """Return Bearer token for Hydra (test + search).
+
+    Hydra case search (rhcase) uses an SSO access token from password grant
+    (client_id hydra-client-cli), not necessarily the Customer Portal *management* API
+    token. Try SSO first, then Portal API token from Settings/env, then auth_box.
+    """
     token = None
     try:
         sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
         from taminator.core.hydra_search import get_bearer_token_from_env, get_bearer_token
-        # Prefer UI-saved Hydra credentials so "Save credentials" takes effect; env vars are fallback.
         ui_tokens = _get_ui_tokens()
         if ui_tokens.get("redhat_username") and ui_tokens.get("redhat_password"):
             try:
@@ -867,10 +1197,12 @@ def _get_effective_hydra_token():
     if token:
         return token
     tokens = _get_ui_tokens()
-    if tokens.get("portal_token"):
-        return tokens["portal_token"]
-    if os.environ.get("PORTAL_TOKEN"):
-        return os.environ["PORTAL_TOKEN"]
+    pt_ui = (tokens.get("portal_token") or "").strip()
+    if pt_ui:
+        return pt_ui
+    pt_env = (os.environ.get("PORTAL_TOKEN") or "").strip()
+    if pt_env:
+        return pt_env
     try:
         sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
         from taminator.core.auth_box import auth_box
@@ -885,7 +1217,23 @@ def _get_effective_hydra_token():
 
 
 def _get_hydra_basic_auth():
-    """Return (username, password) for Hydra Basic auth from UI tokens or env, or None."""
+    """Return (username, password) for Hydra Basic auth from UI tokens or env, or None.
+
+    Same as update.py: prefer Basic when Red Hat username/password are available.
+    """
+    ui_tokens = _get_ui_tokens()
+    username = ui_tokens.get("redhat_username") or os.environ.get("REDHAT_USERNAME") or os.environ.get("REDHAT_PORTAL_USERNAME")
+    password = ui_tokens.get("redhat_password") or os.environ.get("REDHAT_PASSWORD") or os.environ.get("REDHAT_PORTAL_PASSWORD")
+    if username and password:
+        return (username.strip(), password)
+    return None
+
+
+def _get_hydra_basic_auth_credentials():
+    """Red Hat username/password for Hydra Basic auth (UI or env), ignoring Portal token presence.
+
+    Used when Bearer was tried first but Hydra returned 401 — some accounts need Basic for Hydra.
+    """
     ui_tokens = _get_ui_tokens()
     username = ui_tokens.get("redhat_username") or os.environ.get("REDHAT_USERNAME") or os.environ.get("REDHAT_PORTAL_USERNAME")
     password = ui_tokens.get("redhat_password") or os.environ.get("REDHAT_PASSWORD") or os.environ.get("REDHAT_PORTAL_PASSWORD")
@@ -899,19 +1247,54 @@ def test_hydra_access():
     if not requests:
         return {"ok": False, "message": "requests library not available"}
     url = "https://access.redhat.com/hydra/rest/search/cases"
+    params = {"q": "*:*", "rows": 0, "start": 0}
+    headers_json = {"Content-Type": "application/json"}
+    bearer = _get_effective_hydra_token()
     basic_auth = _get_hydra_basic_auth()
     try:
         if basic_auth:
-            r = requests.get(url, headers={"Content-Type": "application/json"}, params={"q": "*:*", "rows": 0, "start": 0}, auth=basic_auth, timeout=15)
+            r = requests.get(url, headers=headers_json, params=params, auth=basic_auth, timeout=15)
+            # Wrong password or Hydra rejects Basic: try SSO/Portal Bearer (rhcase-style token).
+            if r.status_code == 401 and bearer:
+                r = requests.get(
+                    url,
+                    headers={**headers_json, "Authorization": f"Bearer {bearer}"},
+                    params=params,
+                    timeout=15,
+                )
+                if r.status_code == 200:
+                    return {
+                        "ok": True,
+                        "message": "Hydra reachable with SSO/Portal Bearer (HTTP Basic was rejected). Check username/password or rely on Portal token / SSO.",
+                    }
+        elif bearer:
+            r = requests.get(
+                url,
+                headers={**headers_json, "Authorization": f"Bearer {bearer}"},
+                params=params,
+                timeout=15,
+            )
+            if r.status_code == 401:
+                creds = _get_hydra_basic_auth_credentials()
+                if creds:
+                    r = requests.get(url, headers=headers_json, params=params, auth=creds, timeout=15)
+                    if r.status_code == 200:
+                        return {
+                            "ok": True,
+                            "message": "Hydra reachable with Red Hat username/password. Bearer token was rejected (401); Hydra often needs SSO or Basic, not only the management API token.",
+                        }
         else:
-            token = _get_effective_hydra_token()
-            if not token:
-                return {"ok": False, "message": "Set Hydra credentials (username + password) in Settings, or set a Customer Portal token, or REDHAT_USERNAME and REDHAT_PASSWORD in your environment."}
-            r = requests.get(url, headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"}, params={"q": "*:*", "rows": 0, "start": 0}, timeout=15)
+            return {
+                "ok": False,
+                "message": "Set Red Hat username/password in Settings, or a Customer Portal API token, or REDHAT_USERNAME and REDHAT_PASSWORD in your environment.",
+            }
         if r.status_code == 200:
             return {"ok": True, "message": "Hydra API reachable (Basic auth or Bearer token)."}
         if r.status_code == 401:
-            return {"ok": False, "message": "Hydra returned 401 Unauthorized. Check your Red Hat username and password in Settings (Hydra uses Basic auth)."}
+            return {
+                "ok": False,
+                "message": "Hydra returned 401 Unauthorized. Add Red Hat username/password (SSO) in Settings, or use an SSO token: Hydra case search follows rhcase (password grant), not only the management API token.",
+            }
         return {"ok": False, "message": f"Hydra API returned {r.status_code}. Check credentials or VPN."}
     except requests.exceptions.Timeout:
         return {"ok": False, "message": "Timeout reaching Hydra. Connect to Red Hat VPN and try again."}
@@ -947,11 +1330,42 @@ class TaminatorHandler(BaseHTTPRequestHandler):
         # Quiet logs unless needed
         pass
 
+    def _cors_headers(self):
+        """Allow browser/API clients when origin differs (localhost vs 127.0.0.1, file://, Electron)."""
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors_headers()
+        self.end_headers()
+
     def send_json(self, data, status=200):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        self._cors_headers()
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
+
+    def _get_app_version(self):
+        # Prefer version set by Electron (installed app); then VERSION file(s)
+        version = (os.environ.get("TAMINATOR_APP_VERSION") or "").strip()
+        if version:
+            return version
+        version = "dev"
+        for base in [SCRIPT_DIR, os.environ.get("TAMINATOR_RESOURCES", "")]:
+            if not base:
+                continue
+            version_file = os.path.join(base, "VERSION")
+            if os.path.isfile(version_file):
+                try:
+                    with open(version_file, "r", encoding="utf-8") as f:
+                        version = (f.read() or "").strip() or version
+                except Exception:
+                    pass
+                break
+        return version
 
     def send_html(self, path):
         if path == "" or path == "/":
@@ -980,7 +1394,24 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 self.send_header("Pragma", "no-cache")
         self.end_headers()
         with open(filepath, "rb") as f:
-            self.wfile.write(f.read())
+            body = f.read()
+        if path == "index.html":
+            try:
+                version = self._get_app_version()
+                body = body.replace(b"Version \xe2\x80\xa6", ("Version " + version).encode("utf-8"))
+            except Exception:
+                pass
+            if _GITLAB_LEGACY_RFE_UI_PREFIX in body:
+                body = body.replace(
+                    _GITLAB_LEGACY_RFE_UI_PREFIX,
+                    RFE_BUG_TRACKER_GITLAB_PROJECT.encode("utf-8"),
+                )
+            if _GITLAB_LEGACY_AUTOMATION_PREFIX in body:
+                body = body.replace(
+                    _GITLAB_LEGACY_AUTOMATION_PREFIX,
+                    RFE_BUG_TRACKER_GITLAB_PROJECT.encode("utf-8"),
+                )
+        self.wfile.write(body)
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -988,7 +1419,14 @@ class TaminatorHandler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
         if path.startswith("api/"):
             if path == "api/status":
-                self.send_json({"status": "ok", "service": "taminator"})
+                self.send_json({
+                    "status": "ok",
+                    "service": "rfe_bug_tracker",
+                    "display_name": "RFE and Bug Tracker",
+                    "ui": _ui_status_payload(),
+                })
+            elif path == "api/version":
+                self.send_json({"version": self._get_app_version()})
             elif path == "api/status/indicators":
                 try:
                     vpn = check_vpn()
@@ -1057,6 +1495,97 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                     self.send_json({"accounts": accounts})
                 except Exception as e:
                     self.send_json({"ok": False, "error": str(e)}, 500)
+            elif path == "api/portal/search":
+                q = (qs.get("q") or [""])[0].strip()
+                ids_raw = (qs.get("accounts") or [""])[0].strip()
+                account_ids = [x.strip() for x in ids_raw.split(",") if x.strip()]
+                try:
+                    accounts = _load_accounts()
+                except Exception as e:
+                    self.send_json({"ok": False, "error": str(e), "cases": [], "numFound": 0}, 500)
+                    return
+                nums = _collect_account_numbers_for_portal_search(accounts, account_ids)
+                # No configured account numbers: only allow Portal "discovery" when the user typed keywords
+                # (search by case summary / account name / case number across visible cases, time-bounded).
+                discovery = False
+                if not nums:
+                    if not q:
+                        self.send_json(
+                            {
+                                "ok": False,
+                                "error": "No account numbers in scope. Add accounts under Accounts & setup, or type keywords to search the Customer Portal for matching cases and account names.",
+                                "cases": [],
+                                "numFound": 0,
+                            },
+                            400,
+                        )
+                        return
+                    discovery = True
+                srcp = os.path.join(SCRIPT_DIR, "src")
+                try:
+                    sys.path.insert(0, srcp)
+                    from taminator.core import hydra_search
+
+                    # Same credential resolution as api/test/hydra: Basic if password set; else SSO/Portal Bearer.
+                    basic_auth = _get_hydra_basic_auth()
+                    bearer_token = _get_effective_hydra_token()
+                    token = None if basic_auth else bearer_token
+                    if not basic_auth and not token:
+                        self.send_json(
+                            {
+                                "ok": False,
+                                "error": "Customer Portal token or Red Hat credentials required to search the Customer Portal.",
+                                "cases": [],
+                                "numFound": 0,
+                            },
+                            400,
+                        )
+                        return
+                    modified_after = None
+                    products_for_query = None
+                    if discovery:
+                        # Bound unscoped keyword search (configured accounts not required).
+                        modified_after = (datetime.utcnow() - timedelta(days=365)).strftime("%Y-%m-%d")
+                    elif _every_account_in_scope_has_sbr(accounts, account_ids):
+                        # Account number(s) + SBR on every selected row: no date cap (old RFEs); filter by product.
+                        products_for_query = _sbr_products_for_portal_search(accounts, account_ids) or None
+                    elif not q:
+                        # Account scope without full SBR setup: keep a time bound when listing all cases (no keywords).
+                        modified_after = (datetime.utcnow() - timedelta(days=90)).strftime("%Y-%m-%d")
+                    solr_q = hydra_search.build_solr_query_portal_search(
+                        q,
+                        nums if not discovery else [],
+                        include_closed=False,
+                        modified_after=modified_after,
+                        products=products_for_query,
+                    )
+                    try:
+                        rows_req = int((qs.get("rows") or ["50"])[0])
+                    except ValueError:
+                        rows_req = 50
+                    rows_req = max(1, min(rows_req, 150))
+                    result = hydra_search.search_cases(
+                        token=token,
+                        query=solr_q,
+                        start=0,
+                        rows=rows_req,
+                        basic_auth=basic_auth,
+                        timeout=45,
+                        basic_auth_fallback=_get_hydra_basic_auth_credentials() if not basic_auth else None,
+                        bearer_fallback=bearer_token if basic_auth else None,
+                    )
+                    docs = result.get("response", {}).get("docs", [])
+                    num_found = result.get("response", {}).get("numFound", len(docs))
+                    cases_out = [hydra_search.doc_to_portal_search_row(d) for d in docs]
+                    out = {"ok": True, "cases": cases_out, "numFound": num_found}
+                    if discovery:
+                        out["discovery"] = True
+                    self.send_json(out)
+                except Exception as e:
+                    self.send_json({"ok": False, "error": str(e), "cases": [], "numFound": 0}, 500)
+                finally:
+                    if srcp in sys.path:
+                        sys.path.remove(srcp)
             elif path == "api/report-structure":
                 self.send_json(_load_report_structure())
             elif path == "api/reports/paths":
@@ -1260,7 +1789,7 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 if not get_credentials():
                     self.send_json({"ok": False, "error": "Google Drive not connected. In Settings → Google Drive & Docs, add client ID/secret and click Connect Google."}, 400)
                     return
-                result = create_doc_from_text(title or "Taminator Report", content)
+                result = create_doc_from_text(title or "RFE and Bug Tracker Report", content)
                 self.send_json({"ok": True, "url": result.get("url", ""), "id": result.get("id", "")})
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 400)
@@ -1286,7 +1815,7 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 if not get_credentials():
                     self.send_json({"ok": False, "error": "Google not connected. In Settings → Google Drive & Docs, add client ID/secret and click Connect Google. Reconnect to enable Gmail drafts."}, 400)
                     return
-                result = create_gmail_draft(title or "Taminator Report", content)
+                result = create_gmail_draft(title or "RFE and Bug Tracker Report", content)
                 self.send_json({"ok": True, "url": result.get("url", ""), "draft_id": result.get("draft_id", ""), "message_id": result.get("message_id", "")})
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 400)
@@ -1350,6 +1879,198 @@ class TaminatorHandler(BaseHTTPRequestHandler):
             return
         if path == "api/reports/build":
             self._do_post_reports_build(data)
+            return
+        if path == "api/cases/from-paste":
+            # Paste case numbers (or dump text); discover via Hydra, get JIRA statuses, auto-configure accounts.
+            pasted = (data.get("pasted") or "").strip()
+            case_numbers = data.get("case_numbers")
+            if isinstance(case_numbers, list):
+                case_numbers = [str(c).strip() for c in case_numbers if str(c).strip()]
+            else:
+                case_numbers = []
+            if not case_numbers and pasted:
+                # Parse case numbers from pasted text (e.g. Salesforce dump): 04xxxxxx or 8+ digit numbers
+                case_numbers = list(dict.fromkeys(re.findall(r"\b(04\d{6})\b|\b(\d{8,})\b", pasted)))
+                case_numbers = [c[0] or c[1] for c in case_numbers if c[0] or c[1]]
+            if not case_numbers:
+                self.send_json({"ok": False, "error": "Paste case numbers or a case list (e.g. from Salesforce), or send case_numbers array."}, 400)
+                return
+            _ensure_taminator_on_path()
+            try:
+                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                from taminator.core import hydra_search
+                from taminator.commands.check import JIRAClient
+                from taminator.core import jira_config
+                basic_auth = _get_hydra_basic_auth()
+                bearer_token = _get_effective_hydra_token()
+                token = None if basic_auth else bearer_token
+                if not basic_auth and not token:
+                    self.send_json({"ok": False, "error": "Customer Portal token or Red Hat username/password required for case lookup. Configure in Settings."}, 400)
+                    return
+                cases, detected_accounts = hydra_search.discover_cases_by_case_numbers(
+                    token=token,
+                    case_numbers=case_numbers,
+                    basic_auth=basic_auth,
+                    basic_auth_fallback=_get_hydra_basic_auth_credentials() if not basic_auth else None,
+                    bearer_fallback=bearer_token if basic_auth else None,
+                )
+                if not cases:
+                    self.send_json({"ok": False, "error": "No cases found for those case numbers. Check VPN and Portal credentials.", "case_numbers": case_numbers[:20]}, 404)
+                    return
+                # Auto-configure accounts from detected account info
+                accounts_ensured = []
+                for acc in detected_accounts:
+                    nums = acc.get("account_numbers") or []
+                    name = (acc.get("customer_name") or "").strip()
+                    if nums:
+                        ensured = _ensure_account_from_dump(nums, name)
+                        if ensured:
+                            accounts_ensured.append(ensured)
+                # Fetch JIRA status for each case (report uses JIRA status, not internal/case status)
+                jira_ids = list(dict.fromkeys([c[3] for c in cases if c[3]]))
+                jira_statuses = {}
+                if jira_ids:
+                    _base, _auth_header, _ = jira_config.get_jira_auth()
+                    if _auth_header:
+                        api_url = jira_config.get_jira_api_url()
+                        client = JIRAClient(api_base_url=api_url, auth_header=_auth_header)
+                        for jid in jira_ids:
+                            info = client.get_issue_status(jid)
+                            jira_statuses[jid] = (info or {}).get("status") or "—"
+                    else:
+                        for jid in jira_ids:
+                            jira_statuses[jid] = "—"
+                # Build report rows: case_number, jira_id, summary, jira_status (not case status)
+                report_rows = []
+                for case_number, summary, _case_status, jira_id, kind in cases:
+                    jira_status = jira_statuses.get(jira_id, "—") if jira_id else "—"
+                    report_rows.append({"case_number": case_number, "jira_id": jira_id or "TBD", "summary": summary, "jira_status": jira_status, "kind": kind})
+                # Markdown table snippet
+                def _cell(s):
+                    return (str(s).replace("|", " ").replace("\n", " ").strip()[:200]) if s else ""
+                lines = ["| RED HAT JIRA ID | Support Case | Description | Status/Notes |", "| --- | --- | --- | --- |"]
+                for r in report_rows:
+                    case_cell = f"[{r['case_number']}](https://access.redhat.com/support/cases/#/case/{r['case_number']})" if r["case_number"] else ""
+                    jira_cell = r["jira_id"]
+                    lines.append(f"| {jira_cell} | {case_cell} | {_cell(r['summary'][:80])} | {r['jira_status']} |")
+                report_markdown = "\n".join(lines)
+                self.send_json({
+                    "ok": True,
+                    "cases": report_rows,
+                    "report_markdown": report_markdown,
+                    "accounts_ensured": accounts_ensured,
+                    "detected_accounts": detected_accounts,
+                    "message": f"Found {len(cases)} case(s). " + (f"Added/updated {len(accounts_ensured)} account(s)." if accounts_ensured else ""),
+                })
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, 500)
+            finally:
+                if os.path.join(SCRIPT_DIR, "src") in sys.path:
+                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+            return
+        if path == "api/jira/from-paste":
+            # JIRA keys/URLs only — for accounts with no case↔JIRA linkage in access.redhat.com (e.g. SNOW, ROSA FedRAMP).
+            pasted = (data.get("pasted") or "").strip()
+            if not pasted:
+                self.send_json({"ok": False, "error": "Paste at least one JIRA key or URL."}, 400)
+                return
+            jira_keys = _parse_jira_keys_from_paste(pasted)
+            if not jira_keys:
+                self.send_json(
+                    {
+                        "ok": False,
+                        "error": "No JIRA issue keys found. Paste issues.redhat.com browse links or issue keys (e.g. AAPRFE-100).",
+                    },
+                    400,
+                )
+                return
+            if len(jira_keys) > 200:
+                self.send_json({"ok": False, "error": "Too many issues; paste at most 200 keys at a time."}, 400)
+                return
+            _ensure_taminator_on_path()
+            try:
+                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                from taminator.commands.check import JIRAClient
+                from taminator.core import jira_config
+                from taminator.commands.update import _format_case_cell, _format_jira_cell, _escape_table_cell
+
+                _base, _auth_header, _ = jira_config.get_jira_auth()
+                if not _auth_header:
+                    self.send_json(
+                        {
+                            "ok": False,
+                            "error": "JIRA is not configured. In Settings, add a Red Hat JIRA token (or JIRA Cloud credentials) to look up pasted issues.",
+                        },
+                        400,
+                    )
+                    return
+                api_url = jira_config.get_jira_api_url()
+                client = JIRAClient(api_base_url=api_url, auth_header=_auth_header)
+                rfe_row_lines = []
+                bug_row_lines = []
+                report_rows = []
+                for jid in jira_keys:
+                    info = client.get_issue_status(jid) or {}
+                    st = (info.get("status") or "").strip() or "—"
+                    if st in ("ERROR", "NOT_FOUND"):
+                        st = (info.get("error") or st).strip()
+                    summary = (info.get("summary") or "—").strip() or "—"
+                    itype = (info.get("issue_type") or "").strip()
+                    kind = _classify_jira_paste_row_kind(itype, summary)
+                    jira_cell = _format_jira_cell(jid)
+                    case_cell = _format_case_cell(NOT_IN_PORTAL_SUPPORT_CASE_LABEL)
+                    row_line = f"| {jira_cell} | {case_cell} | {_escape_table_cell(summary[:200])} | {_escape_table_cell(str(st)[:200])} |"
+                    if kind == "Bug":
+                        bug_row_lines.append(row_line)
+                    else:
+                        rfe_row_lines.append(row_line)
+                    report_rows.append(
+                        {
+                            "jira_id": jid,
+                            "summary": summary,
+                            "jira_status": st,
+                            "issue_type": itype,
+                            "kind": kind,
+                            "no_portal_case": True,
+                        }
+                    )
+                sep = "|-----------------|--------------|-------------|--------------|"
+                head = "| RED HAT JIRA ID | Support Case | Description | Status/Notes |"
+                parts = []
+                if rfe_row_lines:
+                    parts.append(
+                        "**Enhancement (RFE) — pasted, not linked in Customer Portal**\n\n"
+                        + head
+                        + "\n"
+                        + sep
+                        + "\n"
+                        + "\n".join(rfe_row_lines)
+                    )
+                if bug_row_lines:
+                    parts.append(
+                        "**Bugs — pasted, not linked in Customer Portal**\n\n"
+                        + head
+                        + "\n"
+                        + sep
+                        + "\n"
+                        + "\n".join(bug_row_lines)
+                    )
+                report_markdown = "\n\n".join(parts) if parts else ""
+                n = len(jira_keys)
+                self.send_json(
+                    {
+                        "ok": True,
+                        "jira_keys": jira_keys,
+                        "cases": report_rows,
+                        "report_markdown": report_markdown,
+                        "message": f"Found {n} JIRA issue(s). Support Case shows “{NOT_IN_PORTAL_SUPPORT_CASE_LABEL}” — copy the table into your report.",
+                    }
+                )
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, 500)
+            finally:
+                if os.path.join(SCRIPT_DIR, "src") in sys.path:
+                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
             return
         if path.rstrip("/") == "api/library/delete" or path == "api/library/delete":
             path_str = (data.get("path") or data.get("path_str") or "").strip()
@@ -1422,7 +2143,10 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 key = "portal_token"
             config_dir = Path.home() / ".config" / "taminator"
             tokens_file = config_dir / "ui_tokens.json"
+            src_path = _taminator_src_path()
             try:
+                if src_path not in sys.path:
+                    sys.path.insert(0, src_path)
                 from taminator.core.token_store import load_ui_tokens, save_ui_tokens
                 existing = load_ui_tokens(tokens_file)
                 existing[key] = value
@@ -1437,8 +2161,12 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
             except Exception as e:
+                traceback.print_exc(file=sys.stderr)
                 self.send_json({"ok": False, "error": str(e)}, 500)
                 return
+            finally:
+                if src_path in sys.path:
+                    sys.path.remove(src_path)
             self.send_json({"ok": True, "message": "Token saved. Restart the server or run a report for it to take effect."})
             return
         if path.rstrip("/") == "api/config/set-hydra-credentials":
@@ -1446,7 +2174,10 @@ class TaminatorHandler(BaseHTTPRequestHandler):
             password = (data.get("redhat_password") or "")
             config_dir = Path.home() / ".config" / "taminator"
             tokens_file = config_dir / "ui_tokens.json"
+            src_path = _taminator_src_path()
             try:
+                if src_path not in sys.path:
+                    sys.path.insert(0, src_path)
                 from taminator.core.token_store import load_ui_tokens, save_ui_tokens
                 existing = load_ui_tokens(tokens_file)
                 if username:
@@ -1459,14 +2190,21 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                     existing.pop("redhat_password", None)
                 save_ui_tokens(existing, tokens_file)
             except Exception as e:
+                traceback.print_exc(file=sys.stderr)
                 self.send_json({"ok": False, "error": str(e)}, 500)
                 return
+            finally:
+                if src_path in sys.path:
+                    sys.path.remove(src_path)
             self.send_json({"ok": True, "message": "Hydra credentials saved (stored encoded). Env vars override these."})
             return
         if path == "api/config/set-jira-settings":
             config_dir = Path.home() / ".config" / "taminator"
             tokens_file = config_dir / "ui_tokens.json"
+            src_path = _taminator_src_path()
             try:
+                if src_path not in sys.path:
+                    sys.path.insert(0, src_path)
                 from taminator.core.token_store import load_ui_tokens, save_ui_tokens
                 existing = load_ui_tokens(tokens_file)
                 for key in ("jira_base_url", "jira_email", "jira_api_token", "jira_token"):
@@ -1480,7 +2218,11 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 save_ui_tokens(existing, tokens_file)
                 self.send_json({"ok": True, "message": "JIRA settings saved."})
             except Exception as e:
+                traceback.print_exc(file=sys.stderr)
                 self.send_json({"ok": False, "error": str(e)}, 500)
+            finally:
+                if src_path in sys.path:
+                    sys.path.remove(src_path)
             return
         if path == "api/vault/set":
             service = (data.get("service") or "").strip()
@@ -1572,6 +2314,19 @@ class TaminatorHandler(BaseHTTPRequestHandler):
             if not customer_name or not account_numbers:
                 self.send_json({"ok": False, "error": "customer_name and at least one account number required"}, 400)
                 return
+            # Avoid duplicate accounts: only merge when same account numbers and same SBR group
+            idx, existing = _find_account_by_account_numbers(accounts, account_numbers, sbr_groups=data.get("sbr_groups") or [])
+            if idx is not None:
+                merged_nums = list(dict.fromkeys((existing.get("account_numbers") or []) + list(account_numbers)))
+                merged_nums = _normalize_account_numbers(merged_nums) or merged_nums
+                accounts[idx]["account_numbers"] = merged_nums
+                accounts[idx]["account_number"] = merged_nums[0] if merged_nums else ""
+                accounts[idx]["customer_name"] = customer_name
+                if "sbr_groups" in data:
+                    accounts[idx]["sbr_groups"] = _normalize_sbr_groups(data["sbr_groups"])
+                _save_accounts(accounts)
+                self.send_json({"ok": True, "message": "Account updated (already had this account number)", "accounts": accounts})
+                return
             if not aid:
                 aid = _slug(customer_name)
             if not aid:
@@ -1629,13 +2384,13 @@ class TaminatorHandler(BaseHTTPRequestHandler):
 
 
 def serve(port=8765, open_browser=True):
+    _ensure_taminator_on_path()
     if not os.path.isdir(WEB_DIR):
         print(f"Web directory not found: {WEB_DIR}", file=sys.stderr)
         sys.exit(1)
     server = ThreadingHTTPServer(("127.0.0.1", port), TaminatorHandler)
     url = f"http://127.0.0.1:{port}"
-    print(f"Taminator web UI: {url}")
-    print(f"Serving files from: {os.path.abspath(WEB_DIR)}")
+    print(f"RFE and Bug Tracker web UI: {url}")
     if open_browser:
         import webbrowser
         webbrowser.open(url)
@@ -1648,7 +2403,7 @@ def serve(port=8765, open_browser=True):
 
 if __name__ == "__main__":
     import argparse
-    p = argparse.ArgumentParser(description="Taminator web UI server")
+    p = argparse.ArgumentParser(description="RFE and Bug Tracker web UI server")
     p.add_argument("--port", type=int, default=8765, help="Port (default 8765)")
     p.add_argument("--no-browser", action="store_true", help="Do not open browser")
     args = p.parse_args()

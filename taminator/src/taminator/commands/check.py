@@ -51,21 +51,25 @@ class JIRAClient:
         try:
             response = requests.get(
                 f'{self.base_url}/issue/{issue_key}',
+                params={"fields": "summary,status,assignee,updated,issuetype"},
                 headers=self.headers,
                 timeout=10
             )
             
             if response.status_code == 200:
                 data = response.json()
-                assignee_obj = data['fields'].get('assignee')
+                fields = data.get("fields") or {}
+                assignee_obj = fields.get('assignee')
                 assignee_name = assignee_obj.get('displayName', 'Unassigned') if assignee_obj else 'Unassigned'
-                
+                st = fields.get('status') or {}
+                itype = fields.get("issuetype") or {}
                 return {
                     'key': issue_key,
-                    'status': data['fields']['status']['name'],
-                    'summary': data['fields']['summary'],
+                    'status': st.get("name", "Unknown"),
+                    'summary': fields.get("summary", ""),
+                    'issue_type': (itype.get("name") or "").strip(),
                     'assignee': assignee_name,
-                    'updated': data['fields']['updated']
+                    'updated': fields.get("updated", ""),
                 }
             elif response.status_code == 404:
                 return {

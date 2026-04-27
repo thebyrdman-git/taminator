@@ -4,7 +4,9 @@
 # From repo root: scripts/verify.sh
 
 set -e
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Package root = parent of this script (…/taminator). tam-rfe lives at …/taminator/taminator/tam-rfe.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 FAILED=0
 
@@ -30,15 +32,21 @@ echo "=== 3. Python / tam-rfe (smoke) ==="
 if [[ "$1" == "--no-python" ]]; then
   echo "SKIP: --no-python"
 else
-  TAM_DIR="$REPO_ROOT/taminator/taminator"
-  if [[ -d "$TAM_DIR" ]] && [[ -x "$TAM_DIR/tam-rfe" ]]; then
+  # Inner package: <project>/taminator/tam-rfe (not <project>/taminator/taminator/tam-rfe).
+  TAM_DIR=""
+  if [[ -x "$REPO_ROOT/taminator/tam-rfe" ]]; then
+    TAM_DIR="$REPO_ROOT/taminator"
+  elif [[ -x "$REPO_ROOT/tam-rfe" ]]; then
+    TAM_DIR="$REPO_ROOT"
+  fi
+  if [[ -n "$TAM_DIR" ]] && [[ -d "$TAM_DIR" ]] && [[ -x "$TAM_DIR/tam-rfe" ]]; then
     if ( cd "$TAM_DIR" && ./tam-rfe --version 2>/dev/null ) || ( cd "$TAM_DIR" && ./tam-rfe --help 2>/dev/null ); then
       echo "OK: tam-rfe runs"
     else
       echo "WARN: tam-rfe did not run (missing deps?); continuing"
     fi
   else
-    echo "WARN: tam-rfe not found at $TAM_DIR/tam-rfe; skipping Python smoke"
+    echo "WARN: tam-rfe not found (expected at $REPO_ROOT/taminator/tam-rfe or $REPO_ROOT/tam-rfe); skipping Python smoke"
   fi
 fi
 

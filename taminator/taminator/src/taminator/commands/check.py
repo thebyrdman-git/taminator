@@ -82,8 +82,8 @@ class JIRAClient:
             Dictionary with issue details (status, summary, assignee, updated, clones).
         """
         try:
-            # Request issuelinks so we can show clones/backports
-            fields = "status,summary,assignee,updated,issuelinks"
+            # Request issuelinks so we can show clones/backports; issuetype for RFE vs Bug classification
+            fields = "status,summary,assignee,updated,issuelinks,issuetype"
             response = requests.get(
                 f'{self.base_url}/issue/{issue_key}',
                 params={"fields": fields},
@@ -108,10 +108,12 @@ class JIRAClient:
                 issuelinks = fields_data.get("issuelinks") or []
                 clones = self._parse_clone_backport_links(issuelinks)
                 
+                itype = fields_data.get("issuetype") or {}
                 return {
                     'key': issue_key,
                     'status': (fields_data.get('status') or {}).get('name', 'Unknown'),
                     'summary': fields_data.get('summary', ''),
+                    'issue_type': (itype.get('name') or '').strip(),
                     'assignee': assignee_name,
                     'updated': fields_data.get('updated', ''),
                     'clones': clones
