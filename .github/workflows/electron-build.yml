@@ -200,6 +200,8 @@ jobs:
             electron-${{ matrix.os }}-
       - name: Install Node dependencies
         working-directory: taminator/gui
+        # windows-latest default is PowerShell; this script is bash (same as build-linux).
+        shell: bash
         env:
           npm_config_fetch_retries: 5
           npm_config_fetch_timeout: 600000
