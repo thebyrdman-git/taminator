@@ -299,6 +299,14 @@ function startWebServer() {
     const serverStderrBuffer = [];
     const serverStdoutBuffer = [];
     const serverEnv = envWithSafePath(env);
+    // Python (Path.home, keyring) must see the same home as CLI/tam-rfe serve — not a minimal or wrong HOME from the GUI process.
+    const homeDir = os.homedir();
+    if (homeDir) {
+      serverEnv.HOME = homeDir;
+      if (process.platform === 'win32') {
+        serverEnv.USERPROFILE = homeDir;
+      }
+    }
     serverProcess = spawn(python, [tamRfe, 'serve', '--no-browser'], { cwd, env: serverEnv, stdio: 'pipe' });
     serverProcess.on('error', (err) => {
       err.debugInfo = debugInfo;
