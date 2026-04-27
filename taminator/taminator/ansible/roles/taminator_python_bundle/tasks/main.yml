@@ -66,6 +66,14 @@
   args:
     executable: /bin/bash
 
+# macOS: venv python (often python.org or Homebrew) links to Python.framework on the build
+# host (e.g. /Library/Frameworks/.../Python). User machines and arm64 test Macs do not have that.
+# Copy the framework into the bundle and point bin/python at @loader_path/... (see also gui/main.js DYLD fallback).
+- name: Embed Python.framework for macOS (Taminator.app is self-contained; arm64 and x64)
+  when: ansible_system == 'Darwin'
+  become: false
+  command: bash -e "{{ repo_root }}/scripts/embed-macos-python-framework.sh" "{{ python_bundle_dir }}"
+
 # venv --copies still leaves the interpreter dynamically linked to libpython on the build host.
 # Ship those .so files and set LD_LIBRARY_PATH at runtime (see taminator/gui/main.js).
 - name: Embed libpython shared libraries for Linux (ldd → python-bundle/lib)

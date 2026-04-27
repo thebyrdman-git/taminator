@@ -127,6 +127,23 @@ function prependBundledPythonLibLinux(bundleDir, env) {
   return { ...env, LD_LIBRARY_PATH: next };
 }
 
+/** macOS: bundled Python may ship Python.framework under python-bundle/Frameworks; prefer install_name_tool from the build. */
+function prependBundledPythonRuntimeEnv(bundleDir, env) {
+  const fs = require('fs');
+  if (process.platform === 'linux' && bundleDir) {
+    return prependBundledPythonLibLinux(bundleDir, env);
+  }
+  if (process.platform === 'darwin' && bundleDir) {
+    const fwkBase = path.join(bundleDir, 'Frameworks');
+    if (fs.existsSync(fwkBase)) {
+      const prev = env.DYLD_FRAMEWORK_PATH || '';
+      const next = prev ? `${fwkBase}:${prev}` : fwkBase;
+      return { ...env, DYLD_FRAMEWORK_PATH: next };
+    }
+  }
+  return env;
+}
+
 function getServerPaths() {
   const fs = require('fs');
   if (app.isPackaged) {
@@ -154,7 +171,7 @@ function getServerPaths() {
     env.TAMINATOR_RESOURCES = path.join(resourcesPath, 'taminator');
     if (bundleDir && sitePackages) env.VIRTUAL_ENV = bundleDir;
     if (appVersion) env.TAMINATOR_APP_VERSION = appVersion;
-    const envWithLib = prependBundledPythonLibLinux(bundleDir, env);
+    const envWithLib = prependBundledPythonRuntimeEnv(bundleDir, env);
     return {
       cwd: path.join(resourcesPath, 'taminator'),
       tamRfe: path.join(resourcesPath, 'taminator', 'tam-rfe'),
