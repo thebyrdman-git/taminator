@@ -38,19 +38,19 @@
       "public/**/*",
       "package.json",
       "../gui_auth_check.py",
-      "../src/**/*",
+      "../taminator/src/**/*",
       "!index.html"
     ],
     "asarUnpack": [
       "../gui_auth_check.py",
-      "../src/**/*"
+      "../taminator/src/**/*"
     ],
     "extraResources": [
       { "from": "../taminator/web", "to": "taminator/web" },
       { "from": "../taminator/web_server.py", "to": "taminator/web_server.py" },
       { "from": "../taminator/tam-rfe", "to": "taminator/tam-rfe" },
       { "from": "../taminator/VERSION", "to": "taminator/VERSION" },
-      { "from": "../src", "to": "src" },
+      { "from": "../taminator/src", "to": "src" },
       { "from": "../taminator/python-bundle", "to": "python-bundle" }
     ],
     "mac": {

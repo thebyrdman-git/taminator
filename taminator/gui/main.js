@@ -188,7 +188,7 @@ function getServerPaths() {
     python: null,
     sitePackages: null,
     embeddedPythonHome: null,
-    env: { ...process.env, PYTHONPATH: path.join(appRoot, 'src') }
+    env: { ...process.env, PYTHONPATH: path.join(appRoot, 'taminator', 'src') }
   };
 }
 
@@ -565,10 +565,10 @@ app.on('activate', () => {
 // IPC handlers for CLI integration
 ipcMain.handle('run-cli-command', async (event, command, args) => {
   return new Promise((resolve, reject) => {
-    const cliPath = path.join(__dirname, '../src/taminator');
+    const cliPath = path.join(__dirname, '../taminator/src/taminator');
     const process = spawn('python3', ['-m', 'taminator', command, ...args], {
       cwd: path.join(__dirname, '..'),
-      env: { ...process.env, PYTHONPATH: path.join(__dirname, '../src') }
+      env: { ...process.env, PYTHONPATH: path.join(__dirname, '../taminator/src') }
     });
 
     let stdout = '';
