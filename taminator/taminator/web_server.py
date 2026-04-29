@@ -36,6 +36,8 @@ except ImportError:
 
 # Directory containing this script (taminator/taminator)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Dev checkout: package lives under …/taminator/taminator/src — not Resources/taminator/src (packaged).
+SCRIPT_DIR_CHILD_SRC = os.path.join(SCRIPT_DIR, "src")
 
 
 def _resolve_web_dir() -> str:
@@ -98,19 +100,22 @@ def _ui_status_payload() -> dict:
 def _taminator_src_path():
     """Path to the directory that contains the 'taminator' package (for sys.path).
     Prefer PYTHONPATH (set by Electron when packaged), then SCRIPT_DIR layouts."""
-    # Packaged app: Electron sets PYTHONPATH to Resources/app.asar.unpacked/src
+    # Packaged app: Python sources live at Resources/src (sibling of Resources/taminator where this file sits).
+    # Do not use SCRIPT_DIR/src alone — that resolves to Resources/taminator/src and omits integrations/.
     for p in os.environ.get("PYTHONPATH", "").split(os.pathsep):
         p = p.strip()
         if p and os.path.isdir(p) and os.path.isdir(os.path.join(p, "taminator")):
             return p
     candidates = [
-        os.path.join(SCRIPT_DIR, "src"),
+        SCRIPT_DIR_CHILD_SRC,
+        os.path.normpath(os.path.join(SCRIPT_DIR, "..", "src")),
         os.path.join(SCRIPT_DIR, "app.asar.unpacked", "src"),
     ]
     resources = os.environ.get("TAMINATOR_RESOURCES", "").strip()
     if resources and resources != SCRIPT_DIR:
         candidates.extend([
             os.path.join(resources, "src"),
+            os.path.normpath(os.path.join(resources, "..", "src")),
             os.path.join(resources, "app.asar.unpacked", "src"),
         ])
     for p in candidates:
@@ -727,7 +732,7 @@ def get_roadmap() -> dict:
 
 def check_vpn() -> dict:
     """Check if Red Hat VPN appears to be up (can reach issues.redhat.com). Returns { ok: bool, message: str }."""
-    src_path = os.path.join(SCRIPT_DIR, "src")
+    src_path = _taminator_src_path()
     try:
         if src_path not in sys.path:
             sys.path.insert(0, src_path)
@@ -1154,7 +1159,7 @@ def get_token_status():
         "hydra_credentials_set": bool(ui_tokens.get("redhat_username") and ui_tokens.get("redhat_password")),
     }
     try:
-        sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+        sys.path.insert(0, _taminator_src_path())
         from taminator.core.auth_box import auth_box
         from taminator.core.auth_types import AuthType
         if auth_box.get_token(AuthType.JIRA_TOKEN, required=False):
@@ -1165,8 +1170,8 @@ def get_token_status():
     except Exception:
         pass
     finally:
-        if os.path.join(SCRIPT_DIR, "src") in sys.path:
-            sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+        if _taminator_src_path() in sys.path:
+            sys.path.remove(_taminator_src_path())
     return result
 
 
@@ -1179,7 +1184,7 @@ def _get_effective_hydra_token():
     """
     token = None
     try:
-        sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+        sys.path.insert(0, _taminator_src_path())
         from taminator.core.hydra_search import get_bearer_token_from_env, get_bearer_token
         ui_tokens = _get_ui_tokens()
         if ui_tokens.get("redhat_username") and ui_tokens.get("redhat_password"):
@@ -1192,8 +1197,8 @@ def _get_effective_hydra_token():
     except Exception:
         pass
     finally:
-        if os.path.join(SCRIPT_DIR, "src") in sys.path:
-            sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+        if _taminator_src_path() in sys.path:
+            sys.path.remove(_taminator_src_path())
     if token:
         return token
     tokens = _get_ui_tokens()
@@ -1204,7 +1209,7 @@ def _get_effective_hydra_token():
     if pt_env:
         return pt_env
     try:
-        sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+        sys.path.insert(0, _taminator_src_path())
         from taminator.core.auth_box import auth_box
         from taminator.core.auth_types import AuthType
         token = auth_box.get_token(AuthType.PORTAL_TOKEN, required=False)
@@ -1212,8 +1217,8 @@ def _get_effective_hydra_token():
     except Exception:
         return None
     finally:
-        if os.path.join(SCRIPT_DIR, "src") in sys.path:
-            sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+        if _taminator_src_path() in sys.path:
+            sys.path.remove(_taminator_src_path())
 
 
 def _get_hydra_basic_auth():
@@ -1440,14 +1445,14 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 google_result = [False]  # mutable for thread
                 def _check_google():
                     try:
-                        sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                        sys.path.insert(0, _taminator_src_path())
                         from taminator.integrations.google_drive import get_credentials
                         google_result[0] = bool(get_credentials())
                     except Exception:
                         pass
                     finally:
-                        if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                            sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                        if _taminator_src_path() in sys.path:
+                            sys.path.remove(_taminator_src_path())
                 t = threading.Thread(target=_check_google, daemon=True)
                 t.start()
                 t.join(timeout=1.5)
@@ -1475,7 +1480,7 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 self.send_json({"customer": customer, "content": content})
             elif path == "api/google/status":
                 try:
-                    sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                    sys.path.insert(0, _taminator_src_path())
                     from taminator.integrations.google_drive import is_configured, get_credentials
                     configured = is_configured()
                     connected = bool(get_credentials()) if configured else False
@@ -1483,8 +1488,8 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 except Exception:
                     self.send_json({"configured": False, "connected": False})
                 finally:
-                    if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                        sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                    if _taminator_src_path() in sys.path:
+                        sys.path.remove(_taminator_src_path())
             elif path == "api/vpn/check":
                 self.send_json(check_vpn())
             elif path == "api/test/hydra":
@@ -1521,7 +1526,7 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                         )
                         return
                     discovery = True
-                srcp = os.path.join(SCRIPT_DIR, "src")
+                srcp = _taminator_src_path()
                 try:
                     sys.path.insert(0, srcp)
                     from taminator.core import hydra_search
@@ -1622,13 +1627,13 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 self.send_json(get_roadmap())
             elif path == "api/vault/status":
                 try:
-                    sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                    sys.path.insert(0, _taminator_src_path())
                     from taminator.core.vault_client import vault_client
                     from taminator.core.hybrid_auth import hybrid_auth
                     vstatus = vault_client.get_status()
                     hstatus = hybrid_auth.get_status()
-                    if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                        sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                    if _taminator_src_path() in sys.path:
+                        sys.path.remove(_taminator_src_path())
                     self.send_json({
                         "available": vstatus.get("available", False),
                         "addr": vstatus.get("addr") or os.environ.get("VAULT_ADDR") or "Not configured",
@@ -1639,20 +1644,20 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                         "error": vstatus.get("error") if not vstatus.get("available") else None,
                     })
                 except Exception as e:
-                    if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                        sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                    if _taminator_src_path() in sys.path:
+                        sys.path.remove(_taminator_src_path())
                     self.send_json({"available": False, "addr": os.environ.get("VAULT_ADDR") or "Not configured", "strategy": "auth-box-only", "error": str(e)}, 200)
             elif path == "api/vault/list":
                 try:
-                    sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                    sys.path.insert(0, _taminator_src_path())
                     from taminator.core.vault_client import vault_client
                     tokens = vault_client.list_tokens()
-                    if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                        sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                    if _taminator_src_path() in sys.path:
+                        sys.path.remove(_taminator_src_path())
                     self.send_json({"ok": True, "tokens": [k.replace("/", "") for k in (tokens or [])]})
                 except Exception as e:
-                    if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                        sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                    if _taminator_src_path() in sys.path:
+                        sys.path.remove(_taminator_src_path())
                     self.send_json({"ok": False, "error": str(e), "tokens": []}, 500)
             elif path == "api/vault/get":
                 service = (qs.get("service") or [""])[0].strip()
@@ -1660,15 +1665,15 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                     self.send_json({"ok": False, "error": "service required"}, 400)
                     return
                 try:
-                    sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                    sys.path.insert(0, _taminator_src_path())
                     from taminator.core.hybrid_auth import hybrid_auth
                     token = hybrid_auth.get_token(service, required=False)
-                    if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                        sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                    if _taminator_src_path() in sys.path:
+                        sys.path.remove(_taminator_src_path())
                     self.send_json({"ok": True, "value": token or ""})
                 except Exception as e:
-                    if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                        sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                    if _taminator_src_path() in sys.path:
+                        sys.path.remove(_taminator_src_path())
                     self.send_json({"ok": False, "error": str(e), "value": ""}, 500)
             else:
                 self.send_json({"ok": False, "error": "Not found"}, 404)
@@ -1784,7 +1789,7 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "error": "Provide customer (to load report) or content and title."}, 400)
                 return
             try:
-                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                sys.path.insert(0, _taminator_src_path())
                 from taminator.integrations.google_drive import create_doc_from_text, get_credentials
                 if not get_credentials():
                     self.send_json({"ok": False, "error": "Google Drive not connected. In Settings → Google Drive & Docs, add client ID/secret and click Connect Google."}, 400)
@@ -1794,8 +1799,8 @@ class TaminatorHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 400)
             finally:
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
             return
         if path == "api/google/create-gmail-draft":
             customer = (data.get("customer") or "").strip()
@@ -1810,7 +1815,7 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "error": "Provide customer (to load report) or content and title."}, 400)
                 return
             try:
-                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                sys.path.insert(0, _taminator_src_path())
                 from taminator.integrations.google_drive import create_gmail_draft, get_credentials
                 if not get_credentials():
                     self.send_json({"ok": False, "error": "Google not connected. In Settings → Google Drive & Docs, add client ID/secret and click Connect Google. Reconnect to enable Gmail drafts."}, 400)
@@ -1820,8 +1825,8 @@ class TaminatorHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 400)
             finally:
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
             return
         if path.rstrip("/") == "api/google/set-credentials" or path == "api/google/set-credentials":
             client_id = (data.get("client_id") or "").strip()
@@ -1897,7 +1902,7 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 return
             _ensure_taminator_on_path()
             try:
-                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                sys.path.insert(0, _taminator_src_path())
                 from taminator.core import hydra_search
                 from taminator.commands.check import JIRAClient
                 from taminator.core import jira_config
@@ -1965,8 +1970,8 @@ class TaminatorHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 500)
             finally:
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
             return
         if path == "api/jira/from-paste":
             # JIRA keys/URLs only — for accounts with no case↔JIRA linkage in access.redhat.com (e.g. SNOW, ROSA FedRAMP).
@@ -1989,7 +1994,7 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 return
             _ensure_taminator_on_path()
             try:
-                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                sys.path.insert(0, _taminator_src_path())
                 from taminator.commands.check import JIRAClient
                 from taminator.core import jira_config
                 from taminator.commands.update import _format_case_cell, _format_jira_cell, _escape_table_cell
@@ -2069,8 +2074,8 @@ class TaminatorHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 500)
             finally:
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
             return
         if path.rstrip("/") == "api/library/delete" or path == "api/library/delete":
             path_str = (data.get("path") or data.get("path_str") or "").strip()
@@ -2085,7 +2090,7 @@ class TaminatorHandler(BaseHTTPRequestHandler):
             return
         if path == "api/google/connect":
             try:
-                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                sys.path.insert(0, _taminator_src_path())
                 from taminator.integrations.google_drive import run_oauth_flow
                 success, err = run_oauth_flow()
                 if success:
@@ -2095,12 +2100,12 @@ class TaminatorHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 400)
             finally:
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
             return
         if path == "api/google/backup":
             try:
-                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                sys.path.insert(0, _taminator_src_path())
                 from taminator.integrations.google_drive import backup_reports_to_drive, get_credentials
                 if not get_credentials():
                     self.send_json({"ok": False, "error": "Google Drive not connected. Click Connect Google below first."}, 400)
@@ -2123,8 +2128,8 @@ class TaminatorHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 400)
             finally:
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
             return
         if path == "api/config/set-token":
             # Never log or expose token values (enterprise UX standard: security).
@@ -2231,15 +2236,15 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "error": "service and token required"}, 400)
                 return
             try:
-                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                sys.path.insert(0, _taminator_src_path())
                 from taminator.core.hybrid_auth import hybrid_auth
                 ok = hybrid_auth.set_token(service, token)
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
                 self.send_json({"ok": ok, "message": "Token stored." if ok else "Failed to store token."})
             except Exception as e:
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
                 self.send_json({"ok": False, "error": str(e)}, 500)
             return
         if path == "api/vault/delete":
@@ -2248,28 +2253,28 @@ class TaminatorHandler(BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "error": "service required"}, 400)
                 return
             try:
-                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                sys.path.insert(0, _taminator_src_path())
                 from taminator.core.vault_client import vault_client
                 ok = vault_client.delete_token(service)
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
                 self.send_json({"ok": ok, "message": "Token deleted." if ok else "Failed to delete."})
             except Exception as e:
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
                 self.send_json({"ok": False, "error": str(e)}, 500)
             return
         if path == "api/vault/migrate":
             try:
-                sys.path.insert(0, os.path.join(SCRIPT_DIR, "src"))
+                sys.path.insert(0, _taminator_src_path())
                 from taminator.core.hybrid_auth import hybrid_auth
                 migrated, failed = hybrid_auth.migrate_to_vault()
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
                 self.send_json({"ok": True, "migrated": migrated, "failed": failed, "message": f"Migrated {migrated} tokens to Vault."})
             except Exception as e:
-                if os.path.join(SCRIPT_DIR, "src") in sys.path:
-                    sys.path.remove(os.path.join(SCRIPT_DIR, "src"))
+                if _taminator_src_path() in sys.path:
+                    sys.path.remove(_taminator_src_path())
                 self.send_json({"ok": False, "error": str(e)}, 500)
             return
         if path == "api/accounts":
