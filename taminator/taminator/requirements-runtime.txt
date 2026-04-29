@@ -1,6 +1,10 @@
 # Minimal runtime deps for tam-rfe (serve + CLI). Used by the bundled Python env in the app.
+# AppImage/DMG use this venv only — host pip is ignored; include Google libs for Drive/Docs OAuth.
 rich>=13.0.0
 click>=8.1.0
 requests>=2.31.0
 pyyaml>=6.0
 jinja2>=3.1.0
+markdown>=3.5.0
+google-api-python-client>=2.100.0
+google-auth-oauthlib>=1.0.0
