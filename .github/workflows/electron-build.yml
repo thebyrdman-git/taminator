@@ -123,6 +123,25 @@ jobs:
           env LD_LIBRARY_PATH="$LIB" "$PY" -c "import rich, click" || { echo "::error::venv import failed (rich/click or stdlib — check pyvenv.cfg home + LD_LIBRARY_PATH + PYTHONPATH)"; exit 1; }
           env LD_LIBRARY_PATH="$LIB" "$PY" -c "import encodings, rich" || { echo "::error::Bundle must run with only LD_LIBRARY_PATH=$LIB (libpython embed)"; exit 1; }
           echo "Python bundle OK: $(env LD_LIBRARY_PATH="$LIB" "$PY" -c 'import rich; print(rich.__file__)')"
+      - name: Set build version (tag = release semver; branch/manual = base-ci.run so artifacts differ per build)
+        shell: bash
+        working-directory: taminator/gui
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -e
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            NEW="${GITHUB_REF#refs/tags/v}"
+            echo "Release version from git tag: $NEW"
+          else
+            BASE=$(node -p "require('./package.json').version")
+            BASE="${BASE%%-ci.*}"
+            NEW="${BASE}-ci.${GITHUB_RUN_NUMBER}"
+            echo "CI artifact version: $NEW (marketing release remains ${BASE} until you bump package.json / content-consistency)"
+          fi
+          npm pkg set "version=${NEW}"
+          printf '%s\n' "${NEW}" > ../taminator/VERSION
       - name: Build Electron app (Linux)
         working-directory: taminator/gui
         env:
@@ -250,6 +269,25 @@ jobs:
           $py = "taminator/taminator/python-bundle/Scripts/python.exe"
           if (-not (Test-Path $py)) { throw "Missing $py" }
           & $py -c "import rich, click"
+      - name: Set build version (tag = release semver; branch/manual = base-ci.run)
+        shell: bash
+        working-directory: taminator/gui
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -e
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            NEW="${GITHUB_REF#refs/tags/v}"
+            echo "Release version from git tag: $NEW"
+          else
+            BASE=$(node -p "require('./package.json').version")
+            BASE="${BASE%%-ci.*}"
+            NEW="${BASE}-ci.${GITHUB_RUN_NUMBER}"
+            echo "CI artifact version: $NEW"
+          fi
+          npm pkg set "version=${NEW}"
+          printf '%s\n' "${NEW}" > ../taminator/VERSION
       - name: Build Electron app (${{ matrix.os }})
         working-directory: taminator/gui
         env:
@@ -341,6 +379,19 @@ jobs:
             npm config set fetch-timeout 300000
             npm config set fetch-retry-mintimeout 20000
             npm ci
+            REF='${{ github.ref }}'
+            RUN='${{ github.run_number }}'
+            if [[ "$REF" == refs/tags/v* ]]; then
+              NEW="${REF#refs/tags/v}"
+              echo "Release version from git tag: $NEW"
+            else
+              BASE=$(node -p "require('./package.json').version")
+              BASE="${BASE%%-ci.*}"
+              NEW="${BASE}-ci.${RUN}"
+              echo "CI artifact version: $NEW"
+            fi
+            npm pkg set "version=${NEW}"
+            printf '%s\n' "${NEW}" > /workspace/taminator/taminator/VERSION
             npx electron-builder --linux AppImage --arm64 --publish never
             cp -v dist/*.AppImage /artifacts/ 2>/dev/null || true
             APPIMAGE=$(ls -1 /artifacts/*.AppImage 2>/dev/null | head -1)
